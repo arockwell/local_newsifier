@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 import time
 
@@ -217,7 +217,7 @@ class WebScraperTool:
             article_text = self.extract_article_text(html_content)
             
             state.scraped_text = article_text
-            state.scraped_at = datetime.utcnow()
+            state.scraped_at = datetime.now(UTC)
             state.status = AnalysisStatus.SCRAPE_SUCCEEDED
             state.add_log("Successfully scraped article content")
             
