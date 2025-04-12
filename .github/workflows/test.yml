@@ -48,11 +48,4 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        poetry run pytest --cov=src/local_newsifier --cov-report=xml
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }} 
+        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term 

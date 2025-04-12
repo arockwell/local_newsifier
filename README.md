@@ -1,7 +1,6 @@
 # Project Chronicle Persistence
 
 [![Tests](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml/badge.svg)](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/alexrockwell/local_newsifier/branch/main/graph/badge.svg)](https://codecov.io/gh/alexrockwell/local_newsifier)
 
 A robust system for fetching, analyzing, and storing local news articles from Gainesville, FL using crew.ai Flows.
 
@@ -50,9 +49,10 @@ Tests are automatically run on:
 - Every pull request
 - Python versions 3.10, 3.11, and 3.12
 
-Test results and coverage reports are available:
-- GitHub Actions: View test execution and logs
-- Codecov: View detailed coverage reports and trends
+Test results and coverage reports are available in GitHub Actions:
+- View test execution and logs
+- Coverage reports are displayed in the test output
+- XML coverage reports are generated for detailed analysis
 
 ### Running Tests
 
