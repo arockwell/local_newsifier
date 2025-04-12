@@ -1,4 +1,18 @@
-"""Headline analysis tool for detecting trends in news headlines."""
+"""
+Headline analysis tool for detecting trends in news headlines.
+
+This module provides tools for analyzing news headlines over time to identify trending terms 
+and topics. It offers functionality for:
+
+1. Grouping headlines by time periods (day, week, month)
+2. Extracting significant keywords using NLP or simple tokenization
+3. Detecting trending terms by analyzing temporal patterns
+4. Calculating growth rates for keywords over time
+5. Generating trend analysis results in structured format
+
+The HeadlineTrendAnalyzer is designed to work with the database to retrieve headline data
+and perform analysis efficiently, even with large datasets.
+"""
 
 import logging
 from collections import Counter, defaultdict

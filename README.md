@@ -12,6 +12,8 @@ This system automatically fetches local news articles, performs Named Entity Rec
 
 - Automated news article fetching
 - Named Entity Recognition (NER) analysis
+- Headline trend analysis with NLP-powered keyword extraction
+- Temporal tracking of trending terms in news coverage
 - Robust error handling and retry mechanisms
 - State persistence and workflow resumption
 - Comprehensive logging and monitoring
@@ -35,9 +37,21 @@ poetry run python -m spacy download en_core_web_lg
 
 ## Usage
 
-Run the pipeline:
+Run the article processing pipeline:
 ```bash
 poetry run python scripts/run_pipeline.py --url <URL>
+```
+
+Analyze headline trends:
+```bash
+# Analyze recent headlines
+poetry run python scripts/demo_headline_trends.py --days 30 --interval day
+
+# Generate a report in markdown format
+poetry run python scripts/demo_headline_trends.py --format markdown --output trends.md
+
+# Analyze a specific date range
+poetry run python scripts/demo_headline_trends.py --start-date 2023-01-01 --end-date 2023-01-31 --interval week
 ```
 
 ## Testing Guide
@@ -213,8 +227,12 @@ def test_component_success(mock_component):
 src/
 ├── local_newsifier/
 │   ├── tools/          # Tool implementations
+│   │   ├── analysis/   # Analysis tools (headline trends, etc.)
+│   │   └── ...         # Other tools (web scraper, NER, etc.)
 │   ├── models/         # Pydantic models
 │   ├── flows/          # crew.ai Flow definitions
+│   │   ├── analysis/   # Analysis workflows
+│   │   └── ...         # Other flows (news pipeline, RSS, etc.)
 │   └── config/         # Configuration
 tests/                  # Test suite
 scripts/                # Runtime scripts

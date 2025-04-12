@@ -1,4 +1,17 @@
-"""Flow for analyzing headline trends in news articles."""
+"""
+Flow for analyzing headline trends in news articles.
+
+This module provides a crew.ai Flow for orchestrating headline trend analysis, including:
+
+1. Managing database connections for retrieving news articles
+2. Analyzing trends in headlines over specified time periods
+3. Generating formatted reports of analysis results
+4. Supporting different time intervals (daily, weekly, monthly)
+5. Providing both date range and recent history analysis options
+
+The HeadlineTrendFlow handles database session management, tool initialization,
+and report generation in various formats (text, markdown, HTML).
+"""
 
 import logging
 from datetime import datetime, timedelta

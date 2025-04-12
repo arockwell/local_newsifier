@@ -4,6 +4,29 @@ Demo script for headline trend analysis.
 
 This script demonstrates how to use the HeadlineTrendFlow to analyze trends
 in article headlines over time.
+
+The script will:
+1. Connect to the database to retrieve article headlines
+2. Group headlines by time periods (day, week, or month)
+3. Extract significant keywords using NLP techniques
+4. Identify trending terms by analyzing frequency changes over time
+5. Generate a formatted report (text, markdown, or HTML)
+
+Example usage:
+    # Basic usage (analyzes last 30 days with daily intervals)
+    python demo_headline_trends.py
+
+    # Analyze recent headlines with weekly intervals
+    python demo_headline_trends.py --days 90 --interval week
+
+    # Analyze a specific date range
+    python demo_headline_trends.py --start-date 2023-01-01 --end-date 2023-03-31 --interval month
+
+    # Generate a markdown report and save to file
+    python demo_headline_trends.py --format markdown --output trends.md
+
+    # Generate an HTML report with more terms
+    python demo_headline_trends.py --format html --top 30 --output trends.html
 """
 
 import argparse
