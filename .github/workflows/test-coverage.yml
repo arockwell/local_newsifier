@@ -32,6 +32,8 @@ jobs:
       run: |
         poetry install --no-interaction
         poetry run pip list
+    - name: Install feedparser directly
+      run: poetry run pip install feedparser==6.0.11
     - name: Verify feedparser installation
       run: |
         poetry run python -c "import feedparser; print('feedparser version: ' + feedparser.__version__)"
