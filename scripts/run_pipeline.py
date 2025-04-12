@@ -17,11 +17,8 @@ def setup_logging(level: int = logging.INFO) -> None:
     """Set up logging configuration."""
     logging.basicConfig(
         level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('pipeline.log')
-        ]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(), logging.FileHandler("pipeline.log")],
     )
 
 
@@ -29,7 +26,9 @@ def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Run news analysis pipeline")
     parser.add_argument("--url", required=True, help="URL of the article to analyze")
-    parser.add_argument("--output-dir", default="output", help="Directory to save results")
+    parser.add_argument(
+        "--output-dir", default="output", help="Directory to save results"
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
@@ -66,4 +65,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    main()
