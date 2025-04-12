@@ -44,7 +44,6 @@ class DatabaseSettings(BaseSettings):
         )
 
     model_config = {
-        "env_file": ".env",
         "case_sensitive": True,
         "env_file_encoding": "utf-8",
         "validate_assignment": True,
