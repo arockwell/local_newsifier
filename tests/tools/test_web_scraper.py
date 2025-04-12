@@ -150,10 +150,15 @@ class TestWebScraper:
         monkeypatch.setattr('tenacity.retry', no_retry)
         
         # Create scraper instance with mocked dependencies
-        with patch('selenium.webdriver.chrome.service.Service'), \
-             patch('webdriver_manager.chrome.ChromeDriverManager'), \
-             patch('selenium.webdriver.chrome.webdriver.WebDriver'), \
+        with patch('selenium.webdriver.chrome.service.Service') as mock_service, \
+             patch('webdriver_manager.chrome.ChromeDriverManager') as mock_manager, \
+             patch('selenium.webdriver.chrome.webdriver.WebDriver', return_value=mock_webdriver), \
              patch('selenium.webdriver.support.wait.WebDriverWait'):
+            
+            # Configure mocks
+            mock_manager.return_value.install.return_value = "path/to/chromedriver"
+            mock_service.return_value = MagicMock(name="service_instance")
+            
             self.scraper = WebScraperTool()
             self.scraper.driver = mock_webdriver
 
@@ -323,4 +328,84 @@ class TestWebScraper:
 
             assert mock_state.status == AnalysisStatus.SCRAPE_FAILED_PARSING
             assert mock_state.error_details is not None
-            assert len(mock_state.run_logs) > 0 
+            assert len(mock_state.run_logs) > 0
+
+    def test_del_cleanup(self):
+        """Test cleanup in __del__ method."""
+        scraper = WebScraperTool()
+        scraper.driver = MagicMock()
+        del scraper
+        # The driver.quit() should be called during cleanup
+
+    def test_get_driver(self):
+        """Test driver initialization."""
+        # Create a new scraper instance
+        scraper = WebScraperTool()
+        
+        # First call should create a new driver
+        driver1 = scraper._get_driver()
+        assert driver1 is not None
+        
+        # Second call should return the same driver
+        driver2 = scraper._get_driver()
+        assert driver2 is not None
+        assert driver1 == driver2
+
+    def test_extract_article_strategy_2(self):
+        """Test article extraction using strategy 2 (article with most paragraphs)."""
+        html = """
+        <html>
+            <body>
+                <article>
+                    <p>This is a very short article that will be filtered out due to length requirements.</p>
+                </article>
+                <article>
+                    <p>This is a longer article with multiple paragraphs that should be extracted properly.</p>
+                    <p>This is the second paragraph of the article that contains more detailed information.</p>
+                    <p>And this is the third paragraph that provides additional context and details.</p>
+                </article>
+            </body>
+        </html>
+        """
+        text = self.scraper.extract_article_text(html)
+        assert "longer article with multiple paragraphs" in text
+        assert "second paragraph of the article" in text
+        assert "third paragraph that provides additional context" in text
+
+    def test_extract_article_strategy_3(self):
+        """Test article extraction using strategy 3 (main content area)."""
+        html = """
+        <html>
+            <body>
+                <main>
+                    <article>
+                        <p>This is the main content article that should be extracted properly.</p>
+                        <p>This is the second paragraph that contains more detailed information about the topic.</p>
+                        <p>And this is the third paragraph that provides additional context and details.</p>
+                    </article>
+                </main>
+            </body>
+        </html>
+        """
+        text = self.scraper.extract_article_text(html)
+        assert "main content article that should be extracted" in text
+        assert "second paragraph that contains more detailed information" in text
+        assert "third paragraph that provides additional context" in text
+
+    def test_extract_article_strategy_4(self):
+        """Test article extraction using strategy 4 (div with article-like content)."""
+        html = """
+        <html>
+            <body>
+                <div class="article-content">
+                    <p>This is the article content in a div that should be extracted properly.</p>
+                    <p>This is the second paragraph that contains more detailed information about the topic.</p>
+                    <p>And this is the third paragraph that provides additional context and details.</p>
+                </div>
+            </body>
+        </html>
+        """
+        text = self.scraper.extract_article_text(html)
+        assert "article content in a div that should be extracted" in text
+        assert "second paragraph that contains more detailed information" in text
+        assert "third paragraph that provides additional context" in text 
