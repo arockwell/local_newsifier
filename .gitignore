@@ -1,3 +1,10 @@
+# Output data
+output/
+
+# Log files
+*.log
+pipeline.log
+
 # Python
 __pycache__/
 *.py[cod]
