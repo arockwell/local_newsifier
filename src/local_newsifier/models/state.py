@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class AnalysisStatus(str, Enum):
     """Status of the analysis pipeline."""
+
     INITIALIZED = "INITIALIZED"
     SCRAPING = "SCRAPING"
     SCRAPE_SUCCEEDED = "SCRAPE_SUCCEEDED"
@@ -25,6 +26,7 @@ class AnalysisStatus(str, Enum):
 
 class ErrorDetails(BaseModel):
     """Details about an error that occurred during processing."""
+
     task: str
     type: str
     message: str
@@ -33,6 +35,7 @@ class ErrorDetails(BaseModel):
 
 class NewsAnalysisState(BaseModel):
     """State model for the news analysis pipeline."""
+
     run_id: UUID = Field(default_factory=uuid4)
     target_url: str
     scraped_at: Optional[datetime] = None
@@ -58,7 +61,7 @@ class NewsAnalysisState(BaseModel):
                 "target_url": "https://example.com/news/article",
                 "status": "INITIALIZED",
                 "analysis_config": {"entity_types": ["PERSON", "ORG", "GPE"]},
-                "run_logs": []
+                "run_logs": [],
             }
         }
     )
@@ -79,6 +82,6 @@ class NewsAnalysisState(BaseModel):
             task=task,
             type=error.__class__.__name__,
             message=str(error),
-            traceback_snippet=str(error.__traceback__)
+            traceback_snippet=str(error.__traceback__),
         )
-        self.touch() 
+        self.touch()

@@ -57,4 +57,4 @@ poetry.lock
 Thumbs.db
 
 # Project specific
-cache/ 
+cache/
