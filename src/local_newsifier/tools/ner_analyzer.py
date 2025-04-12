@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Set
 
 import spacy
@@ -78,7 +78,7 @@ class NERAnalyzerTool:
 
     def analyze(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """
-        Perform NER analysis and update state.
+        Analyze article content for named entities.
         
         Args:
             state: Current pipeline state
@@ -86,13 +86,13 @@ class NERAnalyzerTool:
         Returns:
             Updated state
         """
-        if not state.scraped_text:
-            raise ValueError("No text content available for analysis")
-            
         try:
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting NER analysis")
             
+            if not state.scraped_text:
+                raise ValueError("No text content available for analysis")
+                
             entity_types = state.analysis_config.get("entity_types", ["PERSON", "ORG", "GPE"])
             
             results = self._extract_entities(
@@ -114,7 +114,7 @@ class NERAnalyzerTool:
                 }
             }
             
-            state.analyzed_at = datetime.utcnow()
+            state.analyzed_at = datetime.now(timezone.utc)
             state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
             state.add_log(
                 f"Successfully completed NER analysis. "

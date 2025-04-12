@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -40,7 +40,7 @@ class FileWriterTool:
         domain = urlparse(state.target_url).netloc.replace("www.", "")
         
         # Create timestamp
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         
         return f"{domain}_{timestamp}_{state.run_id}.json"
 
@@ -111,7 +111,7 @@ class FileWriterTool:
                 os.replace(temp_file.name, filepath)
             
             state.save_path = str(filepath)
-            state.saved_at = datetime.utcnow()
+            state.saved_at = datetime.now(timezone.utc)
             state.status = AnalysisStatus.SAVE_SUCCEEDED
             state.add_log(f"Successfully saved results to {filepath}")
             
