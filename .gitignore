@@ -28,12 +28,18 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# Testing
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Environment
 .env
 .venv
+env/
+venv/
+ENV/
 env.bak/
 venv.bak/
 
@@ -50,5 +56,5 @@ poetry.lock
 .DS_Store
 Thumbs.db
 
-# Coverage
-.coverage 
+# Project specific
+cache/ 
