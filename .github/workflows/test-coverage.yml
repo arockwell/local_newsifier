@@ -31,7 +31,13 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
         poetry install --no-interaction
+        echo "=== All installed packages ==="
         poetry run pip list
+        echo "=== Package installation locations ==="
+        poetry run pip show feedparser || echo "feedparser not found"
+        poetry run pip show pydantic
+        poetry run pip show requests
+        poetry run pip show beautifulsoup4
     - name: Verify package installations
       run: |
         echo "Testing pydantic:"
