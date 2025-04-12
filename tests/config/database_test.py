@@ -58,15 +58,36 @@ def test_database_settings():
 
 def test_database_settings_defaults():
     """Test database settings with default values."""
-    # Temporarily remove test_env fixture
-    settings = DatabaseSettings(_env_file=None)  # Disable env file loading
+    # Store original environment variables
+    original_env = {
+        "POSTGRES_USER": os.environ.get("POSTGRES_USER"),
+        "POSTGRES_PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
+        "POSTGRES_HOST": os.environ.get("POSTGRES_HOST"),
+        "POSTGRES_PORT": os.environ.get("POSTGRES_PORT"),
+        "POSTGRES_DB": os.environ.get("POSTGRES_DB"),
+    }
     
-    assert settings.POSTGRES_USER == "postgres"
-    assert settings.POSTGRES_PASSWORD == "postgres"
-    assert settings.POSTGRES_HOST == "localhost"
-    assert settings.POSTGRES_PORT == "5432"
-    assert settings.POSTGRES_DB == "local_newsifier"
-    assert str(settings.DATABASE_URL) == "postgresql://postgres:postgres@localhost:5432/local_newsifier"
+    # Clear environment variables to test defaults
+    for key in original_env:
+        if key in os.environ:
+            del os.environ[key]
+    
+    try:
+        settings = DatabaseSettings(_env_file=None)  # Disable env file loading
+        
+        assert settings.POSTGRES_USER == "postgres"
+        assert settings.POSTGRES_PASSWORD == "postgres"
+        assert settings.POSTGRES_HOST == "localhost"
+        assert settings.POSTGRES_PORT == "5432"
+        assert settings.POSTGRES_DB == "local_newsifier"
+        assert str(settings.DATABASE_URL) == "postgresql://postgres:postgres@localhost:5432/local_newsifier"
+    finally:
+        # Restore original environment
+        for key, value in original_env.items():
+            if value is not None:
+                os.environ[key] = value
+            elif key in os.environ:
+                del os.environ[key]
 
 
 def test_database_settings_missing_required():
