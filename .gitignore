@@ -28,26 +28,24 @@ wheels/
 .installed.cfg
 *.egg
 
-# Testing
-.coverage
-coverage.xml
-htmlcov/
-.pytest_cache/
-
-# Environment
-.env
-.venv
-env/
+# Virtual Environment
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Testing
+.coverage
+coverage.xml
+.pytest_cache/
+
+# Cache
+cache/
 
 # Poetry
 poetry.lock
@@ -57,4 +55,5 @@ poetry.lock
 Thumbs.db
 
 # Project specific
-cache/ 
+env.bak/
+venv.bak/
