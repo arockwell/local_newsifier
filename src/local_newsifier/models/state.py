@@ -1,13 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalysisStatus(str, Enum):
-    """Enum representing the possible states of the analysis pipeline."""
+    """Status of the analysis pipeline."""
     INITIALIZED = "INITIALIZED"
     SCRAPING = "SCRAPING"
     SCRAPE_SUCCEEDED = "SCRAPE_SUCCEEDED"
@@ -24,11 +24,11 @@ class AnalysisStatus(str, Enum):
 
 
 class ErrorDetails(BaseModel):
-    """Model for storing error information."""
+    """Details about an error that occurred during processing."""
     task: str
     type: str
     message: str
-    traceback_snippet: str
+    traceback_snippet: Optional[str] = None
 
 
 class NewsAnalysisState(BaseModel):
@@ -47,17 +47,29 @@ class NewsAnalysisState(BaseModel):
     status: AnalysisStatus = Field(default=AnalysisStatus.INITIALIZED)
     error_details: Optional[ErrorDetails] = None
     retry_count: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     run_logs: List[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "run_id": "123e4567-e89b-12d3-a456-426614174000",
+                "target_url": "https://example.com/news/article",
+                "status": "INITIALIZED",
+                "analysis_config": {"entity_types": ["PERSON", "ORG", "GPE"]},
+                "run_logs": []
+            }
+        }
+    )
 
     def touch(self) -> None:
         """Update the last_updated timestamp."""
-        self.last_updated = datetime.utcnow()
+        self.last_updated = datetime.now(timezone.utc)
 
     def add_log(self, message: str) -> None:
         """Add a log message with timestamp."""
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         self.run_logs.append(f"[{timestamp}] {message}")
         self.touch()
 
@@ -69,11 +81,4 @@ class NewsAnalysisState(BaseModel):
             message=str(error),
             traceback_snippet=str(error.__traceback__)
         )
-        self.touch()
-
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v)
-        } 
+        self.touch() 
