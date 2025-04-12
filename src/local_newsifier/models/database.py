@@ -1,7 +1,7 @@
 """Database models for the news analysis system."""
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ class ArticleDB(Base):
     title = Column(String)
     source = Column(String)
     published_at = Column(DateTime)
-    scraped_at = Column(DateTime, default=datetime.utcnow)
+    scraped_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     content = Column(String)
     status = Column(String)  # e.g., "scraped", "analyzed", "error"
 
@@ -43,6 +43,7 @@ class EntityDB(Base):
     text = Column(String)
     entity_type = Column(String)  # e.g., "PERSON", "ORG", "GPE"
     confidence = Column(Float)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     article = relationship("ArticleDB", back_populates="entities")
@@ -57,7 +58,7 @@ class AnalysisResultDB(Base):
     article_id = Column(Integer, ForeignKey("articles.id"))
     analysis_type = Column(String)  # e.g., "NER", "sentiment"
     results = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     article = relationship("ArticleDB", back_populates="analysis_results")
