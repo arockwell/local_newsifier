@@ -16,9 +16,7 @@ beautifulsoup4 = "^4.13.3"
 tenacity = "^9.1.2"
 selenium = "^4.31.0"
 webdriver-manager = "^4.0.2"
-sqlalchemy = "^2.0.25"
-alembic = "^1.13.1"
-psycopg2-binary = "^2.9.9"  # For PostgreSQL support
+python-dateutil = "^2.9.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
