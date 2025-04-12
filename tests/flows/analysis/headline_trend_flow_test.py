@@ -231,3 +231,30 @@ class TestHeadlineTrendFlow:
         
         # Verify session was not closed
         mock_db_manager.session.close.assert_not_called()
+
+    def test_init_without_db_manager(self, monkeypatch):
+        """Test initialization without providing a database manager."""
+        # Mock the database settings and initialization
+        mock_db_settings = MagicMock()
+        mock_db_settings.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db"
+        
+        mock_engine = MagicMock()
+        mock_session_factory = MagicMock()
+        mock_session = MagicMock()
+        mock_session_factory.return_value = mock_session
+        
+        with patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_database_settings', return_value=mock_db_settings), \
+             patch('src.local_newsifier.flows.analysis.headline_trend_flow.init_db', return_value=mock_engine), \
+             patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_session', return_value=mock_session_factory):
+            
+            # Create flow without providing a db_manager
+            flow = HeadlineTrendFlow()
+            
+            # Verify database was initialized
+            assert flow.db_manager is not None
+            assert flow.db_manager.session == mock_session
+            assert flow._owns_session is True
+            
+            # Clean up
+            del flow
+            mock_session.close.assert_called_once()
