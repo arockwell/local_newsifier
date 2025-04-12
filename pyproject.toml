@@ -10,6 +10,8 @@ packages = [{include = "local_newsifier", from = "src"}]
 python = ">=3.10,<3.13"
 crewai = "^0.114.0"
 pydantic = "^2.11.3"
+pydantic-settings = "^2.2.1"
+sqlalchemy = "^2.0.27"
 spacy = "^3.8.5"
 requests = "^2.32.3"
 beautifulsoup4 = "^4.13.3"
