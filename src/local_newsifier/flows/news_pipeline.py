@@ -46,9 +46,14 @@ class NewsPipelineFlow(Flow):
         
         # Execute pipeline
         state = self.scrape_content(state)
+        if state.status not in [AnalysisStatus.SCRAPE_SUCCEEDED]:
+            return state
+            
         state = self.analyze_content(state)
+        if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
+            return state
+            
         state = self.save_results(state)
-        
         return state
 
     def resume_pipeline(self, run_id: str, state: Optional[NewsAnalysisState] = None) -> NewsAnalysisState:
@@ -74,21 +79,45 @@ class NewsPipelineFlow(Flow):
             AnalysisStatus.SCRAPE_FAILED_NETWORK,
             AnalysisStatus.SCRAPE_FAILED_PARSING
         ]:
+            # Clear any previous error details before retrying
+            if state.status in [AnalysisStatus.SCRAPE_FAILED_NETWORK, AnalysisStatus.SCRAPE_FAILED_PARSING]:
+                state.error_details = None
+                state.add_log("Retry attempt for scraping")
+            
             state = self.scrape_content(state)
+            if state.status not in [AnalysisStatus.SCRAPE_SUCCEEDED]:
+                return state
+                
             state = self.analyze_content(state)
+            if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
+                return state
+                
             state = self.save_results(state)
             
         elif state.status in [
             AnalysisStatus.SCRAPE_SUCCEEDED,
             AnalysisStatus.ANALYSIS_FAILED
         ]:
+            # Clear any previous error details before retrying
+            if state.status == AnalysisStatus.ANALYSIS_FAILED:
+                state.error_details = None
+                state.add_log("Retry attempt for analysis")
+            
             state = self.analyze_content(state)
+            if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
+                return state
+                
             state = self.save_results(state)
             
         elif state.status in [
             AnalysisStatus.ANALYSIS_SUCCEEDED,
             AnalysisStatus.SAVE_FAILED
         ]:
+            # Clear any previous error details before retrying
+            if state.status == AnalysisStatus.SAVE_FAILED:
+                state.error_details = None
+                state.add_log("Retry attempt for saving")
+            
             state = self.save_results(state)
             
         else:
