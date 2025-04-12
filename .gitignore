@@ -1,5 +1,6 @@
 # Output data
 output/
+test_output/
 
 # Log files
 *.log
