@@ -29,7 +29,12 @@ jobs:
         key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction
+      run: |
+        poetry install --no-interaction
+        poetry run pip list
+    - name: Verify feedparser installation
+      run: |
+        poetry run python -c "import feedparser; print('feedparser version: ' + feedparser.__version__)"
     - name: Download spaCy model
       run: poetry run python -m spacy download en_core_web_lg
     - name: Run tests with coverage
