@@ -44,7 +44,8 @@ def test_database_settings():
         POSTGRES_HOST="localhost",
         POSTGRES_PORT="5432",
         POSTGRES_DB="test_db",
-        _env_file=None  # Disable env file loading
+        _env_file=None,  # Disable env file loading
+        DATABASE_URL="postgresql://test:test@localhost:5432/test_db"  # Explicitly set DATABASE_URL
     )
     
     assert settings.POSTGRES_USER == "test"
@@ -95,14 +96,20 @@ def test_database_settings_port_conversion():
     assert settings.POSTGRES_PORT == "5432"  # Port is stored as string
 
 
+@patch("local_newsifier.config.database.init_db")
 @patch("local_newsifier.config.database.DatabaseSettings")
-@patch("local_newsifier.models.database.init_db")
-def test_get_database(mock_init_db, mock_settings):
+def test_get_database(mock_settings, mock_init_db):
     """Test get_database function."""
-    mock_settings.return_value.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db"
+    # Create a mock settings instance with a specific DATABASE_URL
+    mock_settings_instance = MagicMock()
+    mock_settings_instance.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db"
+    mock_settings.return_value = mock_settings_instance
+    
+    # Create a mock engine to return
     mock_engine = MagicMock()
     mock_init_db.return_value = mock_engine
     
+    # Call the function and verify results
     engine = get_database()
     assert engine is mock_engine
     mock_init_db.assert_called_once_with("postgresql://test:test@localhost:5432/test_db")
