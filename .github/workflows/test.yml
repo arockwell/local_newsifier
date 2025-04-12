@@ -40,7 +40,7 @@ jobs:
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        poetry install
+        poetry install --no-interaction --no-ansi
 
     - name: Download spaCy model
       run: |
