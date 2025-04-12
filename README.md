@@ -126,6 +126,58 @@ tests/
        assert component.mock.called_once()
    ```
 
+### Recent Testing Architecture Changes
+
+#### Environment Variable Handling
+The testing framework now includes robust environment variable management:
+- Tests that depend on default values now properly clear environment variables
+- Environment variables are restored after tests, even if they fail
+- Fixtures handle environment variable setup and teardown
+- Example:
+  ```python
+  def test_with_clean_environment():
+      # Store original environment
+      original_env = {k: os.environ.get(k) for k in relevant_keys}
+      
+      try:
+          # Clear environment for test
+          for key in original_env:
+              if key in os.environ:
+                  del os.environ[key]
+          
+          # Run test with clean environment
+          result = test_function()
+          
+      finally:
+          # Restore original environment
+          for key, value in original_env.items():
+              if value is not None:
+                  os.environ[key] = value
+  ```
+
+#### Database Testing
+Database testing has been improved with:
+- Proper mocking of database connections
+- Clear separation between test and production database settings
+- Environment-specific database configuration
+- Mocked database operations for faster test execution
+- Example:
+  ```python
+  @patch("module.database.init_db")
+  @patch("module.config.DatabaseSettings")
+  def test_database_operation(mock_settings, mock_init_db):
+      # Setup mocks
+      mock_settings_instance = MagicMock()
+      mock_settings_instance.DATABASE_URL = "test_url"
+      mock_settings.return_value = mock_settings_instance
+      
+      # Run test
+      result = database_operation()
+      
+      # Verify behavior
+      mock_init_db.assert_called_once_with("test_url")
+  ```
+
 7. **Assertions**
    - One logical assertion per test
    - Use descriptive assertion messages
