@@ -32,6 +32,16 @@ jobs:
       run: |
         poetry install --no-interaction
         poetry run pip list
+    - name: Verify package installations
+      run: |
+        echo "Testing pydantic:"
+        poetry run python -c "import pydantic; print('pydantic version: ' + pydantic.__version__)"
+        echo "Testing requests:"
+        poetry run python -c "import requests; print('requests version: ' + requests.__version__)"
+        echo "Testing beautifulsoup4:"
+        poetry run python -c "import bs4; print('bs4 version: ' + bs4.__version__)"
+        echo "Testing feedparser:"
+        poetry run python -c "import feedparser; print('feedparser version: ' + feedparser.__version__)"
     - name: Install feedparser directly
       run: poetry run pip install feedparser==6.0.11
     - name: Verify feedparser installation
