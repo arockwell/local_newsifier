@@ -1,26 +1,25 @@
 # Description
-<!-- Provide a brief, high-level description of the changes -->
+
+<!-- What is the purpose of this PR? -->
 
 # Changes
-<!-- List the main changes and additions made in this PR -->
-* 
-* 
-* 
+
+<!-- What are the key changes in this PR? -->
 
 # Testing
-<!-- Describe how you tested these changes -->
-* 
-* 
+
+<!-- How was this tested? -->
 
 # Screenshots/Logs
-<!-- If applicable, add screenshots or logs to help explain your changes -->
+
+<!-- Include any relevant screenshots, logs, or demos -->
 
 # Notes
-<!-- Any additional notes, concerns, or context for reviewers -->
-* 
-* 
+
+<!-- Any additional context or notes for reviewers -->
 
 ---
+
 # Checklist
 * [ ] Tests added/updated and passing
 * [ ] Documentation updated (if needed)
