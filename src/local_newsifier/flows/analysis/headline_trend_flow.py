@@ -42,7 +42,7 @@ class HeadlineTrendFlow(Flow):
         # Set up database connection if not provided
         if db_manager is None:
             db_settings = get_database_settings()
-            engine = init_db(db_settings.DATABASE_URL)
+            engine = init_db(str(db_settings.DATABASE_URL))  # Convert PostgresDsn to string
             session_factory = get_session(engine)
             session = session_factory()
             self.db_manager = DatabaseManager(session)
