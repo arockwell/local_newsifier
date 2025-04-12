@@ -38,11 +38,107 @@ Run the pipeline:
 poetry run python scripts/run_pipeline.py --url <URL>
 ```
 
-## Development
+## Testing Guide
 
-Run tests:
+### Running Tests
+
+Basic test execution:
 ```bash
 poetry run pytest
+```
+
+With coverage:
+```bash
+poetry run pytest --cov=src/local_newsifier
+```
+
+With detailed test output:
+```bash
+poetry run pytest -v --durations=0
+```
+
+### Test Structure
+
+Tests are organized by component type:
+```
+tests/
+├── flows/          # Flow-level tests
+├── tools/          # Individual tool tests
+└── models/         # Model/state tests
+```
+
+### Testing Best Practices
+
+1. **Test Organization**
+   - One test file per component
+   - Test classes/functions mirror source structure
+   - Clear, descriptive test names
+
+2. **Fixture Usage**
+   - Use session-scoped fixtures for expensive objects
+   - Use function-scoped fixtures for test-specific data
+   - Reset mutable fixture state between tests
+
+3. **Mock Guidelines**
+   - Mock external dependencies
+   - Use side_effect for complex behaviors
+   - Reset mocks between tests
+   - Verify mock calls when behavior matters
+
+4. **Performance**
+   - Minimize wait times in retry tests
+   - Use session-scoped fixtures for reusable objects
+   - Mock time-consuming operations
+   - Keep individual tests focused and fast
+
+5. **Test Coverage**
+   - Aim for high coverage (>90%)
+   - Test happy paths and edge cases
+   - Test error conditions
+   - Test retry mechanisms
+
+6. **Test Style**
+   ```python
+   def test_descriptive_name():
+       """Test description in docstring."""
+       # Setup
+       initial_state = setup_test_state()
+       
+       # Execute
+       result = component.do_something()
+       
+       # Verify
+       assert result.status == expected_status
+       assert component.mock.called_once()
+   ```
+
+7. **Assertions**
+   - One logical assertion per test
+   - Use descriptive assertion messages
+   - Test state and behavior separately
+   - Verify both positive and negative cases
+
+### Example Test
+
+```python
+@pytest.fixture(scope="session")
+def mock_component():
+    """Create a reusable mock component."""
+    component = Mock()
+    component.process = Mock(return_value="result")
+    return component
+
+def test_component_success(mock_component):
+    """Test successful component execution."""
+    # Setup
+    input_data = "test_input"
+    
+    # Execute
+    result = mock_component.process(input_data)
+    
+    # Verify
+    assert result == "result"
+    mock_component.process.assert_called_once_with(input_data)
 ```
 
 ## Project Structure
