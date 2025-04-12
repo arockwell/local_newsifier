@@ -2,34 +2,56 @@
 Tests for the RSS Parser tool.
 """
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, Mock
 import json
 from datetime import datetime
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from local_newsifier.tools.rss_parser import RSSParser, RSSItem
 
-# Mock feed data that matches feedparser's output structure
-SAMPLE_FEED = {
-    'feed': {},  # Feed metadata
-    'entries': [
-        {
-            'title': 'Test Article 1',
-            'link': 'http://example.com/1',
-            'description': 'Test description 1',
-            'published_parsed': (2024, 4, 12, 10, 30, 0, 0, 0, 0)
-        },
-        {
-            'title': 'Test Article 2',
-            'link': 'http://example.com/2',
-            'description': 'Test description 2',
-            'published_parsed': (2024, 4, 12, 11, 30, 0, 0, 0, 0)
-        }
-    ],
-    'bozo': 0,  # No errors in feed
-    'status': 200,  # HTTP status
-    'encoding': 'utf-8'
-}
+# Sample RSS feed XML
+SAMPLE_RSS_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Test Feed</title>
+        <link>http://example.com</link>
+        <description>Test feed for unit tests</description>
+        <item>
+            <title>Test Article 1</title>
+            <link>http://example.com/1</link>
+            <description>Test description 1</description>
+            <pubDate>Fri, 12 Apr 2024 10:30:00 GMT</pubDate>
+        </item>
+        <item>
+            <title>Test Article 2</title>
+            <link>http://example.com/2</link>
+            <description>Test description 2</description>
+            <pubDate>Fri, 12 Apr 2024 11:30:00 GMT</pubDate>
+        </item>
+    </channel>
+</rss>
+"""
+
+# Sample Atom feed XML
+SAMPLE_ATOM_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Test Feed</title>
+    <link href="http://example.com"/>
+    <entry>
+        <title>Test Article 1</title>
+        <link href="http://example.com/1"/>
+        <summary>Test description 1</summary>
+        <published>2024-04-12T10:30:00Z</published>
+    </entry>
+    <entry>
+        <title>Test Article 2</title>
+        <link href="http://example.com/2"/>
+        <summary>Test description 2</summary>
+        <published>2024-04-12T11:30:00Z</published>
+    </entry>
+</feed>
+"""
 
 class TestRSSParser:
     def setup_method(self):
@@ -59,11 +81,13 @@ class TestRSSParser:
         parser = RSSParser(str(cache_file))
         assert parser.processed_urls == set()
     
-    @patch('feedparser.parse')
-    def test_parse_feed(self, mock_parse):
-        """Test parsing a feed."""
-        # Setup mock
-        mock_parse.return_value = SAMPLE_FEED
+    @patch('requests.get')
+    def test_parse_rss_feed(self, mock_get):
+        """Test parsing an RSS feed."""
+        # Setup mock response
+        mock_response = Mock()
+        mock_response.content = SAMPLE_RSS_XML.encode('utf-8')
+        mock_get.return_value = mock_response
         
         # Test parsing
         items = self.parser.parse_feed('http://example.com/feed')
@@ -72,21 +96,42 @@ class TestRSSParser:
         assert items[0].title == 'Test Article 1'
         assert items[0].url == 'http://example.com/1'
         assert items[0].description == 'Test description 1'
-        assert items[0].published == datetime(2024, 4, 12, 10, 30, 0)
+        assert items[0].published is not None
+        assert items[0].published.strftime('%Y-%m-%d %H:%M:%S') == '2024-04-12 10:30:00'
     
-    @patch('feedparser.parse')
-    def test_parse_feed_error(self, mock_parse):
+    @patch('requests.get')
+    def test_parse_atom_feed(self, mock_get):
+        """Test parsing an Atom feed."""
+        # Setup mock response
+        mock_response = Mock()
+        mock_response.content = SAMPLE_ATOM_XML.encode('utf-8')
+        mock_get.return_value = mock_response
+        
+        # Test parsing
+        items = self.parser.parse_feed('http://example.com/feed')
+        
+        assert len(items) == 2
+        assert items[0].title == 'Test Article 1'
+        assert items[0].url == 'http://example.com/1'
+        assert items[0].description == 'Test description 1'
+        assert items[0].published is not None
+        assert items[0].published.strftime('%Y-%m-%d %H:%M:%S') == '2024-04-12 10:30:00'
+    
+    @patch('requests.get')
+    def test_parse_feed_error(self, mock_get):
         """Test parsing a feed with error."""
-        mock_parse.side_effect = Exception("Failed to parse feed")
+        mock_get.side_effect = Exception("Failed to fetch feed")
         
         items = self.parser.parse_feed('http://example.com/feed')
         assert len(items) == 0
     
-    @patch('feedparser.parse')
-    def test_get_new_urls(self, mock_parse):
+    @patch('requests.get')
+    def test_get_new_urls(self, mock_get):
         """Test getting new URLs from feed."""
-        # Setup mock
-        mock_parse.return_value = SAMPLE_FEED
+        # Setup mock response
+        mock_response = Mock()
+        mock_response.content = SAMPLE_RSS_XML.encode('utf-8')
+        mock_get.return_value = mock_response
         
         # First call should return all items
         items = self.parser.get_new_urls('http://example.com/feed')

@@ -1,13 +1,15 @@
 """
 RSS Parser Tool for extracting URLs and titles from RSS feeds.
 """
-import feedparser
+import requests
+from xml.etree import ElementTree
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
 from pathlib import Path
 import json
 import logging
+from dateutil import parser as date_parser
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,14 @@ class RSSParser:
         except Exception as e:
             logger.error(f"Error saving cache file: {e}")
     
+    def _get_element_text(self, entry: ElementTree.Element, *names: str) -> Optional[str]:
+        """Get text from the first matching element."""
+        for name in names:
+            elem = entry.find(name)
+            if elem is not None and elem.text:
+                return elem.text
+        return None
+    
     def parse_feed(self, feed_url: str) -> List[RSSItem]:
         """
         Parse an RSS feed and extract items.
@@ -69,14 +79,21 @@ class RSSParser:
             List of RSSItem objects containing the feed content
         """
         try:
-            feed = feedparser.parse(feed_url)
+            # Fetch the feed
+            response = requests.get(feed_url)
+            response.raise_for_status()
             
-            # Check for feed errors
-            if getattr(feed, 'bozo', 0) and feed.get('bozo_exception'):
-                logger.error(f"Feed error for {feed_url}: {feed.get('bozo_exception')}")
-                return []
+            # Parse the XML
+            root = ElementTree.fromstring(response.content)
             
-            entries = feed.get('entries', [])
+            # Handle both RSS and Atom feeds
+            if root.tag.endswith('rss'):
+                entries = root.findall('.//item')
+            elif root.tag.endswith('feed'):  # Atom feed
+                entries = root.findall('.//{http://www.w3.org/2005/Atom}entry')
+            else:
+                entries = []
+            
             if not entries:
                 logger.error(f"No entries found in feed: {feed_url}")
                 return []
@@ -84,24 +101,55 @@ class RSSParser:
             items = []
             for entry in entries:
                 try:
-                    # Extract published date if available
-                    published = None
-                    if entry.get('published_parsed'):
-                        # feedparser returns a time.struct_time, convert to datetime
-                        published = datetime(*entry['published_parsed'][:6])
+                    # Extract title
+                    title = self._get_element_text(
+                        entry,
+                        'title',
+                        '{http://www.w3.org/2005/Atom}title'
+                    ) or 'No title'
                     
-                    item = RSSItem(
-                        title=entry.get('title', 'No title'),
-                        url=entry.get('link', ''),
-                        published=published,
-                        description=entry.get('description', None)
+                    # Extract URL
+                    url = None
+                    if root.tag.endswith('rss'):
+                        url = self._get_element_text(entry, 'link')
+                    else:  # Atom feed
+                        link_elem = entry.find('{http://www.w3.org/2005/Atom}link')
+                        if link_elem is not None:
+                            url = link_elem.get('href')
+                    
+                    if not url:
+                        continue
+                    
+                    # Extract published date
+                    published = None
+                    date_text = self._get_element_text(
+                        entry,
+                        'pubDate',
+                        'published',
+                        '{http://www.w3.org/2005/Atom}published'
+                    )
+                    if date_text:
+                        try:
+                            published = date_parser.parse(date_text)
+                        except Exception as e:
+                            logger.warning(f"Could not parse date: {e}")
+                    
+                    # Extract description
+                    description = self._get_element_text(
+                        entry,
+                        'description',
+                        'summary',
+                        '{http://www.w3.org/2005/Atom}summary'
                     )
                     
-                    # Only add items with valid URLs
-                    if item.url:
-                        items.append(item)
-                    else:
-                        logger.warning(f"Skipping entry without URL in feed {feed_url}")
+                    item = RSSItem(
+                        title=title,
+                        url=url,
+                        published=published,
+                        description=description
+                    )
+                    
+                    items.append(item)
                         
                 except Exception as e:
                     logger.error(f"Error parsing entry in feed {feed_url}: {e}")
