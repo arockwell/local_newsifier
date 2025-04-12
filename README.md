@@ -117,10 +117,10 @@ tests/
        """Test description in docstring."""
        # Setup
        initial_state = setup_test_state()
-       
+
        # Execute
        result = component.do_something()
-       
+
        # Verify
        assert result.status == expected_status
        assert component.mock.called_once()
@@ -146,10 +146,10 @@ def test_component_success(mock_component):
     """Test successful component execution."""
     # Setup
     input_data = "test_input"
-    
+
     # Execute
     result = mock_component.process(input_data)
-    
+
     # Verify
     assert result == "result"
     mock_component.process.assert_called_once_with(input_data)
@@ -205,4 +205,4 @@ Uses crew.ai's SQLite checkpointer for:
 
 ## License
 
-MIT 
+MIT

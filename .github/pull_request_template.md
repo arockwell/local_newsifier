@@ -24,4 +24,4 @@
 * [ ] Tests added/updated and passing
 * [ ] Documentation updated (if needed)
 * [ ] Code follows project style guidelines
-* [ ] Verified changes in development environment 
+* [ ] Verified changes in development environment
