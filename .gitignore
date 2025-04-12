@@ -57,3 +57,7 @@ Thumbs.db
 # Project specific
 env.bak/
 venv.bak/
+
+# Environment files
+.env
+.env.test

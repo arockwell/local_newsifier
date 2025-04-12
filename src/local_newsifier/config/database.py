@@ -1,6 +1,7 @@
 """Database configuration settings."""
 from typing import Optional, Any
-from pydantic import BaseSettings, PostgresDsn, validator
+from pydantic import PostgresDsn, validator
+from pydantic_settings import BaseSettings
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from ..models.database import init_db, get_session
@@ -43,20 +44,26 @@ class DatabaseSettings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
-def get_database() -> Engine:
+def get_database(env_file: str = ".env") -> Engine:
     """Get database engine instance.
     
+    Args:
+        env_file: Environment file to use
+        
     Returns:
         SQLAlchemy engine instance
     """
-    settings = DatabaseSettings()
+    settings = DatabaseSettings(_env_file=env_file)
     return init_db(str(settings.DATABASE_URL))
 
-def get_db_session() -> sessionmaker:
+def get_db_session(env_file: str = ".env") -> sessionmaker:
     """Get database session factory.
     
+    Args:
+        env_file: Environment file to use
+        
     Returns:
         SQLAlchemy session factory
     """
-    engine = get_database()
+    engine = get_database(env_file)
     return get_session(engine) 

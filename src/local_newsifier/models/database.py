@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, create_engine, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.engine import Engine
+import enum
 
 Base = declarative_base()
 
