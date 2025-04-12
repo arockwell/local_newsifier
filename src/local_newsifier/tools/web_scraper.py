@@ -34,6 +34,21 @@ class WebScraperTool:
         self.chrome_options.add_argument("--no-sandbox")
         self.chrome_options.add_argument("--disable-dev-shm-usage")
         self.chrome_options.add_argument(f"user-agent={self.user_agent}")
+        
+        # Initialize WebDriver as None
+        self.driver = None
+
+    def __del__(self):
+        """Cleanup method to ensure WebDriver is properly closed."""
+        if self.driver is not None:
+            self.driver.quit()
+
+    def _get_driver(self):
+        """Get or create a WebDriver instance."""
+        if self.driver is None:
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
+        return self.driver
 
     @retry(
         stop=stop_after_attempt(3),
@@ -77,8 +92,7 @@ class WebScraperTool:
             print(f"Request exception: {str(e)}")
             print("Trying with Selenium...")
             # If requests fails, try with Selenium
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=self.chrome_options)
+            driver = self._get_driver()
             try:
                 driver.get(url)
                 
@@ -108,8 +122,6 @@ class WebScraperTool:
             except Exception as selenium_error:
                 print(f"Selenium error: {str(selenium_error)}")
                 raise ValueError(f"Failed to fetch URL with both methods: {str(e)} and {str(selenium_error)}")
-            finally:
-                driver.quit()
 
     def extract_article_text(self, html_content: str) -> str:
         """Extract main article text from HTML content."""
