@@ -53,11 +53,12 @@ def mock_file_writer():
 @pytest.fixture(scope="session")
 def pipeline(mock_scraper, mock_analyzer, mock_file_writer):
     """Create a pipeline instance with mocked components."""
-    pipeline = NewsPipelineFlow(output_dir="test_output")
-    pipeline.scraper = mock_scraper
-    pipeline.analyzer = mock_analyzer
-    pipeline.writer = mock_file_writer
-    return pipeline
+    with patch('local_newsifier.flows.news_pipeline.NERAnalyzerTool') as mock_ner:
+        mock_ner.return_value = mock_analyzer
+        pipeline = NewsPipelineFlow(output_dir="test_output")
+        pipeline.scraper = mock_scraper
+        pipeline.writer = mock_file_writer
+        return pipeline
 
 
 @pytest.fixture(autouse=True)
