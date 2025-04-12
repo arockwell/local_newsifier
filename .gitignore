@@ -47,4 +47,7 @@ poetry.lock
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Coverage
+.coverage 
