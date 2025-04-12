@@ -1,7 +1,7 @@
 """Tests for database configuration."""
 
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -57,6 +57,7 @@ def test_database_settings():
 
 def test_database_settings_defaults():
     """Test database settings with default values."""
+    # Temporarily remove test_env fixture
     settings = DatabaseSettings(_env_file=None)  # Disable env file loading
     
     assert settings.POSTGRES_USER == "postgres"
@@ -95,12 +96,16 @@ def test_database_settings_port_conversion():
 
 
 @patch("local_newsifier.config.database.DatabaseSettings")
-def test_get_database(mock_settings):
+@patch("local_newsifier.models.database.init_db")
+def test_get_database(mock_init_db, mock_settings):
     """Test get_database function."""
     mock_settings.return_value.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db"
+    mock_engine = MagicMock()
+    mock_init_db.return_value = mock_engine
     
     engine = get_database()
-    assert engine is not None
+    assert engine is mock_engine
+    mock_init_db.assert_called_once_with("postgresql://test:test@localhost:5432/test_db")
 
 
 @patch("local_newsifier.config.database.get_database")
