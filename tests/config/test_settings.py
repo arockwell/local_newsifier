@@ -15,16 +15,22 @@ def clean_env():
         key: os.environ.get(key)
         for key in [
             "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST",
-            "POSTGRES_PORT", "POSTGRES_DB", "USE_SQLITE",
+            "POSTGRES_PORT", "POSTGRES_DB",
             "OUTPUT_DIR", "CACHE_DIR", "TEMP_DIR", "LOG_LEVEL",
-            "CURSOR_DB_ID",
         ]
     }
+    
+    # Store CURSOR_DB_ID separately to preserve it
+    cursor_id = os.getenv("CURSOR_DB_ID")
     
     # Clear environment variables for test
     for key in original_env:
         if key in os.environ:
             del os.environ[key]
+    
+    # Restore CURSOR_DB_ID if it was set
+    if cursor_id:
+        os.environ["CURSOR_DB_ID"] = cursor_id
     
     yield
     
@@ -45,8 +51,8 @@ def test_default_settings(clean_env):
     assert settings.POSTGRES_PASSWORD == "postgres"
     assert settings.POSTGRES_HOST == "localhost"
     assert settings.POSTGRES_PORT == "5432"
-    assert "local_newsifier" in settings.POSTGRES_DB  # Should include cursor ID
-    assert settings.SQLITE_URL == "sqlite:///local_newsifier.db"
+    assert settings.POSTGRES_DB.startswith("local_newsifier_")
+    assert len(settings.POSTGRES_DB) == len("local_newsifier_") + 8  # 8 chars for UUID
     
     # Test default directories
     assert isinstance(settings.OUTPUT_DIR, Path)
@@ -70,7 +76,7 @@ def test_default_settings(clean_env):
 
 
 def test_database_url_postgres(clean_env):
-    """Test DATABASE_URL property with PostgreSQL default."""
+    """Test get_database_url method with PostgreSQL."""
     settings = Settings(
         POSTGRES_USER="testuser",
         POSTGRES_PASSWORD="testpass",
@@ -80,16 +86,7 @@ def test_database_url_postgres(clean_env):
     )
     
     expected_url = "postgresql://testuser:testpass@testhost:5433/testdb"
-    assert settings.DATABASE_URL == expected_url
-
-
-def test_database_url_sqlite(clean_env):
-    """Test DATABASE_URL property with SQLite."""
-    # Set environment to use SQLite
-    os.environ["USE_SQLITE"] = "true"
-    
-    settings = Settings(SQLITE_URL="sqlite:///test.db")
-    assert settings.DATABASE_URL == "sqlite:///test.db"
+    assert settings.get_database_url() == expected_url
 
 
 def test_environment_variable_override(clean_env):
