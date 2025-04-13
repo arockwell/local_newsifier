@@ -57,8 +57,11 @@ class Settings(BaseSettings):
     @computed_field
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment."""
-        # Always use PostgreSQL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    
+    def get_database_url(self) -> str:
+        """Get the database URL based on environment."""
+        return str(self.DATABASE_URL)
     
     def create_directories(self) -> None:
         """Create necessary directories if they don't exist."""
@@ -74,6 +77,9 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
+        "validate_assignment": True,
+        "validate_default": True,
+        "extra": "allow"  # Allow computed fields
     }
 
 
