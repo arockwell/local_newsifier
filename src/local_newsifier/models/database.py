@@ -33,20 +33,6 @@ class ArticleCreate(ArticleBase):
     pass
 
 
-class Article(ArticleBase):
-    """Pydantic model for articles with relationships."""
-
-    id: int
-    scraped_at: datetime
-    entities: List["Entity"] = []
-    analysis_results: List["AnalysisResult"] = []
-
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
-
-
 class EntityBase(BaseModel):
     """Base Pydantic model for entities."""
 
@@ -98,6 +84,25 @@ class AnalysisResult(AnalysisResultBase):
 
         from_attributes = True
 
+
+class Article(ArticleBase):
+    """Pydantic model for articles with relationships."""
+
+    id: int
+    scraped_at: datetime
+    entities: List[Entity] = []
+    analysis_results: List[AnalysisResult] = []
+
+    class Config:
+        """Pydantic config."""
+
+        from_attributes = True
+
+
+# Update forward references
+Entity.model_rebuild()
+AnalysisResult.model_rebuild()
+Article.model_rebuild()
 
 # Import initialization functions separately to avoid circular imports
 from local_newsifier.models.database import init_db, get_session

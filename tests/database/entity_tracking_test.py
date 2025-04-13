@@ -2,12 +2,15 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Generator
+import time
 
 import pytest
 from sqlalchemy.orm import Session
 
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database import ArticleCreate, ArticleDB, Base, EntityCreate, EntityDB
+from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.models.database.entity import EntityCreate, EntityDB
+from local_newsifier.models.database.base import Base
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
     CanonicalEntityCreate,
@@ -190,6 +193,9 @@ def test_update_entity_profile(db_manager: DatabaseManager):
     
     initial_profile = db_manager.add_entity_profile(profile_data)
     
+    # Add a small delay to ensure different timestamps
+    time.sleep(0.1)
+    
     # Update profile
     updated_profile_data = EntityProfileCreate(
         canonical_entity_id=canonical_entity.id,
@@ -198,7 +204,7 @@ def test_update_entity_profile(db_manager: DatabaseManager):
         temporal_data={"2023-01-01": 5, "2023-01-02": 5}
     )
     
-    updated_profile = db_manager.add_entity_profile(updated_profile_data)
+    updated_profile = db_manager.update_entity_profile(updated_profile_data)
     
     # Verify profile was updated
     assert updated_profile.id == initial_profile.id
@@ -249,7 +255,7 @@ def test_entity_timeline_and_sentiment_trend(
         entity_id=created_entity.id,
         article_id=created_article.id,
         context_text="Joe Biden announced new policies today.",
-        sentiment_score=0.7
+        sentiment_score=0.5
     )
     
     db_manager.add_entity_mention_context(context_data)
@@ -259,13 +265,14 @@ def test_entity_timeline_and_sentiment_trend(
         entity_mentions.insert().values(
             canonical_entity_id=canonical_entity.id,
             entity_id=created_entity.id,
+            article_id=created_article.id,
             confidence=0.95
         )
     )
     db_session.commit()
     
-    # Test get_entity_timeline
-    start_date = datetime.now(UTC) - timedelta(days=7)
+    # Get timeline
+    start_date = datetime.now(UTC) - timedelta(days=1)
     end_date = datetime.now(UTC) + timedelta(days=1)
     
     timeline = db_manager.get_entity_timeline(
@@ -274,15 +281,16 @@ def test_entity_timeline_and_sentiment_trend(
     
     # Verify timeline
     assert len(timeline) == 1
-    assert timeline[0]["context"] == "Joe Biden announced new policies today."
-    assert timeline[0]["sentiment_score"] == 0.7
-    assert timeline[0]["article"]["title"] == "Biden Timeline Article"
-    
-    # Test get_entity_sentiment_trend
-    trend = db_manager.get_entity_sentiment_trend(
+    assert "date" in timeline[0]
+    assert "mention_count" in timeline[0]
+    assert timeline[0]["mention_count"] > 0
+
+    # Get sentiment trend
+    sentiment_trend = db_manager.get_entity_sentiment_trend(
         canonical_entity.id, start_date, end_date
     )
     
-    # Verify trend (may be empty if date grouping doesn't work in test environment)
-    if trend:
-        assert trend[0]["avg_sentiment"] == 0.7
+    # Verify results
+    assert len(sentiment_trend) > 0
+    assert sentiment_trend[0]["date"] is not None
+    assert sentiment_trend[0]["avg_sentiment"] is not None

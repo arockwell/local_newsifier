@@ -17,6 +17,7 @@ entity_mentions = Table(
     Column("id", Integer, primary_key=True),
     Column("canonical_entity_id", Integer, ForeignKey("canonical_entities.id"), nullable=False),
     Column("entity_id", Integer, ForeignKey("entities.id"), nullable=False),
+    Column("article_id", Integer, ForeignKey("articles.id"), nullable=False),
     Column("confidence", Float, default=1.0),
     Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc)),
     UniqueConstraint("canonical_entity_id", "entity_id", name="uix_entity_mention"),
@@ -204,7 +205,7 @@ class EntityProfile(EntityProfileBase):
     
     id: int
     last_updated: datetime
-    canonical_entity: Optional[CanonicalEntity] = None
+    canonical_entity: Optional["CanonicalEntity"] = None
     
     class Config:
         """Pydantic config."""
@@ -234,10 +235,16 @@ class EntityRelationship(EntityRelationshipBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    source_entity: Optional[CanonicalEntity] = None
-    target_entity: Optional[CanonicalEntity] = None
+    source_entity: Optional["CanonicalEntity"] = None
+    target_entity: Optional["CanonicalEntity"] = None
     
     class Config:
         """Pydantic config."""
         
         from_attributes = True
+
+
+# Update forward references
+CanonicalEntity.model_rebuild()
+EntityProfile.model_rebuild()
+EntityRelationship.model_rebuild()
