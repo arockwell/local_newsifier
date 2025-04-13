@@ -1,0 +1,12 @@
+{
+  "sources": [
+    {
+      "url": "https://www.gainesville.com/news/",
+      "type": "web"
+    },
+    {
+      "url": "https://www.wuft.org/news/feed/",
+      "type": "rss"
+    }
+  ]
+} 

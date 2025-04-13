@@ -1,0 +1,58 @@
+service: local-newsifier
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: us-east-1
+  environment:
+    DYNAMODB_TABLE: ${self:service}-state-${sls:stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Scan
+          Resource: !GetAtt StateTable.Arn
+
+functions:
+  fetchArticles:
+    handler: handler.lambda_handler
+    package:
+      patterns:
+        - '!src/local_newsifier/**'
+        - 'src/local_newsifier/functions/fetch_articles/**'
+        - 'src/local_newsifier/shared/**'
+        - 'src/local_newsifier/models/**'
+        - 'src/local_newsifier/flows/**'
+        - 'src/local_newsifier/tools/**'
+    events:
+      - schedule:
+          rate: rate(1 hour)
+          enabled: true
+          input:
+            sources:
+              - url: https://www.gainesville.com/news/
+                type: web
+              - url: https://www.wuft.org/news/feed/
+                type: rss
+
+resources:
+  Resources:
+    StateTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: run_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: run_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true 

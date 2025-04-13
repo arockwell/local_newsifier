@@ -1,0 +1,8 @@
+schedule>=1.2.0
+crewai>=0.28.0
+spacy>=3.7.0
+en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.0/en_core_web_lg-3.7.0-py3-none-any.whl
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.10
+pydantic>=2.0.0 
