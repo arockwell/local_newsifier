@@ -9,8 +9,20 @@ from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
 
-# The Pydantic models are defined in database.py
+# Import Pydantic models from a separate file to avoid circular imports
+from local_newsifier.models.database.pydantic_models import (
+    Article, ArticleCreate, ArticleBase,
+    Entity, EntityCreate, EntityBase,
+    AnalysisResult, AnalysisResultCreate, AnalysisResultBase
+)
 
+# Re-export all models
+__all__ = [
+    "Base",
+    "ArticleDB", "Article", "ArticleCreate", "ArticleBase",
+    "EntityDB", "Entity", "EntityCreate", "EntityBase",
+    "AnalysisResultDB", "AnalysisResult", "AnalysisResultCreate", "AnalysisResultBase"
+]
 
 def init_db(db_url: str) -> Engine:
     """Initialize the database and create tables.
@@ -25,24 +37,13 @@ def init_db(db_url: str) -> Engine:
     Base.metadata.create_all(engine)
     return engine
 
-
 def get_session(engine: Engine) -> sessionmaker:
-    """Create a session factory for database operations.
+    """Get a session factory for the database.
 
     Args:
         engine: SQLAlchemy engine instance
 
     Returns:
-        SQLAlchemy session factory
+        Session factory
     """
     return sessionmaker(bind=engine)
-
-
-__all__ = [
-    "Base", 
-    "ArticleDB", 
-    "EntityDB", 
-    "AnalysisResultDB", 
-    "init_db", 
-    "get_session"
-]

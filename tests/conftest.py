@@ -32,7 +32,8 @@ def postgres_url():
     """Get PostgreSQL URL for tests."""
     settings = DatabaseSettings()
     test_db_name = get_test_db_name()
-    return str(settings.DATABASE_URL).replace(settings.POSTGRES_DB, test_db_name)
+    base_url = settings.get_database_url()
+    return base_url.replace(settings.POSTGRES_DB, test_db_name)
 
 
 @pytest.fixture(scope="session")
@@ -41,20 +42,18 @@ def test_engine(postgres_url):
     
     This version is compatible with both local development and CI environments.
     """
-    settings = DatabaseSettings()
     test_db_name = postgres_url.rsplit('/', 1)[1]
     
     # Connect to default postgres database to create test db
     try:
         # Connect to default postgres database to create test db
         admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url)
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         
         # Create test database
         with admin_engine.connect() as conn:
             conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
             conn.execute(text(f"CREATE DATABASE {test_db_name}"))
-            conn.commit()
     except Exception as e:
         print(f"Error creating test database: {e}")
         # If we can't create the database, try connecting directly
@@ -75,7 +74,7 @@ def test_engine(postgres_url):
     try:
         # Connect to default postgres database to drop test db
         admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url)
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         
         # Drop test database
         with admin_engine.connect() as conn:
@@ -86,7 +85,6 @@ def test_engine(postgres_url):
                 AND pid <> pg_backend_pid();
             """))
             conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-            conn.commit()
     except Exception as e:
         print(f"Error dropping test database: {e}")
         # In CI, we may not have permissions to drop databases

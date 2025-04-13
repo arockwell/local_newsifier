@@ -1,18 +1,18 @@
 """Tests for the base database model."""
 
 import datetime
+from typing import Any
 import pytest
 from sqlalchemy import Column, String, create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker, Mapped, mapped_column
 
 from local_newsifier.models.database.base import Base
 
 
-class TestModel(Base):
-    """Test model that inherits from Base."""
-    
-    __tablename__ = "test_models"
-    name = Column(String)
+class TestModelWithoutConftest(Base):
+    """Test model for testing the base model functionality."""
+    __tablename__ = "test_models_without_conftest"
+    name: Mapped[str] = mapped_column(String)
 
 
 @pytest.fixture(scope="module")
@@ -49,12 +49,12 @@ def test_base_model_attributes():
 
 def test_tablename_generation():
     """Test that tablename is generated from class name."""
-    assert TestModel.__tablename__ == "test_models"
+    assert TestModelWithoutConftest.__tablename__ == "test_models_without_conftest"
 
 
 def test_base_model_creation(db_session):
     """Test creating a model instance with base fields."""
-    test_model = TestModel(name="Test")
+    test_model = TestModelWithoutConftest(name="Test")
     db_session.add(test_model)
     db_session.commit()
     
@@ -66,7 +66,7 @@ def test_base_model_creation(db_session):
 
 def test_base_model_update(db_session):
     """Test that updated_at is updated on model update."""
-    test_model = TestModel(name="Test")
+    test_model = TestModelWithoutConftest(name="Test")
     db_session.add(test_model)
     db_session.commit()
     
