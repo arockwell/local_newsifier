@@ -8,7 +8,25 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from src.local_newsifier.tools.web_scraper import WebScraperTool
+
+
+@pytest.fixture(scope="function")
+def mock_web_scraper():
+    """Create a mock WebScraperTool instance that returns a successful state."""
+    scraper = MagicMock()
+    
+    # Configure scrape_url to return a successful state
+    def mock_scrape_url(url):
+        return NewsAnalysisState(
+            target_url=url,
+            status=AnalysisStatus.CONTENT_EXTRACTED,
+            scraped_text="Test article content",
+            title="Test Article",
+            published_date="2024-03-14"
+        )
+    
+    scraper.scrape_url = MagicMock(side_effect=mock_scrape_url)
+    return scraper
 
 
 @pytest.fixture(scope="session")
