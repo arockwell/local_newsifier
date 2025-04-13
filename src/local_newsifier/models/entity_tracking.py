@@ -264,3 +264,30 @@ class EntityConnection(BaseModel):
         """Pydantic config."""
         
         from_attributes = True
+
+
+class EntityMentionBase(BaseModel):
+    """Base Pydantic model for entity mentions."""
+    
+    canonical_entity_id: int
+    article_id: int
+    mention_text: str
+    mention_type: str
+
+
+class EntityMentionCreate(EntityMentionBase):
+    """Pydantic model for creating entity mentions."""
+    
+    pass
+
+
+class EntityMention(EntityMentionBase):
+    """Pydantic model for entity mentions with relationships."""
+    
+    id: int
+    created_at: datetime
+    
+    class Config:
+        """Pydantic config."""
+        
+        from_attributes = True
