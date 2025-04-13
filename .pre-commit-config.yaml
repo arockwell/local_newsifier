@@ -18,6 +18,15 @@ repos:
     -   id: requirements-txt-fixer
     -   id: sort-simple-yaml
 
+-   repo: local
+    hooks:
+    -   id: check-pr-description
+        name: Check PR Description
+        entry: scripts/check_pr_description.py
+        language: python
+        pass_filenames: false
+        stages: [push]
+
 -   repo: https://github.com/psf/black
     rev: 24.1.1
     hooks:
