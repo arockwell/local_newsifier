@@ -2,8 +2,7 @@
 
 import time
 from datetime import UTC, datetime
-from typing import Optional
-from unittest.mock import MagicMock
+from typing import Optional, Protocol
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,135 +23,47 @@ except ImportError:
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
 
-class WebScraperTool:
-    """Tool for scraping web content with robust error handling."""
+class HttpClient(Protocol):
+    """Protocol for HTTP clients."""
+    def get(self, url: str) -> str:
+        """Get content from URL."""
+        pass
 
-    def __init__(
-        self, 
-        user_agent: Optional[str] = None,
-        use_selenium: bool = False,
-        test_mode: bool = False
-    ):
-        """
-        Initialize the scraper.
 
-        Args:
-            user_agent: Optional custom user agent
-            use_selenium: Whether to use Selenium for fetching
-            test_mode: Whether to run in test mode
-        """
-        self.user_agent = user_agent or (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        )
+class BrowserClient(Protocol):
+    """Protocol for browser clients."""
+    def get(self, url: str) -> str:
+        """Get content from URL using browser."""
+        pass
+
+
+class RequestsHttpClient:
+    """Concrete implementation of HttpClient using requests."""
+    
+    def __init__(self, user_agent: str):
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": self.user_agent})
+        self.session.headers.update({"User-Agent": user_agent})
         
-        self.use_selenium = use_selenium and SELENIUM_AVAILABLE
-        self.driver = None
+    def get(self, url: str) -> str:
+        response = self.session.get(url, timeout=30)
+        response.raise_for_status()
+        return response.text
+
+
+class SeleniumBrowserClient:
+    """Concrete implementation of BrowserClient using Selenium."""
+    
+    def __init__(self, user_agent: str):
+        self.user_agent = user_agent
+        self._driver = None
         
-        if test_mode:
-            # In test mode, don't actually set up Selenium
-            if self.use_selenium:
-                self.driver = MagicMock()
-        elif self.use_selenium:
-            self._setup_selenium()
-
-    def _setup_selenium(self):
-        """Set up Selenium WebDriver if not already done."""
-        if not SELENIUM_AVAILABLE:
-            print("Selenium not available - falling back to requests")
-            return
-            
-        if self.driver is None:
-            options = Options()
-            options.add_argument("--headless")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument(f"user-agent={self.user_agent}")
-            
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=options)
-
-    def __del__(self):
-        """Clean up Selenium driver if it exists."""
-        if self.driver is not None:
-            try:
-                self.driver.quit()
-            except Exception:
-                pass
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=0.1, min=0, max=0.2),
-        reraise=True,
-    )
-    def _fetch_url(self, url: str) -> str:
-        """Fetch URL content with retries and error handling."""
-        print(f"Attempting to fetch URL: {url}")
-        try:
-            # First try with requests
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-
-            # Check if we got a 404-like page
-            if any(
-                term in response.text.lower()
-                for term in [
-                    "404 not found",
-                    "page not found",
-                    "article not found",
-                    "content no longer available",
-                    "article has expired",
-                    "subscription required",
-                    "please subscribe",
-                ]
-            ):
-                print("Found 404-like content in response")
-                if not self.use_selenium:
-                    raise requests.exceptions.HTTPError(
-                        "Page appears to be a 404 or requires subscription"
-                    )
-                print("Trying with Selenium...")
-                return self._fetch_with_selenium(url)
-
-            print("Successfully fetched with requests")
-            return response.text
-            
-        except requests.exceptions.RequestException as e:
-            print(f"Request exception: {str(e)}")
-            if self.use_selenium:
-                print("Trying with Selenium...")
-                return self._fetch_with_selenium(url)
-            if isinstance(e, requests.exceptions.HTTPError):
-                if e.response is not None:
-                    if e.response.status_code == 404:
-                        raise ValueError(f"Article not found (404): {url}")
-                    elif e.response.status_code == 403:
-                        raise ValueError(
-                            f"Access denied (403) - may require subscription: {url}"
-                        )
-                    elif e.response.status_code == 401:
-                        raise ValueError(f"Authentication required (401): {url}")
-            raise ValueError(f"Failed to fetch URL: {str(e)}")
-
-    def _fetch_with_selenium(self, url: str) -> str:
-        """Fetch URL using Selenium for JavaScript-heavy pages."""
-        if not SELENIUM_AVAILABLE:
-            raise ValueError("Selenium is not available")
-            
-        if self.driver is None:
-            self._setup_selenium()
-            
-        if self.driver is None:
-            raise ValueError("Failed to initialize Selenium WebDriver")
-            
-        print("Fetching with Selenium...")
-        self.driver.get(url)
+    def get(self, url: str) -> str:
+        driver = self._get_driver()
+        driver.get(url)
         
         # Wait for content to load
         try:
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "article"))
                 or EC.presence_of_element_located((By.TAG_NAME, "main"))
                 or EC.presence_of_element_located((By.TAG_NAME, "body"))
@@ -162,9 +73,32 @@ class WebScraperTool:
             pass
             
         time.sleep(2)  # Give JS a chance to finish
-        return self.driver.page_source
+        return driver.page_source
+        
+    def _get_driver(self):
+        if self._driver is None:
+            if not SELENIUM_AVAILABLE:
+                raise ValueError("Selenium is not available")
+                
+            options = Options()
+            options.add_argument("--headless")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument(f"user-agent={self.user_agent}")
+            
+            service = Service(ChromeDriverManager().install())
+            self._driver = webdriver.Chrome(service=service, options=options)
+        return self._driver
+        
+    def close(self):
+        if self._driver:
+            self._driver.quit()
 
-    def extract_article_text(self, html_content: str) -> str:
+
+class ArticleExtractor:
+    """Extracts article content from HTML."""
+    
+    def extract(self, html_content: str) -> str:
         """Extract main article text from HTML content."""
         print("Starting content extraction...")
         soup = BeautifulSoup(html_content, "html.parser")
@@ -280,6 +214,84 @@ class WebScraperTool:
         print(f"Found {len(text_blocks)} text blocks")
         return "\n\n".join(text_blocks)
 
+
+class WebScraperTool:
+    """Tool for scraping web content with robust error handling."""
+
+    DEFAULT_USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    )
+
+    def __init__(
+        self,
+        http_client: Optional[HttpClient] = None,
+        browser_client: Optional[BrowserClient] = None,
+        content_extractor: Optional[ArticleExtractor] = None,
+        user_agent: Optional[str] = None,
+    ):
+        """
+        Initialize the scraper.
+
+        Args:
+            http_client: Optional HTTP client implementation (for testing)
+            browser_client: Optional browser client implementation (for testing)
+            content_extractor: Optional content extractor implementation (for testing)
+            user_agent: Optional custom user agent
+        """
+        self.user_agent = user_agent or self.DEFAULT_USER_AGENT
+        
+        # Use provided implementations or create default ones
+        self.http_client = http_client or RequestsHttpClient(self.user_agent)
+        self.browser_client = browser_client or SeleniumBrowserClient(self.user_agent)
+        self.content_extractor = content_extractor or ArticleExtractor()
+
+    def __del__(self):
+        """Clean up browser client if it exists."""
+        if hasattr(self.browser_client, 'close'):
+            self.browser_client.close()
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.1, min=0, max=0.2),
+        reraise=True,
+    )
+    def _fetch_url(self, url: str) -> str:
+        """Fetch URL content with retries and error handling."""
+        print(f"Attempting to fetch URL: {url}")
+        try:
+            # First try with HTTP client
+            html_content = self.http_client.get(url)
+
+            # Check if we got a 404-like page
+            if any(
+                term in html_content.lower()
+                for term in [
+                    "404 not found",
+                    "page not found",
+                    "article not found",
+                    "content no longer available",
+                    "article has expired",
+                    "subscription required",
+                    "please subscribe",
+                ]
+            ):
+                print("Found 404-like content in response")
+                print("Trying with browser client...")
+                return self.browser_client.get(url)
+
+            print("Successfully fetched with HTTP client")
+            return html_content
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Request exception: {str(e)}")
+            print("Trying with browser client...")
+            try:
+                return self.browser_client.get(url)
+            except Exception as browser_e:
+                # If both clients fail, it's a network error
+                raise requests.exceptions.RequestException(str(browser_e))
+
     def scrape(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """
         Scrape article content and update state.
@@ -294,22 +306,25 @@ class WebScraperTool:
             state.status = AnalysisStatus.SCRAPING
             state.add_log(f"Starting scrape of URL: {state.target_url}")
 
-            html_content = self._fetch_url(state.target_url)
-            state.scraped_text = self.extract_article_text(html_content)
-            state.scraped_at = datetime.now(UTC)
-            state.status = AnalysisStatus.SCRAPE_SUCCEEDED
-            state.add_log("Successfully scraped article content")
-
-        except Exception as e:
-            if isinstance(e, requests.exceptions.RequestException):
+            try:
+                html_content = self._fetch_url(state.target_url)
+                state.scraped_text = self.content_extractor.extract(html_content)
+                state.scraped_at = datetime.now(UTC)
+                state.status = AnalysisStatus.SCRAPE_SUCCEEDED
+                state.add_log("Successfully scraped article content")
+            except requests.exceptions.RequestException as e:
                 state.status = AnalysisStatus.SCRAPE_FAILED_NETWORK
-            elif isinstance(e, ValueError) and "404" in str(e):
-                state.status = AnalysisStatus.SCRAPE_FAILED_NETWORK
-            else:
+                state.set_error("scraping", e)
+                state.add_log(f"Network error during scraping: {str(e)}")
+                raise
+            except Exception as e:
                 state.status = AnalysisStatus.SCRAPE_FAILED_PARSING
+                state.set_error("scraping", e)
+                state.add_log(f"Error during scraping: {str(e)}")
+                raise
 
-            state.set_error("scraping", e)
-            state.add_log(f"Error during scraping: {str(e)}")
+        except Exception:
+            # Re-raise the exception after setting the state
             raise
 
         return state

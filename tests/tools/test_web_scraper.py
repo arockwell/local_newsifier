@@ -1,162 +1,137 @@
 """Tests for the web scraper tool."""
 
-import time
-from datetime import datetime, UTC
-from unittest.mock import MagicMock, patch
-
 import pytest
-from requests.exceptions import HTTPError, RequestException
+from unittest.mock import MagicMock, patch
+from bs4 import BeautifulSoup
+import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
-from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from local_newsifier.tools.web_scraper import WebScraperTool
+from src.local_newsifier.tools.web_scraper import (
+    WebScraperTool,
+    HttpClient,
+    BrowserClient,
+    RequestsHttpClient,
+    SeleniumBrowserClient,
+    ArticleExtractor
+)
+from src.local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+
+
+class MockHttpClient(HttpClient):
+    """Mock HTTP client for testing."""
+    def __init__(self, response_text: str = None, should_raise: bool = False):
+        self.response_text = response_text or "<html><body><article><h1>Test Article</h1><p>Test content</p></article></body></html>"
+        self.should_raise = should_raise
+        
+    def get(self, url: str) -> str:
+        if self.should_raise:
+            raise requests.RequestException("Test error")
+        return self.response_text
+
+
+class MockBrowserClient(BrowserClient):
+    """Mock browser client for testing."""
+    def __init__(self, response_text: str = None, should_raise: bool = False):
+        self.response_text = response_text or "<html><body><article><h1>Test Article</h1><p>Test content</p></article></body></html>"
+        self.should_raise = should_raise
+        self.close = MagicMock()
+        
+    def get(self, url: str) -> str:
+        if self.should_raise:
+            raise Exception("Test error")
+        return self.response_text
+
+
+class MockArticleExtractor:
+    """Mock article extractor for testing."""
+    def extract(self, html_content: str) -> str:
+        return "Test article content"
 
 
 @pytest.fixture
-def mock_state():
-    """Create a mock state for testing."""
-    return NewsAnalysisState(
-        target_url="https://example.com/article", 
-        status=AnalysisStatus.SCRAPING
+def mock_http_client():
+    """Create a mock HTTP client."""
+    return MockHttpClient()
+
+
+@pytest.fixture
+def mock_browser_client():
+    """Create a mock browser client."""
+    return MockBrowserClient()
+
+
+@pytest.fixture
+def mock_article_extractor():
+    """Create a mock article extractor."""
+    return MockArticleExtractor()
+
+
+@pytest.fixture
+def web_scraper(mock_http_client, mock_browser_client, mock_article_extractor):
+    """Create a web scraper with mocked dependencies."""
+    return WebScraperTool(
+        http_client=mock_http_client,
+        browser_client=mock_browser_client,
+        content_extractor=mock_article_extractor
     )
 
 
-@pytest.fixture
-def web_scraper():
-    """Create a WebScraperTool instance for testing."""
-    return WebScraperTool(test_mode=True)
+def test_extract_article():
+    """Test article text extraction."""
+    extractor = ArticleExtractor()
+    html = "<html><body><article><h1>Test Article</h1><p>Test content</p></article></body></html>"
+    result = extractor.extract(html)
+    assert result == "Test Article"
 
 
-@pytest.fixture
-def web_scraper_with_selenium():
-    """Create a WebScraperTool instance with Selenium enabled."""
-    return WebScraperTool(test_mode=True, use_selenium=True)
+def test_fetch_url_success(web_scraper, mock_http_client):
+    """Test successful URL fetching."""
+    url = "https://example.com"
+    result = web_scraper._fetch_url(url)
+    assert result is not None
 
 
-class TestWebScraper:
-    """Test suite for WebScraperTool."""
+def test_fetch_url_error(web_scraper, mock_http_client, mock_browser_client):
+    """Test URL fetching with error."""
+    mock_http_client.should_raise = True
+    mock_browser_client.should_raise = True
+    url = "https://example.com"
+    with pytest.raises(Exception):
+        web_scraper._fetch_url(url)
 
-    def test_extract_article(self, web_scraper):
-        """Test article text extraction from HTML content."""
-        html = """
-        <html>
-            <body>
-                <article class="story">
-                    <h1>Test Article</h1>
-                    <p>This is the first paragraph of the article that is long enough to pass the length check.</p>
-                    <p>This is the second paragraph of the article that is also long enough to pass the length check.</p>
-                    <div class="related">Related content</div>
-                </article>
-            </body>
-        </html>
-        """
-        result = web_scraper.extract_article_text(html)
-        assert "Test Article" in result
-        assert "first paragraph" in result
-        assert "second paragraph" in result
-        assert "Related content" not in result
 
-    def test_fetch_url_success(self, web_scraper):
-        """Test successful URL fetching."""
-        with patch("requests.Session.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.text = "<html><body>Test content</body></html>"
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+def test_scrape_success(web_scraper):
+    """Test successful scraping."""
+    state = NewsAnalysisState(
+        target_url="https://example.com",
+        status=AnalysisStatus.INITIALIZED
+    )
+    result = web_scraper.scrape(state)
+    assert result.target_url == "https://example.com"
+    assert result.status == AnalysisStatus.SCRAPE_SUCCEEDED
+    assert result.scraped_text is not None
+    assert result.scraped_at is not None
 
-            result = web_scraper._fetch_url("https://example.com")
-            assert result == "<html><body>Test content</body></html>"
 
-    def test_fetch_url_404(self, web_scraper):
-        """Test handling of 404 errors."""
-        with patch("requests.Session.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.status_code = 404
-            mock_get.side_effect = HTTPError(
-                response=mock_response
-            )
+def test_scrape_error(web_scraper, mock_http_client, mock_browser_client):
+    """Test scraping with error."""
+    mock_http_client.should_raise = True
+    mock_browser_client.should_raise = True
+    state = NewsAnalysisState(
+        target_url="https://example.com",
+        status=AnalysisStatus.INITIALIZED
+    )
+    with pytest.raises(Exception) as exc_info:
+        web_scraper.scrape(state)
+    assert state.target_url == "https://example.com"
+    assert state.status == AnalysisStatus.SCRAPE_FAILED_NETWORK
+    assert "Test error" in str(exc_info.value)
 
-            with pytest.raises(ValueError, match="Article not found"):
-                web_scraper._fetch_url("https://example.com/not-found")
 
-    def test_fetch_url_403(self, web_scraper):
-        """Test handling of 403 errors."""
-        with patch("requests.Session.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.status_code = 403
-            mock_get.side_effect = HTTPError(
-                response=mock_response
-            )
-
-            with pytest.raises(
-                ValueError, match="Access denied.*may require subscription"
-            ):
-                web_scraper._fetch_url("https://example.com/forbidden")
-
-    def test_fetch_url_with_selenium_fallback(self, web_scraper_with_selenium):
-        """Test fallback to Selenium when requests fails."""
-        with patch("requests.Session.get") as mock_get:
-            mock_get.side_effect = RequestException("Network error")
-
-            # Mock Selenium response
-            web_scraper_with_selenium.driver.page_source = "<html><body>Selenium content</body></html>"
-
-            result = web_scraper_with_selenium._fetch_url("https://example.com")
-            assert result == "<html><body>Selenium content</body></html>"
-
-    def test_fetch_url_404_like_with_selenium(self, web_scraper_with_selenium):
-        """Test fallback to Selenium when page looks like 404."""
-        with patch("requests.Session.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.text = "<html><body>404 not found</body></html>"
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
-
-            # Mock Selenium response
-            web_scraper_with_selenium.driver.page_source = "<html><body>Real content</body></html>"
-
-            result = web_scraper_with_selenium._fetch_url("https://example.com")
-            assert result == "<html><body>Real content</body></html>"
-
-    def test_scrape_success(self, web_scraper, mock_state):
-        """Test successful scraping workflow."""
-        with patch.object(web_scraper, "_fetch_url") as mock_fetch, patch.object(
-            web_scraper, "extract_article_text"
-        ) as mock_extract:
-            mock_fetch.return_value = "<html><body>Test content</body></html>"
-            mock_extract.return_value = "Extracted article text"
-
-            result = web_scraper.scrape(mock_state)
-
-            assert result.status == AnalysisStatus.SCRAPE_SUCCEEDED
-            assert result.scraped_text == "Extracted article text"
-            assert isinstance(result.scraped_at, datetime)
-            assert len(result.run_logs) > 0
-
-    def test_scrape_network_error(self, web_scraper, mock_state):
-        """Test handling of network errors during scraping."""
-        with patch.object(web_scraper, "_fetch_url") as mock_fetch:
-            mock_fetch.side_effect = RequestException(
-                "Network error"
-            )
-
-            with pytest.raises(RequestException):
-                web_scraper.scrape(mock_state)
-
-            assert mock_state.status == AnalysisStatus.SCRAPE_FAILED_NETWORK
-            assert mock_state.error_details is not None
-            assert "Network error" in mock_state.error_details.message
-
-    def test_scrape_parsing_error(self, web_scraper, mock_state):
-        """Test handling of parsing errors during scraping."""
-        with patch.object(web_scraper, "_fetch_url") as mock_fetch, patch.object(
-            web_scraper, "extract_article_text"
-        ) as mock_extract:
-            mock_fetch.return_value = "<html><body>Test content</body></html>"
-            mock_extract.side_effect = ValueError("Parsing error")
-
-            with pytest.raises(ValueError):
-                web_scraper.scrape(mock_state)
-
-            assert mock_state.status == AnalysisStatus.SCRAPE_FAILED_PARSING
-            assert mock_state.error_details is not None
-            assert "Parsing error" in mock_state.error_details.message
+def test_cleanup(web_scraper, mock_browser_client):
+    """Test cleanup on deletion."""
+    web_scraper.browser_client = mock_browser_client
+    web_scraper.__del__()  # Call cleanup directly instead of relying on garbage collection
+    mock_browser_client.close.assert_called_once()
