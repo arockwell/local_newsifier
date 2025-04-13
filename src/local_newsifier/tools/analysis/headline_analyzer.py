@@ -197,6 +197,7 @@ class HeadlineTrendAnalyzer:
         term_growth = []
         for term, period_counts in term_frequencies.items():
             if sum(period_counts.values()) < 3:  # Filter noise
+                logger.debug(f"Skipping term '{term}' due to insufficient mentions")
                 continue
                 
             # Calculate growth rate
