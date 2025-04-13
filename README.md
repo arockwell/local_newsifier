@@ -276,3 +276,31 @@ Uses crew.ai's SQLite checkpointer for:
 ## License
 
 MIT
+
+## Database Configuration
+
+### Multiple Cursor Support
+
+The application supports running multiple cursor instances simultaneously, each with its own isolated database. This is particularly useful for development and testing.
+
+#### How it works:
+- Each cursor instance gets a unique database name based on a cursor ID
+- The cursor ID is stored in the `CURSOR_DB_ID` environment variable
+- If not set, a new unique ID is generated automatically
+
+#### Setting up a new cursor instance:
+1. Run the initialization script:
+   ```bash
+   poetry run python scripts/init_cursor_db.py
+   ```
+   This will:
+   - Generate a unique database name for that cursor instance
+   - Create a new database with that name
+   - Set up all the necessary tables
+
+2. The database name is persisted through the `CURSOR_DB_ID` environment variable, so all subsequent database operations in that cursor window will use the same database.
+
+#### Testing with multiple cursors:
+- Each cursor instance gets its own test database
+- Test databases are named `test_local_newsifier_<cursor_id>`
+- Tests are automatically isolated between cursor instances
