@@ -2,7 +2,7 @@
 
 import datetime
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Column, Integer
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.models.database.base import Base
@@ -12,6 +12,7 @@ class TestModel(Base):
     """A test model for testing Base functionality."""
 
     __tablename__ = "test_model"
+    id = Column(Integer, primary_key=True)
 
 
 @pytest.fixture(scope="module")
@@ -46,8 +47,10 @@ def test_base_model_timestamps():
     assert hasattr(model, "updated_at")
 
 
-def test_timestamps_are_datetime():
+def test_timestamps_are_datetime(db_session):
     """Test that timestamp fields are datetime type."""
     model = TestModel()
+    db_session.add(model)
+    db_session.commit()
     assert isinstance(model.created_at, datetime.datetime)
     assert isinstance(model.updated_at, datetime.datetime)

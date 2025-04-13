@@ -32,7 +32,7 @@ def db_session(sqlite_engine):
 def test_article_pydantic_compatibility(db_session):
     """Test that ArticleDB can be converted to Pydantic model."""
     article = ArticleDB(
-        url="https://example.com/news/1",
+        url="https://example.com/news/article1",
         title="Test Article",
         source="Example News",
         content="This is a test article.",
@@ -42,7 +42,7 @@ def test_article_pydantic_compatibility(db_session):
     db_session.commit()
 
     article_dict = article.model_dump()
-    assert article_dict["url"] == "https://example.com/news/1"
+    assert article_dict["url"] == "https://example.com/news/article1"
     assert article_dict["title"] == "Test Article"
     assert article_dict["source"] == "Example News"
     assert article_dict["content"] == "This is a test article."
@@ -52,7 +52,7 @@ def test_article_pydantic_compatibility(db_session):
 def test_entity_pydantic_compatibility(db_session):
     """Test that EntityDB can be converted to Pydantic model."""
     article = ArticleDB(
-        url="https://example.com/news/1",
+        url="https://example.com/news/article2",
         title="Test Article",
         source="Example News",
         content="This is a test article.",

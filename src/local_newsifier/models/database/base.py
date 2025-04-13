@@ -1,7 +1,7 @@
 """Base database model with common fields for all models."""
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict
 
 from sqlalchemy import Column, DateTime, Integer, MetaData
 from sqlalchemy.ext.declarative import declared_attr
@@ -23,6 +23,10 @@ class BaseModel:
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
     )
+
+    def model_dump(self) -> Dict[str, Any]:
+        """Convert model to dictionary for Pydantic compatibility."""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 # Create a shared metadata instance
