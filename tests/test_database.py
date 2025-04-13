@@ -1,10 +1,13 @@
 """Tests for database functionality."""
 
-import pytest
+import os
 from datetime import datetime, timezone
+from typing import List
+from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from uuid import uuid4
 import sqlalchemy.exc
 
 from local_newsifier.database.manager import DatabaseManager
