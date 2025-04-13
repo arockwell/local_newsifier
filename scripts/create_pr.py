@@ -30,10 +30,19 @@ PR_TEMPLATE = """# {title}
 - [ ] Changes have been tested in a local environment
 """
 
-def run_command(cmd: str) -> tuple[int, str]:
+def run_command(cmd: str, capture_output: bool = True) -> tuple[int, str]:
     """Run a shell command and return exit code and output."""
-    process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    return process.returncode, process.stdout
+    try:
+        if capture_output:
+            process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            return process.returncode, process.stdout
+        else:
+            # For interactive commands like editors, don't capture output
+            process = subprocess.run(cmd, shell=True)
+            return process.returncode, ""
+    except KeyboardInterrupt:
+        print("\nCommand interrupted by user")
+        return 1, ""
 
 def get_current_branch() -> str:
     """Get the name of the current git branch."""
@@ -63,12 +72,26 @@ def create_pr(title: str, skip_edit: bool = False) -> None:
     # Open editor for modifications if requested
     if not skip_edit:
         editor = os.environ.get("EDITOR", "vim")
-        code, _ = run_command(f"{editor} PR_description.md")
+        print(f"\nOpening {editor} to edit PR description...")
+        print("Save and close the editor when done.")
+        code, _ = run_command(f"{editor} PR_description.md", capture_output=False)
         if code != 0:
-            print("Error: Failed to open editor")
+            print("Error: Failed to edit PR description")
             sys.exit(1)
 
+    # Verify the PR description was edited
+    if not skip_edit:
+        with open("PR_description.md") as f:
+            content = f.read()
+            if "[Clear explanation of changes]" in content:
+                print("\nWarning: PR description appears to be unedited.")
+                response = input("Continue anyway? [y/N]: ")
+                if response.lower() != 'y':
+                    print("Aborting PR creation. Edit PR_description.md and try again.")
+                    sys.exit(1)
+
     # Commit PR description
+    print("\nCreating PR...")
     commands = [
         "git add PR_description.md",
         'git commit -m "Add PR description"',
@@ -77,12 +100,16 @@ def create_pr(title: str, skip_edit: bool = False) -> None:
     ]
 
     for cmd in commands:
+        print(f"\nRunning: {cmd}")
         code, output = run_command(cmd)
         if code != 0:
             print(f"Error running command: {cmd}")
             print(output)
             sys.exit(1)
-        print(output)
+        if output:
+            print(output)
+
+    print("\nPR created successfully!")
 
 def main():
     """Main entry point."""
