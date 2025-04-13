@@ -4,8 +4,7 @@
 import argparse
 import os
 
-from local_newsifier.config.settings import settings
-from local_newsifier.config.database import get_database_settings, get_db_session
+from local_newsifier.config import settings, get_database_settings, get_db_session
 from local_newsifier.crews.investigation_crew import NewsInvestigationCrew
 from local_newsifier.database.manager import DatabaseManager
 
