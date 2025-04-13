@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from ..database.manager import DatabaseManager
 from ..models.sentiment import OpinionTrendCreate, SentimentShiftCreate
+from ..models.database import ArticleDB, AnalysisResultDB
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,12 @@ class SentimentTracker:
             
             # Calculate overall sentiment for period
             if sentiment_data:
-                period_results["overall"] = self._calculate_period_sentiment(sentiment_data)
+                overall_sentiment = {
+                    "avg_sentiment": sum(data["document_sentiment"] for data in sentiment_data) / len(sentiment_data),
+                    "article_count": len(sentiment_data),
+                    "sentiment_distribution": self._calculate_sentiment_distribution(sentiment_data)
+                }
+                period_results["overall"] = overall_sentiment
             
             # Calculate topic-specific sentiment if topics provided
             if topics:
@@ -234,13 +240,13 @@ class SentimentTracker:
         session = self.db_manager.session
         
         query = (
-            session.query(session.get_bind().engine.dialect.get_table("articles"))
+            session.query(ArticleDB)
             .filter(
-                session.get_bind().engine.dialect.get_table("articles").c.published_at >= start_date,
-                session.get_bind().engine.dialect.get_table("articles").c.published_at <= end_date,
-                session.get_bind().engine.dialect.get_table("articles").c.status.in_(["analyzed", "entity_tracked"])
+                ArticleDB.published_at >= start_date,
+                ArticleDB.published_at <= end_date,
+                ArticleDB.status.in_(["analyzed", "entity_tracked"])
             )
-            .order_by(session.get_bind().engine.dialect.get_table("articles").c.published_at)
+            .order_by(ArticleDB.published_at)
         )
         
         articles = query.all()
@@ -276,64 +282,51 @@ class SentimentTracker:
             return date.strftime("%Y-%m-%d")  # Default to day
     
     def _get_sentiment_data_for_articles(self, article_ids: List[int]) -> List[Dict]:
-        """Get sentiment analysis data for a list of articles."""
-        sentiment_data = []
+        """Get sentiment analysis results for articles."""
+        session = self.db_manager.session
         
-        for article_id in article_ids:
-            # Get analysis results for this article
-            analysis_results = self.db_manager.get_analysis_results_by_article(article_id)
-            
-            # Find sentiment analysis result
-            sentiment_result = next(
-                (r for r in analysis_results if r.analysis_type == "sentiment"), 
-                None
+        # Get analysis results for articles
+        results = (
+            session.query(AnalysisResultDB)
+            .filter(
+                AnalysisResultDB.article_id.in_(article_ids),
+                AnalysisResultDB.analysis_type == "sentiment"
             )
-            
-            if sentiment_result:
-                # Add article ID to results
-                data = sentiment_result.results
-                data["article_id"] = article_id
-                sentiment_data.append(data)
+            .all()
+        )
         
+        # Convert to list of dictionaries
+        sentiment_data = []
+        for result in results:
+            data = {
+                "article_id": result.article_id,
+                "document_sentiment": result.results.get("document_sentiment", 0.0),
+                "document_magnitude": result.results.get("document_magnitude", 0.0),
+                "topic_sentiments": result.results.get("topic_sentiments", {}),
+                "entity_sentiments": result.results.get("entity_sentiments", {})
+            }
+            sentiment_data.append(data)
+            
         return sentiment_data
     
-    def _calculate_period_sentiment(self, sentiment_data: List[Dict]) -> Dict:
-        """Calculate overall sentiment for a period."""
-        if not sentiment_data:
-            return {}
-            
-        total_sentiment = 0.0
-        total_magnitude = 0.0
-        
-        for data in sentiment_data:
-            total_sentiment += data.get("document_sentiment", 0.0)
-            total_magnitude += data.get("document_magnitude", 0.0)
-        
-        avg_sentiment = total_sentiment / len(sentiment_data)
-        avg_magnitude = total_magnitude / len(sentiment_data)
-        
-        # Calculate sentiment distribution
-        sentiment_distribution = {
+    def _calculate_sentiment_distribution(self, sentiment_data: List[Dict]) -> Dict[str, int]:
+        """Calculate distribution of sentiment across articles."""
+        distribution = {
             "positive": 0,
             "neutral": 0,
             "negative": 0
         }
         
         for data in sentiment_data:
-            sentiment = data.get("document_sentiment", 0.0)
+            sentiment = data["document_sentiment"]
             if sentiment > 0.1:
-                sentiment_distribution["positive"] += 1
+                distribution["positive"] += 1
             elif sentiment < -0.1:
-                sentiment_distribution["negative"] += 1
+                distribution["negative"] += 1
             else:
-                sentiment_distribution["neutral"] += 1
-        
-        return {
-            "avg_sentiment": avg_sentiment,
-            "avg_magnitude": avg_magnitude,
-            "article_count": len(sentiment_data),
-            "sentiment_distribution": sentiment_distribution
-        }
+                distribution["neutral"] += 1
+                
+        return distribution
     
     def _calculate_topic_sentiment(
         self, sentiment_data: List[Dict], topic: str
