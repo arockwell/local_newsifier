@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -22,17 +22,25 @@ def get_cursor_db_name() -> str:
 
 
 class DatabaseSettings(BaseSettings):
-    """Database configuration settings."""
-    
+    """Database settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="allow",  # Allow extra fields from environment
+    )
+
+    # PostgreSQL Database settings
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = get_cursor_db_name()
-    
+
     @property
     def DATABASE_URL(self) -> str:
-        """Get the database URL."""
+        """Construct database URL from components."""
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 

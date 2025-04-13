@@ -15,10 +15,19 @@ class Settings(BaseSettings):
     )
 
     # OpenAI API key
-    openai_api_key: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
 
-    # Database settings
-    DATABASE_URL: str = "sqlite:///./local_newsifier.db"
+    # PostgreSQL Database settings
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: str = "5432"
+    POSTGRES_DB: str = "local_newsifier"
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Construct database URL from components."""
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 
 # Create global settings instance
