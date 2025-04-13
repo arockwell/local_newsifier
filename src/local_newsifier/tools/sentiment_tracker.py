@@ -283,30 +283,22 @@ class SentimentTracker:
     
     def _get_sentiment_data_for_articles(self, article_ids: List[int]) -> List[Dict]:
         """Get sentiment analysis results for articles."""
-        session = self.db_manager.session
-        
-        # Get analysis results for articles
-        results = (
-            session.query(AnalysisResultDB)
-            .filter(
-                AnalysisResultDB.article_id.in_(article_ids),
-                AnalysisResultDB.analysis_type == "sentiment"
-            )
-            .all()
-        )
-        
-        # Convert to list of dictionaries
         sentiment_data = []
-        for result in results:
-            data = {
-                "article_id": result.article_id,
-                "document_sentiment": result.results.get("document_sentiment", 0.0),
-                "document_magnitude": result.results.get("document_magnitude", 0.0),
-                "topic_sentiments": result.results.get("topic_sentiments", {}),
-                "entity_sentiments": result.results.get("entity_sentiments", {})
-            }
-            sentiment_data.append(data)
-            
+        
+        for article_id in article_ids:
+            results = self.db_manager.get_analysis_results_by_article(article_id)
+            for result in results:
+                if result.analysis_type == "sentiment":
+                    data = {
+                        "article_id": article_id,
+                        "document_sentiment": result.results.get("document_sentiment", 0.0),
+                        "document_magnitude": result.results.get("document_magnitude", 0.0),
+                        "topic_sentiments": result.results.get("topic_sentiments", {}),
+                        "entity_sentiments": result.results.get("entity_sentiments", {})
+                    }
+                    sentiment_data.append(data)
+                    break
+        
         return sentiment_data
     
     def _calculate_sentiment_distribution(self, sentiment_data: List[Dict]) -> Dict[str, int]:
@@ -579,3 +571,38 @@ class SentimentTracker:
             created_shifts.append(shift_data.model_dump())
         
         return created_shifts
+
+    def _calculate_period_sentiment(self, sentiment_data: List[Dict]) -> Dict:
+        """Calculate overall sentiment for a period."""
+        if not sentiment_data:
+            return {}
+        
+        # Calculate average sentiment and magnitude
+        total_sentiment = sum(data["document_sentiment"] for data in sentiment_data)
+        total_magnitude = sum(data.get("document_magnitude", 0.0) for data in sentiment_data)
+        
+        avg_sentiment = total_sentiment / len(sentiment_data)
+        avg_magnitude = total_magnitude / len(sentiment_data)
+        
+        # Calculate sentiment distribution
+        sentiment_distribution = {
+            "positive": 0,
+            "neutral": 0,
+            "negative": 0
+        }
+        
+        for data in sentiment_data:
+            sentiment = data["document_sentiment"]
+            if sentiment > 0.1:
+                sentiment_distribution["positive"] += 1
+            elif sentiment < -0.1:
+                sentiment_distribution["negative"] += 1
+            else:
+                sentiment_distribution["neutral"] += 1
+            
+        return {
+            "avg_sentiment": avg_sentiment,
+            "avg_magnitude": avg_magnitude,
+            "article_count": len(sentiment_data),
+            "sentiment_distribution": sentiment_distribution
+        }
