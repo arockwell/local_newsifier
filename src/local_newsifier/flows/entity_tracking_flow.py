@@ -70,7 +70,7 @@ class EntityTrackingFlow(Flow):
             article_id=article.id,
             content=article.content,
             title=article.title,
-            published_at=article.published_at or datetime.utcnow()
+            published_at=article.published_at or datetime.now(timezone.utc)
         )
         
         return processed_entities
@@ -201,9 +201,9 @@ class EntityTrackingFlow(Flow):
         
         # Convert to list and sort by co-occurrence count
         relationships = []
-        for entity_id, data in co_occurrences.items():
+        for related_id, data in co_occurrences.items():
             relationships.append({
-                "entity_id": entity_id,
+                "entity_id": related_id,
                 "entity_name": data["entity"].name,
                 "entity_type": data["entity"].entity_type,
                 "co_occurrence_count": data["count"],

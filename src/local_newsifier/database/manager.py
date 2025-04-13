@@ -301,7 +301,7 @@ class DatabaseManager:
                 .values(
                     confidence=relationship.confidence,
                     evidence=relationship.evidence,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(timezone.utc),
                 )
             )
             self.session.commit()
@@ -314,8 +314,8 @@ class DatabaseManager:
                     relationship_type=relationship.relationship_type,
                     confidence=relationship.confidence,
                     evidence=relationship.evidence,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
                 )
             )
             self.session.commit()
