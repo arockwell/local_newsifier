@@ -5,8 +5,12 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 from pydantic import ValidationError
+from pathlib import Path
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
-from local_newsifier.config.database import DatabaseSettings, get_database, get_db_session
+from src.local_newsifier.config.database import DatabaseSettings, get_database, get_db_session
+from src.local_newsifier.models.database import Base
 
 
 @pytest.fixture
@@ -44,8 +48,7 @@ def test_database_settings():
         POSTGRES_HOST="localhost",
         POSTGRES_PORT="5432",
         POSTGRES_DB="test_db",
-        _env_file=None,  # Disable env file loading
-        DATABASE_URL="postgresql://test:test@localhost:5432/test_db"  # Explicitly set DATABASE_URL
+        _env_file=None  # Disable env file loading
     )
     
     assert settings.POSTGRES_USER == "test"
@@ -79,8 +82,8 @@ def test_database_settings_defaults():
         assert settings.POSTGRES_PASSWORD == "postgres"
         assert settings.POSTGRES_HOST == "localhost"
         assert settings.POSTGRES_PORT == "5432"
-        assert settings.POSTGRES_DB == "local_newsifier"
-        assert str(settings.DATABASE_URL) == "postgresql://postgres:postgres@localhost:5432/local_newsifier"
+        assert settings.POSTGRES_DB == "local_newsifier_default"
+        assert str(settings.DATABASE_URL) == "postgresql://postgres:postgres@localhost:5432/local_newsifier_default"
     finally:
         # Restore original environment
         for key, value in original_env.items():
@@ -117,8 +120,8 @@ def test_database_settings_port_conversion():
     assert settings.POSTGRES_PORT == "5432"  # Port is stored as string
 
 
-@patch("local_newsifier.config.database.init_db")
-@patch("local_newsifier.config.database.DatabaseSettings")
+@patch("src.local_newsifier.config.database.init_db")
+@patch("src.local_newsifier.config.database.DatabaseSettings")
 def test_get_database(mock_settings, mock_init_db):
     """Test get_database function."""
     # Create a mock settings instance with a specific DATABASE_URL
@@ -136,8 +139,34 @@ def test_get_database(mock_settings, mock_init_db):
     mock_init_db.assert_called_once_with("postgresql://test:test@localhost:5432/test_db")
 
 
-@patch("local_newsifier.config.database.get_database")
+@patch("src.local_newsifier.config.database.get_database")
 def test_get_db_session(mock_get_database):
     """Test get_db_session function."""
     session_factory = get_db_session()
-    assert session_factory is not None 
+    assert session_factory is not None
+    assert isinstance(session_factory, sessionmaker)
+    
+    # Test creating a session
+    session = session_factory()
+    assert isinstance(session, Session)
+    session.close()
+
+
+def test_get_database_real():
+    """Test getting a database engine."""
+    engine = get_database()
+    assert engine is not None
+    # Check if it's an Engine instance by checking its class name
+    assert engine.__class__.__name__ == "Engine"
+
+
+def test_get_db_session_real():
+    """Test getting a database session factory."""
+    session_factory = get_db_session()
+    assert session_factory is not None
+    assert isinstance(session_factory, sessionmaker)
+    
+    # Test creating a session
+    session = session_factory()
+    assert isinstance(session, Session)
+    session.close() 
