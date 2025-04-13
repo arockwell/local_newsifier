@@ -366,7 +366,7 @@ class TestWebScraper:
         """Test driver initialization."""
         with patch("selenium.webdriver.chrome.service.Service") as mock_service_class, \
              patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager, \
-             patch("selenium.webdriver.chrome.webdriver.Chrome", return_value=mock_webdriver):
+             patch("selenium.webdriver", new=MagicMock(Chrome=mock_webdriver)):
             
             # Create a mock service instance
             mock_service_instance = MagicMock()
