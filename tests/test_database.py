@@ -1,12 +1,19 @@
 """Tests for database functionality."""
 
 import pytest
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from uuid import uuid4
+import sqlalchemy.exc
 
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database import (ArticleCreate, ArticleDB, Base,
-                                          EntityCreate, EntityDB, AnalysisResultCreate)
+                                          EntityCreate, EntityDB, AnalysisResultCreate,
+                                          ProcessedURLDB, AnalysisResultDB)
+from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+from local_newsifier.repositories.analysis_repository import AnalysisRepository
+from local_newsifier.repositories.rss_cache_repository import RSSCacheRepository
 
 
 @pytest.fixture(scope="session")
@@ -220,3 +227,122 @@ def test_get_articles_by_status(db_manager: DatabaseManager) -> None:
     pending_articles = db_manager.get_articles_by_status("PENDING")
     assert len(pending_articles) == 1
     assert pending_articles[0].id == article2.id
+
+
+@pytest.fixture
+def analysis_repo(db_session) -> AnalysisRepository:
+    """Create an analysis repository for testing."""
+    return AnalysisRepository(db_session)
+
+
+@pytest.fixture
+def rss_cache_repo(db_session) -> RSSCacheRepository:
+    """Create an RSS cache repository for testing."""
+    return RSSCacheRepository(db_session)
+
+
+def test_rss_cache_repository(rss_cache_repo: RSSCacheRepository) -> None:
+    """Test RSS cache repository functionality."""
+    # Test adding and checking URLs
+    test_url = "https://example.com/article1"
+    test_feed = "https://example.com/feed"
+    
+    # URL should not be processed initially
+    assert not rss_cache_repo.is_processed(test_url)
+    
+    # Add URL to cache
+    rss_cache_repo.add_processed_url(test_url, test_feed)
+    
+    # URL should now be processed
+    assert rss_cache_repo.is_processed(test_url)
+    
+    # Test getting processed URLs for feed
+    processed_urls = rss_cache_repo.get_processed_urls(test_feed)
+    assert test_url in processed_urls
+    
+    # Test getting new URLs
+    urls = [test_url, "https://example.com/article2"]
+    new_urls = rss_cache_repo.get_new_urls(urls, test_feed)
+    assert len(new_urls) == 1
+    assert "https://example.com/article2" in new_urls
+
+
+def test_analysis_repository(analysis_repo: AnalysisRepository, db_session: Session) -> None:
+    """Test analysis repository functionality."""
+    # Create test state
+    state = NewsAnalysisState(
+        target_url="https://example.com/article1",
+        run_id=uuid4()
+    )
+    
+    # Add some test data
+    state.scraped_title = "Test Article"
+    state.source = "Example News"
+    state.published_at = datetime.now(timezone.utc)
+    state.scraped_at = datetime.now(timezone.utc)
+    state.scraped_text = "This is a test article."
+    state.analysis_config = {"model": "test"}
+    state.analysis_results = {"entities": []}
+    
+    # Save state
+    saved_state = analysis_repo.save(state)
+    
+    # Verify save was successful
+    assert saved_state.status == AnalysisStatus.COMPLETED_SUCCESS
+    assert saved_state.save_path.startswith("db://analysis_results/")
+    
+    # Verify article was created
+    article = db_session.query(ArticleDB).filter_by(url=state.target_url).first()
+    assert article is not None
+    assert article.title == state.scraped_title
+    assert article.content == state.scraped_text
+    
+    # Verify analysis result was created
+    analysis_result = db_session.query(AnalysisResultDB).filter_by(article_id=article.id).first()
+    assert analysis_result is not None
+    assert analysis_result.analysis_type == "news_analysis"
+    assert analysis_result.results["run_id"] == str(state.run_id)
+
+
+def test_analysis_repository_error_handling(analysis_repo: AnalysisRepository) -> None:
+    """Test analysis repository error handling."""
+    # Create test state with invalid data
+    state = NewsAnalysisState(
+        target_url="https://example.com/article2",
+        run_id=uuid4()
+    )
+    
+    # Add invalid data that should cause a database error
+    state.scraped_text = "Test content"  # Add some content
+    state.analysis_results = {"invalid": object()}  # This will fail JSON serialization
+    
+    # Attempt to save state
+    with pytest.raises(sqlalchemy.exc.StatementError) as exc_info:  # SQLAlchemy wraps the TypeError
+        analysis_repo.save(state)
+    assert "Object of type object is not JSON serializable" in str(exc_info.value)
+    
+    assert state.status == AnalysisStatus.SAVE_FAILED
+    assert state.error_details is not None
+    assert state.error_details.task == "saving"
+
+
+def test_rss_cache_cleanup(rss_cache_repo: RSSCacheRepository, db_session: Session) -> None:
+    """Test RSS cache cleanup functionality."""
+    # Add some test URLs
+    test_urls = [
+        ("https://example.com/article1", "https://example.com/feed1"),
+        ("https://example.com/article2", "https://example.com/feed1"),
+        ("https://example.com/article3", "https://example.com/feed2")
+    ]
+    
+    for url, feed_url in test_urls:
+        rss_cache_repo.add_processed_url(url, feed_url)
+    
+    # Verify URLs were added
+    assert db_session.query(ProcessedURLDB).count() == 3
+    
+    # Clean up URLs
+    rss_cache_repo.cleanup_old_urls(days=0)
+    
+    # Verify URLs were cleaned up
+    assert db_session.query(ProcessedURLDB).count() == 0
