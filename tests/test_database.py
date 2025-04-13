@@ -346,3 +346,35 @@ def test_rss_cache_cleanup(rss_cache_repo: RSSCacheRepository, db_session: Sessi
     
     # Verify URLs were cleaned up
     assert db_session.query(ProcessedURLDB).count() == 0
+
+
+def test_save_analysis_result(db_session, analysis_repo):
+    """Test saving an analysis result."""
+    # First create an article
+    article = ArticleDB(
+        url="https://example.com",
+        title="Test Article",
+        content="Test content",
+        status="analyzed"
+    )
+    db_session.add(article)
+    db_session.flush()
+
+    # Create a test result
+    result = AnalysisResultDB(
+        article_id=article.id,
+        analysis_type="entity_analysis",
+        results={"entities": [{"text": "Test", "type": "PERSON"}]},
+        created_at=datetime.now(timezone.utc)
+    )
+    
+    # Save the result
+    db_session.add(result)
+    db_session.commit()
+    
+    # Verify the result was saved
+    saved_result = db_session.query(AnalysisResultDB).first()
+    assert saved_result is not None
+    assert saved_result.article_id == article.id
+    assert saved_result.analysis_type == "entity_analysis"
+    assert saved_result.results == {"entities": [{"text": "Test", "type": "PERSON"}]}

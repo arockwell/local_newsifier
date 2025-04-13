@@ -6,7 +6,7 @@ import json
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, mock_open, patch, MagicMock
 
 import pytest
 
@@ -55,6 +55,12 @@ SAMPLE_ATOM_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </feed>
 """
 
+@pytest.fixture(scope="session")
+def parser():
+    """Create a parser instance with mocked components."""
+    mock_cache_repo = MagicMock()
+    parser = RSSParser(cache_repository=mock_cache_repo)
+    return parser
 
 class TestRSSParser:
     def setup_method(self):
