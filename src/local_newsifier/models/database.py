@@ -13,7 +13,6 @@ from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.database import init_db, get_session
 
 
 # Pydantic Models
@@ -100,7 +99,10 @@ class AnalysisResult(AnalysisResultBase):
         from_attributes = True
 
 
-# Re-export initialization functions
+# Import initialization functions separately to avoid circular imports
+from local_newsifier.models.database import init_db, get_session
+
+# Re-export all models and functions
 __all__ = [
     "Base",
     "ArticleDB",
