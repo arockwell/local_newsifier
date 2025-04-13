@@ -2,7 +2,7 @@
 
 from typing import Any, Optional
 
-from pydantic import PostgresDsn, validator
+from pydantic import validator
 from pydantic_settings import BaseSettings
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -13,35 +13,7 @@ from ..models.database import get_session, init_db
 class DatabaseSettings(BaseSettings):
     """Database configuration settings."""
 
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "local_newsifier"
-
-    DATABASE_URL: Optional[PostgresDsn] = None
-
-    @validator("DATABASE_URL", pre=True)
-    def assemble_db_connection(cls, v: Optional[str], values: dict[str, Any]) -> Any:
-        """Assemble database connection URL.
-
-        Args:
-            v: Optional database URL
-            values: Other settings values
-
-        Returns:
-            Assembled database URL
-        """
-        if isinstance(v, str):
-            return v
-        return PostgresDsn.build(
-            scheme="postgresql",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_HOST"),
-            port=int(values.get("POSTGRES_PORT", "5432")),
-            path=values.get("POSTGRES_DB"),
-        )
+    DATABASE_URL: str = "sqlite:///local_newsifier.db"
 
     model_config = {
         "case_sensitive": True,

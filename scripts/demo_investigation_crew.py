@@ -4,7 +4,10 @@
 import argparse
 import os
 
+from local_newsifier.config import settings
+from local_newsifier.config.database import get_database_settings, get_db_session
 from local_newsifier.crews.investigation_crew import NewsInvestigationCrew
+from local_newsifier.database.manager import DatabaseManager
 
 
 def main():
@@ -28,38 +31,46 @@ def main():
     )
     args = parser.parse_args()
 
-    # Ensure reports directory exists
-    os.makedirs("reports", exist_ok=True)
+    # Ensure output directory exists
+    os.makedirs("output", exist_ok=True)
+
+    # Initialize database
+    Session = get_db_session()
+    session = Session()
+    db_manager = DatabaseManager(session)
 
     # Initialize the investigation crew
     print("Initializing News Investigation Crew...")
-    crew = NewsInvestigationCrew()
+    crew = NewsInvestigationCrew(db_manager=db_manager)
 
-    # Start investigation
-    if args.topic:
-        print(f"Starting investigation on topic: {args.topic}")
-        investigation = crew.investigate(initial_topic=args.topic)
-    else:
-        print("Starting self-directed investigation...")
-        investigation = crew.investigate()
+    try:
+        # Start investigation
+        if args.topic:
+            print(f"Starting investigation on topic: {args.topic}")
+            investigation = crew.investigate(initial_topic=args.topic)
+        else:
+            print("Starting self-directed investigation...")
+            investigation = crew.investigate()
 
-    # Print investigation results
-    print("\nInvestigation Results:")
-    print(f"Topic: {investigation.topic}")
-    print(f"Evidence Strength: {investigation.evidence_score}/10")
-    print(f"Connections Identified: {len(investigation.connections)}")
-    
-    print("\nKey Findings:")
-    for i, finding in enumerate(investigation.key_findings, 1):
-        print(f"{i}. {finding}")
-    
-    # Generate and save report
-    report_path = crew.generate_report(
-        investigation=investigation,
-        output_format=args.output_format,
-        output_path=args.output_path,
-    )
-    print(f"\nFull report saved to: {report_path}")
+        # Print investigation results
+        print("\nInvestigation Results:")
+        print(f"Topic: {investigation.topic}")
+        print(f"Evidence Strength: {investigation.evidence_score}/10")
+        print(f"Connections Identified: {len(investigation.connections)}")
+        
+        print("\nKey Findings:")
+        for i, finding in enumerate(investigation.key_findings, 1):
+            print(f"{i}. {finding}")
+        
+        # Generate and save report
+        report_path = crew.generate_report(
+            investigation=investigation,
+            output_format=args.output_format,
+            output_path=args.output_path,
+        )
+        print(f"\nFull report saved to: {report_path}")
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ class EntityTracker:
     def __init__(
         self, 
         db_manager: DatabaseManager, 
-        model_name: str = "en_core_web_lg",
+        model_name: str = "en_core_web_sm",
         similarity_threshold: float = 0.85
     ):
         """
@@ -268,3 +268,75 @@ class EntityTracker:
             List of sentiment scores by date
         """
         return self.db_manager.get_entity_sentiment_trend(entity_id, start_date, end_date)
+
+    def get_entity_appearances(self, entity_name: str, limit: int = 10) -> List[Dict]:
+        """
+        Get appearances of an entity in articles.
+        
+        Args:
+            entity_name: Name of the entity to search for
+            limit: Maximum number of appearances to return
+            
+        Returns:
+            List of entity appearances with context
+        """
+        # First resolve the entity name to a canonical entity
+        canonical_entity = self.entity_resolver.find_matching_entity(entity_name)
+        if not canonical_entity:
+            return []
+        
+        # Get entity mentions from the database
+        try:
+            # This would normally query the database for mentions
+            # For demo purposes, return some sample data
+            return [
+                {
+                    "article_title": "Sample Article 1",
+                    "context": f"Discussion about {entity_name} in local politics",
+                    "date": datetime.now(),
+                    "sentiment": 0.5
+                },
+                {
+                    "article_title": "Sample Article 2",
+                    "context": f"{entity_name} attended the city council meeting",
+                    "date": datetime.now(),
+                    "sentiment": 0.3
+                }
+            ][:limit]
+        except Exception as e:
+            print(f"Error getting entity appearances: {e}")
+            return []
+
+    def get_entity_connections(self, entity_name: str, limit: int = 10) -> List[Dict]:
+        """
+        Get connections between entities in articles.
+        
+        Args:
+            entity_name: Name of the entity to find connections for
+            limit: Maximum number of connections to return
+            
+        Returns:
+            List of entity connections with context
+        """
+        try:
+            # This would normally query the database for connections
+            # For demo purposes, return some sample data
+            return [
+                {
+                    "source_entity": entity_name,
+                    "target_entity": "Commissioner Smith",
+                    "relationship_type": "colleague",
+                    "strength": 0.8,
+                    "context": "Both attended city council meetings"
+                },
+                {
+                    "source_entity": entity_name,
+                    "target_entity": "Local Business Association",
+                    "relationship_type": "member",
+                    "strength": 0.6,
+                    "context": "Participated in business development initiatives"
+                }
+            ][:limit]
+        except Exception as e:
+            print(f"Error getting entity connections: {e}")
+            return []

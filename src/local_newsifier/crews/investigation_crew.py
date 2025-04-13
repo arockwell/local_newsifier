@@ -3,14 +3,145 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import crewai
+import litellm
+from crewai import Agent, Task, Crew
+from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from local_newsifier.config import settings
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.entity_tracking import EntityConnection
 from local_newsifier.tools.context_analyzer import ContextAnalyzer
 from local_newsifier.tools.entity_resolver import EntityResolver
 from local_newsifier.tools.entity_tracker import EntityTracker
 from local_newsifier.tools.file_writer import FileWriter
+
+# Set the API keys
+crewai.api_key = settings.openai_api_key
+litellm.api_key = settings.openai_api_key
+
+class EntityAppearancesTool(BaseTool):
+    """Tool for finding entity appearances in articles."""
+
+    name: str = "Entity Appearances Tool"
+    description: str = "Find appearances of an entity in news articles"
+    entity_tracker: EntityTracker = Field(description="Entity tracker instance")
+
+    def _run(self, entity_name: str, limit: int = 10) -> str:
+        """Run the tool to find entity appearances.
+        
+        Args:
+            entity_name: Name of the entity to search for
+            limit: Maximum number of appearances to return
+            
+        Returns:
+            str: Formatted string of entity appearances
+        """
+        appearances = self.entity_tracker.get_entity_appearances(entity_name, limit)
+        if not appearances:
+            return f"No appearances found for entity: {entity_name}"
+            
+        result = f"Appearances for {entity_name}:\n"
+        for i, appearance in enumerate(appearances, 1):
+            result += f"\n{i}. Article: {appearance['article_title']}\n"
+            result += f"   Context: {appearance['context']}\n"
+            result += f"   Date: {appearance['date']}\n"
+            result += f"   Sentiment: {appearance['sentiment']}\n"
+            
+        return result
+
+
+class EntityConnectionsTool(BaseTool):
+    """Tool for finding entity connections."""
+
+    name: str = "Entity Connections Tool"
+    description: str = "Find connections between entities in news articles"
+    entity_tracker: EntityTracker = Field(description="Entity tracker instance")
+
+    def _run(self, entity_name: str, limit: int = 10) -> str:
+        """Run the tool to find entity connections.
+        
+        Args:
+            entity_name: Name of the entity to find connections for
+            limit: Maximum number of connections to return
+            
+        Returns:
+            str: Formatted string of entity connections
+        """
+        connections = self.entity_tracker.get_entity_connections(entity_name, limit)
+        if not connections:
+            return f"No connections found for entity: {entity_name}"
+            
+        result = f"Connections for {entity_name}:\n"
+        for i, connection in enumerate(connections, 1):
+            result += f"\n{i}. Connection to: {connection['target_entity']}\n"
+            result += f"   Type: {connection['relationship_type']}\n"
+            result += f"   Strength: {connection['strength']}\n"
+            result += f"   Context: {connection['context']}\n"
+            
+        return result
+
+
+class EntityContextTool(BaseTool):
+    """Tool for analyzing entity context."""
+
+    name: str = "Entity Context Tool"
+    description: str = "Analyze the context in which entities appear"
+    context_analyzer: ContextAnalyzer = Field(description="Context analyzer instance")
+
+    def _run(self, context: str) -> str:
+        """Run the tool to analyze entity context.
+        
+        Args:
+            context: Text context to analyze
+            
+        Returns:
+            str: Formatted string of context analysis results
+        """
+        # Ensure context is a string
+        if isinstance(context, dict):
+            context = context.get('description', '')
+            
+        analysis = self.context_analyzer.analyze_context(context)
+        
+        result = "Context Analysis Results:\n"
+        result += f"Sentiment Score: {analysis.get('sentiment', {}).get('score', 0)}\n"
+        result += f"Sentiment Label: {analysis.get('sentiment', {}).get('label', 'neutral')}\n"
+        result += f"Framing Category: {analysis.get('framing', {}).get('category', 'unknown')}\n"
+        result += f"Framing Description: {analysis.get('framing', {}).get('description', '')}\n"
+        
+        if 'key_phrases' in analysis:
+            result += "\nKey Phrases:\n"
+            for phrase in analysis['key_phrases']:
+                result += f"- {phrase}\n"
+                
+        return result
+
+
+class EntityResolveTool(BaseTool):
+    """Tool for resolving entity mentions."""
+
+    name: str = "Entity Resolve Tool"
+    description: str = "Resolve entity mentions to canonical entities"
+    entity_resolver: EntityResolver = Field(description="Entity resolver instance")
+
+    def _run(self, name: str, entity_type: str = "PERSON") -> str:
+        """Run the tool to resolve an entity."""
+        entity = self.entity_resolver.resolve_entity(name, entity_type)
+        return str(entity)
+
+
+class FileWriterTool(BaseTool):
+    """Tool for writing files."""
+
+    name: str = "File Writer Tool"
+    description: str = "Write content to files in various formats"
+    file_writer: FileWriter = Field(description="File writer instance")
+
+    def _run(self, path: str, content: str) -> str:
+        """Run the tool to write a file."""
+        self.file_writer.write_file(path, content)
+        return f"File written to {path}"
 
 
 class InvestigationResult(BaseModel):
@@ -21,7 +152,7 @@ class InvestigationResult(BaseModel):
     evidence_score: int = Field(
         description="Score from 1-10 indicating the strength of evidence"
     )
-    connections: List[EntityConnection] = Field(
+    connections: List[Dict[str, Union[str, float]]] = Field(
         description="Connections identified between entities", default_factory=list
     )
     entities_of_interest: List[str] = Field(
@@ -44,11 +175,18 @@ class NewsInvestigationCrew:
             db_manager: Optional database manager for persistence.
                         If None, a new one will be created.
         """
-        self.db_manager = db_manager or DatabaseManager()
-        self.entity_resolver = EntityResolver()
-        self.entity_tracker = EntityTracker(db_manager=self.db_manager)
-        self.context_analyzer = ContextAnalyzer()
+        self.db_manager = db_manager
+        self.entity_resolver = EntityResolver(db_manager=db_manager)
+        self.entity_tracker = EntityTracker(db_manager=db_manager)
+        self.context_analyzer = ContextAnalyzer(model_name="en_core_web_sm")
         self.file_writer = FileWriter()
+
+        # Create tools
+        self.entity_appearances_tool = EntityAppearancesTool(entity_tracker=self.entity_tracker)
+        self.entity_connections_tool = EntityConnectionsTool(entity_tracker=self.entity_tracker)
+        self.entity_context_tool = EntityContextTool(context_analyzer=self.context_analyzer)
+        self.entity_resolve_tool = EntityResolveTool(entity_resolver=self.entity_resolver)
+        self.file_writer_tool = FileWriterTool(file_writer=self.file_writer)
 
         # Initialize the crew components
         self._initialize_crew()
@@ -56,35 +194,41 @@ class NewsInvestigationCrew:
     def _initialize_crew(self) -> None:
         """Initialize the crew with necessary agents and tasks."""
         # Define the crew's agents
-        self.researcher = crewai.Agent(
+        self.researcher = Agent(
             role="News Researcher",
             goal="Find relevant articles and extract key information",
             backstory="Expert at finding patterns in news coverage",
             tools=[
-                self.entity_tracker.get_entity_appearances,
-                self.entity_tracker.get_entity_connections,
+                self.entity_appearances_tool,
+                self.entity_connections_tool,
             ],
+            verbose=True,
+            allow_delegation=False,
         )
 
-        self.analyst = crewai.Agent(
+        self.analyst = Agent(
             role="Investigation Analyst",
             goal="Analyze connections between entities and identify patterns",
             backstory="Skilled at finding hidden connections in complex data",
             tools=[
-                self.context_analyzer.analyze_entity_context,
-                self.entity_resolver.resolve_entity,
+                self.entity_context_tool,
+                self.entity_resolve_tool,
             ],
+            verbose=True,
+            allow_delegation=False,
         )
 
-        self.reporter = crewai.Agent(
+        self.reporter = Agent(
             role="Investigation Reporter",
             goal="Compile findings into clear, evidence-based reports",
             backstory="Experienced investigative journalist skilled at presenting complex findings",
-            tools=[self.file_writer.write_file],
+            tools=[self.file_writer_tool],
+            verbose=True,
+            allow_delegation=False,
         )
 
         # Create the crew
-        self.crew = crewai.Crew(
+        self.crew = Crew(
             agents=[self.researcher, self.analyst, self.reporter],
             tasks=[],  # Tasks will be defined per investigation
             verbose=True,
@@ -104,26 +248,26 @@ class NewsInvestigationCrew:
         """
         # Define investigation tasks based on initial topic
         if initial_topic:
-            research_task = crewai.Task(
+            research_task = Task(
                 description=f"Research articles related to '{initial_topic}' and identify key entities",
                 agent=self.researcher,
                 expected_output="List of relevant entities and their appearances",
             )
         else:
-            research_task = crewai.Task(
+            research_task = Task(
                 description="Identify potential investigation topics based on entity analysis",
                 agent=self.researcher,
                 expected_output="Potential investigation topics with supporting evidence",
             )
 
-        analysis_task = crewai.Task(
+        analysis_task = Task(
             description="Analyze connections between identified entities and evaluate evidence",
             agent=self.analyst,
             expected_output="Analysis of entity connections with evidence score",
             context=[research_task],
         )
 
-        report_task = crewai.Task(
+        report_task = Task(
             description="Compile investigation findings into a structured result",
             agent=self.reporter,
             expected_output="Structured investigation findings with key insights",
@@ -171,7 +315,7 @@ class NewsInvestigationCrew:
             str: Path to the generated report file
         """
         if output_path is None:
-            output_path = f"reports/investigation_{investigation.topic.replace(' ', '_')}.{output_format}"
+            output_path = f"output/investigation_{investigation.topic.replace(' ', '_')}.{output_format}"
 
         # Create report content
         report_content = self._create_report_content(investigation, output_format)
@@ -220,7 +364,7 @@ class NewsInvestigationCrew:
         
         report += "## Entity Connections\n\n"
         for connection in investigation.connections:
-            report += f"- {connection.source_entity} → {connection.target_entity}: {connection.relationship_type}\n"
+            report += f"- {connection['source_entity']} → {connection['target_entity']}: {connection['relationship_type']}\n"
         
         report += "\n## Entities of Interest\n\n"
         for entity in investigation.entities_of_interest:
@@ -268,7 +412,7 @@ class NewsInvestigationCrew:
 """
         
         for connection in investigation.connections:
-            html += f"        <li>{connection.source_entity} → {connection.target_entity}: {connection.relationship_type}</li>\n"
+            html += f"        <li>{connection['source_entity']} → {connection['target_entity']}: {connection['relationship_type']}</li>\n"
             
         html += """    </ul>
     
@@ -286,18 +430,26 @@ class NewsInvestigationCrew:
         return html
 
     def _extract_entities_from_connections(
-        self, connections: List[EntityConnection]
+        self, connections: List[Dict[str, Union[str, float]]]
     ) -> List[str]:
-        """Extract unique entity names from connections.
-
+        """Extract unique entities from a list of connections.
+        
         Args:
             connections: List of entity connections
-
+            
         Returns:
-            List[str]: Unique entity names
+            List of unique entity names
         """
         entities = set()
         for connection in connections:
-            entities.add(connection.source_entity)
-            entities.add(connection.target_entity)
-        return list(entities)
+            if isinstance(connection, dict):
+                # Handle dictionary format
+                entities.add(connection.get('source_entity', ''))
+                entities.add(connection.get('target_entity', ''))
+            else:
+                # Handle EntityConnection object format
+                entities.add(connection['source_entity'])
+                entities.add(connection['target_entity'])
+        
+        # Remove empty strings and convert to list
+        return [e for e in entities if e]
