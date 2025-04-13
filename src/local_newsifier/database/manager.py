@@ -6,15 +6,16 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from ..models.database import (AnalysisResult, AnalysisResultCreate,
-                               AnalysisResultDB, Article, ArticleCreate,
-                               ArticleDB, Entity, EntityCreate, EntityDB)
-from ..models.entity_tracking import (CanonicalEntity, CanonicalEntityCreate,
-                                    CanonicalEntityDB, EntityMentionContext,
-                                    EntityMentionContextCreate, EntityMentionContextDB,
-                                    EntityProfile, EntityProfileCreate, EntityProfileDB,
-                                    EntityRelationship, EntityRelationshipCreate,
-                                    entity_mentions, entity_relationships)
+from models.database import (AnalysisResult, AnalysisResultCreate,
+                           AnalysisResultDB, Article, ArticleCreate,
+                           ArticleDB, Entity, EntityCreate, EntityDB)
+from models.entity_tracking import (CanonicalEntity, CanonicalEntityCreate,
+                                  CanonicalEntityDB, EntityMention, EntityMentionCreate,
+                                  EntityMentionContext, EntityMentionContextCreate,
+                                  EntityMentionContextDB, EntityProfile,
+                                  EntityProfileCreate, EntityProfileDB,
+                                  EntityRelationship, EntityRelationshipCreate,
+                                  entity_mentions, entity_relationships)
 
 
 class DatabaseManager:
@@ -542,3 +543,42 @@ class DatabaseManager:
         )
         
         return [Article.model_validate(article) for article in db_articles]
+
+    def add_entity_mention(self, mention: EntityMentionCreate) -> EntityMention:
+        """Add a new entity mention.
+
+        Args:
+            mention: Entity mention data to create
+
+        Returns:
+            Created entity mention
+        """
+        # Create a new entity first
+        entity = self.add_entity(
+            EntityCreate(
+                article_id=mention.article_id,
+                text=mention.mention_text,
+                entity_type=mention.mention_type,
+                confidence=1.0  # Default confidence for demo
+            )
+        )
+        
+        # Create the mention association
+        self.session.execute(
+            entity_mentions.insert().values(
+                canonical_entity_id=mention.canonical_entity_id,
+                entity_id=entity.id,
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+        self.session.commit()
+        
+        # Return the mention data
+        return EntityMention(
+            id=entity.id,
+            canonical_entity_id=mention.canonical_entity_id,
+            article_id=mention.article_id,
+            mention_text=mention.mention_text,
+            mention_type=mention.mention_type,
+            created_at=datetime.now(timezone.utc)
+        )
