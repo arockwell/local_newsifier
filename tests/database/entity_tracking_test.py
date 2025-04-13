@@ -26,7 +26,7 @@ def test_engine():
     return engine
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup_test_db(test_engine):
     """Set up and tear down the test database for each test."""
     # Create all tables
@@ -251,7 +251,7 @@ def test_entity_timeline_and_sentiment_trend(
     
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
-        name="Joe Biden",
+        name="Joe Biden Timeline",
         entity_type="PERSON"
     )
     
