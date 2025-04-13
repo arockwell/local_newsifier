@@ -26,7 +26,7 @@ def test_engine():
     return engine
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="module")
 def setup_test_db(test_engine):
     """Set up and tear down the test database for each test."""
     # Create all tables
@@ -79,7 +79,7 @@ def sample_entity(db_manager: DatabaseManager, sample_article):
     return db_manager.add_entity(entity)
 
 
-def test_create_canonical_entity(db_manager: DatabaseManager):
+def test_create_canonical_entity(db_manager: DatabaseManager, setup_test_db):
     """Test creating a canonical entity."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -99,7 +99,7 @@ def test_create_canonical_entity(db_manager: DatabaseManager):
     assert canonical_entity.last_seen is not None
 
 
-def test_get_canonical_entity(db_manager: DatabaseManager):
+def test_get_canonical_entity(db_manager: DatabaseManager, setup_test_db):
     """Test getting a canonical entity by ID."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -121,7 +121,7 @@ def test_get_canonical_entity(db_manager: DatabaseManager):
     assert retrieved_entity.description == "Vice President of the United States"
 
 
-def test_get_canonical_entity_by_name(db_manager: DatabaseManager):
+def test_get_canonical_entity_by_name(db_manager: DatabaseManager, setup_test_db):
     """Test getting a canonical entity by name and type."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -142,7 +142,7 @@ def test_get_canonical_entity_by_name(db_manager: DatabaseManager):
     assert retrieved_entity.description == "44th President of the United States"
 
 
-def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
+def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity, setup_test_db):
     """Test adding context for an entity mention."""
     # Add entity mention context
     context_data = EntityMentionContextCreate(
@@ -162,7 +162,7 @@ def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
     assert context.sentiment_score == 0.5
 
 
-def test_add_entity_profile(db_manager: DatabaseManager):
+def test_add_entity_profile(db_manager: DatabaseManager, setup_test_db):
     """Test adding an entity profile."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -187,13 +187,14 @@ def test_add_entity_profile(db_manager: DatabaseManager):
     assert profile.id is not None
     assert profile.canonical_entity_id == canonical_entity.id
     assert profile.mention_count == 10
+    assert profile.contexts is not None
     assert len(profile.contexts) == 1
     assert profile.contexts[0] == "Donald Trump is a former president."
     assert profile.temporal_data == {"2023-01-01": 5, "2023-01-02": 5}
     assert profile.last_updated is not None
 
 
-def test_update_entity_profile(db_manager: DatabaseManager):
+def test_update_entity_profile(db_manager: DatabaseManager, setup_test_db):
     """Test updating an entity profile."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -228,12 +229,13 @@ def test_update_entity_profile(db_manager: DatabaseManager):
     assert updated_profile.id is not None
     assert updated_profile.canonical_entity_id == canonical_entity.id
     assert updated_profile.mention_count == 10
+    assert updated_profile.contexts is not None
     assert len(updated_profile.contexts) == 2
     assert updated_profile.temporal_data == {"2023-01-01": 5, "2023-01-02": 5}
 
 
 def test_entity_timeline_and_sentiment_trend(
-    db_manager: DatabaseManager, db_session: Session
+    db_manager: DatabaseManager, db_session: Session, setup_test_db
 ):
     """Test getting entity timeline and sentiment trend."""
     # Create article
