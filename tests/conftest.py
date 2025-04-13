@@ -6,7 +6,7 @@ from typing import Generator
 
 import pytest
 import psycopg2
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_newsifier.models.database import Base
@@ -76,6 +76,26 @@ def test_engine():
             cur.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
     finally:
         conn.close()
+
+
+@pytest.fixture(autouse=True)
+def setup_test_db(test_engine) -> Generator[None, None, None]:
+    """Set up and tear down the test database for each test."""
+    # Drop all tables and recreate schema
+    with test_engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.commit()
+    
+    # Create all tables
+    Base.metadata.create_all(test_engine)
+    yield
+    
+    # Drop all tables after tests
+    with test_engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.commit()
 
 
 @pytest.fixture
