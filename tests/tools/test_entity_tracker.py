@@ -100,7 +100,7 @@ def test_entity_tracker_init(mock_spacy_load, mock_db_manager):
     # spacy.load is called twice: once for EntityTracker, once for ContextAnalyzer
     assert mock_spacy_load.call_count == 2
     assert mock_spacy_load.call_args_list[0] == mock_spacy_load.call_args_list[1]
-    assert mock_spacy_load.call_args_list[0][0][0] == "en_core_web_lg"
+    assert mock_spacy_load.call_args_list[0][0][0] == "en_core_web_sm"
     
     assert tracker.db_manager is mock_db_manager
     assert tracker.nlp is not None

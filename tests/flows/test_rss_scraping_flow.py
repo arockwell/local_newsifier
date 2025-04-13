@@ -3,7 +3,7 @@ Tests for the RSS scraping flow.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
@@ -20,7 +20,18 @@ def mock_rss_parser():
 
 @pytest.fixture
 def mock_web_scraper():
+    """Create a mock web scraper with proper driver setup and cleanup."""
     with patch("local_newsifier.flows.rss_scraping_flow.WebScraperTool") as mock:
+        mock_driver = MagicMock()
+        mock_driver.page_source = "Mock page source"
+        mock_driver.quit = MagicMock()
+        
+        mock_options = MagicMock()
+        mock_options.add_argument = MagicMock()
+        mock_options.add_experimental_option = MagicMock()
+        
+        mock.return_value.driver = mock_driver
+        mock.return_value.options = mock_options
         yield mock
 
 

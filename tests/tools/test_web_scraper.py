@@ -17,22 +17,34 @@ from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.web_scraper import WebScraperTool
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
+def mock_chrome_options():
+    """Create a mock Chrome options instance."""
+    with patch("selenium.webdriver.chrome.options.Options") as mock_options:
+        options = mock_options.return_value
+        options.add_argument = MagicMock()
+        return options
+
+
+@pytest.fixture(scope="function")
 def mock_webdriver():
     """Create a mock WebDriver instance."""
-    driver = MagicMock(spec=WebDriver)
-    element = MagicMock(spec=WebElement)
-    driver.find_element.return_value = element
-    driver.page_source = "<html><body>Default content</body></html>"
-    return driver
+    with patch("selenium.webdriver.chrome.webdriver.WebDriver") as mock_driver:
+        driver = mock_driver.return_value
+        element = MagicMock(spec=WebElement)
+        driver.find_element.return_value = element
+        driver.page_source = "<html><body><article>Test article content</article></body></html>"
+        driver.quit = MagicMock()
+        return driver
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_webdriver_wait():
     """Create a mock WebDriverWait instance."""
-    wait = MagicMock(spec=WebDriverWait)
-    wait.until.return_value = MagicMock(spec=WebElement)
-    return wait
+    with patch("selenium.webdriver.support.wait.WebDriverWait") as mock_wait:
+        wait = mock_wait.return_value
+        wait.until.return_value = MagicMock(spec=WebElement)
+        return wait
 
 
 @pytest.fixture(scope="session")
@@ -112,32 +124,24 @@ def sample_html_subscription():
     """
 
 
-@pytest.fixture(scope="session")
-@patch("local_newsifier.tools.web_scraper.Service")
-@patch("local_newsifier.tools.web_scraper.ChromeDriverManager")
-@patch("local_newsifier.tools.web_scraper.webdriver.Chrome")
-@patch("local_newsifier.tools.web_scraper.WebDriverWait")
-@patch("local_newsifier.tools.web_scraper.Options")
-def web_scraper(
-    mock_options,
-    mock_wait,
-    mock_chrome,
-    mock_manager,
-    mock_service,
-    mock_webdriver,
-    mock_webdriver_wait,
-    mock_http_response,
-):
-    """Create a session-scoped WebScraperTool instance with all dependencies mocked."""
-    # Configure mocks
-    mock_manager.return_value.install.return_value = "mock/path/to/chromedriver"
-    mock_service.return_value = MagicMock()
-    mock_chrome.return_value = mock_webdriver
-    mock_wait.return_value = mock_webdriver_wait
-    mock_options.return_value = MagicMock(spec=Options)
-
-    scraper = WebScraperTool()
-    return scraper
+@pytest.fixture(scope="function")
+def web_scraper(mock_chrome_options, mock_webdriver, mock_webdriver_wait):
+    """Create a WebScraperTool instance with mocked dependencies."""
+    with patch("selenium.webdriver.chrome.service.Service") as mock_service, \
+         patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager, \
+         patch("selenium.webdriver.chrome.webdriver.WebDriver", return_value=mock_webdriver), \
+         patch("selenium.webdriver.support.wait.WebDriverWait", return_value=mock_webdriver_wait), \
+         patch("selenium.webdriver.chrome.options.Options", return_value=mock_chrome_options):
+        
+        mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
+        mock_service.return_value = MagicMock(name="service_instance")
+        
+        scraper = WebScraperTool()
+        yield scraper
+        
+        # Ensure cleanup is called
+        if scraper.driver:
+            scraper.driver.quit()
 
 
 @pytest.mark.usefixtures("mock_webdriver")
@@ -429,3 +433,27 @@ class TestWebScraper:
         assert "article content in a div that should be extracted" in text
         assert "second paragraph that contains more detailed information" in text
         assert "third paragraph that provides additional context" in text
+
+
+def test_scraper_initialization(web_scraper):
+    """Test that the scraper initializes correctly."""
+    assert web_scraper is not None
+    assert web_scraper.user_agent is not None
+    assert web_scraper.chrome_options is not None
+
+
+@pytest.mark.parametrize("url,expected_status", [
+    ("https://example.com/valid", AnalysisStatus.CONTENT_EXTRACTED),
+    ("https://example.com/404", AnalysisStatus.ERROR),
+])
+def test_scrape_article(web_scraper, url, expected_status):
+    """Test scraping articles with different URLs."""
+    state = NewsAnalysisState(url=url)
+    
+    if expected_status == AnalysisStatus.ERROR:
+        with pytest.raises(ValueError):
+            web_scraper.scrape(state)
+    else:
+        result = web_scraper.scrape(state)
+        assert result.status == expected_status
+        assert result.scraped_text is not None
