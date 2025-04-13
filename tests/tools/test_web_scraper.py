@@ -23,7 +23,13 @@ def mock_state():
 @pytest.fixture
 def web_scraper():
     """Create a WebScraperTool instance for testing."""
-    return WebScraperTool()
+    return WebScraperTool(test_mode=True)
+
+
+@pytest.fixture
+def web_scraper_with_selenium():
+    """Create a WebScraperTool instance with Selenium enabled."""
+    return WebScraperTool(test_mode=True, use_selenium=True)
 
 
 class TestWebScraper:
@@ -85,6 +91,31 @@ class TestWebScraper:
                 ValueError, match="Access denied.*may require subscription"
             ):
                 web_scraper._fetch_url("https://example.com/forbidden")
+
+    def test_fetch_url_with_selenium_fallback(self, web_scraper_with_selenium):
+        """Test fallback to Selenium when requests fails."""
+        with patch("requests.Session.get") as mock_get:
+            mock_get.side_effect = RequestException("Network error")
+
+            # Mock Selenium response
+            web_scraper_with_selenium.driver.page_source = "<html><body>Selenium content</body></html>"
+
+            result = web_scraper_with_selenium._fetch_url("https://example.com")
+            assert result == "<html><body>Selenium content</body></html>"
+
+    def test_fetch_url_404_like_with_selenium(self, web_scraper_with_selenium):
+        """Test fallback to Selenium when page looks like 404."""
+        with patch("requests.Session.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.text = "<html><body>404 not found</body></html>"
+            mock_response.raise_for_status.return_value = None
+            mock_get.return_value = mock_response
+
+            # Mock Selenium response
+            web_scraper_with_selenium.driver.page_source = "<html><body>Real content</body></html>"
+
+            result = web_scraper_with_selenium._fetch_url("https://example.com")
+            assert result == "<html><body>Real content</body></html>"
 
     def test_scrape_success(self, web_scraper, mock_state):
         """Test successful scraping workflow."""
