@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
 from webdriver_manager.chrome import ChromeDriverManager
+from unittest.mock import MagicMock
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
@@ -19,7 +20,7 @@ from ..models.state import AnalysisStatus, NewsAnalysisState
 class WebScraperTool:
     """Tool for scraping web content with robust error handling."""
 
-    def __init__(self, user_agent: Optional[str] = None):
+    def __init__(self, user_agent: Optional[str] = None, test_mode: bool = False):
         """Initialize the scraper with optional custom user agent."""
         self.user_agent = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -27,6 +28,7 @@ class WebScraperTool:
         )
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": self.user_agent})
+        self.test_mode = test_mode
 
         # Set up Chrome options
         self.chrome_options = Options()
@@ -46,8 +48,13 @@ class WebScraperTool:
     def _get_driver(self):
         """Get or create a WebDriver instance."""
         if self.driver is None:
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
+            if self.test_mode:
+                # In test mode, return a mock driver
+                self.driver = MagicMock()
+            else:
+                # In normal mode, create a real driver
+                service = Service(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
         return self.driver
 
     @retry(

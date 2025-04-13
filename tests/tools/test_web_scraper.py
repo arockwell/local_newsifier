@@ -23,7 +23,7 @@ def mock_state():
 @pytest.fixture
 def web_scraper():
     """Create a WebScraperTool instance for testing."""
-    return WebScraperTool()
+    return WebScraperTool(test_mode=True)
 
 
 class TestWebScraper:
@@ -141,14 +141,27 @@ class TestWebScraper:
             assert len(mock_state.run_logs) > 0
 
     @patch("selenium.webdriver.chrome.webdriver.WebDriver")
-    def test_selenium_fallback(self, mock_webdriver, web_scraper):
+    @patch("selenium.webdriver.chrome.service.Service")
+    @patch("webdriver_manager.chrome.ChromeDriverManager")
+    def test_selenium_fallback(self, mock_manager, mock_service, mock_webdriver, web_scraper):
         """Test Selenium fallback for dynamic content."""
+        # Setup mocks
         mock_driver = MagicMock()
         mock_driver.page_source = "<html><body>Dynamic content</body></html>"
         mock_webdriver.return_value = mock_driver
+
+        # Mock the ChromeDriverManager to return a dummy path
+        mock_manager.return_value.install.return_value = "/dummy/path/to/chromedriver"
+
+        # Set up the mock driver in the web_scraper
+        web_scraper.driver = mock_driver
         
         with patch("requests.Session.get") as mock_get:
             mock_get.side_effect = RequestException("Network error")
             html = web_scraper._fetch_url("https://example.com")
             assert html == "<html><body>Dynamic content</body></html>"
             mock_driver.get.assert_called_once_with("https://example.com")
+            
+            # Verify WebDriver was created with correct arguments
+            mock_webdriver.assert_not_called()  # Should not be called since we set the driver directly
+            mock_service.assert_not_called()  # Should not be called since we set the driver directly
