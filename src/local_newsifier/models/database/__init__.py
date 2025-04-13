@@ -4,9 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database.base import BaseModel as Base
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.database.base import Base
+from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.analysis_result import AnalysisResultDB
 
 
 def init_db(db_url: str) -> Engine:
@@ -35,4 +36,11 @@ def get_session(engine: Engine) -> sessionmaker:
     return sessionmaker(bind=engine)
 
 
-__all__ = ["Base", "Article", "Entity", "init_db", "get_session"]
+__all__ = [
+    "Base", 
+    "ArticleDB", 
+    "EntityDB", 
+    "AnalysisResultDB", 
+    "init_db", 
+    "get_session"
+]

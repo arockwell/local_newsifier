@@ -10,7 +10,6 @@ from sqlalchemy.orm import relationship
 
 from .database import Base
 
-
 # Association table for entity mentions
 entity_mentions = Table(
     "entity_mentions",
@@ -75,7 +74,7 @@ class CanonicalEntityDB(Base):
     )
 
 
-class EntityMentionContext(Base):
+class EntityMentionContextDB(Base):
     """Database model for storing entity mention contexts."""
     
     __tablename__ = "entity_mention_contexts"
@@ -235,10 +234,3 @@ class EntityRelationship(EntityRelationshipBase):
         """Pydantic config."""
         
         from_attributes = True
-
-
-# Fix import for EntityMentionContextDB
-class EntityMentionContextDB(Base):
-    """Database model for storing entity mention contexts."""
-    
-    __tablename__ = "entity_mention_contexts"

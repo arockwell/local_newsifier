@@ -2,66 +2,16 @@
 
 import enum
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel
-from sqlalchemy import (JSON, Column, DateTime, Float, ForeignKey, Integer,
-                        String, create_engine)
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-Base = declarative_base()
-
-
-# SQLAlchemy Models
-class ArticleDB(Base):
-    """Database model for news articles."""
-
-    __tablename__ = "articles"
-
-    id = Column(Integer, primary_key=True)
-    url = Column(String, unique=True, nullable=False)
-    title = Column(String)
-    source = Column(String)
-    published_at = Column(DateTime)
-    scraped_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    content = Column(String)
-    status = Column(String)  # e.g., "scraped", "analyzed", "error"
-
-    # Relationships
-    entities = relationship("EntityDB", back_populates="article")
-    analysis_results = relationship("AnalysisResultDB", back_populates="article")
-
-
-class EntityDB(Base):
-    """Database model for named entities found in articles."""
-
-    __tablename__ = "entities"
-
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"))
-    text = Column(String)
-    entity_type = Column(String)  # e.g., "PERSON", "ORG", "GPE"
-    confidence = Column(Float)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # Relationships
-    article = relationship("ArticleDB", back_populates="entities")
-
-
-class AnalysisResultDB(Base):
-    """Database model for analysis results."""
-
-    __tablename__ = "analysis_results"
-
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"))
-    analysis_type = Column(String)  # e.g., "NER", "sentiment"
-    results = Column(JSON)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # Relationships
-    article = relationship("ArticleDB", back_populates="analysis_results")
+# Import our new models from the database package
+from local_newsifier.models.database import (
+    Base, ArticleDB, EntityDB, AnalysisResultDB, init_db, get_session
+)
 
 
 # Pydantic Models
@@ -148,28 +98,21 @@ class AnalysisResult(AnalysisResultBase):
         from_attributes = True
 
 
-# Database initialization
-def init_db(db_url: str) -> Engine:
-    """Initialize the database and create tables.
-
-    Args:
-        db_url: Database connection URL
-
-    Returns:
-        SQLAlchemy engine instance
-    """
-    engine = create_engine(db_url)
-    Base.metadata.create_all(engine)
-    return engine
-
-
-def get_session(engine: Engine) -> sessionmaker:
-    """Create a session factory for database operations.
-
-    Args:
-        engine: SQLAlchemy engine instance
-
-    Returns:
-        SQLAlchemy session factory
-    """
-    return sessionmaker(bind=engine)
+# Re-export initialization functions
+__all__ = [
+    "Base",
+    "ArticleDB",
+    "EntityDB", 
+    "AnalysisResultDB",
+    "ArticleBase",
+    "ArticleCreate",
+    "Article",
+    "EntityBase",
+    "EntityCreate",
+    "Entity",
+    "AnalysisResultBase",
+    "AnalysisResultCreate",
+    "AnalysisResult",
+    "init_db",
+    "get_session"
+]

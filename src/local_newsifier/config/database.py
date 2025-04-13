@@ -1,8 +1,9 @@
 """Database configuration and connection management."""
 
 import os
+import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine
@@ -17,7 +18,10 @@ def get_cursor_db_name() -> str:
     Returns:
         Database name with cursor ID
     """
-    cursor_id = os.environ.get("CURSOR_DB_ID", "default")
+    cursor_id = os.environ.get("CURSOR_DB_ID")
+    if not cursor_id:
+        cursor_id = str(uuid.uuid4())[:8]
+        os.environ["CURSOR_DB_ID"] = cursor_id
     return f"local_newsifier_{cursor_id}"
 
 
@@ -30,13 +34,20 @@ class DatabaseSettings(BaseSettings):
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = get_cursor_db_name()
     
-    @property
-    def DATABASE_URL(self) -> str:
+    def get_database_url(self) -> str:
         """Get the database URL."""
+        # Always use PostgreSQL for production
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+    model_config = {
+        "env_prefix": "",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": True,
+    }
 
-def get_database(env_file: Optional[str] = None) -> create_engine:
+
+def get_database(env_file: Optional[str] = None) -> Any:
     """Get a database engine instance.
     
     Args:
@@ -45,8 +56,8 @@ def get_database(env_file: Optional[str] = None) -> create_engine:
     Returns:
         SQLAlchemy engine instance
     """
-    settings = DatabaseSettings(_env_file=env_file)
-    return init_db(str(settings.DATABASE_URL))
+    settings = DatabaseSettings(_env_file=env_file if env_file else None)
+    return init_db(settings.get_database_url())
 
 
 def get_db_session(env_file: Optional[str] = None) -> sessionmaker:
@@ -71,4 +82,4 @@ def get_database_settings(env_file: Optional[str] = None) -> DatabaseSettings:
     Returns:
         DatabaseSettings instance
     """
-    return DatabaseSettings(_env_file=env_file)
+    return DatabaseSettings(_env_file=env_file if env_file else None)

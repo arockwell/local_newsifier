@@ -6,10 +6,10 @@ from typing import Optional
 from sqlalchemy import Column, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
-from local_newsifier.models.database.base import BaseModel
+from local_newsifier.models.database.base import Base
 
 
-class Entity(BaseModel):
+class EntityDB(Base):
     """Database model for named entities found in articles."""
     
     __tablename__ = "entities"
@@ -20,11 +20,15 @@ class Entity(BaseModel):
     # Entity fields
     text = Column(String, nullable=False)
     entity_type = Column(String, nullable=False)  # PERSON, ORG, GPE, etc.
-    sentence_context = Column(Text)  # The sentence where the entity was found
     confidence = Column(Float, default=1.0)
     
+    # Add sentence_context field for storing context
+    sentence_context = Column(Text)  # The sentence where the entity was found
+    
+    # Set created_at for backward compatibility (already included from Base)
+    
     # Relationships
-    article = relationship("Article", back_populates="entities")
+    article = relationship("ArticleDB", back_populates="entities")
     
     # Indexes
     __table_args__ = (
@@ -35,4 +39,9 @@ class Entity(BaseModel):
     
     def __repr__(self) -> str:
         """String representation of the model."""
-        return f"<Entity(id={self.id}, text='{self.text}', type='{self.entity_type}')>"
+        return f"<EntityDB(id={self.id}, text='{self.text}', type='{self.entity_type}')>"
+    
+    @classmethod
+    def from_entity_create(cls, entity_data: dict) -> "EntityDB":
+        """Create an EntityDB instance from entity data."""
+        return cls(**entity_data)

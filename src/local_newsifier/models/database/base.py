@@ -25,5 +25,5 @@ class Base:
     )
 
 
-# Create a base class for all models
-BaseModel = declarative_base(cls=Base)
+# Create a base class for all models - use Base as the name for backward compatibility
+Base = declarative_base(cls=Base)
