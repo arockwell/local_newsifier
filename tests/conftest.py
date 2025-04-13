@@ -63,6 +63,8 @@ def test_engine():
     
     # Cleanup after all tests
     Base.metadata.drop_all(engine)
+    engine.dispose()  # Close all connections
+    
     conn = psycopg2.connect(
         host=settings.POSTGRES_HOST,
         port=int(settings.POSTGRES_PORT),
@@ -73,6 +75,14 @@ def test_engine():
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
+            # Terminate all connections to the test database
+            cur.execute(f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{test_db_name}'
+                AND pid <> pg_backend_pid();
+            """)
+            # Drop the test database
             cur.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
     finally:
         conn.close()
