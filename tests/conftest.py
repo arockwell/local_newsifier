@@ -2,15 +2,19 @@
 
 import os
 import uuid
+import subprocess
 from typing import Generator
+from pathlib import Path
 
 import pytest
 import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+import spacy
 
 from local_newsifier.models.database import Base
 from local_newsifier.config.database import DatabaseSettings
+from local_newsifier.database.manager import DatabaseManager
 
 
 def get_test_db_name() -> str:
@@ -123,4 +127,14 @@ def db_session(test_engine) -> Generator[Session, None, None]:
     try:
         yield session
     finally:
-        session.close() 
+        session.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def download_spacy_model():
+    """Download the spaCy model if it's not available."""
+    try:
+        spacy.load("en_core_web_sm")
+    except OSError:
+        print("Downloading spaCy model 'en_core_web_sm'...")
+        subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True) 

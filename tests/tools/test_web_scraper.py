@@ -450,10 +450,14 @@ def test_scrape_article(web_scraper, url, expected_status):
     """Test scraping articles with different URLs."""
     state = NewsAnalysisState(target_url=url)
     
-    if expected_status == AnalysisStatus.SCRAPE_FAILED_NETWORK:
-        with pytest.raises(ValueError):
-            web_scraper.scrape(state)
-    else:
-        result = web_scraper.scrape(state)
-        assert result.status == expected_status
-        assert result.scraped_text is not None
+    # Mock the _fetch_url method
+    with patch.object(web_scraper, "_fetch_url") as mock_fetch:
+        if expected_status == AnalysisStatus.SCRAPE_FAILED_NETWORK:
+            mock_fetch.side_effect = ValueError("Article not found (404): https://example.com/404")
+            with pytest.raises(ValueError):
+                web_scraper.scrape(state)
+        else:
+            mock_fetch.return_value = "<html><body><article>Test article content</article></body></html>"
+            result = web_scraper.scrape(state)
+            assert result.status == expected_status
+            assert result.scraped_text is not None
