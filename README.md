@@ -258,3 +258,79 @@ Uses crew.ai's SQLite checkpointer for:
 ## License
 
 MIT
+
+## Development Workflow
+
+### Pull Request Process
+
+We maintain a consistent PR process to ensure reliable PR creation through Cursor. You can follow either the manual process or use our automated script.
+
+#### Using the PR Creation Script (Recommended)
+
+The easiest way to create a PR is using our helper script:
+
+```bash
+# Create a PR with an editor for description
+poetry run python scripts/create_pr.py "Your PR Title"
+
+# Create a PR without editing the description template
+poetry run python scripts/create_pr.py --skip-edit "Your PR Title"
+```
+
+The script will:
+1. Create a PR_description.md file with our template
+2. Open your default editor to modify the description (unless --skip-edit is used)
+3. Commit the description file
+4. Create the PR using GitHub CLI
+
+#### Manual Process
+
+If you prefer to create PRs manually, follow these steps:
+
+1. Create a feature branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes and commit them
+
+3. Create a PR description file:
+   ```bash
+   # Create PR_description.md in your branch
+   # Follow this template structure:
+   
+   # Title
+   
+   ## Description
+   [Clear explanation of changes]
+   
+   ## Changes Made
+   - [List specific changes]
+   
+   ## Testing
+   [Describe testing done]
+   
+   ## Related Issues
+   [Link issues or N/A]
+   
+   ## Checklist
+   - [ ] Code standards
+   - [ ] Tests updated
+   - [ ] Docs updated
+   - [ ] Tests pass
+   - [ ] Pre-commit passes
+   ```
+
+4. Commit the PR description:
+   ```bash
+   git add PR_description.md
+   git commit -m "Add PR description"
+   git push origin feature/your-feature-name
+   ```
+
+5. Create PR using the description file:
+   ```bash
+   gh pr create --title "Your PR Title" --body-file PR_description.md
+   ```
+
+This process ensures consistent PR formatting and reliable PR creation through Cursor.
