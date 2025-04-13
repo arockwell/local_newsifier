@@ -1,60 +1,68 @@
-# Sentiment Analysis and Public Opinion Tracking
+# Local News Trends Analysis
 
-## Summary
+## Overview
+This PR adds new functionality for detecting and analyzing trends in local news coverage over time. It enables the system to identify emerging topics, frequency spikes, novel entities, and sustained coverage patterns in news articles, providing valuable insights into evolving local news narratives.
 
-This PR adds a complete sentiment analysis and public opinion tracking feature to the local newsifier system. The implementation allows analyzing the emotional tone of news articles, tracking sentiment changes over time, detecting significant opinion shifts, and generating both single-topic and comparative reports.
+## Key Components
 
-## Changes
+### Models
+- `TrendAnalysis` - Represents a detected trend with supporting evidence
+- `TopicFrequency` - Tracks frequency data for topics over time
+- `TrendAnalysisConfig` - Configuration settings for trend analysis
 
-- Added new database models for sentiment analysis, opinion trends, and sentiment shifts in `models/sentiment.py`
-- Implemented a lexicon-based sentiment analyzer in `tools/sentiment_analyzer.py`
-- Created a sentiment tracking system in `tools/sentiment_tracker.py` for monitoring trends over time
-- Added visualization and reporting capabilities in `tools/opinion_visualizer.py`
-- Implemented the main flow orchestration in `flows/public_opinion_flow.py`
-- Added comprehensive test coverage for all components
-- Created a demonstration script to showcase the new features
+### Tools
+- `HistoricalDataAggregator` - Retrieves and organizes historical article data
+- `TopicFrequencyAnalyzer` - Analyzes statistical significance of topic frequency changes
+- `TrendDetector` - Applies algorithms to identify various trend types
+- `TrendReporter` - Generates reports and visualizations of detected trends
 
-## Testing
+### Flow
+- `NewsTrendAnalysisFlow` - Orchestrates the trend analysis process
 
-- Implemented unit tests for all components with > 90% code coverage
-- Tests include edge cases like empty data, error conditions, and correlation analysis
-- Included a demonstration script that can be run against a local database to showcase features
+## Implementation Features
+- Statistical analysis to identify significant frequency changes
+- Support for different time frames (day, week, month, etc.)
+- Pattern recognition for rising, falling, and consistent trends
+- Related topic discovery
+- Customizable trend reporting in multiple formats (markdown, JSON, text)
 
-## Implementation Details
+## Test Coverage
+The implementation includes comprehensive test coverage with unit tests for all components:
+- Model validation and behavior tests
+- Tool functionality tests with mocked dependencies
+- Flow orchestration tests
 
-### Sentiment Analysis
+## How to Use
+```python
+from src.local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow, ReportFormat
+from src.local_newsifier.models.trend import TrendAnalysisConfig, TimeFrame
 
-The implementation uses a lexicon-based approach for sentiment analysis, which provides good performance without requiring external API calls or dependencies. Key features include:
+# Create configuration
+config = TrendAnalysisConfig(
+    time_frame=TimeFrame.WEEK,
+    min_articles=3,
+    entity_types=["PERSON", "ORG", "GPE"],
+    significance_threshold=1.5
+)
 
-- Document-level and sentence-level sentiment scoring
-- Entity-specific sentiment extraction
-- Topic-based sentiment analysis
-- Handling of negation and intensifiers in text
+# Initialize flow
+flow = NewsTrendAnalysisFlow(config=config)
 
-### Opinion Tracking
+# Run analysis
+state = flow.run_analysis(report_format=ReportFormat.MARKDOWN)
 
-The system can track sentiment over time and detect significant shifts:
+# Access results
+if state.detected_trends:
+    print(f"Found {len(state.detected_trends)} trends")
+    for trend in state.detected_trends:
+        print(f"- {trend.name}: {trend.description}")
+        
+# View report
+if state.report_path:
+    print(f"Report saved to: {state.report_path}")
+```
 
-- Supports different time intervals (day, week, month)
-- Calculates sentiment distributions and trends
-- Detects statistically significant shifts in public opinion
-- Correlates sentiment across different topics
-
-### Visualization and Reporting
-
-Reports can be generated in various formats:
-
-- Plain text for CLI usage
-- Markdown for documentation
-- HTML for web display
-
-Reports include sentiment timelines, comparative analyses, and confidence intervals.
-
-### Integration
-
-The feature integrates with the existing pipeline and database structure:
-
-- Uses the existing database manager
-- Extends the analysis results model
-- Integrates with the entity tracking system
-- Follows the established flow pattern
+A command-line script is also provided for easy use:
+```bash
+python scripts/run_trend_analysis.py --time-frame WEEK --lookback 4 --format markdown
+```
