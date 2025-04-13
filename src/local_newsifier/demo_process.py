@@ -1,10 +1,10 @@
 """Demo processing script for Local Newsifier."""
 
-from .database.manager import DatabaseManager
-from .flows.news_pipeline import NewsPipelineFlow
-from .flows.entity_tracking_flow import EntityTrackingFlow
-from .config.database import get_db_session
-from .models.state import NewsAnalysisState, AnalysisStatus
+from local_newsifier.database.manager import DatabaseManager
+from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.config.database import get_db_session
+from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 def process_demo():
     """Process sample articles and run entity tracking."""
