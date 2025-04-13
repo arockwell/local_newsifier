@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Local Newsifier - Serverless news analysis system
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref StateTable
+
+Resources:
+  FetchArticlesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/local_newsifier/functions/fetch_articles/
+      Handler: handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StateTable
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Input:
+              sources:
+                - url: https://www.gainesville.com/news/
+                  type: web
+                - url: https://www.wuft.org/news/feed/
+                  type: rss
+
+  StateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: local-newsifier-state
+      AttributeDefinitions:
+        - AttributeName: run_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: run_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+Outputs:
+  FetchArticlesFunction:
+    Description: "Fetch Articles Lambda Function ARN"
+    Value: !GetAtt FetchArticlesFunction.Arn
+  FetchArticlesFunctionIamRole:
+    Description: "Implicit IAM Role created for Fetch Articles function"
+    Value: !GetAtt FetchArticlesFunctionRole.Arn 

@@ -20,6 +20,8 @@ selenium = "^4.31.0"
 webdriver-manager = "^4.0.2"
 python-dateutil = "^2.9.0"
 psycopg2-binary = "^2.9.9"
+schedule = "^1.2.0"
+feedparser = "^6.0.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -30,6 +32,8 @@ black = "^24.1.1"
 isort = "^5.13.2"
 flake8 = "^7.0.0"
 flake8-docstrings = "^1.7.0"
+mypy = "^1.5.1"
+ruff = "^0.0.292"
 
 # Add pytest warning filters for known deprecation warnings from dependencies
 [tool.pytest.ini_options]
@@ -43,3 +47,24 @@ filterwarnings = [
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "B", "I"]
+ignore = ["E501"]
