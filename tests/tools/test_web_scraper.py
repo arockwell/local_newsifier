@@ -359,19 +359,14 @@ class TestWebScraper:
 
     def test_get_driver(self, mock_webdriver):
         """Test driver initialization."""
-        with patch("selenium.webdriver.chrome.service.Service") as mock_service, patch(
-            "webdriver_manager.chrome.ChromeDriverManager"
+        with patch("local_newsifier.tools.web_scraper.Service") as mock_service, patch(
+            "local_newsifier.tools.web_scraper.ChromeDriverManager"
         ) as mock_manager, patch(
-            "selenium.webdriver.chrome.webdriver.WebDriver", return_value=mock_webdriver
+            "local_newsifier.tools.web_scraper.webdriver.Chrome", return_value=mock_webdriver
         ) as mock_chrome:
             # Configure mocks
             mock_manager.return_value.install.return_value = "path/to/chromedriver"
             mock_service_instance = MagicMock(name="service_instance")
-            mock_service_instance.is_connectable.return_value = True
-            mock_service_instance.start = MagicMock()
-            mock_service_instance._start_process = MagicMock()
-            mock_service_instance.assert_process_still_running = MagicMock()
-            mock_service_instance._path = "path/to/chromedriver"
             mock_service.return_value = mock_service_instance
             
             # Create scraper and get driver
@@ -382,7 +377,10 @@ class TestWebScraper:
             assert driver is not None
             mock_manager.assert_called_once()
             mock_service.assert_called_once()
-            mock_chrome.assert_called_once()
+            mock_chrome.assert_called_once_with(
+                service=mock_service_instance,
+                options=scraper.chrome_options
+            )
 
     def test_extract_article_strategy_2(self):
         """Test article extraction using strategy 2 (article with most paragraphs)."""
