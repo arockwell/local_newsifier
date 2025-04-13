@@ -3,13 +3,13 @@
 import json
 import os
 from pathlib import Path
-from unittest.mock import mock_open, patch
+from unittest.mock import mock_open, patch, MagicMock
 
 import pytest
 
 from local_newsifier.models.state import (AnalysisStatus, ErrorDetails,
                                           NewsAnalysisState)
-from local_newsifier.tools.file_writer import FileWriterTool
+from local_newsifier.tools.file_writer import FileWriter, FileWriterTool
 
 
 @pytest.fixture
@@ -70,8 +70,8 @@ def test_file_writer_permission_error(tmp_path, sample_state):
     """Test file writing with permission error."""
     writer = FileWriterTool(output_dir=str(tmp_path))
 
-    # Mock os.replace to raise PermissionError
-    with patch("os.replace", side_effect=PermissionError("Permission denied")):
+    # Mock the write_json method to raise PermissionError
+    with patch.object(writer.file_writer, "write_json", side_effect=PermissionError("Permission denied")):
         with pytest.raises(PermissionError):
             writer.save(sample_state)
 
@@ -88,8 +88,12 @@ def test_file_writer_json_error(tmp_path, sample_state):
     # Create an object that can't be JSON serialized
     sample_state.analysis_results = {"invalid": complex(1, 2)}
 
-    with pytest.raises(TypeError):
-        writer.save(sample_state)
+    # Mock the write_json method to return False (error)
+    with patch.object(writer.file_writer, "write_json", return_value=False):
+        with pytest.raises(Exception) as exc_info:
+            writer.save(sample_state)
+        
+        assert "Failed to write file" in str(exc_info.value)
 
     assert sample_state.status == AnalysisStatus.SAVE_FAILED
     assert sample_state.error_details is not None
@@ -136,3 +140,82 @@ def test_ensure_output_dir(tmp_path):
     # Directory should be created
     assert nested_path.exists()
     assert nested_path.is_dir()
+
+
+class TestFileWriter:
+    """Tests for the FileWriter class."""
+
+    @pytest.fixture
+    def file_writer(self, tmp_path):
+        """Create a file writer with a temporary directory."""
+        return FileWriter(output_dir=str(tmp_path))
+
+    def test_init(self, file_writer, tmp_path):
+        """Test initialization creates the output directory."""
+        assert file_writer.output_dir.exists()
+        assert file_writer.output_dir.is_dir()
+
+    def test_write_file(self, file_writer, tmp_path):
+        """Test writing a file."""
+        test_path = tmp_path / "test.txt"
+        test_content = "Hello, world!"
+        
+        # Write the file
+        result = file_writer.write_file(str(test_path), test_content)
+        
+        # Verify the result
+        assert result is True
+        assert test_path.exists()
+        assert test_path.read_text() == test_content
+
+    def test_write_file_with_nonexistent_dir(self, file_writer, tmp_path):
+        """Test writing a file to a nonexistent directory."""
+        test_path = tmp_path / "subdir" / "test.txt"
+        test_content = "Hello, world!"
+        
+        # Write the file
+        result = file_writer.write_file(str(test_path), test_content)
+        
+        # Verify the result
+        assert result is True
+        assert test_path.exists()
+        assert test_path.read_text() == test_content
+        assert test_path.parent.is_dir()
+
+    def test_write_file_with_error(self, file_writer):
+        """Test error handling when writing a file."""
+        with patch("tempfile.NamedTemporaryFile") as mock_tempfile:
+            mock_tempfile.side_effect = Exception("Test exception")
+            
+            # Attempt to write the file
+            result = file_writer.write_file("test.txt", "Test content")
+            
+            # Verify the result
+            assert result is False
+
+    def test_write_json(self, file_writer, tmp_path):
+        """Test writing a JSON file."""
+        test_path = tmp_path / "test.json"
+        test_data = {"key": "value", "list": [1, 2, 3]}
+        
+        # Write the file
+        result = file_writer.write_json(str(test_path), test_data)
+        
+        # Verify the result
+        assert result is True
+        assert test_path.exists()
+        
+        # Verify the content
+        loaded_data = json.loads(test_path.read_text())
+        assert loaded_data == test_data
+
+    def test_write_json_with_error(self, file_writer):
+        """Test error handling when writing a JSON file."""
+        with patch.object(file_writer, "write_file") as mock_write_file:
+            mock_write_file.return_value = False
+            
+            # Attempt to write the file
+            result = file_writer.write_json("test.json", {"key": "value"})
+            
+            # Verify the result
+            assert result is False

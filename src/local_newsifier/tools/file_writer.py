@@ -3,17 +3,16 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
 
-class FileWriterTool:
-    """Tool for saving analysis results to files with atomic writes."""
+class FileWriter:
+    """Tool for writing files with support for various formats."""
 
     def __init__(self, output_dir: str = "output"):
-        """
-        Initialize the file writer.
+        """Initialize the file writer.
 
         Args:
             output_dir: Directory to save results in
@@ -25,9 +24,77 @@ class FileWriterTool:
         """Ensure the output directory exists."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def _generate_filename(self, state: NewsAnalysisState) -> str:
+    def write_file(self, file_path: str, content: str) -> bool:
+        """Write content to a file with atomic write operations.
+
+        Args:
+            file_path: Path to the file to write
+            content: Content to write to the file
+
+        Returns:
+            True if successful, False otherwise
         """
-        Generate a filename for the results.
+        try:
+            # Ensure the directory for the file exists
+            file_path = Path(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
+                # Write to temporary file
+                temp_file.write(content)
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
+                
+                # Atomic rename
+                os.replace(temp_file.name, file_path)
+                
+            return True
+                
+        except Exception as e:
+            print(f"Error writing file: {str(e)}")
+            return False
+    
+    def write_json(self, file_path: str, data: Dict[str, Any], indent: int = 2) -> bool:
+        """Write JSON data to a file.
+
+        Args:
+            file_path: Path to the file to write
+            data: Dictionary data to write as JSON
+            indent: Indentation level for JSON formatting
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            return self.write_file(
+                file_path=file_path,
+                content=json.dumps(data, indent=indent),
+            )
+        except Exception as e:
+            print(f"Error writing JSON: {str(e)}")
+            return False
+
+
+class FileWriterTool:
+    """Tool for saving analysis results to files with atomic writes."""
+
+    def __init__(self, output_dir: str = "output"):
+        """Initialize the file writer.
+
+        Args:
+            output_dir: Directory to save results in
+        """
+        self.output_dir = Path(output_dir)
+        self._ensure_output_dir()
+        self.file_writer = FileWriter(output_dir=output_dir)
+
+    def _ensure_output_dir(self) -> None:
+        """Ensure the output directory exists."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _generate_filename(self, state: NewsAnalysisState) -> str:
+        """Generate a filename for the results.
 
         Args:
             state: Current pipeline state
@@ -46,8 +113,7 @@ class FileWriterTool:
         return f"{domain}_{timestamp}_{state.run_id}.json"
 
     def _prepare_output(self, state: NewsAnalysisState) -> Dict[str, Any]:
-        """
-        Prepare the output dictionary.
+        """Prepare the output dictionary.
 
         Args:
             state: Current pipeline state
@@ -93,8 +159,7 @@ class FileWriterTool:
         }
 
     def save(self, state: NewsAnalysisState) -> NewsAnalysisState:
-        """
-        Save analysis results to file.
+        """Save analysis results to file.
 
         Args:
             state: Current pipeline state
@@ -112,29 +177,25 @@ class FileWriterTool:
             # Prepare output data
             output_data = self._prepare_output(state)
 
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
-                # Write to temporary file
-                json.dump(output_data, temp_file, indent=2)
-                temp_file.flush()
-                os.fsync(temp_file.fileno())
+            # Use the file writer to save the file
+            result = self.file_writer.write_json(str(filepath), output_data)
+            
+            if result:
+                state.save_path = str(filepath)
+                state.saved_at = datetime.now(timezone.utc)
+                state.status = AnalysisStatus.SAVE_SUCCEEDED
+                state.add_log(f"Successfully saved results to {filepath}")
 
-                # Atomic rename
-                os.replace(temp_file.name, filepath)
-
-            state.save_path = str(filepath)
-            state.saved_at = datetime.now(timezone.utc)
-            state.status = AnalysisStatus.SAVE_SUCCEEDED
-            state.add_log(f"Successfully saved results to {filepath}")
-
-            # If everything succeeded, mark as complete
-            if (
-                state.status == AnalysisStatus.SAVE_SUCCEEDED
-                and not state.error_details
-            ):
-                state.status = AnalysisStatus.COMPLETED_SUCCESS
+                # If everything succeeded, mark as complete
+                if (
+                    state.status == AnalysisStatus.SAVE_SUCCEEDED
+                    and not state.error_details
+                ):
+                    state.status = AnalysisStatus.COMPLETED_SUCCESS
+                else:
+                    state.status = AnalysisStatus.COMPLETED_WITH_ERRORS
             else:
-                state.status = AnalysisStatus.COMPLETED_WITH_ERRORS
+                raise Exception("Failed to write file")
 
         except Exception as e:
             state.status = AnalysisStatus.SAVE_FAILED

@@ -242,3 +242,25 @@ class EntityMentionContextDB(Base):
     """Database model for storing entity mention contexts."""
     
     __tablename__ = "entity_mention_contexts"
+
+
+class EntityConnection(BaseModel):
+    """Model for representing connections between entities."""
+    
+    source_entity: str = Field(description="The source entity name")
+    target_entity: str = Field(description="The target entity name")
+    relationship_type: str = Field(description="Type of relationship between entities")
+    confidence_score: float = Field(description="Confidence score for the connection", ge=0.0, le=1.0)
+    source_article_ids: List[int] = Field(
+        description="List of article IDs that support this connection", 
+        default_factory=list
+    )
+    context_snippet: Optional[str] = Field(
+        description="Text snippet providing context for the connection",
+        default=None
+    )
+    
+    class Config:
+        """Pydantic config."""
+        
+        from_attributes = True
