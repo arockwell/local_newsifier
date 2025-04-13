@@ -19,7 +19,8 @@ entity_mentions = Table(
     Column("entity_id", Integer, ForeignKey("entities.id"), nullable=False),
     Column("confidence", Float, default=1.0),
     Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc)),
-    UniqueConstraint("canonical_entity_id", "entity_id", name="uix_entity_mention")
+    UniqueConstraint("canonical_entity_id", "entity_id", name="uix_entity_mention"),
+    extend_existing=True
 )
 
 # Association table for entity relationships
@@ -35,7 +36,8 @@ entity_relationships = Table(
     Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc)),
     Column("updated_at", DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)),
     UniqueConstraint("source_entity_id", "target_entity_id", "relationship_type", 
-                    name="uix_entity_relationship")
+                    name="uix_entity_relationship"),
+    extend_existing=True
 )
 
 
@@ -55,19 +57,20 @@ class CanonicalEntityDB(Base):
     # Define a unique constraint for name and entity_type
     __table_args__ = (
         UniqueConstraint('name', 'entity_type', name='uix_name_type'),
+        {'extend_existing': True}
     )
     
     # Relationships
     mentions = relationship(
         "EntityDB", 
-        secondary=entity_mentions, 
+        secondary="entity_mentions", 
         backref="canonical_entities"
     )
     
     # Relationships with other entities
     related_to = relationship(
         "CanonicalEntityDB",
-        secondary=entity_relationships,
+        secondary="entity_relationships",
         primaryjoin=id==entity_relationships.c.source_entity_id,
         secondaryjoin=id==entity_relationships.c.target_entity_id,
         backref="related_from"
@@ -90,6 +93,7 @@ class EntityMentionContextDB(Base):
     # Define a unique constraint
     __table_args__ = (
         UniqueConstraint('entity_id', 'article_id', name='uix_entity_article'),
+        {'extend_existing': True}
     )
     
     # Relationships
@@ -110,6 +114,9 @@ class EntityProfileDB(Base):
     related_entities = Column(JSON)  # Store related entity counts
     related_topics = Column(JSON)  # Store related topic counts
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Define table args
+    __table_args__ = {'extend_existing': True}
     
     # Relationships
     canonical_entity = relationship("CanonicalEntityDB", backref="profile")

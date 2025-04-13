@@ -1,13 +1,49 @@
 """Article database model for the news analysis system."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
+from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import relationship
 
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.state import AnalysisStatus
+
+if TYPE_CHECKING:
+    from .entity import Entity
+    from .analysis_result import AnalysisResult
+
+
+class ArticleBase(BaseModel):
+    """Base Pydantic model for articles."""
+
+    url: str
+    title: Optional[str] = None
+    source: Optional[str] = None
+    published_at: Optional[datetime] = None
+    content: Optional[str] = None
+    status: Optional[str] = None
+
+
+class ArticleCreate(ArticleBase):
+    """Pydantic model for creating articles."""
+
+    pass
+
+
+class Article(ArticleBase):
+    """Pydantic model for articles with relationships."""
+
+    id: int
+    scraped_at: datetime
+    entities: List["Entity"] = []
+    analysis_results: List["AnalysisResult"] = []
+
+    class Config:
+        """Pydantic config."""
+
+        from_attributes = True
 
 
 class ArticleDB(Base):
