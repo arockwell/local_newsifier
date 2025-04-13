@@ -81,12 +81,25 @@ python scripts/run_trend_analysis.py --time-frame WEEK --lookback 4 --format mar
   - Allows short headlines to be included while still filtering out navigation text
   - Maintains robust filtering of unwanted content
 
+- Restored and improved Selenium functionality:
+  - Made Selenium truly optional with `use_selenium` flag
+  - Added proper fallback mechanism when requests fails
+  - Added test mode for easier testing
+  - Improved error handling and cleanup
+
 ## Testing
 
-- All tests now passing
-- Verified proper error handling
+- All tests now passing (9 tests)
+- Added new tests for Selenium functionality
+- Verified proper error handling for both requests and Selenium
 - Confirmed text extraction includes both headlines and substantial paragraphs
 
 ## Impact
 
 These changes improve the web scraper's ability to handle article headlines while maintaining its core functionality and robust error handling. The test suite now properly reflects the actual model attributes and provides better test coverage.
+
+The Selenium integration is now properly optional, making the scraper more flexible:
+- Uses requests by default for better performance
+- Falls back to Selenium only when needed and if available
+- Properly handles cleanup of Selenium resources
+- Provides clear error messages when Selenium is not available
