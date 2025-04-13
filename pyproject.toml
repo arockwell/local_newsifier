@@ -32,7 +32,6 @@ flake8 = "^7.0.0"
 flake8-docstrings = "^1.7.0"
 
 # Add pytest warning filters for known deprecation warnings from dependencies
-mypy = "^1.15.0"
 [tool.pytest.ini_options]
 filterwarnings = [
     # Pydantic V2 deprecation warning about class-based config
