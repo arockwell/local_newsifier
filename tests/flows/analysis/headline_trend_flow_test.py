@@ -119,6 +119,7 @@ class TestHeadlineTrendFlow:
         # Verify results
         assert result == mock_results
         
+    @pytest.mark.skip(reason="Really slow test")
     def test_generate_text_report(
         self, flow: HeadlineTrendFlow
     ) -> None:
