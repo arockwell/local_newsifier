@@ -364,30 +364,33 @@ class TestWebScraper:
 
     def test_get_driver(self, mock_chrome_options, mock_webdriver):
         """Test driver initialization."""
-        with patch("selenium.webdriver.chrome.service.Service") as mock_service_class:
+        with patch("selenium.webdriver.chrome.service.Service") as mock_service_class, \
+             patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager, \
+             patch("selenium.webdriver.chrome.webdriver.Chrome", return_value=mock_webdriver):
+            
             # Create a mock service instance
             mock_service_instance = MagicMock()
             mock_service_instance.start = MagicMock()
             mock_service_class.return_value = mock_service_instance
             
-            with patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager:
-                mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
-                
-                # Create a new scraper instance
-                scraper = WebScraperTool()
+            mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
+            
+            # Create a new scraper instance
+            scraper = WebScraperTool()
 
-                # First call should create a new driver
-                driver1 = scraper._get_driver()
-                assert driver1 is not None
+            # First call should create a new driver
+            driver1 = scraper._get_driver()
+            assert driver1 is not None
+            assert driver1 == mock_webdriver
 
-                # Second call should return the same driver
-                driver2 = scraper._get_driver()
-                assert driver2 is not None
-                assert driver1 == driver2
+            # Second call should return the same driver
+            driver2 = scraper._get_driver()
+            assert driver2 is not None
+            assert driver1 == driver2
 
-                # Verify driver creation was called only once
-                mock_manager.return_value.install.assert_called_once()
-                mock_service_class.assert_called_once()
+            # Verify driver creation was called only once
+            mock_manager.return_value.install.assert_called_once()
+            mock_service_class.assert_called_once()
 
     def test_extract_article_strategy_2(self):
         """Test article extraction using strategy 2 (article with most paragraphs)."""
@@ -471,7 +474,20 @@ def test_scrape_article(web_scraper, url, expected_status):
             with pytest.raises(ValueError):
                 web_scraper.scrape(state)
         else:
-            mock_fetch.return_value = "<html><body><article>Test article content</article></body></html>"
+            mock_fetch.return_value = """
+            <html>
+                <body>
+                    <article>
+                        <p>This is a long article paragraph that should be extracted. It contains more than 30 characters to pass the length check.</p>
+                        <p>This is another substantial paragraph that provides more context and details about the topic being discussed.</p>
+                        <p>And here is a third paragraph with additional information to ensure we have enough content.</p>
+                    </article>
+                </body>
+            </html>
+            """
             result = web_scraper.scrape(state)
             assert result.status == expected_status
             assert result.scraped_text is not None
+            assert "long article paragraph" in result.scraped_text
+            assert "substantial paragraph" in result.scraped_text
+            assert "additional information" in result.scraped_text
