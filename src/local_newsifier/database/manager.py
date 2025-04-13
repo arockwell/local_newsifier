@@ -6,16 +6,16 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from models.database import (AnalysisResult, AnalysisResultCreate,
-                           AnalysisResultDB, Article, ArticleCreate,
-                           ArticleDB, Entity, EntityCreate, EntityDB)
-from models.entity_tracking import (CanonicalEntity, CanonicalEntityCreate,
-                                  CanonicalEntityDB, EntityMention, EntityMentionCreate,
-                                  EntityMentionContext, EntityMentionContextCreate,
-                                  EntityMentionContextDB, EntityProfile,
-                                  EntityProfileCreate, EntityProfileDB,
-                                  EntityRelationship, EntityRelationshipCreate,
-                                  entity_mentions, entity_relationships)
+from ..models.database import (AnalysisResult, AnalysisResultCreate,
+                             AnalysisResultDB, Article, ArticleCreate,
+                             ArticleDB, Entity, EntityCreate, EntityDB)
+from ..models.entity_tracking import (CanonicalEntity, CanonicalEntityCreate,
+                                    CanonicalEntityDB, EntityMention, EntityMentionCreate,
+                                    EntityMentionContext, EntityMentionContextCreate,
+                                    EntityMentionContextDB, EntityProfile,
+                                    EntityProfileCreate, EntityProfileDB,
+                                    EntityRelationship, EntityRelationshipCreate,
+                                    entity_mentions, entity_relationships)
 
 
 class DatabaseManager:

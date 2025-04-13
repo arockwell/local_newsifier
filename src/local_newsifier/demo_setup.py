@@ -3,12 +3,12 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from database.manager import DatabaseManager
-from models.database import ArticleDB, ArticleCreate, Base
-from models.entity_tracking import (CanonicalEntityDB, EntityMentionContextDB,
+from .database.manager import DatabaseManager
+from .models.database import ArticleDB, ArticleCreate, Base
+from .models.entity_tracking import (CanonicalEntityDB, EntityMentionContextDB,
                                    EntityProfileDB, entity_mentions, entity_relationships,
                                    CanonicalEntityCreate, EntityMentionContextCreate, EntityMentionCreate)
-from config.database import get_db_session, get_database
+from .config.database import get_db_session, get_database
 
 def setup_demo():
     """Initialize database and load sample data."""
