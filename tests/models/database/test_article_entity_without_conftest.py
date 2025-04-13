@@ -2,44 +2,19 @@
 
 import datetime
 import pytest
-import os
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.state import AnalysisStatus
-from local_newsifier.config.database import DatabaseSettings
 
 @pytest.fixture(scope="module")
-def postgres_engine():
-    """Set up a PostgreSQL test database."""
-    # Use environment variables for PostgreSQL connection
-    settings = DatabaseSettings()
-    
-    # Use a unique test database name
-    test_db_name = f"test_article_entity_{os.getenv('GITHUB_RUN_ID', 'local')}"
-    db_url = settings.get_database_url().replace(settings.POSTGRES_DB, test_db_name)
-    
-    # Connect to default postgres database to create test db
-    try:
-        # Connect to default postgres database to create test db
-        admin_url = db_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url)
-        
-        # Create test database
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-            conn.execute(text(f"CREATE DATABASE {test_db_name}"))
-            conn.commit()
-    except Exception as e:
-        print(f"Error creating test database: {e}")
-        # If we can't create the database, try connecting directly
-        # (it might already exist in CI)
-    
+def sqlite_engine():
+    """Set up a SQLite in-memory test database."""
     # Create engine for the test database
-    engine = create_engine(db_url)
+    engine = create_engine("sqlite:///:memory:")
     
     # Create test tables
     Base.metadata.create_all(engine)
@@ -49,30 +24,12 @@ def postgres_engine():
     # Clean up
     Base.metadata.drop_all(engine)
     engine.dispose()
-    
-    try:
-        # Connect to default postgres database to drop test db
-        admin_url = db_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url)
-        
-        # Drop test database
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"""
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = '{test_db_name}'
-                AND pid <> pg_backend_pid();
-            """))
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-            conn.commit()
-    except Exception as e:
-        print(f"Error dropping test database: {e}")
 
 
 @pytest.fixture
-def db_session(postgres_engine):
+def db_session(sqlite_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=postgres_engine)
+    Session = sessionmaker(bind=sqlite_engine)
     session = Session()
     yield session
     session.close()

@@ -9,6 +9,8 @@ from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
 
+# The Pydantic models are defined in database.py
+
 
 def init_db(db_url: str) -> Engine:
     """Initialize the database and create tables.
