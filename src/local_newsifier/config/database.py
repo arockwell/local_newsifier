@@ -60,3 +60,15 @@ def get_db_session(env_file: Optional[str] = None) -> sessionmaker:
     """
     engine = get_database(env_file)
     return sessionmaker(bind=engine)
+
+
+def get_database_settings(env_file: Optional[str] = None) -> DatabaseSettings:
+    """Get database settings.
+    
+    Args:
+        env_file: Optional path to .env file to load settings from
+        
+    Returns:
+        DatabaseSettings instance
+    """
+    return DatabaseSettings(_env_file=env_file)
