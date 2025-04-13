@@ -1,12 +1,17 @@
 """Test suite for the NewsInvestigationCrew."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from crewai import Agent, Crew, Task
 
 from local_newsifier.crews.investigation_crew import (
+    EntityAppearancesTool,
+    EntityConnectionsTool,
+    EntityContextTool,
+    EntityResolveTool,
+    FileWriterTool,
     InvestigationResult,
     NewsInvestigationCrew,
 )
@@ -22,65 +27,40 @@ def mock_database_manager():
 @pytest.fixture
 def mock_entity_resolver():
     """Create a mock entity resolver."""
-    with patch("local_newsifier.crews.investigation_crew.EntityResolver") as mock:
-        yield mock.return_value
+    return MagicMock(name="EntityResolver()")
 
 
 @pytest.fixture
 def mock_entity_tracker():
     """Create a mock entity tracker."""
-    with patch("local_newsifier.crews.investigation_crew.EntityTracker") as mock:
-        mock_tracker = mock.return_value
-        # Setup mock entity connections
-        mock_tracker.get_entity_connections.return_value = [
-            EntityConnection(
-                source_entity="Mayor John Smith",
-                target_entity="Acme Development Corp",
-                relationship_type="business connection",
-                confidence_score=0.85,
-                source_article_ids=[1, 2, 3],
-            ),
-            EntityConnection(
-                source_entity="Acme Development Corp",
-                target_entity="City Council",
-                relationship_type="approval seeking",
-                confidence_score=0.78,
-                source_article_ids=[2, 4],
-            ),
-        ]
-        yield mock_tracker
+    from local_newsifier.tools.entity_tracker import EntityTracker
+    tracker = MagicMock(spec=EntityTracker)
+    return tracker
 
 
 @pytest.fixture
 def mock_context_analyzer():
     """Create a mock context analyzer."""
-    with patch("local_newsifier.crews.investigation_crew.ContextAnalyzer") as mock:
-        yield mock.return_value
+    from local_newsifier.tools.context_analyzer import ContextAnalyzer
+    return ContextAnalyzer(model_name="en_core_web_sm")
 
 
 @pytest.fixture
 def mock_file_writer():
     """Create a mock file writer."""
-    with patch("local_newsifier.crews.investigation_crew.FileWriter") as mock:
-        mock_writer = mock.return_value
-        mock_writer.write_file.return_value = True
-        yield mock_writer
+    return MagicMock(name="FileWriter()")
 
 
 @pytest.fixture
 def mock_crewai_agent():
-    """Create a mock crewai Agent."""
-    with patch("local_newsifier.crews.investigation_crew.crewai.Agent") as mock:
-        yield mock
+    """Create a mock crewai agent."""
+    return MagicMock(name="Agent")
 
 
 @pytest.fixture
 def mock_crewai_crew():
-    """Create a mock crewai Crew."""
-    with patch("local_newsifier.crews.investigation_crew.crewai.Crew") as mock:
-        mock_crew = mock.return_value
-        mock_crew.kickoff.return_value = "Mock investigation result"
-        yield mock
+    """Create a mock crewai crew."""
+    return MagicMock(name="Crew")
 
 
 @pytest.fixture
@@ -101,10 +81,14 @@ def investigation_crew(
     mock_crewai_crew,
 ):
     """Create a NewsInvestigationCrew with mocked dependencies."""
-    crew = NewsInvestigationCrew(db_manager=mock_database_manager)
-    # Set the mocked crew directly
-    crew.crew = mock_crewai_crew.return_value
-    return crew
+    with patch("local_newsifier.crews.investigation_crew.EntityResolver", return_value=mock_entity_resolver), \
+         patch("local_newsifier.crews.investigation_crew.EntityTracker", return_value=mock_entity_tracker), \
+         patch("local_newsifier.crews.investigation_crew.ContextAnalyzer", return_value=mock_context_analyzer), \
+         patch("local_newsifier.crews.investigation_crew.FileWriter", return_value=mock_file_writer), \
+         patch("local_newsifier.crews.investigation_crew.Agent", mock_crewai_agent), \
+         patch("local_newsifier.crews.investigation_crew.Crew", return_value=mock_crewai_crew):
+        crew = NewsInvestigationCrew(db_manager=mock_database_manager)
+        return crew
 
 
 class TestNewsInvestigationCrew:

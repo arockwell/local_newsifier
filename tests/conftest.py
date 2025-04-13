@@ -28,11 +28,10 @@ def get_test_db_name() -> str:
 
 
 @pytest.fixture(autouse=True)
-def mock_openai_api_key():
+def mock_openai_api_key(monkeypatch):
     """Mock the OpenAI API key for tests."""
-    with pytest.MonkeyPatch() as mp:
-        mp.setenv("OPENAI_API_KEY", "test-api-key")
-        yield
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
+    yield
 
 
 @pytest.fixture(scope="session")

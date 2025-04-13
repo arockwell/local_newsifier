@@ -17,8 +17,8 @@ from local_newsifier.tools.entity_tracker import EntityTracker
 from local_newsifier.tools.file_writer import FileWriter
 
 # Set the API keys
-crewai.api_key = settings.openai_api_key
-litellm.api_key = settings.openai_api_key
+crewai.api_key = settings.OPENAI_API_KEY
+litellm.api_key = settings.OPENAI_API_KEY
 
 class EntityAppearancesTool(BaseTool):
     """Tool for finding entity appearances in articles."""
