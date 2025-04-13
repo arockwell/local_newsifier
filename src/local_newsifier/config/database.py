@@ -39,7 +39,7 @@ class DatabaseSettings:
     
     def get_database_url(self) -> str:
         """Get the database URL."""
-        return self._settings.get_database_url()
+        return str(self._settings.DATABASE_URL)
 
 
 def get_database() -> Any:
@@ -49,7 +49,7 @@ def get_database() -> Any:
         SQLAlchemy engine instance
     """
     settings = get_settings()
-    return init_db(settings.get_database_url())
+    return init_db(str(settings.DATABASE_URL))
 
 
 def get_db_session() -> sessionmaker:
@@ -60,3 +60,12 @@ def get_db_session() -> sessionmaker:
     """
     engine = get_database()
     return sessionmaker(bind=engine)
+
+
+def get_database_settings() -> DatabaseSettings:
+    """Get database settings.
+    
+    Returns:
+        DatabaseSettings instance
+    """
+    return DatabaseSettings()

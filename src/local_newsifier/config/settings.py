@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -54,7 +54,8 @@ class Settings(BaseSettings):
     NER_MODEL: str = "en_core_web_lg"
     ENTITY_TYPES: List[str] = Field(default_factory=lambda: ["PERSON", "ORG", "GPE"])
     
-    def get_database_url(self) -> str:
+    @computed_field
+    def DATABASE_URL(self) -> str:
         """Get the database URL based on environment."""
         # Always use PostgreSQL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
