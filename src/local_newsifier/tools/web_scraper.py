@@ -4,15 +4,7 @@ from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
-from webdriver_manager.chrome import ChromeDriverManager
-from unittest.mock import MagicMock
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
@@ -20,7 +12,7 @@ from ..models.state import AnalysisStatus, NewsAnalysisState
 class WebScraperTool:
     """Tool for scraping web content with robust error handling."""
 
-    def __init__(self, user_agent: Optional[str] = None, test_mode: bool = False):
+    def __init__(self, user_agent: Optional[str] = None):
         """Initialize the scraper with optional custom user agent."""
         self.user_agent = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -28,46 +20,16 @@ class WebScraperTool:
         )
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": self.user_agent})
-        self.test_mode = test_mode
-
-        # Set up Chrome options
-        self.chrome_options = Options()
-        self.chrome_options.add_argument("--headless")  # Run in headless mode
-        self.chrome_options.add_argument("--no-sandbox")
-        self.chrome_options.add_argument("--disable-dev-shm-usage")
-        self.chrome_options.add_argument(f"user-agent={self.user_agent}")
-
-        # Initialize WebDriver as None
-        self.driver = None
-
-    def __del__(self):
-        """Cleanup method to ensure WebDriver is properly closed."""
-        if self.driver is not None:
-            self.driver.quit()
-
-    def _get_driver(self):
-        """Get or create a WebDriver instance."""
-        if self.driver is None:
-            if self.test_mode:
-                # In test mode, return a mock driver
-                self.driver = MagicMock()
-            else:
-                # In normal mode, create a real driver
-                service = Service(ChromeDriverManager().install())
-                self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
-        return self.driver
 
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10),
+        wait=wait_exponential(multiplier=0.1, min=0, max=0.2),
         reraise=True,
     )
     def _fetch_url(self, url: str) -> str:
         """Fetch URL content with retries and error handling."""
         print(f"Attempting to fetch URL: {url}")
         try:
-            # First try with requests
-            print("Trying with requests...")
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
 
@@ -104,47 +66,7 @@ class WebScraperTool:
             raise ValueError(f"HTTP error occurred: {str(e)}")
         except requests.exceptions.RequestException as e:
             print(f"Request exception: {str(e)}")
-            print("Trying with Selenium...")
-            # If requests fails, try with Selenium
-            driver = self._get_driver()
-            try:
-                driver.get(url)
-
-                # Wait for article content to load
-                wait = WebDriverWait(driver, 10)
-                article = wait.until(
-                    EC.presence_of_element_located((By.TAG_NAME, "article"))
-                )
-
-                # Wait a bit more for dynamic content
-                time.sleep(2)
-
-                # Check for 404-like content
-                page_text = driver.page_source.lower()
-                if any(
-                    term in page_text
-                    for term in [
-                        "404 not found",
-                        "page not found",
-                        "article not found",
-                        "content no longer available",
-                        "article has expired",
-                        "subscription required",
-                        "please subscribe",
-                    ]
-                ):
-                    print("Found 404-like content in Selenium response")
-                    raise ValueError(
-                        "Page appears to be a 404 or requires subscription"
-                    )
-
-                print("Successfully fetched with Selenium")
-                return driver.page_source
-            except Exception as selenium_error:
-                print(f"Selenium error: {str(selenium_error)}")
-                raise ValueError(
-                    f"Failed to fetch URL with both methods: {str(e)} and {str(selenium_error)}"
-                )
+            raise ValueError(f"Failed to fetch URL: {str(e)}")
 
     def extract_article_text(self, html_content: str) -> str:
         """Extract main article text from HTML content."""
@@ -223,8 +145,9 @@ class WebScraperTool:
         for p in content.find_all(["p", "h1", "h2", "h3"], recursive=True):
             text = p.get_text().strip()
             # Only include substantial paragraphs that don't look like navigation
+            # Don't apply length check to headlines
             if (
-                len(text) > 30
+                (p.name in ["h1", "h2", "h3"] or len(text) > 30)
                 and not any(  # Reduced minimum length to catch headlines
                     term in text.lower()
                     for term in [

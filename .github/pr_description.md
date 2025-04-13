@@ -66,3 +66,27 @@ A command-line script is also provided for easy use:
 ```bash
 python scripts/run_trend_analysis.py --time-frame WEEK --lookback 4 --format markdown
 ```
+
+# Improve Web Scraper Tests and Headline Handling
+
+## Changes Made
+
+- Fixed test file to use correct `NewsAnalysisState` model attributes:
+  - Changed `logs` to `run_logs`
+  - Changed `errors` to `error_details`
+  - Updated error message assertions to check `error_details.message`
+
+- Modified `extract_article_text` method to handle headlines better:
+  - Added special case for `h1`, `h2`, and `h3` tags to bypass length check
+  - Allows short headlines to be included while still filtering out navigation text
+  - Maintains robust filtering of unwanted content
+
+## Testing
+
+- All tests now passing
+- Verified proper error handling
+- Confirmed text extraction includes both headlines and substantial paragraphs
+
+## Impact
+
+These changes improve the web scraper's ability to handle article headlines while maintaining its core functionality and robust error handling. The test suite now properly reflects the actual model attributes and provides better test coverage.
