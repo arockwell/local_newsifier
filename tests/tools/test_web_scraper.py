@@ -364,18 +364,17 @@ class TestWebScraper:
 
     def test_get_driver(self, mock_chrome_options, mock_webdriver):
         """Test driver initialization."""
-        with patch("local_newsifier.tools.web_scraper.webdriver") as mock_webdriver_module:
+        with patch("local_newsifier.tools.web_scraper.webdriver") as mock_webdriver_module, \
+             patch("local_newsifier.tools.web_scraper.ChromeDriverManager") as mock_manager:
+            
             mock_webdriver_module.Chrome = MagicMock(return_value=mock_webdriver)
+            mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
             
             # Create a mock service instance
             mock_service_instance = MagicMock()
             mock_service_instance.start = MagicMock()
             
-            with patch("selenium.webdriver.chrome.service.Service", return_value=mock_service_instance) as mock_service_class, \
-                 patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager:
-                
-                mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
-                
+            with patch("selenium.webdriver.chrome.service.Service", return_value=mock_service_instance) as mock_service_class:
                 # Create a new scraper instance
                 scraper = WebScraperTool()
 
