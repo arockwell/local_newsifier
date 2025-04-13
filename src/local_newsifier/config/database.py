@@ -54,6 +54,18 @@ class DatabaseSettings(BaseSettings):
     }
 
 
+def get_database_settings(env_file: str = ".env") -> DatabaseSettings:
+    """Get database settings.
+
+    Args:
+        env_file: Environment file to use
+
+    Returns:
+        Database settings instance
+    """
+    return DatabaseSettings(_env_file=env_file)
+
+
 def get_database(env_file: str = ".env") -> Engine:
     """Get database engine instance.
 
@@ -63,7 +75,7 @@ def get_database(env_file: str = ".env") -> Engine:
     Returns:
         SQLAlchemy engine instance
     """
-    settings = DatabaseSettings(_env_file=env_file)
+    settings = get_database_settings(env_file)
     return init_db(str(settings.DATABASE_URL))
 
 
