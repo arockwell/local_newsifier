@@ -12,6 +12,8 @@ This system automatically fetches local news articles, performs Named Entity Rec
 
 - Automated news article fetching
 - Named Entity Recognition (NER) analysis
+- Headline trend analysis with NLP-powered keyword extraction
+- Temporal tracking of trending terms in news coverage
 - Robust error handling and retry mechanisms
 - State persistence and workflow resumption
 - Comprehensive logging and monitoring
@@ -35,9 +37,21 @@ poetry run python -m spacy download en_core_web_lg
 
 ## Usage
 
-Run the pipeline:
+Run the article processing pipeline:
 ```bash
 poetry run python scripts/run_pipeline.py --url <URL>
+```
+
+Analyze headline trends:
+```bash
+# Analyze recent headlines
+poetry run python scripts/demo_headline_trends.py --days 30 --interval day
+
+# Generate a report in markdown format
+poetry run python scripts/demo_headline_trends.py --format markdown --output trends.md
+
+# Analyze a specific date range
+poetry run python scripts/demo_headline_trends.py --start-date 2023-01-01 --end-date 2023-01-31 --interval week
 ```
 
 ## Testing Guide
@@ -213,8 +227,12 @@ def test_component_success(mock_component):
 src/
 ├── local_newsifier/
 │   ├── tools/          # Tool implementations
+│   │   ├── analysis/   # Analysis tools (headline trends, etc.)
+│   │   └── ...         # Other tools (web scraper, NER, etc.)
 │   ├── models/         # Pydantic models
 │   ├── flows/          # crew.ai Flow definitions
+│   │   ├── analysis/   # Analysis workflows
+│   │   └── ...         # Other flows (news pipeline, RSS, etc.)
 │   └── config/         # Configuration
 tests/                  # Test suite
 scripts/                # Runtime scripts
@@ -258,79 +276,3 @@ Uses crew.ai's SQLite checkpointer for:
 ## License
 
 MIT
-
-## Development Workflow
-
-### Pull Request Process
-
-We maintain a consistent PR process to ensure reliable PR creation through Cursor. You can follow either the manual process or use our automated script.
-
-#### Using the PR Creation Script (Recommended)
-
-The easiest way to create a PR is using our helper script:
-
-```bash
-# Create a PR with an editor for description
-poetry run python scripts/create_pr.py "Your PR Title"
-
-# Create a PR without editing the description template
-poetry run python scripts/create_pr.py --skip-edit "Your PR Title"
-```
-
-The script will:
-1. Create a PR_description.md file with our template
-2. Open your default editor to modify the description (unless --skip-edit is used)
-3. Commit the description file
-4. Create the PR using GitHub CLI
-
-#### Manual Process
-
-If you prefer to create PRs manually, follow these steps:
-
-1. Create a feature branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes and commit them
-
-3. Create a PR description file:
-   ```bash
-   # Create PR_description.md in your branch
-   # Follow this template structure:
-   
-   # Title
-   
-   ## Description
-   [Clear explanation of changes]
-   
-   ## Changes Made
-   - [List specific changes]
-   
-   ## Testing
-   [Describe testing done]
-   
-   ## Related Issues
-   [Link issues or N/A]
-   
-   ## Checklist
-   - [ ] Code standards
-   - [ ] Tests updated
-   - [ ] Docs updated
-   - [ ] Tests pass
-   - [ ] Pre-commit passes
-   ```
-
-4. Commit the PR description:
-   ```bash
-   git add PR_description.md
-   git commit -m "Add PR description"
-   git push origin feature/your-feature-name
-   ```
-
-5. Create PR using the description file:
-   ```bash
-   gh pr create --title "Your PR Title" --body-file PR_description.md
-   ```
-
-This process ensures consistent PR formatting and reliable PR creation through Cursor.
