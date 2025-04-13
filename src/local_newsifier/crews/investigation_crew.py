@@ -8,7 +8,7 @@ from crewai import Agent, Task, Crew
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
-from local_newsifier.config import settings
+from local_newsifier.config.settings import settings
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.entity_tracking import EntityConnection
 from local_newsifier.tools.context_analyzer import ContextAnalyzer
