@@ -61,12 +61,7 @@ class SentimentTracker:
             
             # Calculate overall sentiment for period
             if sentiment_data:
-                overall_sentiment = {
-                    "avg_sentiment": sum(data["document_sentiment"] for data in sentiment_data) / len(sentiment_data),
-                    "article_count": len(sentiment_data),
-                    "sentiment_distribution": self._calculate_sentiment_distribution(sentiment_data)
-                }
-                period_results["overall"] = overall_sentiment
+                period_results["overall"] = self._calculate_period_sentiment(sentiment_data)
             
             # Calculate topic-specific sentiment if topics provided
             if topics:

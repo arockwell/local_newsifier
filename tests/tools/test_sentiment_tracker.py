@@ -326,8 +326,15 @@ class TestSentimentTracker:
             mock_get_data.side_effect = lambda ids: [{"document_sentiment": 0.5}] if 1 in ids else [{"document_sentiment": -0.3}]
             
             # Mock sentiment calculations
-            mock_calc_period.side_effect = lambda data: {"avg_sentiment": data[0]["document_sentiment"]}
-            mock_calc_topic.side_effect = lambda data, topic: {"avg_sentiment": data[0]["document_sentiment"] * 0.8}
+            mock_calc_period.side_effect = lambda data: {
+                "avg_sentiment": data[0]["document_sentiment"],
+                "article_count": len(data),
+                "sentiment_distribution": {"positive": 0, "neutral": 0, "negative": 0}
+            }
+            mock_calc_topic.side_effect = lambda data, topic: {
+                "avg_sentiment": data[0]["document_sentiment"] * 0.8,
+                "article_count": len(data)
+            }
             
             # Call method
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
