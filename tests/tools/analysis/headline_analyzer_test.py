@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 import logging
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
@@ -17,11 +16,9 @@ from src.local_newsifier.models.database import ArticleDB, Base
 logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="function")
-def test_db():
+def test_db(test_engine):
     """Create a test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
+    Session = sessionmaker(bind=test_engine)
     session = Session()
     
     db_manager = DatabaseManager(session)
@@ -29,7 +26,6 @@ def test_db():
     yield db_manager
     
     session.close()
-    Base.metadata.drop_all(engine)
 
 @pytest.fixture
 def mock_nlp():

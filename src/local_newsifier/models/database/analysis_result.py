@@ -3,10 +3,37 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
 from local_newsifier.models.database.base import Base
+
+
+class AnalysisResultBase(BaseModel):
+    """Base Pydantic model for analysis results."""
+    
+    article_id: int
+    analysis_type: str
+    results: Dict[str, Any]
+
+
+class AnalysisResultCreate(AnalysisResultBase):
+    """Pydantic model for creating analysis results."""
+    
+    pass
+
+
+class AnalysisResult(AnalysisResultBase):
+    """Pydantic model for analysis results with relationships."""
+    
+    id: int
+    created_at: datetime
+    
+    class Config:
+        """Pydantic config."""
+        
+        from_attributes = True
 
 
 class AnalysisResultDB(Base):

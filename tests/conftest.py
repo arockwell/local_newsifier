@@ -3,6 +3,7 @@
 import os
 import uuid
 from typing import Generator
+import time
 
 import pytest
 import psycopg2
@@ -14,17 +15,14 @@ from local_newsifier.config.database import DatabaseSettings
 
 
 def get_test_db_name() -> str:
-    """Get a unique test database name for this cursor instance.
+    """Get a unique test database name.
     
     Returns:
-        A unique test database name based on cursor ID or environment variable
+        A unique test database name based on process ID and timestamp
     """
-    # Use environment variable if set, otherwise generate a new one
-    cursor_id = os.getenv("CURSOR_DB_ID")
-    if not cursor_id:
-        cursor_id = str(uuid.uuid4())[:8]
-        os.environ["CURSOR_DB_ID"] = cursor_id
-    return f"test_local_newsifier_{cursor_id}"
+    pid = os.getpid()
+    timestamp = int(time.time())
+    return f"test_local_newsifier_{pid}_{timestamp}"
 
 
 @pytest.fixture(scope="session")
@@ -95,8 +93,17 @@ def setup_test_db(test_engine) -> Generator[None, None, None]:
     """Set up and tear down the test database for each test."""
     # Drop all tables and recreate schema
     with test_engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
+        # Drop all tables
+        conn.execute(text("""
+            DO $$ 
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;
+        """))
         conn.commit()
     
     # Create all tables
@@ -105,8 +112,16 @@ def setup_test_db(test_engine) -> Generator[None, None, None]:
     
     # Drop all tables after tests
     with test_engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
+        conn.execute(text("""
+            DO $$ 
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;
+        """))
         conn.commit()
 
 

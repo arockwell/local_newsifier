@@ -1,7 +1,7 @@
 """Integration tests for database models."""
 
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import inspect
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.models.database.base import Base
@@ -10,28 +10,18 @@ from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.state import AnalysisStatus
 
 
-@pytest.fixture(scope="module")
-def sqlite_engine():
-    """Set up a SQLite in-memory test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
-    engine.dispose()
-
-
 @pytest.fixture
-def db_session(sqlite_engine):
+def db_session(test_engine):
     """Create a test database session."""
-    TestSession = sessionmaker(bind=sqlite_engine)
+    TestSession = sessionmaker(bind=test_engine)
     session = TestSession()
     yield session
     session.close()
 
 
-def test_schema_generation(sqlite_engine):
+def test_schema_generation(test_engine):
     """Test that the schema is properly generated."""
-    inspector = inspect(sqlite_engine)
+    inspector = inspect(test_engine)
 
     # Check that all tables are created
     tables = inspector.get_table_names()

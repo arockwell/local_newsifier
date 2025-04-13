@@ -1,7 +1,6 @@
 """Tests for Pydantic model compatibility."""
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.models.database.base import Base
@@ -10,20 +9,10 @@ from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.state import AnalysisStatus
 
 
-@pytest.fixture(scope="module")
-def sqlite_engine():
-    """Set up a SQLite in-memory test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
-    engine.dispose()
-
-
 @pytest.fixture
-def db_session(sqlite_engine):
+def db_session(test_engine):
     """Create a test database session."""
-    TestSession = sessionmaker(bind=sqlite_engine)
+    TestSession = sessionmaker(bind=test_engine)
     session = TestSession()
     yield session
     session.close()

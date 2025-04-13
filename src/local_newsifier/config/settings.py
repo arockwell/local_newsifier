@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from pydantic import Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -15,7 +15,7 @@ def get_cursor_db_name() -> str:
     Returns:
         Database name with cursor ID
     """
-    cursor_id = os.getenv("CURSOR_DB_ID")
+    cursor_id = os.environ.get("CURSOR_DB_ID")
     if not cursor_id:
         cursor_id = str(uuid.uuid4())[:8]
         os.environ["CURSOR_DB_ID"] = cursor_id
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "local_newsifier"  # Default value will be overridden by validator
+    POSTGRES_DB: str = Field(default_factory=get_cursor_db_name)
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     
@@ -54,16 +54,9 @@ class Settings(BaseSettings):
     NER_MODEL: str = "en_core_web_lg"
     ENTITY_TYPES: List[str] = Field(default_factory=lambda: ["PERSON", "ORG", "GPE"])
     
-    @model_validator(mode='before')
-    @classmethod
-    def set_db_name(cls, values: Dict) -> Dict:
-        """Set the database name if not provided."""
-        if 'POSTGRES_DB' not in values or values['POSTGRES_DB'] == "local_newsifier":
-            values['POSTGRES_DB'] = get_cursor_db_name()
-        return values
-    
     def get_database_url(self) -> str:
-        """Get the database URL."""
+        """Get the database URL based on environment."""
+        # Always use PostgreSQL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
     def create_directories(self) -> None:
@@ -80,7 +73,6 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
-        "extra": "allow",  # Allow extra fields
     }
 
 

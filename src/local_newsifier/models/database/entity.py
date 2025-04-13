@@ -3,10 +3,39 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from pydantic import BaseModel
 from sqlalchemy import Column, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from local_newsifier.models.database.base import Base
+
+
+class EntityBase(BaseModel):
+    """Base Pydantic model for entities."""
+    
+    article_id: int
+    text: str
+    entity_type: str
+    confidence: float = 1.0
+    sentence_context: Optional[str] = None
+
+
+class EntityCreate(EntityBase):
+    """Pydantic model for creating entities."""
+    
+    pass
+
+
+class Entity(EntityBase):
+    """Pydantic model for entities with relationships."""
+    
+    id: int
+    created_at: datetime
+    
+    class Config:
+        """Pydantic config."""
+        
+        from_attributes = True
 
 
 class EntityDB(Base):

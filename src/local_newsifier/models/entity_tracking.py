@@ -8,7 +8,7 @@ from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
                         Table, Text, UniqueConstraint, JSON)
 from sqlalchemy.orm import relationship
 
-from .database import Base
+from local_newsifier.models.database.base import Base
 
 # Association table for entity mentions
 entity_mentions = Table(
@@ -71,8 +71,8 @@ class CanonicalEntityDB(Base):
     related_to = relationship(
         "CanonicalEntityDB",
         secondary="entity_relationships",
-        primaryjoin=id==entity_relationships.c.source_entity_id,
-        secondaryjoin=id==entity_relationships.c.target_entity_id,
+        primaryjoin="CanonicalEntityDB.id==entity_relationships.c.source_entity_id",
+        secondaryjoin="CanonicalEntityDB.id==entity_relationships.c.target_entity_id",
         backref="related_from"
     )
 
@@ -145,7 +145,7 @@ class CanonicalEntity(CanonicalEntityBase):
     id: int
     first_seen: datetime
     last_seen: datetime
-    mention_count: int = 0
+    mention_count: Optional[int] = None
     
     class Config:
         """Pydantic config."""
