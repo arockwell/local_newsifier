@@ -23,7 +23,11 @@ def mock_state():
 @pytest.fixture
 def web_scraper():
     """Create a WebScraperTool instance for testing."""
-    return WebScraperTool(test_mode=True)
+    scraper = WebScraperTool(test_mode=True)
+    # Replace the _fetch_url method to avoid retry decorator
+    scraper._original_fetch = scraper._fetch_url
+    scraper._fetch_url = lambda url: scraper._original_fetch.__wrapped__(scraper, url)
+    return scraper
 
 
 class TestWebScraper:
