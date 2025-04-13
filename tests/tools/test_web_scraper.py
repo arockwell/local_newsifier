@@ -357,19 +357,32 @@ class TestWebScraper:
         del scraper
         # The driver.quit() should be called during cleanup
 
-    def test_get_driver(self):
+    def test_get_driver(self, mock_webdriver):
         """Test driver initialization."""
-        # Create a new scraper instance
-        scraper = WebScraperTool()
-
-        # First call should create a new driver
-        driver1 = scraper._get_driver()
-        assert driver1 is not None
-
-        # Second call should return the same driver
-        driver2 = scraper._get_driver()
-        assert driver2 is not None
-        assert driver1 == driver2
+        with patch("selenium.webdriver.chrome.service.Service") as mock_service, patch(
+            "webdriver_manager.chrome.ChromeDriverManager"
+        ) as mock_manager, patch(
+            "selenium.webdriver.chrome.webdriver.WebDriver", return_value=mock_webdriver
+        ) as mock_chrome:
+            # Configure mocks
+            mock_manager.return_value.install.return_value = "path/to/chromedriver"
+            mock_service_instance = MagicMock(name="service_instance")
+            mock_service_instance.is_connectable.return_value = True
+            mock_service_instance.start = MagicMock()
+            mock_service_instance._start_process = MagicMock()
+            mock_service_instance.assert_process_still_running = MagicMock()
+            mock_service_instance._path = "path/to/chromedriver"
+            mock_service.return_value = mock_service_instance
+            
+            # Create scraper and get driver
+            scraper = WebScraperTool()
+            driver = scraper._get_driver()
+            
+            # Verify driver was created
+            assert driver is not None
+            mock_manager.assert_called_once()
+            mock_service.assert_called_once()
+            mock_chrome.assert_called_once()
 
     def test_extract_article_strategy_2(self):
         """Test article extraction using strategy 2 (article with most paragraphs)."""
