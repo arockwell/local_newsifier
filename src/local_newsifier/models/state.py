@@ -38,6 +38,9 @@ class NewsAnalysisState(BaseModel):
 
     run_id: UUID = Field(default_factory=uuid4)
     target_url: str
+    scraped_title: Optional[str] = None
+    source: Optional[str] = None
+    published_at: Optional[datetime] = None
     scraped_at: Optional[datetime] = None
     scraped_text: Optional[str] = None
     analyzed_at: Optional[datetime] = None
