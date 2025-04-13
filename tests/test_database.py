@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from local_newsifier.config.database import get_engine, get_session
+from local_newsifier.config.database import get_database, get_db_session
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database import (AnalysisResult,
                                              AnalysisResultCreate,
@@ -19,7 +19,7 @@ from local_newsifier.models.database import (AnalysisResult,
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a test database engine."""
-    engine = get_engine()
+    engine = get_database()
     return engine
 
 
@@ -36,7 +36,7 @@ def setup_test_db(test_engine):
 @pytest.fixture
 def db_session(test_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
-    session_factory = get_session()
+    session_factory = get_db_session()
     session = session_factory()
     try:
         yield session
