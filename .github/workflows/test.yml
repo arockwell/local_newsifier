@@ -65,7 +65,6 @@ jobs:
         POSTGRES_PASSWORD: postgres
         POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432
-        CURSOR_DB_ID: ${{ github.run_id }}
       run: |
         poetry run python -c "
         import psycopg2
@@ -78,7 +77,7 @@ jobs:
         )
         conn.autocommit = True
         cur = conn.cursor()
-        test_db_name = f'test_local_newsifier_{os.environ[\"CURSOR_DB_ID\"]}'
+        test_db_name = 'test_local_newsifier'
         cur.execute(f'DROP DATABASE IF EXISTS {test_db_name}')
         cur.execute(f'CREATE DATABASE {test_db_name}')
         cur.close()
@@ -91,7 +90,6 @@ jobs:
         POSTGRES_PASSWORD: postgres
         POSTGRES_HOST: localhost
         POSTGRES_PORT: 5432
-        CURSOR_DB_ID: ${{ github.run_id }}
       run: |
         poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=90 tests/
 
