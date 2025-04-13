@@ -64,6 +64,17 @@ class AnalysisResultDB(Base):
     article = relationship("ArticleDB", back_populates="analysis_results")
 
 
+class ProcessedURLDB(Base):
+    """Database model for processed RSS URLs."""
+
+    __tablename__ = "processed_urls"
+
+    id = Column(Integer, primary_key=True)
+    url = Column(String, nullable=False, index=True)
+    feed_url = Column(String, nullable=False, index=True)
+    processed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 # Pydantic Models
 class ArticleBase(BaseModel):
     """Base Pydantic model for articles."""

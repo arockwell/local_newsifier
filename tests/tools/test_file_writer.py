@@ -1,4 +1,9 @@
-"""Tests for the file writer tool."""
+"""Tests for the file writer tool (Legacy).
+
+This test file is maintained for backward compatibility during the transition
+to database storage. These tests ensure that existing file-based storage
+continues to work while we migrate to using the database.
+"""
 
 import json
 import os
@@ -12,6 +17,7 @@ from local_newsifier.models.state import (AnalysisStatus, ErrorDetails,
 from local_newsifier.tools.file_writer import FileWriterTool
 
 
+@pytest.mark.legacy
 @pytest.fixture
 def sample_state():
     """Sample pipeline state for testing."""
@@ -22,6 +28,7 @@ def sample_state():
     )
 
 
+@pytest.mark.legacy
 @pytest.fixture
 def error_state(sample_state):
     """Sample state with error details."""
@@ -32,8 +39,9 @@ def error_state(sample_state):
     return state
 
 
+@pytest.mark.legacy
 def test_file_writer(tmp_path, sample_state):
-    """Test result file writing."""
+    """Test result file writing (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
     state = writer.save(sample_state)
 
@@ -50,8 +58,9 @@ def test_file_writer(tmp_path, sample_state):
         assert data["scraping"]["text_length"] == len(sample_state.scraped_text)
 
 
+@pytest.mark.legacy
 def test_file_writer_with_errors(tmp_path, error_state):
-    """Test file writing with error details."""
+    """Test file writing with error details (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
     state = writer.save(error_state)
 
@@ -66,8 +75,9 @@ def test_file_writer_with_errors(tmp_path, error_state):
         assert error["message"] == "Failed to analyze content"
 
 
+@pytest.mark.legacy
 def test_file_writer_permission_error(tmp_path, sample_state):
-    """Test file writing with permission error."""
+    """Test file writing with permission error (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Mock os.replace to raise PermissionError
@@ -81,8 +91,9 @@ def test_file_writer_permission_error(tmp_path, sample_state):
         assert "Permission denied" in sample_state.error_details.message
 
 
+@pytest.mark.legacy
 def test_file_writer_json_error(tmp_path, sample_state):
-    """Test file writing with JSON serialization error."""
+    """Test file writing with JSON serialization error (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Create an object that can't be JSON serialized
@@ -96,8 +107,9 @@ def test_file_writer_json_error(tmp_path, sample_state):
     assert sample_state.error_details.task == "saving"
 
 
+@pytest.mark.legacy
 def test_file_writer_status_transitions(tmp_path, sample_state):
-    """Test status transitions during save operation."""
+    """Test status transitions during save operation (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Initial status
@@ -110,8 +122,9 @@ def test_file_writer_status_transitions(tmp_path, sample_state):
     assert len(state.run_logs) >= 2  # Should have at least start and success logs
 
 
+@pytest.mark.legacy
 def test_generate_filename(tmp_path, sample_state):
-    """Test filename generation with different URLs."""
+    """Test filename generation with different URLs (Legacy)."""
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Test with www subdomain
@@ -128,8 +141,9 @@ def test_generate_filename(tmp_path, sample_state):
     assert "news.example.com" in filename
 
 
+@pytest.mark.legacy
 def test_ensure_output_dir(tmp_path):
-    """Test output directory creation."""
+    """Test output directory creation (Legacy)."""
     nested_path = tmp_path / "nested" / "path"
     writer = FileWriterTool(output_dir=str(nested_path))
 

@@ -2,16 +2,16 @@
 RSS Parser Tool for extracting URLs and titles from RSS feeds.
 """
 
-import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 from xml.etree import ElementTree
 
 import requests
 from dateutil import parser as date_parser
 from pydantic import BaseModel
+
+from ..repositories.rss_cache_repository import RSSCacheRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,42 +28,14 @@ class RSSItem(BaseModel):
 class RSSParser:
     """Tool for parsing RSS feeds and extracting content."""
 
-    def __init__(self, cache_file: Optional[str] = None):
+    def __init__(self, cache_repository: RSSCacheRepository):
         """
         Initialize the RSS parser.
 
         Args:
-            cache_file: Optional path to a JSON file to cache processed URLs
+            cache_repository: Repository for managing processed URLs
         """
-        self.cache_file = cache_file
-        self.processed_urls = self._load_cache() if cache_file else set()
-
-    def _load_cache(self) -> set:
-        """Load processed URLs from cache file."""
-        if not self.cache_file:
-            return set()
-
-        cache_path = Path(self.cache_file)
-        if not cache_path.exists():
-            return set()
-
-        try:
-            with open(cache_path, "r") as f:
-                return set(json.load(f))
-        except Exception as e:
-            logger.error(f"Error loading cache file: {e}")
-            return set()
-
-    def _save_cache(self):
-        """Save processed URLs to cache file."""
-        if not self.cache_file:
-            return
-
-        try:
-            with open(self.cache_file, "w") as f:
-                json.dump(list(self.processed_urls), f)
-        except Exception as e:
-            logger.error(f"Error saving cache file: {e}")
+        self.cache_repository = cache_repository
 
     def _get_element_text(
         self, entry: ElementTree.Element, *names: str
@@ -179,11 +151,14 @@ class RSSParser:
             List of RSSItem objects containing only new content
         """
         items = self.parse_feed(feed_url)
-        new_items = [item for item in items if item.url not in self.processed_urls]
-
+        urls = [item.url for item in items]
+        new_urls = self.cache_repository.get_new_urls(urls, feed_url)
+        
+        # Filter items to only include new URLs
+        new_items = [item for item in items if item.url in new_urls]
+        
         # Update cache with new URLs
-        self.processed_urls.update(item.url for item in new_items)
-        if self.cache_file:
-            self._save_cache()
+        for url in new_urls:
+            self.cache_repository.add_processed_url(url, feed_url)
 
         return new_items

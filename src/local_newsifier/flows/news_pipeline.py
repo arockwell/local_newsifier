@@ -3,7 +3,7 @@ from typing import Optional
 from crewai import Flow
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
-from ..tools.file_writer import FileWriterTool
+from ..repositories.analysis_repository import AnalysisRepository
 from ..tools.ner_analyzer import NERAnalyzerTool
 from ..tools.web_scraper import WebScraperTool
 
@@ -11,12 +11,12 @@ from ..tools.web_scraper import WebScraperTool
 class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 
-    def __init__(self, output_dir: str = "output"):
+    def __init__(self, analysis_repository: AnalysisRepository):
         """Initialize the pipeline flow."""
         super().__init__()
         self.scraper = WebScraperTool()
         self.analyzer = NERAnalyzerTool()
-        self.writer = FileWriterTool(output_dir=output_dir)
+        self.repository = analysis_repository
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """Task for scraping article content."""
@@ -28,7 +28,7 @@ class NewsPipelineFlow(Flow):
 
     def save_results(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """Task for saving analysis results."""
-        return self.writer.save(state)
+        return self.repository.save(state)
 
     def start_pipeline(self, url: str) -> NewsAnalysisState:
         """
@@ -70,8 +70,10 @@ class NewsPipelineFlow(Flow):
             Final pipeline state
         """
         if not state:
-            # In a real implementation, we would load state from SQLite
-            raise NotImplementedError("State loading not implemented")
+            # Load state from database
+            state = self.repository.get(run_id)
+            if not state:
+                raise ValueError(f"No state found for run_id: {run_id}")
 
         state.add_log(f"Resuming pipeline for run_id: {run_id}")
 
