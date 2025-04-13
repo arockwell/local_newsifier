@@ -216,7 +216,17 @@ class DatabaseManager:
             )
             .first()
         )
-        return CanonicalEntity.model_validate(db_entity) if db_entity else None
+        if db_entity:
+            # Calculate mention count
+            mention_count = (
+                self.session.query(func.count(entity_mentions.c.id))
+                .filter(entity_mentions.c.canonical_entity_id == db_entity.id)
+                .scalar()
+            )
+            entity = CanonicalEntity.model_validate(db_entity)
+            entity.mention_count = mention_count
+            return entity
+        return None
 
     def add_entity_mention_context(
         self, context: EntityMentionContextCreate

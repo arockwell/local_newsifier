@@ -145,7 +145,7 @@ class CanonicalEntity(CanonicalEntityBase):
     id: int
     first_seen: datetime
     last_seen: datetime
-    mention_count: Optional[int] = None
+    mention_count: int = 0
     
     class Config:
         """Pydantic config."""
