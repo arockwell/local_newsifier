@@ -1,68 +1,58 @@
-# Local News Trends Analysis
+# Database Foundation for Local Newsifier
 
 ## Overview
-This PR adds new functionality for detecting and analyzing trends in local news coverage over time. It enables the system to identify emerging topics, frequency spikes, novel entities, and sustained coverage patterns in news articles, providing valuable insights into evolving local news narratives.
+This PR implements the core database foundation for the Local Newsifier project using SQLAlchemy ORM models. It provides a robust structure for storing news articles, entities, and their relationships while ensuring compatibility with the existing state model architecture.
 
 ## Key Components
 
 ### Models
-- `TrendAnalysis` - Represents a detected trend with supporting evidence
-- `TopicFrequency` - Tracks frequency data for topics over time
-- `TrendAnalysisConfig` - Configuration settings for trend analysis
-
-### Tools
-- `HistoricalDataAggregator` - Retrieves and organizes historical article data
-- `TopicFrequencyAnalyzer` - Analyzes statistical significance of topic frequency changes
-- `TrendDetector` - Applies algorithms to identify various trend types
-- `TrendReporter` - Generates reports and visualizations of detected trends
-
-### Flow
-- `NewsTrendAnalysisFlow` - Orchestrates the trend analysis process
+- `Base` - Base SQLAlchemy model with common fields (id, created_at, updated_at)
+- `Article` - Model for news articles with proper relationships to entities
+- `Entity` - Model for named entities found in articles with relationship back to articles
 
 ## Implementation Features
-- Statistical analysis to identify significant frequency changes
-- Support for different time frames (day, week, month, etc.)
-- Pattern recognition for rising, falling, and consistent trends
-- Related topic discovery
-- Customizable trend reporting in multiple formats (markdown, JSON, text)
+- Comprehensive SQLAlchemy ORM models with proper relationships
+- Integration with existing AnalysisStatus enum from state.py
+- Normalized database structure for efficient storage
+- Proper type annotations and documentation
+- Support for SQLite in tests and PostgreSQL in production
 
 ## Test Coverage
 The implementation includes comprehensive test coverage with unit tests for all components:
-- Model validation and behavior tests
-- Tool functionality tests with mocked dependencies
-- Flow orchestration tests
+- Model validation and relationship tests with SQLite in-memory database
+- Schema generation tests
+- Relationship tests to ensure proper cascading behavior
 
 ## How to Use
 ```python
-from src.local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow, ReportFormat
-from src.local_newsifier.models.trend import TrendAnalysisConfig, TimeFrame
+from sqlalchemy.orm import Session
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.state import AnalysisStatus
 
-# Create configuration
-config = TrendAnalysisConfig(
-    time_frame=TimeFrame.WEEK,
-    min_articles=3,
-    entity_types=["PERSON", "ORG", "GPE"],
-    significance_threshold=1.5
+# Create a new article
+article = Article(
+    url="https://example.com/news/1",
+    title="Local News Article",
+    source_domain="example.com",
+    scraped_text="This is a sample article about Gainesville.",
+    status=AnalysisStatus.SCRAPE_SUCCEEDED
 )
 
-# Initialize flow
-flow = NewsTrendAnalysisFlow(config=config)
+# Add entities
+entity = Entity(
+    text="Gainesville",
+    entity_type="GPE",
+    sentence_context="This is a sample article about Gainesville.",
+    confidence=0.95
+)
+article.entities.append(entity)
 
-# Run analysis
-state = flow.run_analysis(report_format=ReportFormat.MARKDOWN)
-
-# Access results
-if state.detected_trends:
-    print(f"Found {len(state.detected_trends)} trends")
-    for trend in state.detected_trends:
-        print(f"- {trend.name}: {trend.description}")
-        
-# View report
-if state.report_path:
-    print(f"Report saved to: {state.report_path}")
+# Save to database
+with Session() as session:
+    session.add(article)
+    session.commit()
 ```
 
-A command-line script is also provided for easy use:
-```bash
-python scripts/run_trend_analysis.py --time-frame WEEK --lookback 4 --format markdown
-```
+## Notes
+This PR focuses on implementing the core database models as requested. Follow-up work will be needed to implement the configuration settings with Pydantic which will require addressing compatibility issues with the current Pydantic version used in the project.
