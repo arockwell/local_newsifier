@@ -28,33 +28,40 @@ def get_test_db_name() -> str:
 
 
 @pytest.fixture(scope="session")
-def test_engine():
-    """Create a test database engine."""
+def postgres_url():
+    """Get PostgreSQL URL for tests."""
     settings = DatabaseSettings()
     test_db_name = get_test_db_name()
+    return str(settings.DATABASE_URL).replace(settings.POSTGRES_DB, test_db_name)
+
+
+@pytest.fixture(scope="session")
+def test_engine(postgres_url):
+    """Create a test database engine.
+    
+    This version is compatible with both local development and CI environments.
+    """
+    settings = DatabaseSettings()
+    test_db_name = postgres_url.rsplit('/', 1)[1]
     
     # Connect to default postgres database to create test db
-    conn = psycopg2.connect(
-        host=settings.POSTGRES_HOST,
-        port=int(settings.POSTGRES_PORT),
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        database="postgres"
-    )
-    conn.autocommit = True
-    
     try:
-        with conn.cursor() as cur:
-            # Drop test database if it exists
-            cur.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
-            # Create new test database
-            cur.execute(f"CREATE DATABASE {test_db_name}")
-    finally:
-        conn.close()
+        # Connect to default postgres database to create test db
+        admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
+        admin_engine = create_engine(admin_url)
+        
+        # Create test database
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
+            conn.execute(text(f"CREATE DATABASE {test_db_name}"))
+            conn.commit()
+    except Exception as e:
+        print(f"Error creating test database: {e}")
+        # If we can't create the database, try connecting directly
+        # (it might already exist in CI)
     
     # Create engine for the test database
-    test_db_url = str(settings.DATABASE_URL).replace(settings.POSTGRES_DB, test_db_name)
-    engine = create_engine(test_db_url)
+    engine = create_engine(postgres_url)
     
     # Create all tables
     Base.metadata.create_all(engine)
@@ -65,27 +72,24 @@ def test_engine():
     Base.metadata.drop_all(engine)
     engine.dispose()  # Close all connections
     
-    conn = psycopg2.connect(
-        host=settings.POSTGRES_HOST,
-        port=int(settings.POSTGRES_PORT),
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        database="postgres"
-    )
-    conn.autocommit = True
     try:
-        with conn.cursor() as cur:
-            # Terminate all connections to the test database
-            cur.execute(f"""
+        # Connect to default postgres database to drop test db
+        admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
+        admin_engine = create_engine(admin_url)
+        
+        # Drop test database
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"""
                 SELECT pg_terminate_backend(pg_stat_activity.pid)
                 FROM pg_stat_activity
                 WHERE pg_stat_activity.datname = '{test_db_name}'
                 AND pid <> pg_backend_pid();
-            """)
-            # Drop the test database
-            cur.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
-    finally:
-        conn.close()
+            """))
+            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
+            conn.commit()
+    except Exception as e:
+        print(f"Error dropping test database: {e}")
+        # In CI, we may not have permissions to drop databases
 
 
 @pytest.fixture(autouse=True)

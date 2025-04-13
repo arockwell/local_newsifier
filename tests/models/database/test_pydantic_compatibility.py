@@ -3,8 +3,8 @@
 import pytest
 from datetime import datetime, timezone
 
+from local_newsifier.models.database import ArticleDB, EntityDB, AnalysisResultDB
 from local_newsifier.models.database import (
-    ArticleDB, EntityDB, AnalysisResultDB,
     Article, Entity, AnalysisResult,
     ArticleCreate, EntityCreate, AnalysisResultCreate,
 )

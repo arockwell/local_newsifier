@@ -8,10 +8,12 @@ from pydantic import BaseModel
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-# Import our new models from the database package
-from local_newsifier.models.database import (
-    Base, ArticleDB, EntityDB, AnalysisResultDB, init_db, get_session
-)
+# Import directly from submodules to avoid circular imports
+from local_newsifier.models.database.base import Base
+from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.analysis_result import AnalysisResultDB
+from local_newsifier.models.database import init_db, get_session
 
 
 # Pydantic Models
