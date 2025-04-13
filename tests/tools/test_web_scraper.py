@@ -364,33 +364,34 @@ class TestWebScraper:
 
     def test_get_driver(self, mock_chrome_options, mock_webdriver):
         """Test driver initialization."""
-        with patch("selenium.webdriver.chrome.service.Service") as mock_service_class, \
-             patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager, \
-             patch("selenium.webdriver", new=MagicMock(Chrome=mock_webdriver)):
+        with patch("local_newsifier.tools.web_scraper.webdriver") as mock_webdriver_module:
+            mock_webdriver_module.Chrome = MagicMock(return_value=mock_webdriver)
             
             # Create a mock service instance
             mock_service_instance = MagicMock()
             mock_service_instance.start = MagicMock()
-            mock_service_class.return_value = mock_service_instance
             
-            mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
-            
-            # Create a new scraper instance
-            scraper = WebScraperTool()
+            with patch("selenium.webdriver.chrome.service.Service", return_value=mock_service_instance) as mock_service_class, \
+                 patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager:
+                
+                mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
+                
+                # Create a new scraper instance
+                scraper = WebScraperTool()
 
-            # First call should create a new driver
-            driver1 = scraper._get_driver()
-            assert driver1 is not None
-            assert driver1 == mock_webdriver
+                # First call should create a new driver
+                driver1 = scraper._get_driver()
+                assert driver1 is not None
+                assert driver1 == mock_webdriver
 
-            # Second call should return the same driver
-            driver2 = scraper._get_driver()
-            assert driver2 is not None
-            assert driver1 == driver2
+                # Second call should return the same driver
+                driver2 = scraper._get_driver()
+                assert driver2 is not None
+                assert driver1 == driver2
 
-            # Verify driver creation was called only once
-            mock_manager.return_value.install.assert_called_once()
-            mock_service_class.assert_called_once()
+                # Verify driver creation was called only once
+                mock_manager.return_value.install.assert_called_once()
+                mock_service_class.assert_called_once()
 
     def test_extract_article_strategy_2(self):
         """Test article extraction using strategy 2 (article with most paragraphs)."""
