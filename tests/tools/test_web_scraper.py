@@ -125,23 +125,24 @@ def sample_html_subscription():
 
 
 @pytest.fixture(scope="function")
-def web_scraper(mock_chrome_options, mock_webdriver, mock_webdriver_wait):
+def web_scraper(mock_chrome_options, mock_webdriver):
     """Create a WebScraperTool instance with mocked dependencies."""
-    with patch("selenium.webdriver.chrome.service.Service") as mock_service, \
-         patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager, \
-         patch("selenium.webdriver.chrome.webdriver.WebDriver", return_value=mock_webdriver), \
-         patch("selenium.webdriver.support.wait.WebDriverWait", return_value=mock_webdriver_wait), \
-         patch("selenium.webdriver.chrome.options.Options", return_value=mock_chrome_options):
+    with patch("selenium.webdriver.chrome.service.Service") as mock_service_class:
+        # Create a mock service instance
+        mock_service_instance = MagicMock()
+        mock_service_instance.start = MagicMock()
+        mock_service_class.return_value = mock_service_instance
         
-        mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
-        mock_service.return_value = MagicMock(name="service_instance")
-        
-        scraper = WebScraperTool()
-        yield scraper
-        
-        # Ensure cleanup is called
-        if scraper.driver:
-            scraper.driver.quit()
+        with patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager:
+            mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
+            
+            scraper = WebScraperTool()
+            scraper.driver = mock_webdriver
+            yield scraper
+            
+            # Ensure cleanup is called
+            if scraper.driver:
+                scraper.driver.quit()
 
 
 @pytest.mark.usefixtures("mock_webdriver")
@@ -361,19 +362,32 @@ class TestWebScraper:
         del scraper
         # The driver.quit() should be called during cleanup
 
-    def test_get_driver(self):
+    def test_get_driver(self, mock_chrome_options, mock_webdriver):
         """Test driver initialization."""
-        # Create a new scraper instance
-        scraper = WebScraperTool()
+        with patch("selenium.webdriver.chrome.service.Service") as mock_service_class:
+            # Create a mock service instance
+            mock_service_instance = MagicMock()
+            mock_service_instance.start = MagicMock()
+            mock_service_class.return_value = mock_service_instance
+            
+            with patch("webdriver_manager.chrome.ChromeDriverManager") as mock_manager:
+                mock_manager.return_value.install.return_value = "/mock/path/to/chromedriver"
+                
+                # Create a new scraper instance
+                scraper = WebScraperTool()
 
-        # First call should create a new driver
-        driver1 = scraper._get_driver()
-        assert driver1 is not None
+                # First call should create a new driver
+                driver1 = scraper._get_driver()
+                assert driver1 is not None
 
-        # Second call should return the same driver
-        driver2 = scraper._get_driver()
-        assert driver2 is not None
-        assert driver1 == driver2
+                # Second call should return the same driver
+                driver2 = scraper._get_driver()
+                assert driver2 is not None
+                assert driver1 == driver2
+
+                # Verify driver creation was called only once
+                mock_manager.return_value.install.assert_called_once()
+                mock_service_class.assert_called_once()
 
     def test_extract_article_strategy_2(self):
         """Test article extraction using strategy 2 (article with most paragraphs)."""
