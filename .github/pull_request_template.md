@@ -1,27 +1,21 @@
-# Description
+# Title
 
-<!-- What is the purpose of this PR? -->
+## Description
+[Provide a brief description of the changes and the motivation behind them]
 
-# Changes
+## Changes Made
+[List the specific changes made in bullet points]
 
-<!-- What are the key changes in this PR? -->
+## Testing
+[Describe what testing was done to verify the changes]
 
-# Testing
+## Related Issues
+[Link any related issues or write N/A if none]
 
-<!-- How was this tested? -->
-
-# Screenshots/Logs
-
-<!-- Include any relevant screenshots, logs, or demos -->
-
-# Notes
-
-<!-- Any additional context or notes for reviewers -->
-
----
-
-# Checklist
-* [ ] Tests added/updated and passing
-* [ ] Documentation updated (if needed)
-* [ ] Code follows project style guidelines
-* [ ] Verified changes in development environment
+## Checklist
+- [ ] Code follows the project's coding standards
+- [ ] Tests have been added/updated to reflect changes
+- [ ] Documentation has been updated if necessary
+- [ ] All tests pass
+- [ ] Pre-commit hooks pass
+- [ ] Changes have been tested in a local environment
