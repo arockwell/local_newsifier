@@ -9,7 +9,7 @@ import psycopg2
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from local_newsifier.database.manager import Base
+from local_newsifier.models.database import Base
 from local_newsifier.config.database import DatabaseSettings
 
 
