@@ -1,5 +1,11 @@
 """Demo processing script for Local Newsifier."""
 
+import sys
+from pathlib import Path
+
+# Add src directory to Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow

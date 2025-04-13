@@ -1,7 +1,11 @@
 """Demo setup script for Local Newsifier."""
 
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Add src directory to Python path
+sys.path.append(str(Path(__file__).parent.parent))
 
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database import ArticleDB, ArticleCreate, Base
@@ -102,90 +106,29 @@ def setup_demo():
                     name="School District",
                     entity_type="ORG",
                     description="Local educational institution",
-                    entity_metadata={"type": "Education", "level": "K-12"}
+                    entity_metadata={"type": "Education", "jurisdiction": "Local"}
                 )
             )
         }
         
-        # Commit entities to database before creating mentions
-        session.commit()
-        
-        # Add entity mentions and contexts
+        # Create entity mentions
         for article in articles:
-            if "TechCorp" in article.content:
-                mention = db_manager.add_entity_mention(
+            for entity in entities.values():
+                db_manager.create_entity_mention(
                     EntityMentionCreate(
-                        canonical_entity_id=entities["techcorp"].id,
                         article_id=article.id,
-                        mention_text="TechCorp",
-                        mention_type="ORG"
-                    )
-                )
-                db_manager.add_entity_mention_context(
-                    EntityMentionContextCreate(
-                        entity_id=mention.id,
-                        article_id=article.id,
-                        context_text=article.content,
-                        context_type="article",
-                        sentiment_score=0.8
-                    )
-                )
-            if "John Smith" in article.content:
-                mention = db_manager.add_entity_mention(
-                    EntityMentionCreate(
-                        canonical_entity_id=entities["john_smith"].id,
-                        article_id=article.id,
-                        mention_text="John Smith",
-                        mention_type="PERSON"
-                    )
-                )
-                db_manager.add_entity_mention_context(
-                    EntityMentionContextCreate(
-                        entity_id=mention.id,
-                        article_id=article.id,
-                        context_text=article.content,
-                        context_type="article",
-                        sentiment_score=0.6
-                    )
-                )
-            if "Jane Doe" in article.content:
-                mention = db_manager.add_entity_mention(
-                    EntityMentionCreate(
-                        canonical_entity_id=entities["jane_doe"].id,
-                        article_id=article.id,
-                        mention_text="Jane Doe",
-                        mention_type="PERSON"
-                    )
-                )
-                db_manager.add_entity_mention_context(
-                    EntityMentionContextCreate(
-                        entity_id=mention.id,
-                        article_id=article.id,
-                        context_text=article.content,
-                        context_type="article",
-                        sentiment_score=0.7
-                    )
-                )
-            if "Robert Johnson" in article.content:
-                mention = db_manager.add_entity_mention(
-                    EntityMentionCreate(
-                        canonical_entity_id=entities["robert_johnson"].id,
-                        article_id=article.id,
-                        mention_text="Robert Johnson",
-                        mention_type="PERSON"
-                    )
-                )
-                db_manager.add_entity_mention_context(
-                    EntityMentionContextCreate(
-                        entity_id=mention.id,
-                        article_id=article.id,
-                        context_text=article.content,
-                        context_type="article",
-                        sentiment_score=0.9
+                        canonical_entity_id=entity.id,
+                        mention_text=entity.name,
+                        context=EntityMentionContextCreate(
+                            sentence="Sample context sentence",
+                            paragraph="Sample context paragraph",
+                            position=0
+                        )
                     )
                 )
         
-        print("Demo setup complete. Added 3 sample articles and entities to the database.")
+        print("Demo setup completed successfully!")
+        
     finally:
         session.close()
 
