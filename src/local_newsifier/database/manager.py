@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from ..models.database import (AnalysisResult, AnalysisResultCreate,
-                               AnalysisResultDB, Article, ArticleCreate,
-                               ArticleDB, Entity, EntityCreate, EntityDB)
+from ..models.database import (Article, ArticleCreate, ArticleDB,
+                             Entity, EntityCreate, EntityDB,
+                             AnalysisResult, AnalysisResultCreate, AnalysisResultDB)
 from ..models.entity_tracking import (CanonicalEntity, CanonicalEntityCreate,
                                     CanonicalEntityDB, EntityMentionContext,
                                     EntityMentionContextCreate, EntityMentionContextDB,
