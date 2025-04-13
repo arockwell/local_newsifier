@@ -3,12 +3,12 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer
+from sqlalchemy import Column, DateTime, Integer, MetaData
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import declarative_base
 
 
-class Base:
+class BaseModel:
     """Base SQLAlchemy model with common fields."""
     
     @declared_attr
@@ -25,5 +25,8 @@ class Base:
     )
 
 
-# Create a base class for all models - use Base as the name for backward compatibility
-Base = declarative_base(cls=Base)
+# Create a shared metadata instance
+metadata = MetaData()
+
+# Create a base class for all models
+Base = declarative_base(cls=BaseModel, metadata=metadata)

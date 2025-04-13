@@ -34,11 +34,6 @@ class DatabaseSettings(BaseSettings):
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = get_cursor_db_name()
     
-    @property
-    def DATABASE_URL(self) -> str:
-        """Get the database URL property."""
-        return self.get_database_url()
-    
     def get_database_url(self) -> str:
         """Get the database URL."""
         # Always use PostgreSQL for production
@@ -49,7 +44,7 @@ class DatabaseSettings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
-        "env_ignore_empty": True,
+        "extra": "allow",  # Allow extra attributes
     }
 
 
