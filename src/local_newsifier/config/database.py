@@ -37,8 +37,17 @@ class DatabaseSettings:
     def POSTGRES_DB(self) -> str:
         return self._settings.POSTGRES_DB
     
-    def get_database_url(self) -> str:
+    @property
+    def DATABASE_URL(self) -> str:
         """Get the database URL."""
+        return str(self._settings.DATABASE_URL)
+    
+    def get_database_url(self) -> str:
+        """Get the database URL (legacy method).
+        
+        Returns:
+            str: The database URL
+        """
         return str(self._settings.DATABASE_URL)
 
 
@@ -63,7 +72,7 @@ def get_db_session() -> sessionmaker:
 
 
 def get_database_settings() -> DatabaseSettings:
-    """Get database settings.
+    """Get database settings instance.
     
     Returns:
         DatabaseSettings instance
