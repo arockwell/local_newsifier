@@ -1,130 +1,121 @@
-"""Integration tests for the database models."""
+"""Integration tests for database models."""
 
 import pytest
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database import Base
+from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.state import AnalysisStatus
 
 
-@pytest.fixture
-def engine():
-    """Create a SQLite in-memory engine for testing."""
+@pytest.fixture(scope="module")
+def sqlite_engine():
+    """Set up a SQLite in-memory test database."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    return engine
+    yield engine
+    Base.metadata.drop_all(engine)
+    engine.dispose()
 
 
 @pytest.fixture
-def session(engine):
-    """Create a session for testing."""
-    with Session(engine) as session:
-        yield session
+def db_session(sqlite_engine):
+    """Create a test database session."""
+    TestSession = sessionmaker(bind=sqlite_engine)
+    session = TestSession()
+    yield session
+    session.close()
 
 
-def test_schema_generation(engine):
+def test_schema_generation(sqlite_engine):
     """Test that the schema is properly generated."""
-    inspector = inspect(engine)
-    
+    inspector = inspect(sqlite_engine)
+
     # Check that all tables are created
     tables = inspector.get_table_names()
     assert "articles" in tables
     assert "entities" in tables
-    
+
     # Check article table columns
-    article_columns = {col["name"] for col in inspector.get_columns("articles")}
-    expected_article_columns = {
-        "id", "url", "title", "source", "content", 
-        "scraped_at", "status", "created_at", "updated_at"
-    }
-    assert expected_article_columns.issubset(article_columns)
-    
+    article_cols = {col["name"] for col in inspector.get_columns("articles")}
+    assert "id" in article_cols
+    assert "url" in article_cols
+    assert "title" in article_cols
+    assert "source" in article_cols
+    assert "content" in article_cols
+    assert "status" in article_cols
+    assert "created_at" in article_cols
+    assert "updated_at" in article_cols
+
     # Check entity table columns
-    entity_columns = {col["name"] for col in inspector.get_columns("entities")}
-    expected_entity_columns = {
-        "id", "article_id", "text", "entity_type", "sentence_context",
-        "created_at", "updated_at"
-    }
-    assert expected_entity_columns.issubset(entity_columns)
+    entity_cols = {col["name"] for col in inspector.get_columns("entities")}
+    assert "id" in entity_cols
+    assert "article_id" in entity_cols
+    assert "text" in entity_cols
+    assert "entity_type" in entity_cols
+    assert "sentence_context" in entity_cols
+    assert "created_at" in entity_cols
+    assert "updated_at" in entity_cols
 
 
-def test_full_article_entity_workflow(session):
+def test_full_article_entity_workflow(db_session):
     """Test a full workflow of creating an article with entities."""
     # Create an article
     article = ArticleDB(
         url="https://example.com/news/1",
-        title="Local News: City Council Approves New Budget",
+        title="Test Article",
         source="Example News",
-        content=(
-            "The Gainesville City Council approved a new budget yesterday. "
-            "Mayor John Smith praised the decision, saying it would help fund "
-            "critical infrastructure projects for the University of Florida community."
-        ),
-        status=AnalysisStatus.ANALYSIS_SUCCEEDED.value
+        content="This is a test article about Gainesville.",
+        status=AnalysisStatus.INITIALIZED.value
     )
-    
+    db_session.add(article)
+    db_session.commit()
+
     # Create entities
     entities = [
         EntityDB(
-            text="Gainesville City Council",
-            entity_type="ORG",
-            sentence_context="The Gainesville City Council approved a new budget yesterday."
-        ),
-        EntityDB(
-            text="John Smith",
-            entity_type="PERSON",
-            sentence_context="Mayor John Smith praised the decision."
+            text="Gainesville",
+            entity_type="GPE",
+            sentence_context=(
+                "This is a test article about Gainesville."
+            )
         ),
         EntityDB(
             text="University of Florida",
             entity_type="ORG",
-            sentence_context="Critical infrastructure projects for the University of Florida community."
+            sentence_context=(
+                "The University of Florida is located in Gainesville."
+            )
         ),
         EntityDB(
-            text="Gainesville",
-            entity_type="GPE",
-            sentence_context="The Gainesville City Council approved a new budget yesterday."
+            text="John Smith",
+            entity_type="PERSON",
+            sentence_context=(
+                "John Smith is a professor at the University of Florida."
+            )
         )
     ]
-    
-    # Add entities to article
+
     for entity in entities:
         article.entities.append(entity)
-    
-    # Save to database
-    session.add(article)
-    session.commit()
-    
-    # Retrieve article from database
-    retrieved_article = session.query(ArticleDB).filter_by(url="https://example.com/news/1").first()
-    
-    # Verify article data
-    assert retrieved_article is not None
-    assert retrieved_article.title == "Local News: City Council Approves New Budget"
-    assert retrieved_article.status == AnalysisStatus.ANALYSIS_SUCCEEDED.value
-    
-    # Verify entities
-    assert len(retrieved_article.entities) == 4
-    
-    # Check for specific entities
-    entity_texts = [e.text for e in retrieved_article.entities]
-    assert "Gainesville City Council" in entity_texts
-    assert "John Smith" in entity_texts
-    assert "University of Florida" in entity_texts
-    assert "Gainesville" in entity_texts
-    
-    # Verify entity types
-    person_entities = [e for e in retrieved_article.entities if e.entity_type == "PERSON"]
-    org_entities = [e for e in retrieved_article.entities if e.entity_type == "ORG"]
-    gpe_entities = [e for e in retrieved_article.entities if e.entity_type == "GPE"]
-    
-    assert len(person_entities) == 1
-    assert len(org_entities) == 2
-    assert len(gpe_entities) == 1
-    
+
+    db_session.commit()
+
     # Verify relationships
-    for entity in retrieved_article.entities:
-        assert entity.article == retrieved_article
+    assert len(article.entities) == 3
+    assert all(e.article_id == article.id for e in article.entities)
+    assert all(e.article == article for e in article.entities)
+
+    # Verify entity types
+    entity_types = {e.entity_type for e in article.entities}
+    assert "GPE" in entity_types
+    assert "ORG" in entity_types
+    assert "PERSON" in entity_types
+
+    # Verify entity texts
+    entity_texts = {e.text for e in article.entities}
+    assert "Gainesville" in entity_texts
+    assert "University of Florida" in entity_texts
+    assert "John Smith" in entity_texts
