@@ -1,9 +1,9 @@
 """Tests for the Entity database model."""
 
 import datetime
+
 import pytest
 
-from local_newsifier.models.database import Base
 from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.state import AnalysisStatus
@@ -17,7 +17,7 @@ def article(db_session):
         title="Test Article",
         source="Example News",
         content="This is a test article.",
-        status=AnalysisStatus.INITIALIZED.value
+        status=AnalysisStatus.INITIALIZED.value,
     )
     db_session.add(article)
     db_session.commit()
@@ -29,15 +29,15 @@ def test_entity_creation(db_session, article):
     entity = EntityDB(
         text="Gainesville",
         entity_type="GPE",
-        sentence_context="This is about Gainesville."
+        sentence_context="This is about Gainesville.",
     )
     article.entities.append(entity)
     db_session.commit()
-    
+
     assert entity.id is not None
-    assert entity.text == "Gainesville"
-    assert entity.entity_type == "GPE"
-    assert entity.sentence_context == "This is about Gainesville."
+    assert str(entity.text) == "Gainesville"
+    assert str(entity.entity_type) == "GPE"
+    assert str(entity.sentence_context) == "This is about Gainesville."
     assert isinstance(entity.created_at, datetime.datetime)
     assert isinstance(entity.updated_at, datetime.datetime)
 
@@ -47,15 +47,15 @@ def test_entity_article_relationship(db_session, article):
     entity = EntityDB(
         text="Gainesville",
         entity_type="GPE",
-        sentence_context="This is about Gainesville."
+        sentence_context="This is about Gainesville.",
     )
-    
+
     article.entities.append(entity)
     db_session.commit()
-    
+
     # Refresh the session to ensure we're getting fresh data
     db_session.refresh(entity)
-    
+
     assert entity.article == article
     assert article.entities[0] == entity
 
@@ -65,19 +65,19 @@ def test_multiple_entities_for_article(db_session, article):
     entities = [
         EntityDB(text="Gainesville", entity_type="GPE"),
         EntityDB(text="University of Florida", entity_type="ORG"),
-        EntityDB(text="John Smith", entity_type="PERSON")
+        EntityDB(text="John Smith", entity_type="PERSON"),
     ]
-    
+
     for entity in entities:
         article.entities.append(entity)
-    
+
     db_session.commit()
-    
+
     # Refresh the session
     db_session.refresh(article)
-    
+
     assert len(article.entities) == 3
-    
+
     # Check that all entities are properly associated
     entity_texts = [e.text for e in article.entities]
     assert "Gainesville" in entity_texts
@@ -87,12 +87,9 @@ def test_multiple_entities_for_article(db_session, article):
 
 def test_entity_default_values(db_session, article):
     """Test default values for Entity fields."""
-    entity = EntityDB(
-        text="Gainesville",
-        entity_type="GPE"
-    )
+    entity = EntityDB(text="Gainesville", entity_type="GPE")
     article.entities.append(entity)
     db_session.commit()
-    
+
     assert entity.created_at is not None
     assert entity.updated_at is not None
