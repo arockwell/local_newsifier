@@ -443,14 +443,14 @@ def test_scraper_initialization(web_scraper):
 
 
 @pytest.mark.parametrize("url,expected_status", [
-    ("https://example.com/valid", AnalysisStatus.CONTENT_EXTRACTED),
-    ("https://example.com/404", AnalysisStatus.ERROR),
+    ("https://example.com/valid", AnalysisStatus.SCRAPE_SUCCEEDED),
+    ("https://example.com/404", AnalysisStatus.SCRAPE_FAILED_NETWORK),
 ])
 def test_scrape_article(web_scraper, url, expected_status):
     """Test scraping articles with different URLs."""
-    state = NewsAnalysisState(url=url)
+    state = NewsAnalysisState(target_url=url)
     
-    if expected_status == AnalysisStatus.ERROR:
+    if expected_status == AnalysisStatus.SCRAPE_FAILED_NETWORK:
         with pytest.raises(ValueError):
             web_scraper.scrape(state)
     else:
