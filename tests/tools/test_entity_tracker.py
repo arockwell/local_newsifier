@@ -197,7 +197,7 @@ def test_entity_tracker_update_profile(
     # Verify profile data
     profile_data = mock_db_manager.add_entity_profile.call_args[0][0]
     assert profile_data.canonical_entity_id == 1
-    assert profile_data.mention_count == 1
-    assert len(profile_data.contexts) == 1
-    assert profile_data.contexts[0] == "Joe Biden is the president."
-    assert profile_data.temporal_data is not None
+    assert profile_data.profile_metadata["mention_count"] == 1
+    assert len(profile_data.profile_metadata["contexts"]) == 1
+    assert profile_data.profile_metadata["contexts"][0] == "Joe Biden is the president."
+    assert profile_data.profile_metadata["temporal_data"] is not None

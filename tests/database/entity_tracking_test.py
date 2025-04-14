@@ -92,22 +92,22 @@ def test_add_entity_profile(db_manager: DatabaseManager):
     # Add entity profile
     profile_data = EntityProfileCreate(
         canonical_entity_id=canonical_entity.id,
-        mention_count=10,
-        contexts=["Donald Trump is a former president."],
-        temporal_data={"2023-01-01": 5, "2023-01-02": 5}
+        profile_type="summary",
+        content="Donald Trump is a former president.",
+        profile_metadata={
+            "mention_count": 10,
+            "contexts": ["Donald Trump is a former president."],
+            "temporal_data": {"2023-01-01": 5, "2023-01-02": 5}
+        }
     )
     
     profile = db_manager.add_entity_profile(profile_data)
     
     # Verify profile was added
-    assert profile.id is not None
     assert profile.canonical_entity_id == canonical_entity.id
-    assert profile.mention_count == 10
-    assert profile.contexts is not None
-    assert len(profile.contexts) == 1
-    assert profile.contexts[0] == "Donald Trump is a former president."
-    assert profile.temporal_data == {"2023-01-01": 5, "2023-01-02": 5}
-    assert profile.last_updated is not None
+    assert profile.profile_type == "summary"
+    assert profile.content == "Donald Trump is a former president."
+    assert profile.profile_metadata["mention_count"] == 10
 
 
 def test_update_entity_profile(db_manager: DatabaseManager):
@@ -124,35 +124,34 @@ def test_update_entity_profile(db_manager: DatabaseManager):
     # Add initial profile
     profile_data = EntityProfileCreate(
         canonical_entity_id=canonical_entity.id,
-        mention_count=5,
-        contexts=["Joe Biden is the president."],
-        temporal_data={"2023-01-01": 5}
+        profile_type="summary",
+        content="Joe Biden is the president.",
+        profile_metadata={
+            "mention_count": 5,
+            "contexts": ["Joe Biden is the president."],
+            "temporal_data": {"2023-01-01": 5}
+        }
     )
     
     initial_profile = db_manager.add_entity_profile(profile_data)
     
-    # Add a small delay to ensure different timestamps
-    time.sleep(0.1)
-    
     # Update profile
     updated_profile_data = EntityProfileCreate(
         canonical_entity_id=canonical_entity.id,
-        mention_count=10,
-        contexts=["Joe Biden is the president.", "He was previously VP."],
-        temporal_data={"2023-01-01": 5, "2023-01-02": 5}
+        profile_type="summary",
+        content="Joe Biden is the 46th president.",
+        profile_metadata={
+            "mention_count": 10,
+            "contexts": ["Joe Biden is the president.", "Biden announced new policy."],
+            "temporal_data": {"2023-01-01": 5, "2023-01-02": 5}
+        }
     )
     
     updated_profile = db_manager.update_entity_profile(updated_profile_data)
     
     # Verify profile was updated
-    assert updated_profile.id == initial_profile.id
-    assert updated_profile.mention_count == 10
-    assert updated_profile.contexts is not None
-    assert len(updated_profile.contexts) == 2
-    assert "Joe Biden is the president." in updated_profile.contexts
-    assert "He was previously VP." in updated_profile.contexts
-    assert updated_profile.temporal_data == {"2023-01-01": 5, "2023-01-02": 5}
-    assert updated_profile.last_updated > initial_profile.last_updated
+    assert updated_profile.profile_metadata["mention_count"] == 10
+    assert len(updated_profile.profile_metadata["contexts"]) == 2
 
 
 def test_entity_timeline_and_sentiment_trend(

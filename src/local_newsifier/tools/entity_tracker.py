@@ -179,7 +179,7 @@ class EntityTracker:
     ) -> None:
         """
         Update entity profile with new mention data.
-        
+
         Args:
             canonical_entity_id: ID of the canonical entity
             entity_text: Original entity text
@@ -190,44 +190,72 @@ class EntityTracker:
         """
         # Get existing profile or create new one
         current_profile = self.db_manager.get_entity_profile(canonical_entity_id)
-        
+
         if current_profile:
-            # Update existing profile
-            mention_count = current_profile.mention_count + 1
-            
+            # Get existing metadata or create new
+            metadata = current_profile.profile_metadata or {}
+            mention_count = metadata.get("mention_count", 0) + 1
+
             # Get existing temporal data or create new
-            temporal_data = current_profile.temporal_data or {}
+            temporal_data = metadata.get("temporal_data", {})
             date_key = published_at.strftime("%Y-%m-%d")
             if date_key in temporal_data:
                 temporal_data[date_key] += 1
             else:
                 temporal_data[date_key] = 1
-            
+
             # Update contexts (keep only a sample)
-            contexts = current_profile.contexts or []
+            contexts = metadata.get("contexts", [])
             if len(contexts) < 10:  # Limit to 10 sample contexts
                 contexts.append(context_text)
-            
+
             # Update profile
             profile_data = EntityProfileCreate(
                 canonical_entity_id=canonical_entity_id,
-                mention_count=mention_count,
-                contexts=contexts,
-                temporal_data=temporal_data,
-                # Other fields would be updated here as needed
+                profile_type="summary",
+                content=f"Entity {entity_text} has been mentioned {mention_count} times.",
+                profile_metadata={
+                    "mention_count": mention_count,
+                    "contexts": contexts,
+                    "temporal_data": temporal_data,
+                    "sentiment_scores": {
+                        "latest": sentiment_score,
+                        "average": ((
+                            current_profile.profile_metadata["sentiment_scores"]["average"]
+                            if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
+                            else sentiment_score
+                        ) + sentiment_score) / 2
+                    },
+                    "framing_categories": {
+                        "latest": framing_category,
+                        "history": (
+                            current_profile.profile_metadata["framing_categories"]["history"]
+                            if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
+                            else []
+                        ) + [framing_category]
+                    }
+                }
             )
-            self.db_manager.add_entity_profile(profile_data)
+            self.db_manager.update_entity_profile(profile_data)
         else:
             # Create new profile
-            # Initialize temporal data
-            temporal_data = {published_at.strftime("%Y-%m-%d"): 1}
-            
             profile_data = EntityProfileCreate(
                 canonical_entity_id=canonical_entity_id,
-                mention_count=1,
-                contexts=[context_text],
-                temporal_data=temporal_data,
-                # Initialize other fields as needed
+                profile_type="summary",
+                content=f"Entity {entity_text} has been mentioned once.",
+                profile_metadata={
+                    "mention_count": 1,
+                    "contexts": [context_text],
+                    "temporal_data": {published_at.strftime("%Y-%m-%d"): 1},
+                    "sentiment_scores": {
+                        "latest": sentiment_score,
+                        "average": sentiment_score
+                    },
+                    "framing_categories": {
+                        "latest": framing_category,
+                        "history": [framing_category]
+                    }
+                }
             )
             self.db_manager.add_entity_profile(profile_data)
     
