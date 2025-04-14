@@ -14,6 +14,7 @@ class EntityDB(Base):
     """Database model for entities."""
 
     __tablename__ = "entities"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True)
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
@@ -24,7 +25,7 @@ class EntityDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now())
 
     # Relationships
-    article = relationship("ArticleDB", back_populates="entities")
+    article = relationship("local_newsifier.models.database.article.ArticleDB", back_populates="entities")
 
 
 class EntityBase(BaseModel):

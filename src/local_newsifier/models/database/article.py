@@ -14,6 +14,7 @@ class ArticleDB(Base):
     """Database model for articles."""
 
     __tablename__ = "articles"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True)
     url = Column(String, unique=True, nullable=False)
@@ -25,8 +26,8 @@ class ArticleDB(Base):
     scraped_at = Column(DateTime, default=lambda: datetime.now())
 
     # Relationships
-    entities = relationship("EntityDB", back_populates="article")
-    analysis_results = relationship("AnalysisResultDB", back_populates="article")
+    entities = relationship("local_newsifier.models.database.entity.EntityDB", back_populates="article")
+    analysis_results = relationship("local_newsifier.models.database.analysis_result.AnalysisResultDB", back_populates="article")
 
 
 class ArticleBase(BaseModel):

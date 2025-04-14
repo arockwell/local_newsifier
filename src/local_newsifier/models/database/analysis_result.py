@@ -14,6 +14,7 @@ class AnalysisResultDB(Base):
     """Database model for analysis results."""
 
     __tablename__ = "analysis_results"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True)
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
@@ -22,7 +23,7 @@ class AnalysisResultDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now())
 
     # Relationships
-    article = relationship("ArticleDB", back_populates="analysis_results")
+    article = relationship("local_newsifier.models.database.article.ArticleDB", back_populates="analysis_results")
 
 
 class AnalysisResultBase(BaseModel):
