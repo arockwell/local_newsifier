@@ -20,7 +20,7 @@ from local_newsifier.config.database import get_db_session
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
 from local_newsifier.models.database.article import ArticleCreate, ArticleDB
-from local_newsifier.models.database.analysis_result import AnalysisResultCreate
+from local_newsifier.models.pydantic_models import AnalysisResultCreate
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus

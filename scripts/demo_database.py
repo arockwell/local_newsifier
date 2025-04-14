@@ -7,7 +7,7 @@ from local_newsifier.config.database import get_db_session
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database.article import ArticleCreate, ArticleDB
 from local_newsifier.models.database.entity import EntityCreate
-from local_newsifier.models.database.analysis_result import AnalysisResultCreate
+from local_newsifier.models.pydantic_models import AnalysisResultCreate
 
 # Set up logging
 logging.basicConfig(
