@@ -1,13 +1,14 @@
 """Article models for the news analysis system."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, relationship
 
 from local_newsifier.models.database.base import Base
+from local_newsifier.models.state import AnalysisStatus
 
 
 class ArticleDB(Base):
@@ -50,6 +51,8 @@ class ArticleCreate(BaseModel):
     url: str
     source: str
     published_at: datetime
+    status: str = AnalysisStatus.INITIALIZED.value
+    scraped_at: datetime = datetime.now(UTC)
 
 
 class Article(ArticleCreate):
@@ -57,6 +60,8 @@ class Article(ArticleCreate):
     id: int
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Import related models after defining Article to avoid circular imports

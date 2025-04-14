@@ -11,6 +11,7 @@ from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database.article import ArticleCreate
 from local_newsifier.models.database.entity import EntityCreate
 from local_newsifier.models.database.base import Base
+from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
     CanonicalEntityCreate,
@@ -40,7 +41,8 @@ def sample_article(db_manager: DatabaseManager):
         content="Joe Biden is the president of the United States. "
                 "He previously served as vice president under Barack Obama.",
         published_at=datetime.now(UTC),
-        source="example.com"
+        source="example.com",
+        status=AnalysisStatus.INITIALIZED.value
     )
     return db_manager.create_article(article)
 
@@ -164,7 +166,8 @@ def test_entity_timeline_and_sentiment_trend(
         title="Biden Timeline Article",
         content="Joe Biden announced new policies today.",
         published_at=datetime.now(UTC),
-        source="example.com"
+        source="example.com",
+        status=AnalysisStatus.INITIALIZED.value
     )
     
     created_article = db_manager.create_article(article)
