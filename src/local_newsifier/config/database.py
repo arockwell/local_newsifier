@@ -1,74 +1,80 @@
 """Database configuration and connection management."""
 
-import os
-from pathlib import Path
-from typing import Optional
-
-from pydantic_settings import BaseSettings
-from sqlalchemy import create_engine
+from typing import Any
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.models.database import Base, init_db
+from local_newsifier.config.settings import get_settings
 
 
-def get_cursor_db_name() -> str:
-    """Get the database name for the current cursor instance.
-    
-    Returns:
-        Database name with cursor ID
+class DatabaseSettings:
+    """Database configuration settings (compatibility wrapper).
+
+    This class exists for backward compatibility. It wraps the main Settings class
+    to provide the same interface as before.
     """
-    cursor_id = os.environ.get("CURSOR_DB_ID", "default")
-    return f"local_newsifier_{cursor_id}"
 
+    def __init__(self):
+        self._settings = get_settings()
 
-class DatabaseSettings(BaseSettings):
-    """Database configuration settings."""
-    
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = get_cursor_db_name()
-    
+    @property
+    def POSTGRES_USER(self) -> str:
+        return self._settings.POSTGRES_USER
+
+    @property
+    def POSTGRES_PASSWORD(self) -> str:
+        return self._settings.POSTGRES_PASSWORD
+
+    @property
+    def POSTGRES_HOST(self) -> str:
+        return self._settings.POSTGRES_HOST
+
+    @property
+    def POSTGRES_PORT(self) -> str:
+        return self._settings.POSTGRES_PORT
+
+    @property
+    def POSTGRES_DB(self) -> str:
+        return self._settings.POSTGRES_DB
+
     @property
     def DATABASE_URL(self) -> str:
         """Get the database URL."""
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return str(self._settings.DATABASE_URL)
+
+    def get_database_url(self) -> str:
+        """Get the database URL (legacy method).
+
+        Returns:
+            str: The database URL
+        """
+        return str(self._settings.DATABASE_URL)
 
 
-def get_database(env_file: Optional[str] = None) -> create_engine:
+def get_database() -> Any:
     """Get a database engine instance.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+
     Returns:
         SQLAlchemy engine instance
     """
-    settings = DatabaseSettings(_env_file=env_file)
+    settings = get_settings()
     return init_db(str(settings.DATABASE_URL))
 
 
-def get_db_session(env_file: Optional[str] = None) -> sessionmaker:
+def get_db_session() -> sessionmaker:
     """Get a database session factory.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+
     Returns:
         SQLAlchemy session factory
     """
-    engine = get_database(env_file)
+    engine = get_database()
     return sessionmaker(bind=engine)
 
 
-def get_database_settings(env_file: Optional[str] = None) -> DatabaseSettings:
-    """Get database settings.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+def get_database_settings() -> DatabaseSettings:
+    """Get database settings instance.
+
     Returns:
         DatabaseSettings instance
     """
-    return DatabaseSettings(_env_file=env_file)
+    return DatabaseSettings()

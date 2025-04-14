@@ -5,7 +5,7 @@ from .rss_scraping_flow import RSSScrapingFlow
 from .analysis import HeadlineTrendFlow
 
 __all__ = [
-    "NewsPipelineFlow", 
+    "NewsPipelineFlow",
     "RSSScrapingFlow",
     "HeadlineTrendFlow",
 ]

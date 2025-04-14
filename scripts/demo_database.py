@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 
 from local_newsifier.config.database import get_db_session
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database import (AnalysisResultCreate,
-                                             ArticleCreate, ArticleDB,
-                                             EntityCreate)
+from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.models.database.entity import EntityCreate
+from local_newsifier.models.pydantic_models import AnalysisResultCreate
 
 # Set up logging
 logging.basicConfig(
@@ -49,7 +49,7 @@ def show_database_state(db_manager):
 
 def main():
     # Get database session
-    session_factory = get_db_session(".env.test")
+    session_factory = get_db_session()
     session = session_factory()
     db_manager = DatabaseManager(session)
 

@@ -7,9 +7,9 @@ from .web_scraper import WebScraperTool
 from .analysis import HeadlineTrendAnalyzer
 
 __all__ = [
-    "FileWriterTool", 
-    "NERAnalyzerTool", 
-    "RSSParser", 
+    "FileWriterTool",
+    "NERAnalyzerTool",
+    "RSSParser",
     "WebScraperTool",
     "HeadlineTrendAnalyzer",
 ]

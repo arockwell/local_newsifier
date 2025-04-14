@@ -8,7 +8,8 @@ from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
                        Table, Text, UniqueConstraint, JSON)
 from sqlalchemy.orm import relationship
 
-from .database import Base, ArticleDB
+from local_newsifier.models.database.article import ArticleDB
+from .database import Base
 
 
 class SentimentAnalysisDB(Base):
@@ -173,3 +174,31 @@ class SentimentVisualizationData(BaseModel):
     confidence_intervals: Optional[List[Dict[str, float]]] = None
     article_counts: List[int]
     metadata: Optional[Dict[str, Any]] = None
+
+
+class SentimentAnalysisResultBase(BaseModel):
+    """Base Pydantic model for sentiment analysis results."""
+    
+    article_id: int
+    sentiment_score: float
+    sentiment_magnitude: float
+    entity_sentiments: Optional[Dict[str, float]] = None
+    topic_sentiments: Optional[Dict[str, float]] = None
+    analysis_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SentimentAnalysisResultCreate(SentimentAnalysisResultBase):
+    """Pydantic model for creating sentiment analysis results."""
+    
+    pass
+
+
+class SentimentAnalysisResult(SentimentAnalysisResultBase):
+    """Pydantic model for sentiment analysis results with ID."""
+    
+    id: int
+    
+    class Config:
+        """Pydantic config."""
+        
+        from_attributes = True

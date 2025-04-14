@@ -1,174 +1,115 @@
 """Tool for performing sentiment analysis on news article content."""
 
 import logging
-import re
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast
 
 import spacy
 from spacy.language import Language
 from sqlalchemy.orm import Session
+from textblob import TextBlob
+from textblob.blob import BaseBlob, Blobber
 
+from ..models.database import ArticleDB
+from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
+from ..models.sentiment import (
+    SentimentAnalysis,
+    SentimentAnalysisCreate,
+    SentimentAnalysisResult,
+    SentimentAnalysisResultCreate
+)
 from ..models.state import AnalysisStatus, NewsAnalysisState
-from ..models.sentiment import SentimentAnalysisCreate
 from ..database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 
+class SentimentScore(TypedDict):
+    """Type definition for sentiment scores."""
+    polarity: float
+    subjectivity: float
+
+
+class AnalysisResults(TypedDict, total=False):
+    sentiment: Dict[str, float]
+    entities: Dict[str, Any]
+    topics: Dict[str, Any]
+
+
+class SentimentAnalysisError(Exception):
+    """Base exception class for sentiment analysis errors."""
+    pass
+
+
+class EntitySentimentError(SentimentAnalysisError):
+    """Exception class for entity sentiment extraction errors."""
+    pass
+
+
 class SentimentAnalysisTool:
-    """Tool for performing sentiment analysis using spaCy and other techniques."""
+    """Tool for performing sentiment analysis on news article content."""
 
-    def __init__(self, model_name: str = "en_core_web_lg"):
-        """
-        Initialize the sentiment analyzer.
-
-        Args:
-            model_name: Name of the spaCy model to use
-        """
-        try:
-            self.nlp: Language = spacy.load(model_name)
-        except OSError:
-            logger.warning(
-                f"spaCy model '{model_name}' not found. "
-                f"Please install it using: python -m spacy download {model_name}"
-            )
-            self.nlp = None
-
-        # Define simplified VADER-like lexicon for demonstration
-        # In a production system, you'd use a more comprehensive lexicon or a pre-trained model
-        self.sentiment_lexicon = {
-            # Positive words
-            "good": 1.0, "great": 1.5, "excellent": 2.0, "amazing": 2.0, 
-            "wonderful": 1.8, "outstanding": 1.9, "fantastic": 1.9,
-            "positive": 1.0, "praise": 1.2, "benefit": 0.8, "success": 1.0,
-            # Negative words
-            "bad": -1.0, "terrible": -1.8, "awful": -1.7, "horrible": -1.9,
-            "poor": -1.2, "negative": -1.0, "failure": -1.5, "disaster": -1.8,
-            "crisis": -1.6, "problem": -1.0, "issue": -0.7, "concern": -0.8,
-            # Intensifiers
-            "very": 0.3, "extremely": 0.6, "incredibly": 0.5,
-            # Negations
-            "not": -1.0, "no": -1.0, "never": -1.0, "without": -0.5,
-        }
+    def __init__(self, db_manager: DatabaseManager):
+        """Initialize the sentiment analysis tool with required models.
         
-        # Negation detection pattern
-        self.negation_pattern = re.compile(r'\b(?:not|no|never|none|nothing|nowhere|nobody|neither|nor)\b')
-
-    def _analyze_text_sentiment(self, text: str) -> Dict[str, float]:
+        Args:
+            db_manager: Database manager instance for storing results
         """
-        Analyze sentiment of text using lexicon-based approach.
+        self.nlp = spacy.load("en_core_web_sm")
+        self.db_manager = db_manager
+        logger.info("Initialized SentimentAnalysisTool with spaCy model")
+
+    def _analyze_text_sentiment(self, text: str) -> SentimentScore:
+        """Analyze sentiment of a text segment.
 
         Args:
             text: Text to analyze
 
         Returns:
-            Dictionary with sentiment score and magnitude
+            Dictionary containing sentiment scores
         """
-        if not text:
-            return {"sentiment": 0.0, "magnitude": 0.0}
-        
-        # Process the text with spaCy if available
-        if self.nlp:
-            doc = self.nlp(text)
-            sentences = list(doc.sents)
-        else:
-            # Simple sentence splitting as fallback
-            sentences = [sent.strip() for sent in re.split(r'[.!?]+', text) if sent.strip()]
-        
-        total_score = 0.0
-        sentence_scores = []
-        
-        for sentence in sentences:
-            sentence_text = str(sentence).lower()
-            score = self._score_sentence(sentence_text)
-            sentence_scores.append(score)
-            total_score += score
-        
-        # Calculate document-level sentiment
-        if sentences:
-            avg_sentiment = total_score / len(sentences)
-        else:
-            avg_sentiment = 0.0
-            
-        # Calculate magnitude (strength of sentiment)
-        magnitude = sum(abs(score) for score in sentence_scores)
-        if sentences:
-            magnitude /= len(sentences)
-        
+        blob = TextBlob(text)
+        # Cast sentiment to Any to avoid type checking issues with cached_property
+        sentiment = cast(Any, blob.sentiment)
         return {
-            "sentiment": avg_sentiment,
-            "magnitude": magnitude,
-            "sentence_count": len(sentences),
+            "polarity": float(sentiment.polarity),
+            "subjectivity": float(sentiment.subjectivity)
         }
 
-    def _score_sentence(self, sentence: str) -> float:
-        """
-        Score a single sentence for sentiment.
-
-        Args:
-            sentence: Sentence text
-
-        Returns:
-            Sentiment score
-        """
-        words = re.findall(r'\b\w+\b', sentence.lower())
-        
-        if not words:
-            return 0.0
-        
-        total_score = 0.0
-        negation_active = False
-        
-        for i, word in enumerate(words):
-            # Check for negation
-            if self.negation_pattern.search(word):
-                negation_active = True
-                continue
-                
-            # Get sentiment from lexicon
-            word_sentiment = self.sentiment_lexicon.get(word, 0.0)
-            
-            # Apply negation if active
-            if negation_active and word_sentiment != 0.0:
-                word_sentiment *= -0.7  # Partial reversal of sentiment
-                negation_active = False  # Reset after applying
-                
-            # Reset negation if it wasn't used for next 3 words
-            if negation_active and i > 0 and (i % 3 == 0):
-                negation_active = False
-                
-            total_score += word_sentiment
-            
-        # Normalize by word count
-        return total_score / len(words)
-
-    def _extract_entity_sentiments(self, text: str, entities: List[Dict]) -> Dict[str, float]:
+    def _extract_entity_sentiments(
+        self, text: str, entities: Dict[str, List[Dict[str, Any]]]
+    ) -> Dict[str, float]:
         """
         Extract sentiment scores for named entities.
 
         Args:
             text: Full text content
-            entities: List of entity dictionaries with text and sentence
+            entities: Dictionary mapping entity types to lists of entity dictionaries
 
         Returns:
             Dictionary mapping entity text to sentiment score
         """
         entity_sentiments = {}
-        
+
         for entity_type, entity_list in entities.items():
+            if not entity_list:  # Skip if entity_list is None or empty
+                continue
+                
             for entity in entity_list:
-                entity_text = entity["text"]
-                sentence = entity["sentence"]
-                
-                # Skip if already processed this entity
-                if entity_text in entity_sentiments:
+                if not entity:  # Skip if entity is None
                     continue
-                
+                    
+                entity_text = entity.get("text", "")
+                sentence = entity.get("sentence", "")
+
+                # Skip if already processed this entity or missing data
+                if not entity_text or not sentence or entity_text in entity_sentiments:
+                    continue
+
                 # Analyze the sentence containing the entity
                 sentiment_data = self._analyze_text_sentiment(sentence)
-                entity_sentiments[entity_text] = sentiment_data["sentiment"]
-                
+                entity_sentiments[entity_text] = sentiment_data["polarity"]
+
         return entity_sentiments
 
     def _extract_topic_sentiments(self, text: str) -> Dict[str, float]:
@@ -182,151 +123,133 @@ class SentimentAnalysisTool:
             Dictionary mapping topics to sentiment scores
         """
         topics = {}
-        
+
         # Use spaCy for topic extraction if available
         if self.nlp:
             doc = self.nlp(text)
-            
+
             # Extract noun phrases as potential topics
             for chunk in doc.noun_chunks:
                 # Skip short or stop word chunks
                 if len(chunk) <= 1 or all(token.is_stop for token in chunk):
                     continue
-                    
+
                 topic_text = chunk.text.lower()
-                
+
                 # Get the sentence containing this topic
                 sentence = chunk.sent.text
-                
-                # Analyze sentiment of the sentence
+
+                # Analyze sentiment of the sentence using TextBlob
                 sentiment_data = self._analyze_text_sentiment(sentence)
-                
+                sentiment = sentiment_data["polarity"]
+
                 # Store or update sentiment for this topic
                 if topic_text in topics:
                     # Average with existing sentiment
                     current = topics[topic_text]
                     count = topics.get(f"{topic_text}_count", 1)
-                    topics[topic_text] = (current * count + sentiment_data["sentiment"]) / (count + 1)
+                    topics[topic_text] = (current * count + sentiment) / (count + 1)
                     topics[f"{topic_text}_count"] = count + 1
                 else:
-                    topics[topic_text] = sentiment_data["sentiment"]
-                    topics[f"{topic_text}_count"] = 1
-        
-        # Clean up the counts
-        clean_topics = {}
-        for key, value in topics.items():
-            if not key.endswith("_count"):
-                clean_topics[key] = value
-                
-        return clean_topics
+                    topics[topic_text] = sentiment
 
-    def analyze(self, state: NewsAnalysisState) -> NewsAnalysisState:
-        """
-        Analyze article content for sentiment.
+        return {k: v for k, v in topics.items() if not k.endswith("_count")}
 
-        Args:
-            state: Current pipeline state
+    def analyze_sentiment(self, state: NewsAnalysisState) -> NewsAnalysisState:
+        """Analyze sentiment for the article text and update the analysis state."""
+        if not state.scraped_text:
+            logger.warning("No text available for sentiment analysis")
+            raise ValueError("No text content available for analysis")
 
-        Returns:
-            Updated state
-        """
-        try:
-            state.status = AnalysisStatus.ANALYZING
-            state.add_log("Starting sentiment analysis")
+        # Initialize sentiment results if not present
+        if not state.analysis_results:
+            state.analysis_results = {}
+        if "sentiment" not in state.analysis_results:
+            state.analysis_results["sentiment"] = {}
 
-            if not state.scraped_text:
-                raise ValueError("No text content available for analysis")
+        # Analyze overall document sentiment
+        sentiment_results = self._analyze_text_sentiment(state.scraped_text)
+        state.analysis_results["sentiment"].update({
+            "document_sentiment": sentiment_results["polarity"],
+            "document_magnitude": sentiment_results["subjectivity"]
+        })
 
-            # Perform document-level sentiment analysis
-            document_sentiment = self._analyze_text_sentiment(state.scraped_text)
-            
-            # Extract entity sentiments if we have entities from NER
-            entity_sentiments = {}
-            if state.analysis_results and "entities" in state.analysis_results:
-                entity_sentiments = self._extract_entity_sentiments(
-                    state.scraped_text, state.analysis_results["entities"]
-                )
-            
-            # Extract topic sentiments
-            topic_sentiments = self._extract_topic_sentiments(state.scraped_text)
-            
-            # Store results
-            sentiment_results = {
-                "document_sentiment": document_sentiment["sentiment"],
-                "document_magnitude": document_sentiment["magnitude"],
-                "entity_sentiments": entity_sentiments,
-                "topic_sentiments": topic_sentiments,
-            }
-            
-            # Update state
-            if not state.analysis_results:
-                state.analysis_results = {}
-                
-            state.analysis_results["sentiment"] = sentiment_results
-            state.analyzed_at = datetime.now(timezone.utc)
-            state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-            state.add_log(
-                f"Successfully completed sentiment analysis. "
-                f"Document sentiment: {document_sentiment['sentiment']:.2f}"
+        # Analyze entity sentiments if entities are present
+        if "entities" in state.analysis_results:
+            entity_sentiments = self._extract_entity_sentiments(
+                state.scraped_text, 
+                state.analysis_results["entities"]
             )
+            state.analysis_results["sentiment"]["entity_sentiments"] = entity_sentiments
 
-        except Exception as e:
-            state.status = AnalysisStatus.ANALYSIS_FAILED
-            state.set_error("analysis", e)
-            state.add_log(f"Error during sentiment analysis: {str(e)}")
-            raise
+        # Analyze topic sentiments if topics are present
+        if "topics" in state.analysis_results:
+            topic_sentiments = self._extract_topic_sentiments(state.scraped_text)
+            state.analysis_results["sentiment"]["topic_sentiments"] = topic_sentiments
+
+        # Update state
+        state.analyzed_at = datetime.now(timezone.utc)
+        state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
+        state.add_log("Successfully completed sentiment analysis")
 
         return state
-        
+
     def analyze_article(
-        self, 
-        db_manager: DatabaseManager, 
-        article_id: int
+        self, db_manager: DatabaseManager, article_id: int
     ) -> Dict[str, Any]:
         """
-        Analyze sentiment for a specific article in the database.
-        
+        Analyze sentiment of an article from the database.
+
         Args:
             db_manager: Database manager instance
             article_id: ID of the article to analyze
-            
+
         Returns:
-            Sentiment analysis results
+            Dictionary containing sentiment analysis results
         """
         # Get article from database
         article = db_manager.get_article(article_id)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
-            
-        # Get existing analysis results
-        analysis_results = db_manager.get_analysis_results_by_article(article_id)
-        entities_result = next((r for r in analysis_results if r.analysis_type == "NER"), None)
-        
-        # Create a temporary state for analysis
+
+        # Create analysis state
         state = NewsAnalysisState(
-            article_id=article_id,
-            article_url=article.url,
+            target_url=article.url,
             scraped_text=article.content,
-            analysis_results={"entities": entities_result.results["entities"] if entities_result else {}}
+            status=AnalysisStatus.INITIALIZED
         )
-        
-        # Perform sentiment analysis
-        self.analyze(state)
-        
-        # Store sentiment analysis results in database
-        sentiment_create = SentimentAnalysisCreate(
+
+        # Analyze sentiment
+        state = self.analyze_sentiment(state)
+
+        # Ensure analysis_results exists and has sentiment
+        if not state.analysis_results:
+            return {}
+        return state.analysis_results.get("sentiment", {})
+
+    def analyze_article_sentiment(self, article_id: int) -> AnalysisResult:
+        """
+        Analyze sentiment of an article and save results to database.
+
+        Args:
+            article_id: ID of the article to analyze
+
+        Returns:
+            AnalysisResult containing the sentiment analysis
+        """
+        # Get article from database
+        article = self.db_manager.get_article(article_id)
+        if not article:
+            raise ValueError(f"Article with ID {article_id} not found")
+
+        # Analyze sentiment
+        sentiment_results = self.analyze_article(self.db_manager, article_id)
+
+        # Create analysis result
+        analysis_result = AnalysisResultCreate(
             article_id=article_id,
-            document_sentiment=state.analysis_results["sentiment"]["document_sentiment"],
-            document_magnitude=state.analysis_results["sentiment"]["document_magnitude"],
-            entity_sentiments=state.analysis_results["sentiment"]["entity_sentiments"],
-            topic_sentiments=state.analysis_results["sentiment"]["topic_sentiments"]
+            analysis_type="sentiment",
+            results=sentiment_results
         )
-        
-        # Create analysis result record
-        analysis_result = db_manager.add_analysis_result({
-            "article_id": article_id,
-            "analysis_type": "sentiment",
-            "results": state.analysis_results["sentiment"]
-        })
-        
-        return state.analysis_results["sentiment"]
+
+        return self.db_manager.add_analysis_result(analysis_result)

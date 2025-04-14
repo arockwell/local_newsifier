@@ -76,7 +76,7 @@ class HistoricalDataAggregator:
             Tuple of (start_date, end_date)
         """
         end_date = datetime.now(timezone.utc)
-        
+
         if time_frame == TimeFrame.DAY:
             start_date = end_date - timedelta(days=periods)
         elif time_frame == TimeFrame.WEEK:
@@ -92,7 +92,7 @@ class HistoricalDataAggregator:
             start_date = end_date - timedelta(days=365 * periods)
         else:
             raise ValueError(f"Unsupported time frame: {time_frame}")
-            
+
         return start_date, end_date
 
     def get_entity_frequencies(
@@ -124,7 +124,7 @@ class HistoricalDataAggregator:
         # Get all articles in the time period
         articles = self.get_articles_in_timeframe(start_date, end_date)
         article_ids = [article.id for article in articles]
-        
+
         # No articles found
         if not article_ids:
             return {}
@@ -147,7 +147,7 @@ class HistoricalDataAggregator:
             # Process entities
             for entity in entities:
                 entity_key = f"{entity.text}:{entity.entity_type}"
-                
+
                 if entity_key not in frequencies:
                     frequencies[entity_key] = TopicFrequency(
                         topic=entity.text,
@@ -155,7 +155,7 @@ class HistoricalDataAggregator:
                         frequencies={},
                         total_mentions=0,
                     )
-                
+
                 # Get the article date
                 article_date = article_dates.get(entity.article_id)
                 if article_date:
@@ -166,10 +166,10 @@ class HistoricalDataAggregator:
             frequencies.values(), key=lambda x: x.total_mentions, reverse=True
         )
         result = {
-            f"{item.topic}:{item.entity_type}": item 
+            f"{item.topic}:{item.entity_type}": item
             for item in sorted_frequencies[:top_n]
         }
-        
+
         # Cache the result
         self._cache[cache_key] = result
         return result
@@ -194,23 +194,27 @@ class HistoricalDataAggregator:
             Tuple of (current_frequencies, baseline_frequencies)
         """
         # Calculate the current period date range
-        current_start, current_end = self.calculate_date_range(time_frame, current_period)
-        
+        current_start, current_end = self.calculate_date_range(
+            time_frame, current_period
+        )
+
         # Calculate the baseline period date range
         baseline_start = current_start - timedelta(
             (current_end - current_start).days * baseline_periods
         )
-        baseline_end = current_start - timedelta(seconds=1)  # End just before current period
-        
+        baseline_end = current_start - timedelta(
+            seconds=1
+        )  # End just before current period
+
         # Get frequencies for both periods
         current_frequencies = self.get_entity_frequencies(
             entity_types, current_start, current_end
         )
-        
+
         baseline_frequencies = self.get_entity_frequencies(
             entity_types, baseline_start, baseline_end
         )
-        
+
         return current_frequencies, baseline_frequencies
 
     def clear_cache(self) -> None:
