@@ -18,6 +18,7 @@ from local_newsifier.models.pydantic_models import (
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity, CanonicalEntityCreate, CanonicalEntityDB,
+    EntityMention, EntityMentionCreate,
     EntityMentionContext, EntityMentionContextCreate, EntityMentionContextDB,
     EntityProfile, EntityProfileCreate, EntityProfileDB,
     EntityRelationship, EntityRelationshipCreate,
@@ -90,7 +91,9 @@ class DatabaseManager:
         Returns:
             Article if found, None otherwise
         """
-        db_article = self.session.query(ArticleDB).filter(ArticleDB.url == url).first()
+        db_article = (
+            self.session.query(ArticleDB).filter(ArticleDB.url == url).first()
+        )
         return Article.model_validate(db_article) if db_article else None
 
     def add_entity(self, entity: EntityCreate) -> Entity:
@@ -588,3 +591,42 @@ class DatabaseManager:
             .all()
         )
         return [Article.model_validate(article) for article in db_articles]
+
+    def add_entity_mention(self, mention: EntityMentionCreate) -> EntityMention:
+        """Add a new entity mention.
+
+        Args:
+            mention: Entity mention data to create
+
+        Returns:
+            Created entity mention
+        """
+        # Create a new entity first
+        entity = self.add_entity(
+            EntityCreate(
+                article_id=mention.article_id,
+                text=mention.mention_text,
+                entity_type=mention.mention_type,
+                confidence=1.0  # Default confidence for demo
+            )
+        )
+        
+        # Create the mention association
+        self.session.execute(
+            entity_mentions.insert().values(
+                canonical_entity_id=mention.canonical_entity_id,
+                entity_id=entity.id,
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+        self.session.commit()
+        
+        # Return the mention data
+        return EntityMention(
+            id=entity.id,
+            canonical_entity_id=mention.canonical_entity_id,
+            article_id=mention.article_id,
+            mention_text=mention.mention_text,
+            mention_type=mention.mention_type,
+            created_at=datetime.now(timezone.utc)
+        )

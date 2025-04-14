@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from pydantic import Field, computed_field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_cursor_db_name() -> str:
@@ -24,6 +24,15 @@ def get_cursor_db_name() -> str:
 
 class Settings(BaseSettings):
     """Application settings using Pydantic BaseSettings."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
+
+    # OpenAI API key
+    OPENAI_API_KEY: Optional[str] = None
 
     # Database settings
     POSTGRES_USER: str = "postgres"
@@ -65,30 +74,9 @@ class Settings(BaseSettings):
 
     def create_directories(self) -> None:
         """Create necessary directories if they don't exist."""
-        self.OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-        self.CACHE_DIR.mkdir(exist_ok=True, parents=True)
-        self.TEMP_DIR.mkdir(exist_ok=True, parents=True)
-
-        if self.LOG_FILE:
-            self.LOG_FILE.parent.mkdir(exist_ok=True, parents=True)
-
-    model_config = {
-        "env_prefix": "",
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,
-        "validate_assignment": True,
-        "validate_default": True,
-        "extra": "allow",  # Allow computed fields
-    }
+        for directory in [self.OUTPUT_DIR, self.CACHE_DIR, self.TEMP_DIR]:
+            directory.mkdir(parents=True, exist_ok=True)
 
 
-def get_settings() -> Settings:
-    """Get application settings singleton.
-
-    Returns:
-        Settings instance
-    """
-    settings = Settings()
-    settings.create_directories()
-    return settings
+# Create global settings instance
+settings = Settings()
