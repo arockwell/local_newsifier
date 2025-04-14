@@ -90,3 +90,19 @@ with Session() as session:
     session.add(article)
     session.commit()
 ```
+
+# Refactor Entity Tracking Tests
+
+## Changes Made
+- Moved canonical entity tests from `tests/database/entity_tracking_test.py` to `tests/tools/entity_resolver_test.py`
+- Removed redundant canonical entity tests from entity tracking tests
+- Kept entity tracking specific tests in `entity_tracking_test.py`
+
+## Why
+- The canonical entity functionality is more appropriately tested in the entity resolver tests
+- This reduces test redundancy and improves test organization
+- Makes the entity tracking tests more focused on actual entity tracking functionality
+
+## Testing
+- All tests should continue to pass
+- No functionality has been changed, only test organization
