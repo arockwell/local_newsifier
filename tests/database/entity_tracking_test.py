@@ -8,8 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database.article import ArticleCreate
-from local_newsifier.models.database.entity import EntityCreate
+from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.entity_tracking import (

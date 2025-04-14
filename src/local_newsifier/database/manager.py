@@ -58,7 +58,10 @@ class DatabaseManager:
         Returns:
             Created article
         """
-        db_article = ArticleDB(**article.model_dump())
+        article_data = article.model_dump()
+        if 'scraped_at' not in article_data or article_data['scraped_at'] is None:
+            article_data['scraped_at'] = datetime.now(timezone.utc)
+        db_article = ArticleDB(**article_data)
         self.session.add(db_article)
         self.session.commit()
         self.session.refresh(db_article)

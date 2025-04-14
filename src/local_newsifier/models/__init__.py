@@ -4,9 +4,21 @@
 from local_newsifier.models.database.base import Base
 
 # Import database models
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
+from local_newsifier.models.database import (
+    ArticleDB,
+    EntityDB,
+    AnalysisResultDB,
+)
+
+# Import Pydantic models
+from local_newsifier.models.pydantic_models import (
+    Article,
+    Entity,
+    AnalysisResult,
+    ArticleCreate,
+    EntityCreate,
+    AnalysisResultCreate,
+)
 
 # Import entity tracking models
 from local_newsifier.models.entity_tracking import (
@@ -23,6 +35,12 @@ __all__ = [
     "ArticleDB",
     "EntityDB",
     "AnalysisResultDB",
+    "Article",
+    "Entity",
+    "AnalysisResult",
+    "ArticleCreate",
+    "EntityCreate",
+    "AnalysisResultCreate",
     "CanonicalEntityDB",
     "EntityMentionContextDB",
     "EntityProfileDB",
