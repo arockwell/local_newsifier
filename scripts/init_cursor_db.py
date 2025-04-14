@@ -4,7 +4,8 @@ import logging
 import os
 import psycopg2
 from pathlib import Path
-from local_newsifier.config.database import get_cursor_db_name, DatabaseSettings
+from local_newsifier.config.settings import get_cursor_db_name
+from local_newsifier.config.database import DatabaseSettings
 from local_newsifier.models.database import Base
 from sqlalchemy import create_engine
 

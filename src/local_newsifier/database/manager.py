@@ -20,6 +20,17 @@ from local_newsifier.models.entity_tracking import (
 )
 from local_newsifier.models.state import AnalysisStatus
 
+# Export models through manager
+__all__ = [
+    'DatabaseManager',
+    'Article', 'ArticleCreate', 'ArticleDB',
+    'Entity', 'EntityCreate', 'EntityDB',
+    'AnalysisResult', 'AnalysisResultCreate', 'AnalysisResultDB',
+    'CanonicalEntity', 'CanonicalEntityCreate', 'CanonicalEntityDB',
+    'EntityMentionContext', 'EntityMentionContextCreate', 'EntityMentionContextDB',
+    'EntityProfile', 'EntityProfileCreate', 'EntityProfileDB',
+    'EntityRelationship', 'EntityRelationshipCreate',
+]
 
 class DatabaseManager:
     """Manager class for database operations."""
