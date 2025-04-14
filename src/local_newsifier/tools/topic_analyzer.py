@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from ..models.database import AnalysisResultDB, ArticleDB
 from ..models.trend import TimeFrame, TopicFrequency
 from .historical_aggregator import HistoricalDataAggregator
+from ..database.manager import DatabaseManager
 
 
 class TopicFrequencyAnalyzer:

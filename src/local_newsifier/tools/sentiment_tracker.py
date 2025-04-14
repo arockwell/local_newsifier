@@ -5,9 +5,12 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any
 
+from sqlalchemy.orm import Session
+
 from ..database.manager import DatabaseManager
 from ..models.sentiment import OpinionTrendCreate, SentimentShiftCreate
 from ..models.database import ArticleDB, AnalysisResultDB
+from ..models.trend import TrendAnalysis, TrendEntity
 
 logger = logging.getLogger(__name__)
 

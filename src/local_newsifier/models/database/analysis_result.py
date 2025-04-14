@@ -3,7 +3,6 @@
 from datetime import datetime
 from typing import Dict, Any
 
-from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, JSON
 from sqlalchemy.orm import relationship
 
@@ -23,34 +22,4 @@ class AnalysisResultDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now())
 
     # Relationships
-    article = relationship("local_newsifier.models.database.article.ArticleDB", back_populates="analysis_results")
-
-
-class AnalysisResultBase(BaseModel):
-    """Base Pydantic model for analysis results."""
-
-    analysis_type: str
-    results: Dict[str, Any]
-
-
-class AnalysisResultCreate(AnalysisResultBase):
-    """Pydantic model for creating analysis results."""
-
-    article_id: int
-
-
-class AnalysisResult(AnalysisResultBase):
-    """Pydantic model for analysis results with relationships."""
-
-    id: int
-    article_id: int
-    created_at: datetime
-
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
-
-
-# Update forward references
-AnalysisResult.model_rebuild()
+    article = relationship("ArticleDB", back_populates="analysis_results")

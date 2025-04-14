@@ -23,7 +23,8 @@ import spacy
 from sqlalchemy.orm import Session
 
 from ...database.manager import DatabaseManager
-from ...models.database import ArticleDB, Article
+from ...models.database import ArticleDB
+from ...models.pydantic_models import Article
 
 logger = logging.getLogger(__name__)
 

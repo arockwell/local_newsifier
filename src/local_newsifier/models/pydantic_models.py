@@ -1,9 +1,9 @@
 """Pydantic models for the database."""
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Dict, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ArticleBase(BaseModel):
@@ -20,7 +20,7 @@ class ArticleBase(BaseModel):
 class ArticleCreate(ArticleBase):
     """Pydantic model for creating articles."""
 
-    scraped_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    pass
 
 
 class Article(ArticleBase):
@@ -67,7 +67,7 @@ class AnalysisResultBase(BaseModel):
     """Base Pydantic model for analysis results."""
 
     analysis_type: str
-    results: dict
+    results: Dict[str, Any]
 
 
 class AnalysisResultCreate(AnalysisResultBase):
@@ -86,4 +86,10 @@ class AnalysisResult(AnalysisResultBase):
     class Config:
         """Pydantic config."""
 
-        from_attributes = True 
+        from_attributes = True
+
+
+# Update forward references
+Article.model_rebuild()
+Entity.model_rebuild()
+AnalysisResult.model_rebuild() 

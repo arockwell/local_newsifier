@@ -60,13 +60,16 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
     """Test headline analyzer with real database session."""
     with patch("spacy.load", return_value=mock_nlp):
         # Create test articles
+        now = datetime.now()
         articles = [
             ArticleDB(
                 url=f"https://example.com/article{i}",
                 title=f"Test Article {i}",
                 content=f"Content {i}",
-                published_at=datetime.now(),
-                status="analyzed"
+                published_at=now,
+                status="analyzed",
+                source="test_source",
+                scraped_at=now  # Added scraped_at field
             )
             for i in range(5)
         ]
@@ -80,8 +83,8 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
         analyzer = HeadlineTrendAnalyzer(test_db)
         
         # Test getting headlines
-        start_date = datetime.now() - timedelta(days=1)
-        end_date = datetime.now() + timedelta(days=1)
+        start_date = now - timedelta(days=1)
+        end_date = now + timedelta(days=1)
         headlines = analyzer.get_headlines_by_period(start_date, end_date, "day")
         
         # Verify results
@@ -120,7 +123,9 @@ def test_headline_analyzer_with_real_db_and_trends(test_db, mock_nlp, caplog):
                         title=f"Trending Topic Test",  # Use exact same term to ensure trend
                         content=f"Content {i}_{j}",
                         published_at=now - timedelta(days=2-i),  # Most recent first
-                        status="analyzed"
+                        status="analyzed",
+                        source="test_source",
+                        scraped_at=now  # Added scraped_at field
                     )
                 )
         
@@ -166,7 +171,9 @@ def test_headline_analyzer_with_real_db_and_noise(test_db, mock_nlp):
                     title=f"Noisy Term {i}",
                     content=f"Content {i}",
                     published_at=now - timedelta(days=i),
-                    status="analyzed"
+                    status="analyzed",
+                    source="test_source",
+                    scraped_at=now  # Added scraped_at field
                 )
             )
         

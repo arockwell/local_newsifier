@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database import Entity, EntityCreate
+from local_newsifier.models.pydantic_models import Entity, EntityCreate
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
                                                   CanonicalEntityCreate,
                                                   EntityMentionContextCreate)

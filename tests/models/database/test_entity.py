@@ -12,12 +12,15 @@ from local_newsifier.models.state import AnalysisStatus
 @pytest.fixture
 def article(db_session):
     """Create a test article."""
+    now = datetime.datetime.now(datetime.timezone.utc)
     article = ArticleDB(
         url="https://example.com/news/1",
         title="Test Article",
         source="Example News",
         content="This is a test article.",
         status=AnalysisStatus.INITIALIZED.value,
+        published_at=now,
+        scraped_at=now
     )
     db_session.add(article)
     db_session.commit()

@@ -2,6 +2,7 @@
 
 import pytest
 from sqlalchemy.orm import sessionmaker
+import datetime
 
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.article import ArticleDB
@@ -20,12 +21,15 @@ def db_session(test_engine):
 
 def test_article_pydantic_compatibility(db_session):
     """Test that ArticleDB can be converted to Pydantic model."""
+    now = datetime.datetime.now(datetime.timezone.utc)
     article = ArticleDB(
         url="https://example.com/news/article1",
         title="Test Article",
         source="Example News",
         content="This is a test article.",
-        status=AnalysisStatus.INITIALIZED.value
+        status=AnalysisStatus.INITIALIZED.value,
+        published_at=now,
+        scraped_at=now
     )
     db_session.add(article)
     db_session.commit()
@@ -40,12 +44,15 @@ def test_article_pydantic_compatibility(db_session):
 
 def test_entity_pydantic_compatibility(db_session):
     """Test that EntityDB can be converted to Pydantic model."""
+    now = datetime.datetime.now(datetime.timezone.utc)
     article = ArticleDB(
         url="https://example.com/news/article2",
         title="Test Article",
         source="Example News",
         content="This is a test article.",
-        status=AnalysisStatus.INITIALIZED.value
+        status=AnalysisStatus.INITIALIZED.value,
+        published_at=now,
+        scraped_at=now
     )
     db_session.add(article)
     db_session.commit()

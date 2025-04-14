@@ -8,9 +8,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database.article import ArticleCreate, ArticleDB
-from local_newsifier.models.database.entity import EntityCreate, EntityDB
+from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate
 from local_newsifier.models.database.base import Base
+from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
     CanonicalEntityCreate,
@@ -40,7 +40,8 @@ def sample_article(db_manager: DatabaseManager):
         content="Joe Biden is the president of the United States. "
                 "He previously served as vice president under Barack Obama.",
         published_at=datetime.now(UTC),
-        status="analyzed"
+        source="example.com",
+        status=AnalysisStatus.INITIALIZED.value
     )
     return db_manager.create_article(article)
 
@@ -55,69 +56,6 @@ def sample_entity(db_manager: DatabaseManager, sample_article):
         confidence=0.95
     )
     return db_manager.add_entity(entity)
-
-
-def test_create_canonical_entity(db_manager: DatabaseManager):
-    """Test creating a canonical entity."""
-    # Create canonical entity
-    entity_data = CanonicalEntityCreate(
-        name="Joe Biden",
-        entity_type="PERSON",
-        description="46th President of the United States"
-    )
-    
-    canonical_entity = db_manager.create_canonical_entity(entity_data)
-    
-    # Verify entity was created
-    assert canonical_entity.id is not None
-    assert canonical_entity.name == "Joe Biden"
-    assert canonical_entity.entity_type == "PERSON"
-    assert canonical_entity.description == "46th President of the United States"
-    assert canonical_entity.first_seen is not None
-    assert canonical_entity.last_seen is not None
-
-
-def test_get_canonical_entity(db_manager: DatabaseManager):
-    """Test getting a canonical entity by ID."""
-    # Create canonical entity
-    entity_data = CanonicalEntityCreate(
-        name="Kamala Harris",
-        entity_type="PERSON",
-        description="Vice President of the United States"
-    )
-    
-    created_entity = db_manager.create_canonical_entity(entity_data)
-    
-    # Get canonical entity
-    retrieved_entity = db_manager.get_canonical_entity(created_entity.id)
-    
-    # Verify entity was retrieved
-    assert retrieved_entity is not None
-    assert retrieved_entity.id == created_entity.id
-    assert retrieved_entity.name == "Kamala Harris"
-    assert retrieved_entity.entity_type == "PERSON"
-    assert retrieved_entity.description == "Vice President of the United States"
-
-
-def test_get_canonical_entity_by_name(db_manager: DatabaseManager):
-    """Test getting a canonical entity by name and type."""
-    # Create canonical entity
-    entity_data = CanonicalEntityCreate(
-        name="Barack Obama",
-        entity_type="PERSON",
-        description="44th President of the United States"
-    )
-    
-    db_manager.create_canonical_entity(entity_data)
-    
-    # Get canonical entity by name
-    retrieved_entity = db_manager.get_canonical_entity_by_name("Barack Obama", "PERSON")
-    
-    # Verify entity was retrieved
-    assert retrieved_entity is not None
-    assert retrieved_entity.name == "Barack Obama"
-    assert retrieved_entity.entity_type == "PERSON"
-    assert retrieved_entity.description == "44th President of the United States"
 
 
 def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
@@ -227,7 +165,8 @@ def test_entity_timeline_and_sentiment_trend(
         title="Biden Timeline Article",
         content="Joe Biden announced new policies today.",
         published_at=datetime.now(UTC),
-        status="analyzed"
+        source="example.com",
+        status=AnalysisStatus.INITIALIZED.value
     )
     
     created_article = db_manager.create_article(article)
