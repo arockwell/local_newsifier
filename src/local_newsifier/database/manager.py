@@ -285,43 +285,40 @@ class DatabaseManager:
         return EntityProfile.model_validate(db_profile)
 
     def update_entity_profile(self, profile: EntityProfileCreate) -> EntityProfile:
-        """Update an existing entity profile.
+        """Update an entity profile.
 
         Args:
-            profile: Entity profile data to update
+            profile: Profile data to update
 
         Returns:
-            Updated entity profile
-
-        Raises:
-            ValueError: If no profile exists for the entity
+            Updated profile
         """
         # Get existing profile
-        existing_profile = (
+        db_profile = (
             self.session.query(EntityProfileDB)
-            .filter(EntityProfileDB.canonical_entity_id == profile.canonical_entity_id)
+            .filter(
+                EntityProfileDB.canonical_entity_id == profile.canonical_entity_id,
+                EntityProfileDB.profile_type == profile.profile_type
+            )
             .first()
         )
         
-        if not existing_profile:
-            raise ValueError(f"No profile exists for entity {profile.canonical_entity_id}")
+        if db_profile:
+            # Update profile data using SQLAlchemy's update method
+            self.session.query(EntityProfileDB).filter(
+                EntityProfileDB.id == db_profile.id
+            ).update({
+                "content": profile.content,
+                "profile_metadata": profile.profile_metadata,
+                "updated_at": datetime.now(timezone.utc)
+            })
             
-        # Update profile fields
-        for key, value in profile.model_dump().items():
-            if key != "last_updated":  # Skip last_updated as it's handled separately
-                setattr(existing_profile, key, value)
-            
-        # Update last_updated timestamp using SQLAlchemy's values method
-        self.session.query(EntityProfileDB).filter(
-            EntityProfileDB.id == existing_profile.id
-        ).update(
-            values={"last_updated": datetime.now(timezone.utc)},
-            synchronize_session=False
-        )
-            
-        self.session.commit()
-        self.session.refresh(existing_profile)
-        return EntityProfile.model_validate(existing_profile)
+            self.session.commit()
+            self.session.refresh(db_profile)
+            return EntityProfile.model_validate(db_profile)
+        
+        # If profile doesn't exist, create it
+        return self.add_entity_profile(profile)
 
     def add_entity_relationship(
         self, relationship: EntityRelationshipCreate
