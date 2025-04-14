@@ -14,7 +14,7 @@ from local_newsifier.models.entity_tracking import (
     EntityMentionContextDB,
     EntityProfileDB,
     entity_mentions,
-    entity_relationships
+    entity_relationships,
 )
 
 # Export all models
@@ -27,5 +27,5 @@ __all__ = [
     "EntityMentionContextDB",
     "EntityProfileDB",
     "entity_mentions",
-    "entity_relationships"
+    "entity_relationships",
 ]
