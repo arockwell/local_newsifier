@@ -26,7 +26,7 @@ def sample_state():
 
 def test_analyze_document_sentiment(sentiment_analyzer, sample_state):
     """Test document-level sentiment analysis."""
-    result = sentiment_analyzer.analyze(sample_state)
+    result = sentiment_analyzer.analyze_sentiment(sample_state)
     
     assert "sentiment" in result.analysis_results
     assert "document_sentiment" in result.analysis_results["sentiment"]
@@ -42,7 +42,7 @@ def test_analyze_entity_sentiment(sentiment_analyzer, sample_state):
         "PERSON": [{"text": "customers", "sentence": "Customers love the atmosphere and service."}]
     }
     
-    result = sentiment_analyzer.analyze(sample_state)
+    result = sentiment_analyzer.analyze_sentiment(sample_state)
     
     assert "sentiment" in result.analysis_results
     assert "entity_sentiments" in result.analysis_results["sentiment"]
@@ -62,7 +62,7 @@ def test_analyze_topic_sentiment(sentiment_analyzer, sample_state):
         "customer satisfaction"
     ]
     
-    result = sentiment_analyzer.analyze(sample_state)
+    result = sentiment_analyzer.analyze_sentiment(sample_state)
     
     assert "sentiment" in result.analysis_results
     assert "topic_sentiments" in result.analysis_results["sentiment"]
@@ -82,7 +82,7 @@ def test_analyze_empty_text(sentiment_analyzer):
     )
     
     with pytest.raises(ValueError, match="No text content available for analysis"):
-        sentiment_analyzer.analyze(empty_state)
+        sentiment_analyzer.analyze_sentiment(empty_state)
 
 def test_analyze_negative_sentiment(sentiment_analyzer):
     """Test sentiment analysis with negative text."""
@@ -93,7 +93,7 @@ def test_analyze_negative_sentiment(sentiment_analyzer):
         analysis_results={}
     )
     
-    result = sentiment_analyzer.analyze(negative_state)
+    result = sentiment_analyzer.analyze_sentiment(negative_state)
     
     assert "sentiment" in result.analysis_results
     assert result.analysis_results["sentiment"]["document_sentiment"] < 0
@@ -108,7 +108,7 @@ def test_analyze_mixed_sentiment(sentiment_analyzer):
         analysis_results={}
     )
     
-    result = sentiment_analyzer.analyze(mixed_state)
+    result = sentiment_analyzer.analyze_sentiment(mixed_state)
     
     assert "sentiment" in result.analysis_results
     # Mixed sentiment should have lower magnitude than strong positive/negative
