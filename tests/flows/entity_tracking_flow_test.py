@@ -7,7 +7,7 @@ import pytest
 
 from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-from local_newsifier.models.database import Article
+from local_newsifier.models.pydantic_models import Article
 from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.tools.entity_tracker import EntityTracker
 

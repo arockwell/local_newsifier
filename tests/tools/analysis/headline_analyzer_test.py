@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 import logging
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
@@ -17,11 +16,9 @@ from src.local_newsifier.models.database import ArticleDB, Base
 logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="function")
-def test_db():
+def test_db(test_engine):
     """Create a test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
+    Session = sessionmaker(bind=test_engine)
     session = Session()
     
     db_manager = DatabaseManager(session)
@@ -29,7 +26,6 @@ def test_db():
     yield db_manager
     
     session.close()
-    Base.metadata.drop_all(engine)
 
 @pytest.fixture
 def mock_nlp():
@@ -64,13 +60,16 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
     """Test headline analyzer with real database session."""
     with patch("spacy.load", return_value=mock_nlp):
         # Create test articles
+        now = datetime.now()
         articles = [
             ArticleDB(
                 url=f"https://example.com/article{i}",
                 title=f"Test Article {i}",
                 content=f"Content {i}",
-                published_at=datetime.now(),
-                status="analyzed"
+                published_at=now,
+                status="analyzed",
+                source="test_source",
+                scraped_at=now  # Added scraped_at field
             )
             for i in range(5)
         ]
@@ -84,8 +83,8 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
         analyzer = HeadlineTrendAnalyzer(test_db)
         
         # Test getting headlines
-        start_date = datetime.now() - timedelta(days=1)
-        end_date = datetime.now() + timedelta(days=1)
+        start_date = now - timedelta(days=1)
+        end_date = now + timedelta(days=1)
         headlines = analyzer.get_headlines_by_period(start_date, end_date, "day")
         
         # Verify results
@@ -124,7 +123,9 @@ def test_headline_analyzer_with_real_db_and_trends(test_db, mock_nlp, caplog):
                         title=f"Trending Topic Test",  # Use exact same term to ensure trend
                         content=f"Content {i}_{j}",
                         published_at=now - timedelta(days=2-i),  # Most recent first
-                        status="analyzed"
+                        status="analyzed",
+                        source="test_source",
+                        scraped_at=now  # Added scraped_at field
                     )
                 )
         
@@ -170,7 +171,9 @@ def test_headline_analyzer_with_real_db_and_noise(test_db, mock_nlp):
                     title=f"Noisy Term {i}",
                     content=f"Content {i}",
                     published_at=now - timedelta(days=i),
-                    status="analyzed"
+                    status="analyzed",
+                    source="test_source",
+                    scraped_at=now  # Added scraped_at field
                 )
             )
         

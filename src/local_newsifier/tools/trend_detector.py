@@ -1,14 +1,14 @@
-"""Tool for detecting trends in news article data."""
+"""Tool for detecting trends in news articles."""
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone, timedelta
+from typing import Dict, List, Optional, Set, Tuple
 
-from ..database.manager import DatabaseManager
+from sqlalchemy.orm import Session
 from ..models.database import ArticleDB, EntityDB
-from ..models.trend import (TrendAnalysis, TrendEntity, TrendEvidenceItem,
-                            TrendStatus, TrendType)
+from ..models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 from .historical_aggregator import HistoricalDataAggregator
 from .topic_analyzer import TopicFrequencyAnalyzer
+from ..database.manager import DatabaseManager
 
 
 class TrendDetector:

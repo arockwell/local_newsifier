@@ -8,7 +8,7 @@ from spacy.language import Language
 from spacy.tokens import Doc, Span
 
 from ..database.manager import DatabaseManager
-from ..models.database import ArticleCreate, EntityCreate, Entity 
+from ..models.pydantic_models import ArticleCreate, EntityCreate, Entity
 from ..models.entity_tracking import (
     CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate
 )

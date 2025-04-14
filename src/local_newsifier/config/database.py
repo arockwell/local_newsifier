@@ -2,23 +2,14 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.models.database import Base, init_db
-
-
-def get_cursor_db_name() -> str:
-    """Get the database name for the current cursor instance.
-    
-    Returns:
-        Database name with cursor ID
-    """
-    cursor_id = os.environ.get("CURSOR_DB_ID", "default")
-    return f"local_newsifier_{cursor_id}"
+from local_newsifier.config.settings import get_settings, get_cursor_db_name
 
 
 class DatabaseSettings(BaseSettings):
@@ -43,40 +34,39 @@ class DatabaseSettings(BaseSettings):
         """Construct database URL from components."""
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+    def get_database_url(self) -> str:
+        """Get the database URL (legacy method).
 
-def get_database(env_file: Optional[str] = None) -> create_engine:
+        Returns:
+            str: The database URL
+        """
+        return self.DATABASE_URL
+
+
+def get_database() -> Any:
     """Get a database engine instance.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+
     Returns:
         SQLAlchemy engine instance
     """
-    settings = DatabaseSettings(_env_file=env_file)
+    settings = get_settings()
     return init_db(str(settings.DATABASE_URL))
 
 
-def get_db_session(env_file: Optional[str] = None) -> sessionmaker:
+def get_db_session() -> sessionmaker:
     """Get a database session factory.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+
     Returns:
-        SQLAlchemy session factory
+        sessionmaker: SQLAlchemy session factory
     """
-    engine = get_database(env_file)
-    return sessionmaker(bind=engine)
+    engine = get_database()
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_database_settings(env_file: Optional[str] = None) -> DatabaseSettings:
+def get_database_settings() -> DatabaseSettings:
     """Get database settings.
-    
-    Args:
-        env_file: Optional path to .env file to load settings from
-        
+
     Returns:
-        DatabaseSettings instance
+        DatabaseSettings: Database settings instance
     """
-    return DatabaseSettings(_env_file=env_file)
+    return DatabaseSettings()
