@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from crewai import Flow
 
 from ..database.manager import DatabaseManager
-from ..models.database import Article, ArticleDB
+from local_newsifier.models.database.article import ArticleDB
 from ..models.entity_tracking import CanonicalEntity
 from ..models.state import AnalysisStatus, NewsAnalysisState
 from ..tools.entity_tracker import EntityTracker

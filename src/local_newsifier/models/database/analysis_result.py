@@ -23,7 +23,7 @@ class AnalysisResultDB(Base):
     created_at = Column(DateTime, default=lambda: datetime.now())
 
     # Relationships
-    article = relationship("local_newsifier.models.database.article.ArticleDB", back_populates="analysis_results")
+    article = relationship("ArticleDB", back_populates="analysis_results")
 
 
 class AnalysisResultBase(BaseModel):

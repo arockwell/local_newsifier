@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy import inspect
 from sqlalchemy.orm import sessionmaker
+import datetime
 
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.article import ArticleDB
@@ -52,13 +53,16 @@ def test_schema_generation(test_engine):
 
 def test_full_article_entity_workflow(db_session):
     """Test a full workflow of creating an article with entities."""
+    now = datetime.datetime.now(datetime.timezone.utc)
     # Create an article
     article = ArticleDB(
         url="https://example.com/news/1",
         title="Test Article",
         source="Example News",
         content="This is a test article about Gainesville.",
-        status=AnalysisStatus.INITIALIZED.value
+        status=AnalysisStatus.INITIALIZED.value,
+        published_at=now,
+        scraped_at=now
     )
     db_session.add(article)
     db_session.commit()

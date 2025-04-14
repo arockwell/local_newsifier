@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.models.database.article import ArticleCreate
 from local_newsifier.models.database.entity import EntityCreate, EntityDB
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.entity_tracking import (
@@ -40,7 +40,7 @@ def sample_article(db_manager: DatabaseManager):
         content="Joe Biden is the president of the United States. "
                 "He previously served as vice president under Barack Obama.",
         published_at=datetime.now(UTC),
-        status="analyzed"
+        source="example.com"
     )
     return db_manager.create_article(article)
 
@@ -227,7 +227,7 @@ def test_entity_timeline_and_sentiment_trend(
         title="Biden Timeline Article",
         content="Joe Biden announced new policies today.",
         published_at=datetime.now(UTC),
-        status="analyzed"
+        source="example.com"
     )
     
     created_article = db_manager.create_article(article)

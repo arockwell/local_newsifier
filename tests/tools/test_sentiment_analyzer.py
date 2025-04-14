@@ -5,9 +5,14 @@ from src.local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from src.local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 @pytest.fixture
-def sentiment_analyzer():
+def mock_db_manager():
+    """Create a mock database manager."""
+    return MagicMock()
+
+@pytest.fixture
+def sentiment_analyzer(mock_db_manager):
     """Create a SentimentAnalyzer instance."""
-    return SentimentAnalysisTool()
+    return SentimentAnalysisTool(mock_db_manager)
 
 @pytest.fixture
 def sample_state():

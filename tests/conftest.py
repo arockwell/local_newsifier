@@ -66,9 +66,6 @@ def test_engine(postgres_url):
     yield engine
     
     # Cleanup after all tests
-    Base.metadata.drop_all(engine)
-    engine.dispose()  # Close all connections
-    
     try:
         # Connect to default postgres database to drop test db
         admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
@@ -86,43 +83,28 @@ def test_engine(postgres_url):
     except Exception as e:
         print(f"Error dropping test database: {e}")
         # In CI, we may not have permissions to drop databases
+    
+    engine.dispose()  # Close all connections
 
 
 @pytest.fixture(autouse=True)
 def setup_test_db(test_engine) -> Generator[None, None, None]:
     """Set up and tear down the test database for each test."""
-    # Drop all tables and recreate schema
+    # Clear all data but don't drop tables
     with test_engine.connect() as conn:
-        # Drop all tables
+        # Clear all data from tables
         conn.execute(text("""
             DO $$ 
             DECLARE
                 r RECORD;
             BEGIN
                 FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
                 END LOOP;
             END $$;
         """))
         conn.commit()
-    
-    # Create all tables
-    Base.metadata.create_all(test_engine)
     yield
-    
-    # Drop all tables after tests
-    with test_engine.connect() as conn:
-        conn.execute(text("""
-            DO $$ 
-            DECLARE
-                r RECORD;
-            BEGIN
-                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-                END LOOP;
-            END $$;
-        """))
-        conn.commit()
 
 
 @pytest.fixture
