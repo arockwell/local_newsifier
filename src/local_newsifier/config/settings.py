@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from pydantic import Field, computed_field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def get_cursor_db_name() -> str:
@@ -24,6 +24,17 @@ def get_cursor_db_name() -> str:
 
 class Settings(BaseSettings):
     """Application settings using Pydantic BaseSettings."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        validate_default=True,
+        extra="allow"  # Allow extra fields like computed DATABASE_URL
+    )
+
+    # OpenAI API key
+    OPENAI_API_KEY: Optional[str] = None
 
     # Database settings
     POSTGRES_USER: str = "postgres"
@@ -61,34 +72,21 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""
-        return str(self.DATABASE_URL)
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     def create_directories(self) -> None:
         """Create necessary directories if they don't exist."""
-        self.OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-        self.CACHE_DIR.mkdir(exist_ok=True, parents=True)
-        self.TEMP_DIR.mkdir(exist_ok=True, parents=True)
+        for directory in [self.OUTPUT_DIR, self.CACHE_DIR, self.TEMP_DIR]:
+            directory.mkdir(parents=True, exist_ok=True)
 
-        if self.LOG_FILE:
-            self.LOG_FILE.parent.mkdir(exist_ok=True, parents=True)
 
-    model_config = {
-        "env_prefix": "",
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,
-        "validate_assignment": True,
-        "validate_default": True,
-        "extra": "allow",  # Allow computed fields
-    }
-
+# Create global settings instance
+settings = Settings()
 
 def get_settings() -> Settings:
-    """Get application settings singleton.
-
+    """Get the settings instance.
+    
     Returns:
-        Settings instance
+        Settings: The global settings instance
     """
-    settings = Settings()
-    settings.create_directories()
     return settings

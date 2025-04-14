@@ -102,149 +102,139 @@ class EntityMentionContextDB(Base):
 
 
 class EntityProfileDB(Base):
-    """Database model for entity profiles with aggregated information."""
+    """Database model for entity profiles."""
     
     __tablename__ = "entity_profiles"
     
     id = Column(Integer, primary_key=True)
     canonical_entity_id = Column(Integer, ForeignKey("canonical_entities.id"), nullable=False)
-    mention_count = Column(Integer, default=0)
-    contexts = Column(JSON)  # Store sample contexts
-    source_distribution = Column(JSON)  # Store count by source
-    temporal_data = Column(JSON)  # Store mentions over time
-    related_entities = Column(JSON)  # Store related entity counts
-    related_topics = Column(JSON)  # Store related topic counts
-    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    profile_type = Column(String, nullable=False)  # e.g., "summary", "background", "timeline"
+    content = Column(Text, nullable=False)
+    profile_metadata = Column(JSON)  # Renamed from metadata to avoid SQLAlchemy reserved name
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # Define table args
-    __table_args__ = {'extend_existing': True}
+    # Define a unique constraint
+    __table_args__ = (
+        UniqueConstraint('canonical_entity_id', 'profile_type', name='uix_entity_profile_type'),
+        {'extend_existing': True}
+    )
     
-    # Relationships
-    canonical_entity = relationship("CanonicalEntityDB", backref="profile")
+    # Relationship back to canonical entity
+    canonical_entity = relationship("CanonicalEntityDB", backref="profiles")
 
 
-# Pydantic Models
-
+# Pydantic models for API/serialization
 class CanonicalEntityBase(BaseModel):
-    """Base Pydantic model for canonical entities."""
-    
+    """Base model for canonical entities."""
     name: str
     entity_type: str
     description: Optional[str] = None
-    entity_metadata: Optional[Dict[str, Any]] = None  # Renamed from metadata
+    entity_metadata: Optional[Dict[str, Any]] = None
 
 
 class CanonicalEntityCreate(CanonicalEntityBase):
-    """Pydantic model for creating canonical entities."""
-    
+    """Model for creating canonical entities."""
     pass
 
 
 class CanonicalEntity(CanonicalEntityBase):
-    """Pydantic model for canonical entities with relationships."""
-    
+    """Model for canonical entities with ID and timestamps."""
     id: int
     first_seen: datetime
     last_seen: datetime
-    mention_count: Optional[int] = None
-    
+
     class Config:
-        """Pydantic config."""
-        
         from_attributes = True
 
 
 class EntityMentionContextBase(BaseModel):
-    """Base Pydantic model for entity mention contexts."""
-    
+    """Base model for entity mention contexts."""
     entity_id: int
     article_id: int
     context_text: str
-    context_type: Optional[str] = "sentence"
+    context_type: Optional[str] = None
     sentiment_score: Optional[float] = None
 
 
 class EntityMentionContextCreate(EntityMentionContextBase):
-    """Pydantic model for creating entity mention contexts."""
-    
+    """Model for creating entity mention contexts."""
     pass
 
 
 class EntityMentionContext(EntityMentionContextBase):
-    """Pydantic model for entity mention contexts with relationships."""
-    
+    """Model for entity mention contexts with ID and timestamp."""
     id: int
     created_at: datetime
-    
+
     class Config:
-        """Pydantic config."""
-        
         from_attributes = True
 
 
 class EntityProfileBase(BaseModel):
-    """Base Pydantic model for entity profiles."""
-    
+    """Base model for entity profiles."""
     canonical_entity_id: int
-    mention_count: int = 0
-    contexts: Optional[List[str]] = None
-    source_distribution: Optional[Dict[str, int]] = None
-    temporal_data: Optional[Dict[str, int]] = None
-    related_entities: Optional[Dict[str, int]] = None
-    related_topics: Optional[Dict[str, int]] = None
+    profile_type: str
+    content: str
+    profile_metadata: Optional[Dict[str, Any]] = None
 
 
 class EntityProfileCreate(EntityProfileBase):
-    """Pydantic model for creating entity profiles."""
-    
+    """Model for creating entity profiles."""
     pass
 
 
 class EntityProfile(EntityProfileBase):
-    """Pydantic model for entity profiles with relationships."""
-    
+    """Model for entity profiles with ID and timestamps."""
     id: int
-    last_updated: datetime
-    canonical_entity: Optional["CanonicalEntity"] = None
-    
+    created_at: datetime
+    updated_at: datetime
+
     class Config:
-        """Pydantic config."""
-        
         from_attributes = True
 
 
-class EntityRelationshipBase(BaseModel):
-    """Base Pydantic model for entity relationships."""
-    
+class EntityMention(BaseModel):
+    """Model for entity mentions."""
+    canonical_entity_id: int
+    entity_id: int
+    article_id: int
+    confidence: float = 1.0
+
+    class Config:
+        from_attributes = True
+
+
+class EntityMentionCreate(EntityMention):
+    """Model for creating entity mentions."""
+    pass
+
+
+class EntityRelationship(BaseModel):
+    """Model for entity relationships."""
     source_entity_id: int
     target_entity_id: int
     relationship_type: str
     confidence: float = 1.0
     evidence: Optional[str] = None
 
-
-class EntityRelationshipCreate(EntityRelationshipBase):
-    """Pydantic model for creating entity relationships."""
-    
-    pass
-
-
-class EntityRelationship(EntityRelationshipBase):
-    """Pydantic model for entity relationships with additional info."""
-    
-    id: int
-    created_at: datetime
-    updated_at: datetime
-    source_entity: Optional["CanonicalEntity"] = None
-    target_entity: Optional["CanonicalEntity"] = None
-    
     class Config:
-        """Pydantic config."""
-        
         from_attributes = True
 
 
-# Update forward references
-CanonicalEntity.model_rebuild()
-EntityProfile.model_rebuild()
-EntityRelationship.model_rebuild()
+class EntityRelationshipCreate(EntityRelationship):
+    """Model for creating entity relationships."""
+    pass
+
+
+class EntityConnection(BaseModel):
+    """Model for representing entity connections with metadata."""
+    source_entity: str
+    target_entity: str
+    relationship_type: str
+    strength: float = 1.0
+    context: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
