@@ -8,8 +8,13 @@ from uuid import UUID, uuid4
 from crewai import Flow
 
 from ..models.state import AnalysisStatus
-from ..models.trend import (TimeFrame, TrendAnalysis, TrendAnalysisConfig,
-                           TrendStatus, TrendType)
+from ..models.trend import (
+    TimeFrame,
+    TrendAnalysis,
+    TrendAnalysisConfig,
+    TrendStatus,
+    TrendType,
+)
 from ..tools.historical_aggregator import HistoricalDataAggregator
 from ..tools.topic_analyzer import TopicFrequencyAnalyzer
 from ..tools.trend_detector import TrendDetector
@@ -83,7 +88,9 @@ class NewsTrendAnalysisFlow(Flow):
         self.trend_detector = TrendDetector(self.topic_analyzer, self.data_aggregator)
         self.reporter = TrendReporter(output_dir=output_dir)
 
-    def aggregate_historical_data(self, state: TrendAnalysisState) -> TrendAnalysisState:
+    def aggregate_historical_data(
+        self, state: TrendAnalysisState
+    ) -> TrendAnalysisState:
         """
         Aggregate historical data for trend analysis.
 
@@ -100,27 +107,29 @@ class NewsTrendAnalysisFlow(Flow):
             start_date, end_date = self.data_aggregator.calculate_date_range(
                 state.config.time_frame, state.config.lookback_periods
             )
-            
+
             # Pre-cache the articles for the analysis
-            articles = self.data_aggregator.get_articles_in_timeframe(start_date, end_date)
-            
+            articles = self.data_aggregator.get_articles_in_timeframe(
+                start_date, end_date
+            )
+
             state.add_log(
                 f"Retrieved {len(articles)} articles from "
                 f"{start_date.isoformat()} to {end_date.isoformat()}"
             )
-            
+
             # Warm up the frequency cache
             self.data_aggregator.get_entity_frequencies(
                 state.config.entity_types, start_date, end_date
             )
-            
+
             state.status = AnalysisStatus.SCRAPE_SUCCEEDED
             state.add_log("Successfully completed historical data aggregation")
-            
+
         except Exception as e:
             state.status = AnalysisStatus.SCRAPE_FAILED_NETWORK
             state.set_error(f"Error during historical data aggregation: {str(e)}")
-            
+
         return state
 
     def detect_trends(self, state: TrendAnalysisState) -> TrendAnalysisState:
@@ -144,20 +153,20 @@ class NewsTrendAnalysisFlow(Flow):
                 min_mentions=state.config.min_articles,
                 max_trends=state.config.topic_limit,
             )
-            
+
             # Detect anomalous patterns
             anomaly_trends = self.trend_detector.detect_anomalous_patterns()
-            
+
             # Combine all trends
             state.detected_trends = entity_trends + anomaly_trends
-            
+
             state.add_log(f"Detected {len(state.detected_trends)} trends")
             state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-            
+
         except Exception as e:
             state.status = AnalysisStatus.ANALYSIS_FAILED
             state.set_error(f"Error during trend detection: {str(e)}")
-            
+
         return state
 
     def generate_report(
@@ -182,23 +191,23 @@ class NewsTrendAnalysisFlow(Flow):
                 state.report_path = None
                 state.status = AnalysisStatus.SAVE_SUCCEEDED
                 return state
-                
+
             # Generate and save report
             state.report_path = self.reporter.save_report(
                 state.detected_trends, format=format
             )
-            
+
             state.add_log(f"Saved trend report to {state.report_path}")
             state.status = AnalysisStatus.SAVE_SUCCEEDED
-            
+
         except Exception as e:
             state.status = AnalysisStatus.SAVE_FAILED
             state.set_error(f"Error generating trend report: {str(e)}")
-            
+
         return state
 
     def run_analysis(
-        self, 
+        self,
         config: Optional[TrendAnalysisConfig] = None,
         report_format: ReportFormat = ReportFormat.MARKDOWN,
     ) -> TrendAnalysisState:
@@ -215,25 +224,25 @@ class NewsTrendAnalysisFlow(Flow):
         # Initialize state
         state = TrendAnalysisState(config or self.config)
         state.add_log("Starting trend analysis flow")
-        
+
         # Execute pipeline
         state = self.aggregate_historical_data(state)
         if state.status != AnalysisStatus.SCRAPE_SUCCEEDED:
             state.add_log("Aborting flow due to data aggregation failure")
             return state
-            
+
         state = self.detect_trends(state)
         if state.status != AnalysisStatus.ANALYSIS_SUCCEEDED:
             state.add_log("Aborting flow due to trend detection failure")
             return state
-            
+
         state = self.generate_report(state, format=report_format)
-        
+
         if state.status == AnalysisStatus.SAVE_SUCCEEDED:
             state.status = AnalysisStatus.COMPLETED_SUCCESS
             state.add_log("Successfully completed trend analysis flow")
         else:
             state.status = AnalysisStatus.COMPLETED_WITH_ERRORS
             state.add_log("Completed trend analysis flow with errors")
-            
+
         return state

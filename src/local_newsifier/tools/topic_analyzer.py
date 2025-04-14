@@ -27,8 +27,10 @@ class TopicFrequencyAnalyzer:
         self.data_aggregator = data_aggregator or HistoricalDataAggregator()
 
     def calculate_statistical_significance(
-        self, current: TopicFrequency, baseline: Optional[TopicFrequency], 
-        threshold: float = 1.5
+        self,
+        current: TopicFrequency,
+        baseline: Optional[TopicFrequency],
+        threshold: float = 1.5,
     ) -> Tuple[float, bool]:
         """
         Calculate the statistical significance of frequency changes.
@@ -45,11 +47,11 @@ class TopicFrequencyAnalyzer:
         if not baseline or baseline.total_mentions == 0:
             # New topics get a default z-score of 2.0 if they have enough mentions
             return 2.0, current.total_mentions >= 2
-        
+
         # Calculate frequency ratio
         current_rate = current.total_mentions / len(current.frequencies)
         baseline_rate = baseline.total_mentions / len(baseline.frequencies)
-        
+
         # Need some variance for meaningful z-score
         # If baseline has very few mentions or days, use a simplified approach
         if baseline.total_mentions < 3 or len(baseline.frequencies) < 3:
@@ -57,7 +59,7 @@ class TopicFrequencyAnalyzer:
             if current_rate > baseline_rate * 1.5:
                 return 2.0, True
             return 0.0, False
-            
+
         # Calculate variance of baseline (if enough data points)
         baseline_counts = list(baseline.frequencies.values())
         if len(baseline_counts) >= 3:
@@ -65,11 +67,11 @@ class TopicFrequencyAnalyzer:
             if baseline_std > 0:
                 z_score = (current_rate - baseline_rate) / baseline_std
                 return z_score, z_score >= threshold
-                
+
         # Fallback if we can't calculate a proper z-score
         if current_rate > baseline_rate * 1.5:
             return 1.5, True
-            
+
         return 0.0, False
 
     def identify_significant_changes(
@@ -95,23 +97,23 @@ class TopicFrequencyAnalyzer:
         current_freqs, baseline_freqs = self.data_aggregator.get_baseline_frequencies(
             entity_types, time_frame
         )
-        
+
         significant_changes = {}
-        
+
         # Analyze each topic
         for key, current in current_freqs.items():
             # Skip topics with too few mentions
             if current.total_mentions < min_mentions:
                 continue
-                
+
             # Get corresponding baseline frequency
             baseline = baseline_freqs.get(key)
-            
+
             # Calculate significance
             z_score, is_significant = self.calculate_statistical_significance(
                 current, baseline, significance_threshold
             )
-            
+
             if is_significant:
                 # Store significant topic with metrics
                 significant_changes[key] = {
@@ -120,12 +122,19 @@ class TopicFrequencyAnalyzer:
                     "current_frequency": current.total_mentions,
                     "baseline_frequency": baseline.total_mentions if baseline else 0,
                     "change_percent": (
-                        ((current.total_mentions / max(1, baseline.total_mentions if baseline else 0)) - 1) * 100
+                        (
+                            (
+                                current.total_mentions
+                                / max(1, baseline.total_mentions if baseline else 0)
+                            )
+                            - 1
+                        )
+                        * 100
                     ),
                     "z_score": z_score,
                     "is_new": baseline is None or baseline.total_mentions == 0,
                 }
-        
+
         return significant_changes
 
     def analyze_frequency_patterns(
@@ -144,16 +153,16 @@ class TopicFrequencyAnalyzer:
             Dictionary of patterns detected for each topic
         """
         patterns = {}
-        
+
         for key, freq in topic_frequencies.items():
             # Need enough data points for pattern analysis
             if len(freq.frequencies) < min_data_points:
                 continue
-                
+
             # Sort frequency data by date
             sorted_dates = sorted(freq.frequencies.keys())
             sorted_counts = [freq.frequencies[date] for date in sorted_dates]
-            
+
             # Pattern detection
             pattern_info = {
                 "topic": freq.topic,
@@ -166,28 +175,28 @@ class TopicFrequencyAnalyzer:
                 "is_spiky": False,
                 "is_consistent": False,
             }
-            
+
             # Simple trend detection
             if len(sorted_counts) >= 3:
                 # Linear regression for trend
                 x = np.arange(len(sorted_counts))
                 slope, _ = np.polyfit(x, sorted_counts, 1)
-                
+
                 pattern_info["slope"] = slope
                 pattern_info["is_rising"] = slope > 0.5
                 pattern_info["is_falling"] = slope < -0.5
-                
+
                 # Variance analysis
                 mean = np.mean(sorted_counts)
                 std = np.std(sorted_counts)
                 coefficient_of_variation = std / max(1, mean)
-                
+
                 pattern_info["coefficient_of_variation"] = coefficient_of_variation
                 pattern_info["is_spiky"] = coefficient_of_variation > 1.0
                 pattern_info["is_consistent"] = coefficient_of_variation < 0.5
-            
+
             patterns[key] = pattern_info
-        
+
         return patterns
 
     def find_related_topics(
@@ -207,33 +216,35 @@ class TopicFrequencyAnalyzer:
         main_key = f"{topic}:{entity_type}"
         if main_key not in all_frequencies:
             return []
-            
+
         main_topic = all_frequencies[main_key]
         main_dates = set(main_topic.frequencies.keys())
-        
+
         related = []
-        
+
         for key, other_topic in all_frequencies.items():
             if key == main_key:
                 continue
-                
+
             other_dates = set(other_topic.frequencies.keys())
-            
+
             # Calculate overlap
             date_overlap = main_dates.intersection(other_dates)
             if not date_overlap:
                 continue
-                
+
             # Calculate co-occurrence rate
             co_occurrence_rate = len(date_overlap) / len(main_dates)
             if co_occurrence_rate >= 0.3:  # At least 30% co-occurrence
-                related.append({
-                    "topic": other_topic.topic,
-                    "entity_type": other_topic.entity_type,
-                    "co_occurrence_rate": co_occurrence_rate,
-                    "co_occurrence_count": len(date_overlap),
-                })
-        
+                related.append(
+                    {
+                        "topic": other_topic.topic,
+                        "entity_type": other_topic.entity_type,
+                        "co_occurrence_rate": co_occurrence_rate,
+                        "co_occurrence_count": len(date_overlap),
+                    }
+                )
+
         # Sort by co-occurrence rate
         related.sort(key=lambda x: x["co_occurrence_rate"], reverse=True)
         return related
