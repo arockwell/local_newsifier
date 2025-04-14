@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from ..models.database.article import Article, ArticleDB
-from ..models.database.analysis_result import AnalysisResult, AnalysisResultCreate
+from ..models.database import ArticleDB
+from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
 from ..models.sentiment import (
     SentimentAnalysis,
     SentimentAnalysisCreate,
@@ -159,7 +159,7 @@ class SentimentAnalysisTool:
         """Analyze sentiment for the article text and update the analysis state."""
         if not state.scraped_text:
             logger.warning("No text available for sentiment analysis")
-            return state
+            raise ValueError("No text content available for analysis")
 
         # Initialize sentiment results if not present
         if not state.analysis_results:
@@ -173,6 +173,19 @@ class SentimentAnalysisTool:
             "document_sentiment": sentiment_results["polarity"],
             "document_magnitude": sentiment_results["subjectivity"]
         })
+
+        # Analyze entity sentiments if entities are present
+        if "entities" in state.analysis_results:
+            entity_sentiments = self._extract_entity_sentiments(
+                state.scraped_text, 
+                state.analysis_results["entities"]
+            )
+            state.analysis_results["sentiment"]["entity_sentiments"] = entity_sentiments
+
+        # Analyze topic sentiments if topics are present
+        if "topics" in state.analysis_results:
+            topic_sentiments = self._extract_topic_sentiments(state.scraped_text)
+            state.analysis_results["sentiment"]["topic_sentiments"] = topic_sentiments
 
         # Update state
         state.analyzed_at = datetime.now(timezone.utc)
