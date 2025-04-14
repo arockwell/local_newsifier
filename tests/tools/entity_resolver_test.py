@@ -15,23 +15,47 @@ def mock_db_manager():
     """Create a mock database manager."""
     db_manager = Mock(spec=DatabaseManager)
     
-    # Mock get_canonical_entity_by_name
-    db_manager.get_canonical_entity_by_name.return_value = None
+    # Store created entities
+    created_entities = {}
     
     # Mock create_canonical_entity
     def create_entity(entity_data):
-        return CanonicalEntity(
-            id=1,
+        entity = CanonicalEntity(
+            id=len(created_entities) + 1,
             name=entity_data.name,
             entity_type=entity_data.entity_type,
+            description=entity_data.description,
             first_seen=datetime.now(timezone.utc),
             last_seen=datetime.now(timezone.utc)
         )
+        created_entities[entity.id] = entity
+        return entity
     
     db_manager.create_canonical_entity.side_effect = create_entity
     
+    # Mock get_canonical_entity
+    def get_entity(entity_id):
+        return created_entities.get(entity_id)
+    
+    db_manager.get_canonical_entity.side_effect = get_entity
+    
+    # Mock get_canonical_entity_by_name
+    def get_entity_by_name(name, entity_type):
+        for entity in created_entities.values():
+            if entity.name == name and entity.entity_type == entity_type:
+                return entity
+        return None
+    
+    db_manager.get_canonical_entity_by_name.side_effect = get_entity_by_name
+    
     # Mock get_all_canonical_entities
-    db_manager.get_all_canonical_entities.return_value = []
+    def get_all_entities(entity_type=None):
+        entities = list(created_entities.values())
+        if entity_type:
+            entities = [e for e in entities if e.entity_type == entity_type]
+        return entities
+    
+    db_manager.get_all_canonical_entities.side_effect = get_all_entities
     
     return db_manager
 
@@ -88,15 +112,16 @@ def test_entity_resolver_create_new_entity(mock_db_manager):
 
 def test_entity_resolver_find_existing_entity(mock_db_manager):
     """Test finding an existing canonical entity."""
-    # Mock existing entity
-    existing_entity = CanonicalEntity(
-        id=1,
+    # Create an existing entity first
+    entity_data = CanonicalEntityCreate(
         name="Joe Biden",
         entity_type="PERSON",
-        first_seen=datetime.now(timezone.utc),
-        last_seen=datetime.now(timezone.utc)
+        description=None
     )
-    mock_db_manager.get_canonical_entity_by_name.return_value = existing_entity
+    existing_entity = mock_db_manager.create_canonical_entity(entity_data)
+    
+    # Reset the mock call counts
+    mock_db_manager.create_canonical_entity.reset_mock()
     
     resolver = EntityResolver(mock_db_manager)
     
@@ -106,26 +131,21 @@ def test_entity_resolver_find_existing_entity(mock_db_manager):
     # Verify that the correct methods were called
     mock_db_manager.get_canonical_entity_by_name.assert_called_with("Joe Biden", "PERSON")
     mock_db_manager.create_canonical_entity.assert_not_called()
-    
-    # Verify the entity was found
-    assert entity.id == 1
-    assert entity.name == "Joe Biden"
-    assert entity.entity_type == "PERSON"
+    assert entity == existing_entity
 
 
 def test_entity_resolver_find_similar_entity(mock_db_manager):
     """Test finding a similar canonical entity."""
-    # Mock similar entities
-    similar_entity = CanonicalEntity(
-        id=1,
+    # Create a similar entity first
+    entity_data = CanonicalEntityCreate(
         name="Joe Biden",
         entity_type="PERSON",
-        first_seen=datetime.now(timezone.utc),
-        last_seen=datetime.now(timezone.utc)
+        description=None
     )
+    similar_entity = mock_db_manager.create_canonical_entity(entity_data)
     
-    # Mock get_all_canonical_entities to return the similar entity
-    mock_db_manager.get_all_canonical_entities.return_value = [similar_entity]
+    # Reset the mock call counts
+    mock_db_manager.create_canonical_entity.reset_mock()
     
     # Use a lower threshold to match "President Biden" with "Joe Biden"
     resolver = EntityResolver(mock_db_manager, similarity_threshold=0.5)
@@ -136,14 +156,8 @@ def test_entity_resolver_find_similar_entity(mock_db_manager):
     # Verify that the correct methods were called
     mock_db_manager.get_canonical_entity_by_name.assert_called()
     mock_db_manager.get_all_canonical_entities.assert_called_with("PERSON")
-    
-    # Verify that a new entity was not created since similarity is high
     mock_db_manager.create_canonical_entity.assert_not_called()
-    
-    # Verify the similar entity was found
-    assert entity.id == 1
-    assert entity.name == "Joe Biden"
-    assert entity.entity_type == "PERSON"
+    assert entity == similar_entity
 
 
 def test_create_canonical_entity(mock_db_manager):
