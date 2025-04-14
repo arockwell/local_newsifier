@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database import ArticleDB
 from local_newsifier.models.state import AnalysisStatus
+from local_newsifier.database.manager import DatabaseManager
+from local_newsifier.models.database.entity import EntityDB
 
 
 def test_article_creation():

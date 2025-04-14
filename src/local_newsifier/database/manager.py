@@ -1,15 +1,20 @@
 """Database manager for handling database operations."""
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 # Import models from their original locations
-from local_newsifier.models.database.article import Article, ArticleCreate, ArticleDB
-from local_newsifier.models.database.entity import Entity, EntityCreate, EntityDB
-from local_newsifier.models.database.analysis_result import AnalysisResult, AnalysisResultCreate, AnalysisResultDB
+from local_newsifier.models.database import ArticleDB, EntityDB, AnalysisResultDB
+from local_newsifier.models.pydantic_models import (
+    Article, ArticleCreate,
+    Entity, EntityCreate,
+    AnalysisResult, AnalysisResultCreate
+)
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity, CanonicalEntityCreate, CanonicalEntityDB,
@@ -19,6 +24,7 @@ from local_newsifier.models.entity_tracking import (
     entity_mentions, entity_relationships
 )
 from local_newsifier.models.state import AnalysisStatus
+from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 
 # Export models through manager
 __all__ = [

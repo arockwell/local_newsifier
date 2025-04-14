@@ -1,15 +1,13 @@
 """Article models for the news analysis system."""
 
-from datetime import UTC, datetime
-from typing import List, Optional
+from datetime import datetime
+from typing import List
 
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 
 from local_newsifier.models.database.base import Base
-from local_newsifier.models.state import AnalysisStatus
-
+from local_newsifier.models.database.analysis_result import AnalysisResultDB
 
 class ArticleDB(Base):
     """Database model for articles."""
@@ -31,42 +29,3 @@ class ArticleDB(Base):
     # Define relationships
     entities = relationship("EntityDB", back_populates="article")
     analysis_results = relationship("AnalysisResultDB", back_populates="article")
-
-
-class ArticleBase(BaseModel):
-    """Base Pydantic model for articles."""
-
-    url: str
-    title: Optional[str] = None
-    source: Optional[str] = None
-    published_at: Optional[datetime] = None
-    content: Optional[str] = None
-    status: Optional[str] = None
-
-
-class ArticleCreate(BaseModel):
-    """Pydantic model for article creation."""
-    title: str
-    content: str
-    url: str
-    source: str
-    published_at: datetime
-    status: str = AnalysisStatus.INITIALIZED.value
-    scraped_at: datetime = datetime.now(UTC)
-
-
-class Article(ArticleCreate):
-    """Pydantic model for article representation."""
-    id: int
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Import related models after defining Article to avoid circular imports
-from local_newsifier.models.database.entity import Entity
-from local_newsifier.models.database.analysis_result import AnalysisResult
-
-# Update forward references
-Article.model_rebuild()
