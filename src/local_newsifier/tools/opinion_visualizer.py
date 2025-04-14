@@ -43,47 +43,73 @@ class OpinionVisualizerTool:
         """
         # Get trend data from database
         session = self.db_manager.session
-        table = session.get_bind().engine.dialect.get_table("opinion_trends")
         
-        query = (
-            session.query(table)
+        # Get analysis results for the topic
+        analysis_results = (
+            session.query(self.db_manager.AnalysisResultDB)
             .filter(
-                table.c.topic == topic,
-                table.c.period_type == interval,
-                table.c.period >= start_date.strftime("%Y-%m-%d"),
-                table.c.period <= end_date.strftime("%Y-%m-%d")
+                self.db_manager.AnalysisResultDB.analysis_type == "SENTIMENT",
+                self.db_manager.ArticleDB.published_at >= start_date,
+                self.db_manager.ArticleDB.published_at <= end_date
             )
-            .order_by(table.c.period)
+            .join(self.db_manager.ArticleDB)
+            .all()
         )
         
-        trends = query.all()
-        
-        # Prepare visualization data
+        # Process results into time periods
         time_periods = []
         sentiment_values = []
         article_counts = []
         confidence_intervals = []
         
-        for trend in trends:
-            time_periods.append(trend.period)
-            sentiment_values.append(trend.avg_sentiment)
-            article_counts.append(trend.sentiment_count)
+        # Group results by interval
+        current_date = start_date
+        while current_date <= end_date:
+            next_date = current_date + timedelta(days=1)
             
-            # Calculate confidence interval (95%)
-            # This is a simplified calculation - would be more complex in reality
-            if trend.sentiment_count > 1:
-                # Assuming standard deviation is 0.2 for simplicity
-                std_dev = 0.2
-                margin = 1.96 * std_dev / (trend.sentiment_count ** 0.5)
-                confidence_intervals.append({
-                    "lower": trend.avg_sentiment - margin,
-                    "upper": trend.avg_sentiment + margin
-                })
+            # Filter results for this period
+            period_results = [
+                r for r in analysis_results
+                if current_date <= r.article.published_at < next_date
+                and topic in r.results.get("topic_sentiments", {})
+            ]
+            
+            if period_results:
+                # Calculate average sentiment for this period
+                sentiments = [
+                    r.results["topic_sentiments"][topic]
+                    for r in period_results
+                ]
+                avg_sentiment = sum(sentiments) / len(sentiments)
+                
+                time_periods.append(current_date.strftime("%Y-%m-%d"))
+                sentiment_values.append(avg_sentiment)
+                article_counts.append(len(period_results))
+                
+                # Calculate confidence interval (95%)
+                if len(period_results) > 1:
+                    # Assuming standard deviation is 0.2 for simplicity
+                    std_dev = 0.2
+                    margin = 1.96 * std_dev / (len(period_results) ** 0.5)
+                    confidence_intervals.append({
+                        "lower": avg_sentiment - margin,
+                        "upper": avg_sentiment + margin
+                    })
+                else:
+                    confidence_intervals.append({
+                        "lower": avg_sentiment - 0.2,
+                        "upper": avg_sentiment + 0.2
+                    })
             else:
+                time_periods.append(current_date.strftime("%Y-%m-%d"))
+                sentiment_values.append(0.0)
+                article_counts.append(0)
                 confidence_intervals.append({
-                    "lower": trend.avg_sentiment - 0.2,
-                    "upper": trend.avg_sentiment + 0.2
+                    "lower": -0.2,
+                    "upper": 0.2
                 })
+            
+            current_date = next_date
         
         return SentimentVisualizationData(
             topic=topic,

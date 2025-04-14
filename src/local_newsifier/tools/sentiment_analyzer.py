@@ -3,7 +3,7 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 import spacy
 from spacy.language import Language
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 from ..models.sentiment import SentimentAnalysisCreate
-from ..database.manager import DatabaseManager
+from ..database.manager import DatabaseManager, AnalysisResultCreate
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class SentimentAnalysisTool:
             model_name: Name of the spaCy model to use
         """
         try:
-            self.nlp: Language = spacy.load(model_name)
+            self.nlp: Optional[Language] = spacy.load(model_name)
         except OSError:
             logger.warning(
                 f"spaCy model '{model_name}' not found. "
@@ -143,13 +143,13 @@ class SentimentAnalysisTool:
         # Normalize by word count
         return total_score / len(words)
 
-    def _extract_entity_sentiments(self, text: str, entities: List[Dict]) -> Dict[str, float]:
+    def _extract_entity_sentiments(self, text: str, entities: Dict[str, List[Dict[str, Any]]]) -> Dict[str, float]:
         """
         Extract sentiment scores for named entities.
 
         Args:
             text: Full text content
-            entities: List of entity dictionaries with text and sentence
+            entities: Dictionary mapping entity types to lists of entity dictionaries
 
         Returns:
             Dictionary mapping entity text to sentiment score
@@ -158,11 +158,11 @@ class SentimentAnalysisTool:
         
         for entity_type, entity_list in entities.items():
             for entity in entity_list:
-                entity_text = entity["text"]
-                sentence = entity["sentence"]
+                entity_text = entity.get("text", "")
+                sentence = entity.get("sentence", "")
                 
-                # Skip if already processed this entity
-                if entity_text in entity_sentiments:
+                # Skip if already processed this entity or missing data
+                if not entity_text or not sentence or entity_text in entity_sentiments:
                     continue
                 
                 # Analyze the sentence containing the entity
@@ -284,49 +284,71 @@ class SentimentAnalysisTool:
         article_id: int
     ) -> Dict[str, Any]:
         """
-        Analyze sentiment for a specific article in the database.
-        
+        Analyze an article from the database.
+
         Args:
             db_manager: Database manager instance
             article_id: ID of the article to analyze
-            
+
         Returns:
-            Sentiment analysis results
+            Dictionary containing sentiment analysis results
         """
         # Get article from database
         article = db_manager.get_article(article_id)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
-            
+
+        # Create analysis state
+        state = NewsAnalysisState(
+            target_url=article.url,
+            scraped_text=article.content,
+            analysis_results={"entities": {}}
+        )
+
         # Get existing analysis results
         analysis_results = db_manager.get_analysis_results_by_article(article_id)
         entities_result = next((r for r in analysis_results if r.analysis_type == "NER"), None)
         
-        # Create a temporary state for analysis
-        state = NewsAnalysisState(
-            article_id=article_id,
-            article_url=article.url,
-            scraped_text=article.content,
-            analysis_results={"entities": entities_result.results["entities"] if entities_result else {}}
-        )
+        # Extract entities from results
+        entities_dict = {}
+        if entities_result and entities_result.results:
+            entities_dict = entities_result.results.get("entities", {})
         
         # Perform sentiment analysis
-        self.analyze(state)
-        
-        # Store sentiment analysis results in database
-        sentiment_create = SentimentAnalysisCreate(
-            article_id=article_id,
-            document_sentiment=state.analysis_results["sentiment"]["document_sentiment"],
-            document_magnitude=state.analysis_results["sentiment"]["document_magnitude"],
-            entity_sentiments=state.analysis_results["sentiment"]["entity_sentiments"],
-            topic_sentiments=state.analysis_results["sentiment"]["topic_sentiments"]
-        )
-        
-        # Create analysis result record
-        analysis_result = db_manager.add_analysis_result({
-            "article_id": article_id,
-            "analysis_type": "sentiment",
-            "results": state.analysis_results["sentiment"]
-        })
-        
-        return state.analysis_results["sentiment"]
+        if article.content:
+            # Document-level sentiment
+            doc_sentiment = self._analyze_text_sentiment(article.content)
+            
+            # Entity-level sentiment
+            entity_sentiments = self._extract_entity_sentiments(
+                article.content,
+                entities_dict
+            )
+            
+            # Topic-level sentiment
+            topic_sentiments = self._extract_topic_sentiments(article.content)
+            
+            # Create analysis result
+            result_data = {
+                "document_sentiment": doc_sentiment["sentiment"],
+                "document_magnitude": doc_sentiment["magnitude"],
+                "entity_sentiments": entity_sentiments,
+                "topic_sentiments": topic_sentiments
+            }
+            
+            # Save results
+            result = AnalysisResultCreate(
+                article_id=article_id,
+                analysis_type="SENTIMENT",
+                results=result_data
+            )
+            db_manager.add_analysis_result(result)
+            
+            return result_data
+        else:
+            return {
+                "document_sentiment": 0.0,
+                "document_magnitude": 0.0,
+                "entity_sentiments": {},
+                "topic_sentiments": {}
+            }
