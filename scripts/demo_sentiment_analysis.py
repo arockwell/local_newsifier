@@ -16,17 +16,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Add the project root to Python path
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
-
-from src.local_newsifier.config.database import get_database_settings, get_db_session
-from src.local_newsifier.database.manager import DatabaseManager
-from src.local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-from src.local_newsifier.models.database import get_session, init_db, ArticleCreate, AnalysisResultCreate, ArticleDB
-from src.local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-from src.local_newsifier.tools.sentiment_tracker import SentimentTracker
-from src.local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+from local_newsifier.config.database import get_db_session
+from local_newsifier.database.manager import DatabaseManager
+from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.models.database.analysis_result import AnalysisResultCreate
+from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+from local_newsifier.tools.sentiment_tracker import SentimentTracker
+from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 # Set up logging
 logging.basicConfig(
@@ -398,41 +395,46 @@ def generate_html_report(results: Dict, output_file: str = "sentiment_report.htm
 
 
 def main():
-    """Run the demo script."""
-    try:
-        # Initialize database connection
-        db_settings = get_database_settings()
-        engine = init_db(str(db_settings.DATABASE_URL))
-        session_factory = get_session(engine)
-        session = session_factory()
-        db_manager = DatabaseManager(session)
+    """Run the sentiment analysis demo."""
+    parser = argparse.ArgumentParser(description="Sentiment analysis demo script")
+    parser.add_argument("--days", type=int, default=30, help="Number of days to analyze")
+    parser.add_argument("--topics", nargs="+", help="Topics to analyze")
+    args = parser.parse_args()
 
-        try:
-            # Add sample articles
-            logger.info("Adding sample articles...")
-            add_sample_articles(db_manager)
-            
-            # Analyze articles
-            logger.info("\nAnalyzing articles...")
-            # Get all articles with status "new"
-            articles = session.query(ArticleDB).filter(ArticleDB.status == "new").all()
-            article_ids = [article.id for article in articles]
-            analyze_articles(db_manager, article_ids)
-            
-            # Analyze trends
-            logger.info("\nAnalyzing trends...")
-            analyze_trends(db_manager)
-            
-        except Exception as e:
-            logger.error(f"Error during demo: {e}")
-            raise
-            
-        finally:
-            session.close()
-            
-    except Exception as e:
-        logger.error(f"Error initializing database: {e}")
-        sys.exit(1)
+    # Initialize database connection
+    session_factory = get_db_session()
+    session = session_factory()
+    db_manager = DatabaseManager(session)
+
+    try:
+        # Add sample articles
+        add_sample_articles(db_manager)
+
+        # Get all articles and their IDs
+        articles = db_manager.session.query(ArticleDB).all()
+        article_ids = [int(article.id) for article in articles]  # Explicitly convert to int
+
+        # Analyze articles
+        analyze_articles(db_manager, article_ids)
+
+        # Analyze trends
+        analyze_trends(db_manager)
+
+        # Initialize public opinion flow
+        flow = PublicOpinionFlow(db_manager)
+
+        # Show topic trends if topics are provided
+        if args.topics:
+            show_topic_trends(flow, args.topics, days=args.days)
+
+            # Compare pairs of topics if multiple topics provided
+            if len(args.topics) > 1:
+                topic_pairs = [(args.topics[i], args.topics[i+1]) 
+                             for i in range(len(args.topics)-1)]
+                compare_topics(flow, topic_pairs, days=args.days)
+
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":
