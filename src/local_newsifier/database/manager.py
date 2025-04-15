@@ -54,26 +54,37 @@ class DatabaseManager:
         """
         self.session = session
 
-    def create_article(self, article_data: Union[Dict[str, Any], ArticleCreate]) -> Article:
+    def create_article(self, article_data: Union[Dict[str, Any], ArticleCreate, Article]) -> Article:
         """Create a new article in the database.
 
         Args:
-            article_data: Article data to create (Dict or ArticleCreate model)
+            article_data: Article data to create (Dict, ArticleCreate, or Article model)
 
         Returns:
             Created article
         """
-        # Handle either Dict or ArticleCreate
+        # Handle different input types
         if isinstance(article_data, dict):
             if 'scraped_at' not in article_data or article_data['scraped_at'] is None:
                 article_data['scraped_at'] = datetime.now(timezone.utc)
             db_article = Article(**article_data)
-        else:
+        elif hasattr(article_data, "model_dump"):
             # SQLModel object - convert to dict and add scraped_at
             data_dict = article_data.model_dump()
             if 'scraped_at' not in data_dict or data_dict['scraped_at'] is None:
                 data_dict['scraped_at'] = datetime.now(timezone.utc)
             db_article = Article(**data_dict)
+        elif hasattr(article_data, "dict"):
+            # Pydantic model - convert to dict and add scraped_at
+            data_dict = article_data.dict()
+            if 'scraped_at' not in data_dict or data_dict['scraped_at'] is None:
+                data_dict['scraped_at'] = datetime.now(timezone.utc)
+            db_article = Article(**data_dict)
+        else:
+            # Already an Article object
+            db_article = article_data
+            if not db_article.scraped_at:
+                db_article.scraped_at = datetime.now(timezone.utc)
         
         self.session.add(db_article)
         self.session.commit()
