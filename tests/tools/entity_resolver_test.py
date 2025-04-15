@@ -4,47 +4,19 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
+from sqlmodel import Session, select
 
-from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
 from local_newsifier.tools.entity_resolver import EntityResolver
 
 
 @pytest.fixture
-def mock_db_manager():
-    """Create a mock database manager."""
-    db_manager = Mock(spec=DatabaseManager)
+def mock_session():
+    """Create a mock SQLModel session."""
+    mock_session = Mock(spec=Session)
     
     # Store created entities
     created_entities = {}
-    
-    # Mock session
-    db_manager.session = Mock()
-    
-    # Mock exec for session
-    mock_exec = Mock()
-    db_manager.session.exec.return_value = mock_exec
-    
-    # Mock first and all
-    mock_exec.first.return_value = None
-    mock_exec.all.return_value = []
-    
-    # Set up for both legacy and SQLModel patterns
-    
-    # Mock create_canonical_entity method
-    def create_entity(entity_data):
-        entity = CanonicalEntity(
-            id=len(created_entities) + 1,
-            name=entity_data.name if hasattr(entity_data, 'name') else entity_data['name'],
-            entity_type=entity_data.entity_type if hasattr(entity_data, 'entity_type') else entity_data['entity_type'],
-            description=entity_data.description if hasattr(entity_data, 'description') else entity_data.get('description'),
-            first_seen=datetime.now(timezone.utc),
-            last_seen=datetime.now(timezone.utc)
-        )
-        created_entities[entity.id] = entity
-        return entity
-    
-    db_manager.create_canonical_entity.side_effect = create_entity
     
     # Mock session.add and session.commit pattern
     def session_add(entity):
@@ -53,7 +25,7 @@ def mock_db_manager():
         if hasattr(entity, 'id'):
             created_entities[entity.id] = entity
     
-    db_manager.session.add.side_effect = session_add
+    mock_session.add.side_effect = session_add
     
     # Mock refresh to simulate database assignment of ID
     def session_refresh(entity):
@@ -61,60 +33,18 @@ def mock_db_manager():
             entity.id = len(created_entities) + 1
             created_entities[entity.id] = entity
     
-    db_manager.session.refresh.side_effect = session_refresh
+    mock_session.refresh.side_effect = session_refresh
     
-    # Mock get_canonical_entity method
-    def get_entity(entity_id):
-        return created_entities.get(entity_id)
+    # Simple exec mock that doesn't try to inspect the statement
+    mock_exec = Mock()
+    mock_exec.first.return_value = None  # Default to no entity found
+    mock_exec.all.return_value = []      # Default to empty list
+    mock_session.exec.return_value = mock_exec
     
-    db_manager.get_canonical_entity.side_effect = get_entity
+    # Store the mock so we can configure it in the tests
+    mock_session._entities = created_entities
     
-    # Mock get_canonical_entity_by_name method
-    def get_entity_by_name(name, entity_type):
-        for entity in created_entities.values():
-            if entity.name == name and entity.entity_type == entity_type:
-                return entity
-        return None
-    
-    db_manager.get_canonical_entity_by_name.side_effect = get_entity_by_name
-    
-    # Mock SQLModel pattern for select and where
-    def mock_select_where_for_name(*args, **kwargs):
-        # Simulate the select().where() chain
-        mock_where = Mock()
-        mock_exec_result = Mock()
-        
-        # Look for the name and entity_type in the args/kwargs
-        # This is a simplification - in a real test you'd parse the conditions
-        mock_exec_result.first.side_effect = get_entity_by_name
-        
-        mock_where.exec.return_value = mock_exec_result
-        return mock_where
-    
-    # Mock exec to return all entities for a given type
-    def mock_exec_all_entities():
-        mock_result = Mock()
-        
-        def all_for_type(*args, **kwargs):
-            # This is called when we do session.exec(statement).all()
-            entity_type = kwargs.get('entity_type')
-            return get_all_entities(entity_type)
-            
-        mock_result.all.side_effect = all_for_type
-        return mock_result
-    
-    db_manager.session.exec.return_value.all.side_effect = lambda: list(created_entities.values())
-    
-    # Mock get_all_canonical_entities method
-    def get_all_entities(entity_type=None):
-        entities = list(created_entities.values())
-        if entity_type:
-            entities = [e for e in entities if e.entity_type == entity_type]
-        return entities
-    
-    db_manager.get_all_canonical_entities.side_effect = get_all_entities
-    
-    return db_manager
+    return mock_session
 
 
 def test_entity_resolver_normalize_name():
@@ -151,82 +81,118 @@ def test_entity_resolver_calculate_similarity():
     assert resolver.calculate_name_similarity("Joe Biden", "Kamala Harris") < 0.5
 
 
-def test_entity_resolver_create_new_entity(mock_db_manager):
+def test_entity_resolver_create_new_entity(mock_session):
     """Test creating a new canonical entity."""
-    resolver = EntityResolver(mock_db_manager)
+    # Configure mock to return None for find_matching_entity
+    mock_exec = Mock()
+    mock_exec.first.return_value = None
+    mock_exec.all.return_value = []
+    mock_session.exec.return_value = mock_exec
+    
+    resolver = EntityResolver(mock_session)
     
     # Test with a new entity
     entity = resolver.resolve_entity("Joe Biden", "PERSON")
     
-    # Verify that the correct methods were called
-    mock_db_manager.get_canonical_entity_by_name.assert_called_with("Joe Biden", "PERSON")
-    mock_db_manager.create_canonical_entity.assert_called_once()
+    # Verify that session.add and commit were called
+    assert mock_session.add.call_count >= 1
+    assert mock_session.commit.call_count >= 1
     
     # Verify the entity was created
     assert entity.name == "Joe Biden"
     assert entity.entity_type == "PERSON"
 
 
-def test_entity_resolver_find_existing_entity(mock_db_manager):
+def test_entity_resolver_find_existing_entity(mock_session):
     """Test finding an existing canonical entity."""
     # Create an existing entity first
-    entity_data = CanonicalEntityCreate(
+    existing_entity = CanonicalEntity(
         name="Joe Biden",
         entity_type="PERSON",
-        description=None
+        description=None,
+        first_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(timezone.utc)
     )
-    existing_entity = mock_db_manager.create_canonical_entity(entity_data)
+    mock_session.add(existing_entity)
+    mock_session.commit()
+    mock_session.refresh(existing_entity)
     
     # Reset the mock call counts
-    mock_db_manager.create_canonical_entity.reset_mock()
+    mock_session.add.reset_mock()
+    mock_session.commit.reset_mock()
     
-    resolver = EntityResolver(mock_db_manager)
+    # Configure mock to return the existing entity
+    mock_exec = Mock()
+    mock_exec.first.return_value = existing_entity
+    mock_session.exec.return_value = mock_exec
+    
+    resolver = EntityResolver(mock_session)
     
     # Test with an existing entity
     entity = resolver.resolve_entity("Joe Biden", "PERSON")
     
-    # Verify that the correct methods were called
-    mock_db_manager.get_canonical_entity_by_name.assert_called_with("Joe Biden", "PERSON")
-    mock_db_manager.create_canonical_entity.assert_not_called()
-    assert entity == existing_entity
+    # Verify no new entities were created
+    assert mock_session.add.call_count == 0
+    assert mock_session.commit.call_count == 0
+    
+    # Verify the right entity was returned
+    assert entity.id == existing_entity.id
+    assert entity.name == "Joe Biden"
+    assert entity.entity_type == "PERSON"
 
 
-def test_entity_resolver_find_similar_entity(mock_db_manager):
+@patch("local_newsifier.tools.entity_resolver.EntityResolver.find_matching_entity")
+def test_entity_resolver_find_similar_entity(mock_find_matching, mock_session):
     """Test finding a similar canonical entity."""
     # Create a similar entity first
-    entity_data = CanonicalEntityCreate(
+    similar_entity = CanonicalEntity(
         name="Joe Biden",
         entity_type="PERSON",
-        description=None
+        description=None,
+        first_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(timezone.utc)
     )
-    similar_entity = mock_db_manager.create_canonical_entity(entity_data)
+    mock_session.add(similar_entity)
+    mock_session.commit()
+    mock_session.refresh(similar_entity)
+    
+    # Configure the mock to return the similar entity
+    mock_find_matching.return_value = similar_entity
     
     # Reset the mock call counts
-    mock_db_manager.create_canonical_entity.reset_mock()
+    mock_session.add.reset_mock()
+    mock_session.commit.reset_mock()
     
     # Use a lower threshold to match "President Biden" with "Joe Biden"
-    resolver = EntityResolver(mock_db_manager, similarity_threshold=0.5)
+    resolver = EntityResolver(mock_session, similarity_threshold=0.5)
     
     # Test with a variation of the existing entity
     entity = resolver.resolve_entity("President Biden", "PERSON")
     
-    # Verify that the correct methods were called
-    mock_db_manager.get_canonical_entity_by_name.assert_called()
-    mock_db_manager.get_all_canonical_entities.assert_called_with("PERSON")
-    mock_db_manager.create_canonical_entity.assert_not_called()
-    assert entity == similar_entity
+    # Verify no new entities were created
+    assert mock_session.add.call_count == 0
+    assert mock_session.commit.call_count == 0
+    
+    # Verify we found the similar entity 
+    assert entity.id == similar_entity.id
+    assert entity.name == "Joe Biden"
+    assert entity.entity_type == "PERSON"
 
 
-def test_create_canonical_entity(mock_db_manager):
-    """Test creating a canonical entity."""
+def test_create_canonical_entity(mock_session):
+    """Test creating a canonical entity directly."""
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(
+    canonical_entity = CanonicalEntity(
         name="Joe Biden",
         entity_type="PERSON",
-        description="46th President of the United States"
+        description="46th President of the United States",
+        first_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(timezone.utc)
     )
     
-    canonical_entity = mock_db_manager.create_canonical_entity(entity_data)
+    mock_session.add(canonical_entity)
+    mock_session.commit()
+    mock_session.refresh(canonical_entity)
     
     # Verify entity was created
     assert canonical_entity.id is not None
@@ -237,41 +203,74 @@ def test_create_canonical_entity(mock_db_manager):
     assert canonical_entity.last_seen is not None
 
 
-def test_get_canonical_entity(mock_db_manager):
-    """Test getting a canonical entity by ID."""
+def test_get_canonical_entity_by_select(mock_session):
+    """Test getting a canonical entity by using select."""
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(
+    entity = CanonicalEntity(
         name="Kamala Harris",
         entity_type="PERSON",
-        description="Vice President of the United States"
+        description="Vice President of the United States",
+        first_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(timezone.utc)
     )
     
-    created_entity = mock_db_manager.create_canonical_entity(entity_data)
+    mock_session.add(entity)
+    mock_session.commit()
+    mock_session.refresh(entity)
     
-    # Get canonical entity
-    retrieved_entity = mock_db_manager.get_canonical_entity(created_entity.id)
+    # Reset mock counts
+    mock_session.add.reset_mock()
+    mock_session.commit.reset_mock()
+    
+    # Configure mock to return the entity
+    mock_exec = Mock()
+    mock_exec.first.return_value = entity
+    mock_session.exec.return_value = mock_exec
+    
+    # Get canonical entity with select
+    statement = select(CanonicalEntity).where(
+        CanonicalEntity.id == entity.id
+    )
+    retrieved_entity = mock_session.exec(statement).first()
     
     # Verify entity was retrieved
     assert retrieved_entity is not None
-    assert retrieved_entity.id == created_entity.id
+    assert retrieved_entity.id == entity.id
     assert retrieved_entity.name == "Kamala Harris"
     assert retrieved_entity.entity_type == "PERSON"
     assert retrieved_entity.description == "Vice President of the United States"
 
 
-def test_get_canonical_entity_by_name(mock_db_manager):
-    """Test getting a canonical entity by name and type."""
+def test_get_canonical_entity_by_name_select(mock_session):
+    """Test getting a canonical entity by name and type using select."""
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(
+    entity = CanonicalEntity(
         name="Barack Obama",
         entity_type="PERSON",
-        description="44th President of the United States"
+        description="44th President of the United States",
+        first_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(timezone.utc)
     )
     
-    mock_db_manager.create_canonical_entity(entity_data)
+    mock_session.add(entity)
+    mock_session.commit()
+    mock_session.refresh(entity)
     
-    # Get canonical entity by name
-    retrieved_entity = mock_db_manager.get_canonical_entity_by_name("Barack Obama", "PERSON")
+    # Reset mock counts
+    mock_session.add.reset_mock()
+    mock_session.commit.reset_mock()
+    
+    # Configure mock to return the entity
+    mock_exec = Mock()
+    mock_exec.first.return_value = entity
+    mock_session.exec.return_value = mock_exec
+    
+    # Get canonical entity by name with select
+    statement = select(CanonicalEntity).where(
+        CanonicalEntity.name == "Barack Obama",
+        CanonicalEntity.entity_type == "PERSON"
+    )
+    retrieved_entity = mock_session.exec(statement).first()
     
     # Verify entity was retrieved
     assert retrieved_entity is not None

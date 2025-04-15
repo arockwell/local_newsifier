@@ -4,48 +4,42 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
+from sqlmodel import Session
 
-from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
                                                   CanonicalEntityCreate,
-                                                  EntityMentionContextCreate)
+                                                  EntityMentionContextCreate,
+                                                  EntityProfile)
 from local_newsifier.tools.context_analyzer import ContextAnalyzer
 from local_newsifier.tools.entity_resolver import EntityResolver
 from local_newsifier.tools.entity_tracker import EntityTracker
 
 
 @pytest.fixture
-def mock_db_manager():
-    """Create a mock database manager."""
-    db_manager = Mock(spec=DatabaseManager)
-    
-    # Mock session
-    db_manager.session = Mock()
+def mock_session():
+    """Create a mock SQLModel session."""
+    mock_session = Mock(spec=Session)
     
     # Mock exec for session to return empty results by default
     mock_exec = Mock()
     mock_exec.first.return_value = None
     mock_exec.all.return_value = []
-    db_manager.session.exec.return_value = mock_exec
+    mock_session.exec.return_value = mock_exec
     
     # Simulate session.add() and session.commit()
-    db_manager.session.add = Mock()
-    db_manager.session.commit = Mock()
-    db_manager.session.refresh = Mock()
+    mock_session.add = Mock()
+    mock_session.commit = Mock()
+    mock_session.refresh = Mock()
     
     # Make Entity work correctly
     def refresh_entity(entity):
         entity.id = 1
         return entity
     
-    db_manager.session.refresh.side_effect = refresh_entity
+    mock_session.refresh.side_effect = refresh_entity
     
-    # For backward compatibility with tests
-    db_manager.get_entity_profile = Mock(return_value=None)
-    db_manager.add_entity_profile = Mock()
-    
-    return db_manager
+    return mock_session
 
 
 @pytest.fixture
@@ -95,18 +89,18 @@ def mock_context_analyzer():
 
 
 @patch("spacy.load")
-def test_entity_tracker_init(mock_spacy_load, mock_db_manager):
+def test_entity_tracker_init(mock_spacy_load, mock_session):
     """Test initializing the entity tracker."""
     mock_spacy_load.return_value = Mock()
     
-    tracker = EntityTracker(mock_db_manager)
+    tracker = EntityTracker(mock_session)
     
     # spacy.load is called twice: once for EntityTracker, once for ContextAnalyzer
     assert mock_spacy_load.call_count == 2
     assert mock_spacy_load.call_args_list[0] == mock_spacy_load.call_args_list[1]
     assert mock_spacy_load.call_args_list[0][0][0] == "en_core_web_lg"
     
-    assert tracker.db_manager is mock_db_manager
+    assert tracker.session is mock_session
     assert tracker.nlp is not None
     assert tracker.entity_resolver is not None
     assert tracker.context_analyzer is not None
@@ -117,7 +111,7 @@ def test_entity_tracker_init(mock_spacy_load, mock_db_manager):
 @patch("spacy.load")
 def test_entity_tracker_process_article(
     mock_spacy_load, mock_context_analyzer_class, mock_entity_resolver_class,
-    mock_db_manager, mock_entity_resolver, mock_context_analyzer
+    mock_session, mock_entity_resolver, mock_context_analyzer
 ):
     """Test processing an article for entity tracking."""
     # Setup mocks
@@ -140,7 +134,7 @@ def test_entity_tracker_process_article(
     mock_spacy_load.return_value = mock_nlp
     
     # Create tracker
-    tracker = EntityTracker(mock_db_manager)
+    tracker = EntityTracker(mock_session)
     
     # Test process_article
     result = tracker.process_article(
@@ -155,10 +149,10 @@ def test_entity_tracker_process_article(
     mock_context_analyzer.analyze_context.assert_called_with("Joe Biden is the president.")
     
     # Verify that session.add() was called for Entity
-    assert mock_db_manager.session.add.call_count >= 1
+    assert mock_session.add.call_count >= 1
     
     # Verify that session.commit() was called
-    assert mock_db_manager.session.commit.call_count >= 1
+    assert mock_session.commit.call_count >= 1
     
     # Verify the result
     assert len(result) == 1
@@ -175,7 +169,7 @@ def test_entity_tracker_process_article(
 @patch("spacy.load")
 def test_entity_tracker_update_profile(
     mock_spacy_load, mock_context_analyzer_class, mock_entity_resolver_class,
-    mock_db_manager
+    mock_session
 ):
     """Test updating entity profile."""
     # Setup mocks
@@ -184,12 +178,12 @@ def test_entity_tracker_update_profile(
     mock_context_analyzer_class.return_value = Mock()
     
     # Create tracker
-    tracker = EntityTracker(mock_db_manager)
+    tracker = EntityTracker(mock_session)
     
     # Override the mock_exec to simulate a scenario where the profile doesn't exist
     mock_exec = Mock()
     mock_exec.first.return_value = None
-    mock_db_manager.session.exec.return_value = mock_exec
+    mock_session.exec.return_value = mock_exec
     
     # Test _update_entity_profile - new profile
     tracker._update_entity_profile(
@@ -202,9 +196,17 @@ def test_entity_tracker_update_profile(
     )
     
     # Verify session.add() and session.commit() were called for creating a new profile
-    assert mock_db_manager.session.add.call_count >= 1
-    assert mock_db_manager.session.commit.call_count >= 1
+    assert mock_session.add.call_count >= 1
+    assert mock_session.commit.call_count >= 1
     
-    # Check that an Entity was created with the right attributes
-    # This can be complex to validate directly, so we'll simplify our assertions
-    # to just check that add and commit were called
+    # Check that an EntityProfile was created with the right attributes
+    # The mock setup will capture the EntityProfile instance in mock_session.add.call_args[0][0]
+    add_calls = mock_session.add.call_args_list
+    profile_added = False
+    for call in add_calls:
+        args = call[0]
+        if len(args) > 0 and isinstance(args[0], EntityProfile):
+            profile_added = True
+            break
+    
+    assert profile_added
