@@ -20,11 +20,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 
 import spacy
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
-from ...database.manager import DatabaseManager
-from ...models.database import ArticleDB
-from ...models.pydantic_models import Article
+from ...models.article import Article
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +30,15 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendAnalyzer:
     """Tool for analyzing trends in article headlines over time."""
 
-    def __init__(self, db_manager: DatabaseManager, nlp_model: Optional[str] = "en_core_web_lg"):
+    def __init__(self, session: Session, nlp_model: Optional[str] = "en_core_web_lg"):
         """
         Initialize the headline trend analyzer.
         
         Args:
-            db_manager: Database manager for accessing articles
+            session: Database session for accessing articles
             nlp_model: Name of the spaCy model to use
         """
-        self.db_manager = db_manager
+        self.session = session
         try:
             self.nlp = spacy.load(nlp_model)
         except OSError:
@@ -64,10 +62,13 @@ class HeadlineTrendAnalyzer:
         Returns:
             Dictionary mapping time periods to lists of headlines
         """
-        # Query all articles in the date range
-        articles = self.db_manager.session.query(ArticleDB).filter(
-            ArticleDB.published_at.between(start_date, end_date)
-        ).order_by(ArticleDB.published_at).all()
+        # Query all articles in the date range using SQLModel
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).order_by(Article.published_at)
+        
+        articles = self.session.exec(statement).all()
         
         # Group by time interval
         grouped_headlines = defaultdict(list)

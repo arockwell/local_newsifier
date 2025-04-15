@@ -4,25 +4,35 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.orm import Session
+from sqlmodel import select
 
 from ..config.database import get_database_settings
-from ..database.manager import DatabaseManager
-from ..models.database import ArticleDB, EntityDB
+from ..models.article import Article
+from ..models.entity import Entity
 from ..models.trend import TimeFrame, TopicFrequency
 
 
 class HistoricalDataAggregator:
     """Tool for retrieving and organizing historical news data for analysis."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the historical data aggregator.
 
         Args:
-            db_manager: Optional database manager instance. If not provided,
-                       a new one will be created.
+            session: Optional database session. If not provided,
+                    a new one will be created.
         """
-        self.db_manager = db_manager or DatabaseManager(get_database_settings())
+        if session is None:
+            from sqlmodel import Session
+            from ..database.init import get_session, init_db
+            
+            db_settings = get_database_settings()
+            engine = init_db(str(db_settings.DATABASE_URL))
+            self.session = Session(engine)
+        else:
+            self.session = session
+            
         self._cache: Dict[str, any] = {}
 
     def get_articles_in_timeframe(
@@ -30,7 +40,7 @@ class HistoricalDataAggregator:
         start_date: datetime,
         end_date: Optional[datetime] = None,
         source: Optional[str] = None,
-    ) -> List[ArticleDB]:
+    ) -> List[Article]:
         """
         Retrieve articles within the specified timeframe.
 
@@ -49,18 +59,18 @@ class HistoricalDataAggregator:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        with self.db_manager.get_session() as session:
-            query = session.query(ArticleDB).filter(
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
+        # Query the database using SQLModel
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        )
 
-            if source:
-                query = query.filter(ArticleDB.source == source)
+        if source:
+            statement = statement.where(Article.source == source)
 
-            articles = query.all()
-            self._cache[cache_key] = articles
-            return articles
+        articles = self.session.exec(statement).all()
+        self._cache[cache_key] = articles
+        return articles
 
     def calculate_date_range(
         self, time_frame: TimeFrame, periods: int = 1
@@ -134,32 +144,28 @@ class HistoricalDataAggregator:
 
         # Query all entities for these articles
         frequencies: Dict[str, TopicFrequency] = {}
-        with self.db_manager.get_session() as session:
-            entities = (
-                session.query(EntityDB)
-                .filter(
-                    EntityDB.article_id.in_(article_ids),
-                    EntityDB.entity_type.in_(entity_types),
+        statement = select(Entity).where(
+            Entity.article_id.in_(article_ids),
+            Entity.entity_type.in_(entity_types)
+        )
+        entities = self.session.exec(statement).all()
+
+        # Process entities
+        for entity in entities:
+            entity_key = f"{entity.text}:{entity.entity_type}"
+
+            if entity_key not in frequencies:
+                frequencies[entity_key] = TopicFrequency(
+                    topic=entity.text,
+                    entity_type=entity.entity_type,
+                    frequencies={},
+                    total_mentions=0,
                 )
-                .all()
-            )
 
-            # Process entities
-            for entity in entities:
-                entity_key = f"{entity.text}:{entity.entity_type}"
-
-                if entity_key not in frequencies:
-                    frequencies[entity_key] = TopicFrequency(
-                        topic=entity.text,
-                        entity_type=entity.entity_type,
-                        frequencies={},
-                        total_mentions=0,
-                    )
-
-                # Get the article date
-                article_date = article_dates.get(entity.article_id)
-                if article_date:
-                    frequencies[entity_key].add_occurrence(article_date)
+            # Get the article date
+            article_date = article_dates.get(entity.article_id)
+            if article_date:
+                frequencies[entity_key].add_occurrence(article_date)
 
         # Sort by total mentions and take top N
         sorted_frequencies = sorted(
