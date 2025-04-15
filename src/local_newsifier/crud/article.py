@@ -23,7 +23,9 @@ def create_article(session: Session, article_data: Dict[str, Any]) -> Article:
     if 'scraped_at' not in article_data or article_data['scraped_at'] is None:
         article_data['scraped_at'] = datetime.now(timezone.utc)
     
-    db_article = Article(**article_data)
+    # Use proper table class
+    from local_newsifier.models.article import Article as ArticleModel
+    db_article = ArticleModel(**article_data)
     session.add(db_article)
     session.commit()
     session.refresh(db_article)
@@ -40,7 +42,9 @@ def get_article(session: Session, article_id: int) -> Optional[Article]:
     Returns:
         Article if found, None otherwise
     """
-    return session.get(Article, article_id)
+    # Use session.get with the proper table class
+    from local_newsifier.models.article import Article as ArticleModel
+    return session.get(ArticleModel, article_id)
 
 
 def get_article_by_url(session: Session, url: str) -> Optional[Article]:
@@ -53,7 +57,10 @@ def get_article_by_url(session: Session, url: str) -> Optional[Article]:
     Returns:
         Article if found, None otherwise
     """
-    statement = select(Article).where(Article.url == url)
+    # We can't select a class, only a specific table column object
+    # Import the actual class instance with table=True
+    from local_newsifier.models.article import Article as ArticleModel
+    statement = select(ArticleModel).where(ArticleModel.url == url)
     return session.exec(statement).first()
 
 
@@ -68,7 +75,9 @@ def update_article_status(session: Session, article_id: int, status: str) -> Opt
     Returns:
         Updated article if found, None otherwise
     """
-    article = session.get(Article, article_id)
+    # Use proper table class
+    from local_newsifier.models.article import Article as ArticleModel
+    article = session.get(ArticleModel, article_id)
     if article:
         article.status = status
         article.updated_at = datetime.now(timezone.utc)
@@ -88,5 +97,8 @@ def get_articles_by_status(session: Session, status: str) -> List[Article]:
     Returns:
         List of articles with the specified status
     """
-    statement = select(Article).where(Article.status == status)
+    # We can't select a class, only a specific table column object
+    # Import the actual class instance with table=True
+    from local_newsifier.models.article import Article as ArticleModel
+    statement = select(ArticleModel).where(ArticleModel.status == status)
     return session.exec(statement).all()
