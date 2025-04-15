@@ -6,12 +6,12 @@ from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, Type
 
 import spacy
 from spacy.language import Language
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from ..models.database import ArticleDB
-from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
+from ..models import Article, AnalysisResult
+from ..models.database.pydantic_models import AnalysisResultCreate
 from ..models.sentiment import (
     SentimentAnalysis,
     SentimentAnalysisCreate,
@@ -49,14 +49,22 @@ class EntitySentimentError(SentimentAnalysisError):
 class SentimentAnalysisTool:
     """Tool for performing sentiment analysis on news article content."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager_or_session):
         """Initialize the sentiment analysis tool with required models.
         
         Args:
-            db_manager: Database manager instance for storing results
+            db_manager_or_session: Database manager or SQLModel session
         """
         self.nlp = spacy.load("en_core_web_sm")
-        self.db_manager = db_manager
+        
+        # Support either DatabaseManager or direct Session
+        if hasattr(db_manager_or_session, 'session'):
+            self.db_manager = db_manager_or_session
+            self.session = db_manager_or_session.session
+        else:
+            self.session = db_manager_or_session
+            self.db_manager = None
+            
         logger.info("Initialized SentimentAnalysisTool with spaCy model")
 
     def _analyze_text_sentiment(self, text: str) -> SentimentScore:
@@ -195,20 +203,28 @@ class SentimentAnalysisTool:
         return state
 
     def analyze_article(
-        self, db_manager: DatabaseManager, article_id: int
+        self, session_or_manager, article_id: int
     ) -> Dict[str, Any]:
         """
         Analyze sentiment of an article from the database.
 
         Args:
-            db_manager: Database manager instance
+            session_or_manager: Session or DatabaseManager instance
             article_id: ID of the article to analyze
 
         Returns:
             Dictionary containing sentiment analysis results
         """
-        # Get article from database
-        article = db_manager.get_article(article_id)
+        # Get article from database using the appropriate method
+        if hasattr(session_or_manager, 'get_article'):
+            # Using DatabaseManager
+            article = session_or_manager.get_article(article_id)
+        else:
+            # Using SQLModel Session directly
+            from sqlmodel import select
+            statement = select(Article).where(Article.id == article_id)
+            article = session_or_manager.exec(statement).first()
+            
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
 
@@ -237,19 +253,44 @@ class SentimentAnalysisTool:
         Returns:
             AnalysisResult containing the sentiment analysis
         """
-        # Get article from database
-        article = self.db_manager.get_article(article_id)
-        if not article:
-            raise ValueError(f"Article with ID {article_id} not found")
+        # Determine how to get the article and save the result
+        if self.db_manager:
+            # Using DatabaseManager
+            # Get article from database
+            article = self.db_manager.get_article(article_id)
+            if not article:
+                raise ValueError(f"Article with ID {article_id} not found")
 
-        # Analyze sentiment
-        sentiment_results = self.analyze_article(self.db_manager, article_id)
+            # Analyze sentiment
+            sentiment_results = self.analyze_article(self.db_manager, article_id)
 
-        # Create analysis result
-        analysis_result = AnalysisResultCreate(
-            article_id=article_id,
-            analysis_type="sentiment",
-            results=sentiment_results
-        )
+            # Create analysis result
+            analysis_result = AnalysisResultCreate(
+                article_id=article_id,
+                analysis_type="sentiment",
+                results=sentiment_results
+            )
 
-        return self.db_manager.add_analysis_result(analysis_result)
+            return self.db_manager.add_analysis_result(analysis_result)
+        else:
+            # Using SQLModel Session directly
+            from sqlmodel import select
+            statement = select(Article).where(Article.id == article_id)
+            article = self.session.exec(statement).first()
+            if not article:
+                raise ValueError(f"Article with ID {article_id} not found")
+                
+            # Analyze sentiment
+            sentiment_results = self.analyze_article(self.session, article_id)
+            
+            # Create analysis result
+            analysis_result = AnalysisResult(
+                article_id=article_id,
+                analysis_type="sentiment",
+                results=sentiment_results
+            )
+            self.session.add(analysis_result)
+            self.session.commit()
+            self.session.refresh(analysis_result)
+            
+            return analysis_result
