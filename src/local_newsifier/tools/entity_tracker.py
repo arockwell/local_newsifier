@@ -6,12 +6,14 @@ from typing import Dict, List, Optional, Tuple
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
+from sqlmodel import Session
 
-from ..database.manager import DatabaseManager
-from ..models.pydantic_models import ArticleCreate, EntityCreate, Entity
+from ..models.article import Article
+from ..models.entity import Entity
 from ..models.entity_tracking import (
     CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate
 )
+from ..crud.article import create_article
 from .entity_resolver import EntityResolver
 from .context_analyzer import ContextAnalyzer
 
@@ -21,7 +23,7 @@ class EntityTracker:
 
     def __init__(
         self, 
-        db_manager: DatabaseManager, 
+        session: Session, 
         model_name: str = "en_core_web_lg",
         similarity_threshold: float = 0.85
     ):
@@ -29,11 +31,11 @@ class EntityTracker:
         Initialize the entity tracker.
 
         Args:
-            db_manager: Database manager instance
+            session: Database session
             model_name: Name of the spaCy model to use
             similarity_threshold: Threshold for entity name similarity (0.0 to 1.0)
         """
-        self.db_manager = db_manager
+        self.session = session
         
         try:
             self.nlp: Language = spacy.load(model_name)
@@ -43,7 +45,7 @@ class EntityTracker:
                 f"Please install it using: python -m spacy download {model_name}"
             )
         
-        self.entity_resolver = EntityResolver(db_manager, similarity_threshold)
+        self.entity_resolver = EntityResolver(session, similarity_threshold)
         self.context_analyzer = ContextAnalyzer(model_name)
     
     def process_article(
@@ -144,14 +146,17 @@ class EntityTracker:
         Returns:
             Created entity database object
         """
-        # Store entity
-        entity_data = EntityCreate(
+        # Create entity using SQLModel
+        entity = Entity(
             article_id=article_id,
             text=entity_text,
             entity_type="PERSON",
-            confidence=1.0  # We could calculate this based on NER confidence
+            confidence=1.0,  # We could calculate this based on NER confidence
+            sentence_context=context_text
         )
-        entity = self.db_manager.add_entity(entity_data)
+        self.session.add(entity)
+        self.session.commit()
+        self.session.refresh(entity)
         
         # Store entity mention context
         context_data = EntityMentionContextCreate(
@@ -161,10 +166,13 @@ class EntityTracker:
             context_type="sentence",
             sentiment_score=sentiment_score
         )
-        self.db_manager.add_entity_mention_context(context_data)
         
-        # Add to entity mentions association table - this is handled in the DB manager
-        # but would be implemented here if needed
+        # This would need to be implemented with SQLModel as well, but for now
+        # we'll keep the original EntityMentionContextCreate model
+        from ..models.entity_tracking import EntityMentionContextDB
+        context = EntityMentionContextDB(**context_data.model_dump())
+        self.session.add(context)
+        self.session.commit()
         
         return entity
     
@@ -188,8 +196,14 @@ class EntityTracker:
             framing_category: Framing category for the context
             published_at: Publication date of the article
         """
-        # Get existing profile or create new one
-        current_profile = self.db_manager.get_entity_profile(canonical_entity_id)
+        # Get existing profile or create new one using SQLModel
+        from sqlmodel import select
+        from ..models.entity_tracking import EntityProfileDB
+        
+        statement = select(EntityProfileDB).where(
+            EntityProfileDB.canonical_entity_id == canonical_entity_id
+        )
+        current_profile = self.session.exec(statement).first()
 
         if current_profile:
             # Get existing metadata or create new
@@ -209,37 +223,39 @@ class EntityTracker:
             if len(contexts) < 10:  # Limit to 10 sample contexts
                 contexts.append(context_text)
 
-            # Update profile
-            profile_data = EntityProfileCreate(
-                canonical_entity_id=canonical_entity_id,
-                profile_type="summary",
-                content=f"Entity {entity_text} has been mentioned {mention_count} times.",
-                profile_metadata={
-                    "mention_count": mention_count,
-                    "contexts": contexts,
-                    "temporal_data": temporal_data,
-                    "sentiment_scores": {
-                        "latest": sentiment_score,
-                        "average": ((
-                            current_profile.profile_metadata["sentiment_scores"]["average"]
-                            if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
-                            else sentiment_score
-                        ) + sentiment_score) / 2
-                    },
-                    "framing_categories": {
-                        "latest": framing_category,
-                        "history": (
-                            current_profile.profile_metadata["framing_categories"]["history"]
-                            if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
-                            else []
-                        ) + [framing_category]
-                    }
+            # Update profile using SQLModel
+            updated_metadata = {
+                "mention_count": mention_count,
+                "contexts": contexts,
+                "temporal_data": temporal_data,
+                "sentiment_scores": {
+                    "latest": sentiment_score,
+                    "average": ((
+                        current_profile.profile_metadata["sentiment_scores"]["average"]
+                        if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
+                        else sentiment_score
+                    ) + sentiment_score) / 2
+                },
+                "framing_categories": {
+                    "latest": framing_category,
+                    "history": (
+                        current_profile.profile_metadata["framing_categories"]["history"]
+                        if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
+                        else []
+                    ) + [framing_category]
                 }
-            )
-            self.db_manager.update_entity_profile(profile_data)
+            }
+            
+            # Update directly in SQLModel
+            current_profile.content = f"Entity {entity_text} has been mentioned {mention_count} times."
+            current_profile.profile_metadata = updated_metadata
+            self.session.add(current_profile)
+            self.session.commit()
         else:
-            # Create new profile
-            profile_data = EntityProfileCreate(
+            # Create new profile using SQLModel directly
+            from ..models.entity_tracking import EntityProfileDB
+            
+            new_profile = EntityProfileDB(
                 canonical_entity_id=canonical_entity_id,
                 profile_type="summary",
                 content=f"Entity {entity_text} has been mentioned once.",
@@ -257,7 +273,8 @@ class EntityTracker:
                     }
                 }
             )
-            self.db_manager.add_entity_profile(profile_data)
+            self.session.add(new_profile)
+            self.session.commit()
     
     def get_entity_timeline(
         self, 
@@ -276,7 +293,35 @@ class EntityTracker:
         Returns:
             List of mentions with article details
         """
-        return self.db_manager.get_entity_timeline(entity_id, start_date, end_date)
+        # This would be implemented with SQLModel's select statements
+        # For now, we'll return a placeholder
+        from sqlmodel import select, func
+        from ..models.article import Article
+        from ..models.entity_tracking import entity_mentions
+        
+        results = (
+            self.session.query(
+                Article.published_at,
+                func.count(entity_mentions.c.id).label("mention_count"),
+            )
+            .join(entity_mentions, Article.id == entity_mentions.c.article_id)
+            .filter(
+                entity_mentions.c.canonical_entity_id == entity_id,
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+            .group_by(Article.published_at)
+            .order_by(Article.published_at)
+            .all()
+        )
+        
+        return [
+            {
+                "date": date,
+                "mention_count": count,
+            }
+            for date, count in results
+        ]
     
     def get_entity_sentiment_trend(
         self, 
@@ -295,4 +340,35 @@ class EntityTracker:
         Returns:
             List of sentiment scores by date
         """
-        return self.db_manager.get_entity_sentiment_trend(entity_id, start_date, end_date)
+        # This would be implemented with SQLModel's select statements
+        from sqlmodel import select, func
+        from ..models.article import Article
+        from ..models.entity_tracking import entity_mentions, EntityMentionContextDB
+        
+        results = (
+            self.session.query(
+                Article.published_at,
+                func.avg(EntityMentionContextDB.sentiment_score).label("avg_sentiment"),
+            )
+            .join(entity_mentions, Article.id == entity_mentions.c.article_id)
+            .join(
+                EntityMentionContextDB,
+                EntityMentionContextDB.entity_id == entity_mentions.c.entity_id,
+            )
+            .filter(
+                entity_mentions.c.canonical_entity_id == entity_id,
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+            .group_by(Article.published_at)
+            .order_by(Article.published_at)
+            .all()
+        )
+        
+        return [
+            {
+                "date": date,
+                "avg_sentiment": float(sentiment) if sentiment is not None else None,
+            }
+            for date, sentiment in results
+        ]
