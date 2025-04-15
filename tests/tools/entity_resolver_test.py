@@ -18,13 +18,26 @@ def mock_db_manager():
     # Store created entities
     created_entities = {}
     
-    # Mock create_canonical_entity
+    # Mock session
+    db_manager.session = Mock()
+    
+    # Mock exec for session
+    mock_exec = Mock()
+    db_manager.session.exec.return_value = mock_exec
+    
+    # Mock first and all
+    mock_exec.first.return_value = None
+    mock_exec.all.return_value = []
+    
+    # Set up for both legacy and SQLModel patterns
+    
+    # Mock create_canonical_entity method
     def create_entity(entity_data):
         entity = CanonicalEntity(
             id=len(created_entities) + 1,
-            name=entity_data.name,
-            entity_type=entity_data.entity_type,
-            description=entity_data.description,
+            name=entity_data.name if hasattr(entity_data, 'name') else entity_data['name'],
+            entity_type=entity_data.entity_type if hasattr(entity_data, 'entity_type') else entity_data['entity_type'],
+            description=entity_data.description if hasattr(entity_data, 'description') else entity_data.get('description'),
             first_seen=datetime.now(timezone.utc),
             last_seen=datetime.now(timezone.utc)
         )
@@ -33,13 +46,30 @@ def mock_db_manager():
     
     db_manager.create_canonical_entity.side_effect = create_entity
     
-    # Mock get_canonical_entity
+    # Mock session.add and session.commit pattern
+    def session_add(entity):
+        if hasattr(entity, 'id') and entity.id is None:
+            entity.id = len(created_entities) + 1
+        if hasattr(entity, 'id'):
+            created_entities[entity.id] = entity
+    
+    db_manager.session.add.side_effect = session_add
+    
+    # Mock refresh to simulate database assignment of ID
+    def session_refresh(entity):
+        if not hasattr(entity, 'id') or entity.id is None:
+            entity.id = len(created_entities) + 1
+            created_entities[entity.id] = entity
+    
+    db_manager.session.refresh.side_effect = session_refresh
+    
+    # Mock get_canonical_entity method
     def get_entity(entity_id):
         return created_entities.get(entity_id)
     
     db_manager.get_canonical_entity.side_effect = get_entity
     
-    # Mock get_canonical_entity_by_name
+    # Mock get_canonical_entity_by_name method
     def get_entity_by_name(name, entity_type):
         for entity in created_entities.values():
             if entity.name == name and entity.entity_type == entity_type:
@@ -48,7 +78,34 @@ def mock_db_manager():
     
     db_manager.get_canonical_entity_by_name.side_effect = get_entity_by_name
     
-    # Mock get_all_canonical_entities
+    # Mock SQLModel pattern for select and where
+    def mock_select_where_for_name(*args, **kwargs):
+        # Simulate the select().where() chain
+        mock_where = Mock()
+        mock_exec_result = Mock()
+        
+        # Look for the name and entity_type in the args/kwargs
+        # This is a simplification - in a real test you'd parse the conditions
+        mock_exec_result.first.side_effect = get_entity_by_name
+        
+        mock_where.exec.return_value = mock_exec_result
+        return mock_where
+    
+    # Mock exec to return all entities for a given type
+    def mock_exec_all_entities():
+        mock_result = Mock()
+        
+        def all_for_type(*args, **kwargs):
+            # This is called when we do session.exec(statement).all()
+            entity_type = kwargs.get('entity_type')
+            return get_all_entities(entity_type)
+            
+        mock_result.all.side_effect = all_for_type
+        return mock_result
+    
+    db_manager.session.exec.return_value.all.side_effect = lambda: list(created_entities.values())
+    
+    # Mock get_all_canonical_entities method
     def get_all_entities(entity_type=None):
         entities = list(created_entities.values())
         if entity_type:

@@ -1,9 +1,12 @@
 """Entity resolver tool for resolving entity mentions to canonical entities."""
 
 import re
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 from difflib import SequenceMatcher
+from sqlmodel import Session, select
+
 from ..database.manager import DatabaseManager
 from ..models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
 
@@ -11,15 +14,23 @@ from ..models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
 class EntityResolver:
     """Tool for resolving entity mentions to canonical entities."""
 
-    def __init__(self, db_manager: DatabaseManager, similarity_threshold: float = 0.85):
+    def __init__(self, db_manager_or_session, similarity_threshold: float = 0.85):
         """
         Initialize the entity resolver.
 
         Args:
-            db_manager: Database manager instance
+            db_manager_or_session: DatabaseManager or SQLModel session instance
             similarity_threshold: Threshold for entity name similarity (0.0 to 1.0)
         """
-        self.db_manager = db_manager
+        # Handle either a DatabaseManager or a Session being passed
+        if hasattr(db_manager_or_session, 'session'):
+            self.db_manager = db_manager_or_session
+            self.session = db_manager_or_session.session
+        else:
+            # Assume it's a session
+            self.session = db_manager_or_session
+            self.db_manager = None
+            
         self.similarity_threshold = similarity_threshold
         self.common_titles = [
             "mr",
@@ -115,30 +126,62 @@ class EntityResolver:
         Returns:
             Matching canonical entity if found, None otherwise
         """
-        # First, try exact match
-        canonical_entity = self.db_manager.get_canonical_entity_by_name(
-            name, entity_type
-        )
-        if canonical_entity:
-            return canonical_entity
-
-        # If no exact match, try normalized match
-        normalized_name = self.normalize_entity_name(name)
-        canonical_entity = self.db_manager.get_canonical_entity_by_name(
-            normalized_name, entity_type
-        )
-        if canonical_entity:
-            return canonical_entity
-
-        # If still no match, search for similar entities
-        try:
-            all_canonical_entities = self.db_manager.get_all_canonical_entities(
-                entity_type
+        from sqlmodel import select
+        
+        # Try with both legacy and SQLModel approaches
+        if self.db_manager and hasattr(self.db_manager, 'get_canonical_entity_by_name'):
+            # Legacy approach using DatabaseManager
+            # First, try exact match
+            canonical_entity = self.db_manager.get_canonical_entity_by_name(
+                name, entity_type
             )
-        except AttributeError:
-            # Fallback if method doesn't exist
-            all_canonical_entities = []
+            if canonical_entity:
+                return canonical_entity
 
+            # If no exact match, try normalized match
+            normalized_name = self.normalize_entity_name(name)
+            canonical_entity = self.db_manager.get_canonical_entity_by_name(
+                normalized_name, entity_type
+            )
+            if canonical_entity:
+                return canonical_entity
+
+            # If still no match, search for similar entities
+            try:
+                all_canonical_entities = self.db_manager.get_all_canonical_entities(
+                    entity_type
+                )
+            except AttributeError:
+                # Fallback if method doesn't exist
+                all_canonical_entities = []
+        else:
+            # SQLModel approach using session directly
+            # First, try exact match
+            statement = select(CanonicalEntity).where(
+                CanonicalEntity.name == name,
+                CanonicalEntity.entity_type == entity_type
+            )
+            canonical_entity = self.session.exec(statement).first()
+            if canonical_entity:
+                return canonical_entity
+
+            # If no exact match, try normalized match
+            normalized_name = self.normalize_entity_name(name)
+            statement = select(CanonicalEntity).where(
+                CanonicalEntity.name == normalized_name,
+                CanonicalEntity.entity_type == entity_type
+            )
+            canonical_entity = self.session.exec(statement).first()
+            if canonical_entity:
+                return canonical_entity
+
+            # If still no match, search for similar entities
+            statement = select(CanonicalEntity).where(
+                CanonicalEntity.entity_type == entity_type
+            )
+            all_canonical_entities = self.session.exec(statement).all()
+
+        # Compare similarities for all entities
         best_match = None
         best_similarity = 0.0
 
@@ -170,13 +213,29 @@ class EntityResolver:
         # If no matching entity found, create a new one
         if not canonical_entity:
             normalized_name = self.normalize_entity_name(name)
-            canonical_entity_data = CanonicalEntityCreate(
-                name=normalized_name,
-                entity_type=entity_type,
-                entity_metadata=metadata or {},
-            )
-            canonical_entity = self.db_manager.create_canonical_entity(
-                canonical_entity_data
-            )
+            
+            # Handle both legacy and SQLModel patterns
+            if self.db_manager and hasattr(self.db_manager, 'create_canonical_entity'):
+                # Legacy approach
+                canonical_entity_data = CanonicalEntityCreate(
+                    name=normalized_name,
+                    entity_type=entity_type,
+                    entity_metadata=metadata or {},
+                )
+                canonical_entity = self.db_manager.create_canonical_entity(
+                    canonical_entity_data
+                )
+            else:
+                # SQLModel approach
+                canonical_entity = CanonicalEntity(
+                    name=normalized_name,
+                    entity_type=entity_type,
+                    entity_metadata=metadata or {},
+                    first_seen=datetime.now(timezone.utc),
+                    last_seen=datetime.now(timezone.utc)
+                )
+                self.session.add(canonical_entity)
+                self.session.commit()
+                self.session.refresh(canonical_entity)
 
         return canonical_entity
