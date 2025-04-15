@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from src.local_newsifier.config.database import get_database_settings
 from src.local_newsifier.database.manager import DatabaseManager
-from src.local_newsifier.models.database import init_db, get_session
+from src.local_newsifier.database.init import init_db, get_session
 from src.local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from src.local_newsifier.tools.sentiment_tracker import SentimentTracker
 from src.local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool

@@ -11,9 +11,9 @@ from sqlmodel import Session
 from ..models.article import Article
 from ..models.entity import Entity
 from ..models.entity_tracking import (
-    CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate
+    CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate,
+    EntityMentionContext, EntityProfile
 )
-from ..crud.article import create_article
 from .entity_resolver import EntityResolver
 from .context_analyzer import ContextAnalyzer
 
@@ -23,7 +23,7 @@ class EntityTracker:
 
     def __init__(
         self, 
-        session: Session, 
+        db_manager_or_session: any, 
         model_name: str = "en_core_web_lg",
         similarity_threshold: float = 0.85
     ):
@@ -31,11 +31,16 @@ class EntityTracker:
         Initialize the entity tracker.
 
         Args:
-            session: Database session
+            db_manager_or_session: Database manager or session
             model_name: Name of the spaCy model to use
             similarity_threshold: Threshold for entity name similarity (0.0 to 1.0)
         """
-        self.session = session
+        # Handle either a DatabaseManager or a Session being passed
+        if hasattr(db_manager_or_session, 'session'):
+            self.db_manager = db_manager_or_session
+            self.session = db_manager_or_session.session
+        else:
+            self.session = db_manager_or_session
         
         try:
             self.nlp: Language = spacy.load(model_name)
@@ -45,7 +50,7 @@ class EntityTracker:
                 f"Please install it using: python -m spacy download {model_name}"
             )
         
-        self.entity_resolver = EntityResolver(session, similarity_threshold)
+        self.entity_resolver = EntityResolver(self.session, similarity_threshold)
         self.context_analyzer = ContextAnalyzer(model_name)
     
     def process_article(
@@ -158,19 +163,14 @@ class EntityTracker:
         self.session.commit()
         self.session.refresh(entity)
         
-        # Store entity mention context
-        context_data = EntityMentionContextCreate(
+        # Store entity mention context using SQLModel
+        context = EntityMentionContext(
             entity_id=entity.id,
             article_id=article_id,
             context_text=context_text,
             context_type="sentence",
             sentiment_score=sentiment_score
         )
-        
-        # This would need to be implemented with SQLModel as well, but for now
-        # we'll keep the original EntityMentionContextCreate model
-        from ..models.entity_tracking import EntityMentionContextDB
-        context = EntityMentionContextDB(**context_data.model_dump())
         self.session.add(context)
         self.session.commit()
         
@@ -198,10 +198,9 @@ class EntityTracker:
         """
         # Get existing profile or create new one using SQLModel
         from sqlmodel import select
-        from ..models.entity_tracking import EntityProfileDB
         
-        statement = select(EntityProfileDB).where(
-            EntityProfileDB.canonical_entity_id == canonical_entity_id
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == canonical_entity_id
         )
         current_profile = self.session.exec(statement).first()
 
@@ -253,9 +252,7 @@ class EntityTracker:
             self.session.commit()
         else:
             # Create new profile using SQLModel directly
-            from ..models.entity_tracking import EntityProfileDB
-            
-            new_profile = EntityProfileDB(
+            new_profile = EntityProfile(
                 canonical_entity_id=canonical_entity_id,
                 profile_type="summary",
                 content=f"Entity {entity_text} has been mentioned once.",
@@ -293,27 +290,30 @@ class EntityTracker:
         Returns:
             List of mentions with article details
         """
-        # This would be implemented with SQLModel's select statements
-        # For now, we'll return a placeholder
+        # Get data using SQLModel's select
         from sqlmodel import select, func
         from ..models.article import Article
         from ..models.entity_tracking import entity_mentions
         
-        results = (
-            self.session.query(
-                Article.published_at,
-                func.count(entity_mentions.c.id).label("mention_count"),
+        query = select([
+            Article.published_at,
+            func.count(entity_mentions.c.id).label("mention_count")
+        ]).select_from(
+            Article.__table__.join(
+                entity_mentions,
+                Article.id == entity_mentions.c.article_id
             )
-            .join(entity_mentions, Article.id == entity_mentions.c.article_id)
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                Article.published_at >= start_date,
-                Article.published_at <= end_date,
-            )
-            .group_by(Article.published_at)
-            .order_by(Article.published_at)
-            .all()
+        ).where(
+            entity_mentions.c.canonical_entity_id == entity_id,
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).group_by(
+            Article.published_at
+        ).order_by(
+            Article.published_at
         )
+        
+        results = self.session.execute(query).all()
         
         return [
             {
@@ -340,30 +340,33 @@ class EntityTracker:
         Returns:
             List of sentiment scores by date
         """
-        # This would be implemented with SQLModel's select statements
+        # Using SQLModel's select
         from sqlmodel import select, func
         from ..models.article import Article
-        from ..models.entity_tracking import entity_mentions, EntityMentionContextDB
+        from ..models.entity_tracking import entity_mentions, EntityMentionContext
         
-        results = (
-            self.session.query(
-                Article.published_at,
-                func.avg(EntityMentionContextDB.sentiment_score).label("avg_sentiment"),
+        query = select([
+            Article.published_at,
+            func.avg(EntityMentionContext.sentiment_score).label("avg_sentiment")
+        ]).select_from(
+            Article.__table__.join(
+                entity_mentions,
+                Article.id == entity_mentions.c.article_id
+            ).join(
+                EntityMentionContext,
+                EntityMentionContext.entity_id == entity_mentions.c.entity_id
             )
-            .join(entity_mentions, Article.id == entity_mentions.c.article_id)
-            .join(
-                EntityMentionContextDB,
-                EntityMentionContextDB.entity_id == entity_mentions.c.entity_id,
-            )
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                Article.published_at >= start_date,
-                Article.published_at <= end_date,
-            )
-            .group_by(Article.published_at)
-            .order_by(Article.published_at)
-            .all()
+        ).where(
+            entity_mentions.c.canonical_entity_id == entity_id,
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).group_by(
+            Article.published_at
+        ).order_by(
+            Article.published_at
         )
+        
+        results = self.session.execute(query).all()
         
         return [
             {

@@ -5,21 +5,18 @@ from typing import List, Optional, TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.base import TimestampMixin, SQLModelBase, sqlmodel_metadata
+from local_newsifier.models.base import TimestampMixin
 
 if TYPE_CHECKING:
     from local_newsifier.models.entity import Entity
     from local_newsifier.models.analysis_result import AnalysisResult
 
 
-class Article(TimestampMixin, SQLModelBase, table=True):
+class Article(TimestampMixin, table=True):
     """SQLModel for articles - combines database and schema functionality."""
     
-    # Use a different table name to avoid conflicts during transition
-    __tablename__ = "sm_articles"
-    
-    # Associate with our separate metadata
-    metadata = sqlmodel_metadata
+    __tablename__ = "articles"
+    __table_args__ = {"extend_existing": True}
     
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(max_length=255)
@@ -42,5 +39,4 @@ class Article(TimestampMixin, SQLModelBase, table=True):
     
     class Config:
         """Model configuration."""
-        # For backward compatibility with pydantic v1
         from_attributes = True

@@ -5,23 +5,20 @@ from typing import Optional, TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.base import TimestampMixin, SQLModelBase, sqlmodel_metadata
+from local_newsifier.models.base import TimestampMixin
 
 if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class Entity(TimestampMixin, SQLModelBase, table=True):
+class Entity(TimestampMixin, table=True):
     """SQLModel for entities."""
     
-    # Use a different table name to avoid conflicts during transition
-    __tablename__ = "sm_entities"
-    
-    # Associate with our separate metadata
-    metadata = sqlmodel_metadata
+    __tablename__ = "entities"
+    __table_args__ = {"extend_existing": True}
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    article_id: int = Field(foreign_key="sm_articles.id")
+    article_id: int = Field(foreign_key="articles.id")
     text: str
     entity_type: str
     confidence: float = Field(default=1.0)
@@ -32,5 +29,4 @@ class Entity(TimestampMixin, SQLModelBase, table=True):
     
     class Config:
         """Model configuration."""
-        # For backward compatibility with pydantic v1
         from_attributes = True

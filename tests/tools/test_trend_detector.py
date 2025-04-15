@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.local_newsifier.models import Article, Entity
+# Use legacy imports for testing until fully migrated
 from src.local_newsifier.models.database import ArticleDB, EntityDB
 from src.local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,

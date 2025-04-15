@@ -21,7 +21,7 @@ from crewai import Flow
 
 from ..config.database import get_database_settings
 from ..database.manager import DatabaseManager
-from ..models.database import init_db, get_session
+from ..database.init import init_db, get_session
 from ..models.sentiment import SentimentVisualizationData
 from ..tools.sentiment_analyzer import SentimentAnalysisTool
 from ..tools.sentiment_tracker import SentimentTracker

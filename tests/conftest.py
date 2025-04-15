@@ -9,8 +9,8 @@ import pytest
 import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+from sqlmodel import SQLModel
 
-from local_newsifier.models.database import Base
 from local_newsifier.config.database import DatabaseSettings
 
 
@@ -60,8 +60,8 @@ def test_engine(postgres_url):
     # Create engine for the test database
     engine = create_engine(postgres_url)
     
-    # Create all tables
-    Base.metadata.create_all(engine)
+    # Create all tables using SQLModel
+    SQLModel.metadata.create_all(engine)
     
     yield engine
     

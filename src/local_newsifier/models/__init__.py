@@ -1,41 +1,49 @@
 """Model imports and initialization."""
 
-# Import SQLModel models
+# Import SQLModel base
 from sqlmodel import SQLModel
+
+# Import base models
 from local_newsifier.models.base import TimestampMixin
+
+# Import core models
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.analysis_result import AnalysisResult
 
-# Legacy imports - will be migrated to SQLModel
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database import (
-    EntityDB,
-    AnalysisResultDB,
-)
-
 # Import entity tracking models
 from local_newsifier.models.entity_tracking import (
-    CanonicalEntityDB,
-    EntityMentionContextDB,
-    EntityProfileDB,
+    CanonicalEntity,
+    EntityMentionContext,
+    EntityProfile,
+    EntityMention,
+    EntityMentionCreate,
+    EntityRelationship,
+    EntityRelationshipCreate,
+    EntityConnection,
     entity_mentions,
     entity_relationships,
+    metadata,
 )
 
 # Export all models
 __all__ = [
     "SQLModel",
     "TimestampMixin",
+    # Core models
     "Article",
     "Entity",
     "AnalysisResult",
-    "Base",
-    "EntityDB",
-    "AnalysisResultDB",
-    "CanonicalEntityDB",
-    "EntityMentionContextDB",
-    "EntityProfileDB",
+    # Entity tracking models
+    "CanonicalEntity",
+    "EntityMentionContext",
+    "EntityProfile",
+    "EntityMention",
+    "EntityMentionCreate",
+    "EntityRelationship",
+    "EntityRelationshipCreate",
+    "EntityConnection",
     "entity_mentions",
     "entity_relationships",
+    "metadata",
 ]

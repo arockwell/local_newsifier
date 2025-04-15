@@ -1,31 +1,58 @@
-"""Article models for the news analysis system."""
+"""
+LEGACY MODEL - DO NOT USE
 
+This module is deprecated and exists only for backward compatibility.
+Please use the SQLModel-based Article model instead:
+
+from local_newsifier.models import Article
+"""
+
+from typing import List, Optional, Any, Dict
 from datetime import datetime
-from typing import List
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import relationship
 
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
-
-class ArticleDB(Base):
-    """Database model for articles."""
-
+# Compatibility stub that doesn't define actual tables
+class ArticleDB:
+    """
+    Legacy model for compatibility only.
+    
+    IMPORTANT: This is a stub class and should not be used in new code.
+    Use local_newsifier.models.Article instead.
+    """
     __tablename__ = "articles"
     __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=False)
-    url = Column(String(512), nullable=False, unique=True)
-    source = Column(String(255), nullable=False)
-    published_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(String(50), nullable=False)
-    scraped_at = Column(DateTime, nullable=False)
-
-    # Define relationships
-    entities = relationship("EntityDB", back_populates="article")
-    analysis_results = relationship("AnalysisResultDB", back_populates="article")
+    
+    id: Optional[int] = None
+    title: str = ""
+    content: str = ""
+    url: str = ""
+    source: str = ""
+    published_at: datetime = datetime.now()
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    status: str = ""
+    scraped_at: datetime = datetime.now()
+    
+    # Stub relationships
+    entities: List[Any] = []
+    analysis_results: List[Any] = []
+    
+    def __init__(self, **kwargs):
+        """Initialize with kwargs for compatibility."""
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+    def model_dump(self) -> Dict[str, Any]:
+        """Compatibility method."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "url": self.url,
+            "source": self.source,
+            "published_at": self.published_at,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "status": self.status,
+            "scraped_at": self.scraped_at
+        }

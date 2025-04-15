@@ -1,9 +1,10 @@
 """Database configuration and connection management."""
 
 from typing import Any
+from sqlmodel import Session, create_engine, SQLModel
 from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database import Base, init_db
+from local_newsifier.database.init import init_db, get_session
 from local_newsifier.config.settings import get_settings
 
 
@@ -68,7 +69,7 @@ def get_db_session() -> sessionmaker:
         SQLAlchemy session factory
     """
     engine = get_database()
-    return sessionmaker(bind=engine)
+    return get_session(engine)
 
 
 def get_database_settings() -> DatabaseSettings:

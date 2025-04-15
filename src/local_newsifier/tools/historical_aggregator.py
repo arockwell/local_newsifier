@@ -3,13 +3,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union
 
-from sqlalchemy.orm import Session
-from sqlmodel import select
+from sqlmodel import Session, select
 
-from ..config.database import get_database_settings
-from ..models.article import Article
-from ..models.entity import Entity
-from ..models.trend import TimeFrame, TopicFrequency
+from local_newsifier.config.database import get_database_settings
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.database.init import init_db
 
 
 class HistoricalDataAggregator:
@@ -25,7 +25,6 @@ class HistoricalDataAggregator:
         """
         if session is None:
             from sqlmodel import Session
-            from ..database.init import get_session, init_db
             
             db_settings = get_database_settings()
             engine = init_db(str(db_settings.DATABASE_URL))
@@ -59,7 +58,7 @@ class HistoricalDataAggregator:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # Query the database using SQLModel with new table name
+        # Query the database using SQLModel
         statement = select(Article).where(
             Article.published_at >= start_date,
             Article.published_at <= end_date

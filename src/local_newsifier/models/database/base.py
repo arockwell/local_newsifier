@@ -1,36 +1,41 @@
-"""Base database model with common fields for all models."""
+"""
+LEGACY BASE MODEL - DO NOT USE
+
+This module is deprecated and exists only for backward compatibility.
+Please use the SQLModel-based models instead:
+
+from local_newsifier.models import Article, Entity, AnalysisResult
+"""
 
 from datetime import datetime, timezone
-from typing import Any, Dict
-
-from sqlalchemy import Column, DateTime, Integer, MetaData
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import declarative_base
+from typing import Any, Dict, Optional, Type
 
 
-class BaseModel:
-    """Base SQLAlchemy model with common fields."""
+# Compatibility stub
+class Base:
+    """
+    Legacy base model for compatibility only.
     
-    @declared_attr
-    def __tablename__(cls) -> str:
-        """Create tablename from class name."""
-        return cls.__name__.lower()
+    IMPORTANT: This is a stub class and should not be used in new code.
+    Use SQLModel-based models instead.
+    """
+    __tablename__: str = ""
+    id: Optional[int] = None
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)
     
-    id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime, 
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
-    )
-
+    # Add compatibility methods
     def model_dump(self) -> Dict[str, Any]:
-        """Convert model to dictionary for Pydantic compatibility."""
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
-
-# Create a shared metadata instance
-metadata = MetaData()
-
-# Create a base class for all models
-Base = declarative_base(cls=BaseModel, metadata=metadata)
+        """Compatibility method."""
+        attributes = self.__dict__.copy()
+        if "_sa_instance_state" in attributes:
+            del attributes["_sa_instance_state"]
+        return attributes
+    
+    @classmethod
+    def metadata(cls) -> Any:
+        """Dummy metadata that doesn't define tables."""
+        class DummyMetadata:
+            def create_all(self, *args, **kwargs):
+                pass
+        return DummyMetadata()

@@ -1,25 +1,47 @@
-"""Analysis result models for the news analysis system."""
+"""
+LEGACY MODEL - DO NOT USE
 
+This module is deprecated and exists only for backward compatibility.
+Please use the SQLModel-based AnalysisResult model instead:
+
+from local_newsifier.models import AnalysisResult
+"""
+
+from typing import Dict, Any, Optional
 from datetime import datetime
-from typing import Dict, Any
-
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, JSON
-from sqlalchemy.orm import relationship
-
-from local_newsifier.models.database.base import Base
 
 
-class AnalysisResultDB(Base):
-    """Database model for analysis results."""
-
+# Compatibility stub that doesn't define actual tables
+class AnalysisResultDB:
+    """
+    Legacy model for compatibility only.
+    
+    IMPORTANT: This is a stub class and should not be used in new code.
+    Use local_newsifier.models.AnalysisResult instead.
+    """
     __tablename__ = "analysis_results"
     __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
-    analysis_type = Column(String, nullable=False)
-    results = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now())
-
-    # Relationships
-    article = relationship("ArticleDB", back_populates="analysis_results")
+    
+    id: Optional[int] = None
+    article_id: int = 0
+    analysis_type: str = ""
+    results: Dict[str, Any] = {}
+    created_at: datetime = datetime.now()
+    
+    # Stub relationship
+    article: Any = None
+    
+    def __init__(self, **kwargs):
+        """Initialize with kwargs for compatibility."""
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+    def model_dump(self) -> Dict[str, Any]:
+        """Compatibility method."""
+        return {
+            "id": self.id,
+            "article_id": self.article_id,
+            "analysis_type": self.analysis_type,
+            "results": self.results,
+            "created_at": self.created_at
+        }
