@@ -59,15 +59,16 @@ class TrendDetector:
         # Get entities matching our criteria
         matched_articles = []
         with self.data_aggregator.db_manager.get_session() as session:
-            entities = (
-                session.query(EntityDB)
-                .filter(
-                    EntityDB.article_id.in_(article_ids),
-                    EntityDB.entity_type == entity_type,
-                    EntityDB.text == entity_text,
-                )
-                .all()
+            # Use SQLModel syntax with select
+            from sqlmodel import select
+            from local_newsifier.models import Entity
+            
+            statement = select(Entity).where(
+                Entity.article_id.in_(article_ids),
+                Entity.entity_type == entity_type,
+                Entity.text == entity_text
             )
+            entities = session.exec(statement).all()
             
             # Get unique articles
             for entity in entities:
