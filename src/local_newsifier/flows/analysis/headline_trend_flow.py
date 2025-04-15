@@ -21,7 +21,7 @@ from crewai import Flow
 from sqlmodel import Session
 
 from ...config.database import get_database_settings
-from ...database.init import init_db
+from ...database.init import init_db, get_session
 from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 logger = logging.getLogger(__name__)

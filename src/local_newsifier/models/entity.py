@@ -5,19 +5,23 @@ from typing import Optional, TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.base import TimestampMixin
+from local_newsifier.models.base import TimestampMixin, SQLModelBase, sqlmodel_metadata
 
 if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class Entity(TimestampMixin, table=True):
+class Entity(TimestampMixin, SQLModelBase, table=True):
     """SQLModel for entities."""
     
-    __tablename__ = "entities"
+    # Use a different table name to avoid conflicts during transition
+    __tablename__ = "sm_entities"
+    
+    # Associate with our separate metadata
+    metadata = sqlmodel_metadata
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    article_id: int = Field(foreign_key="articles.id")
+    article_id: int = Field(foreign_key="sm_articles.id")
     text: str
     entity_type: str
     confidence: float = Field(default=1.0)

@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Any
 from sqlmodel import Session, select
 
 from local_newsifier.models.article import Article
+# Legacy import for compatibility during transition
+from local_newsifier.models.database import ArticleDB
 
 
 def create_article(session: Session, article_data: Dict[str, Any]) -> Article:

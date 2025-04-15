@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.state import AnalysisStatus
+from local_newsifier.models.base import sqlmodel_metadata
 
 
 def test_article_creation():

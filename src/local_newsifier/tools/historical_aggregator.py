@@ -59,7 +59,7 @@ class HistoricalDataAggregator:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # Query the database using SQLModel
+        # Query the database using SQLModel with new table name
         statement = select(Article).where(
             Article.published_at >= start_date,
             Article.published_at <= end_date

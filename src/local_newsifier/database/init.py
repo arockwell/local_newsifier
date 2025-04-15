@@ -1,8 +1,12 @@
 """Database initialization utilities."""
 
 from sqlmodel import SQLModel, create_engine
+from sqlalchemy import MetaData
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
+
+from local_newsifier.models.base import sqlmodel_metadata
+from local_newsifier.models.database.base import Base
 
 
 def init_db(db_url: str) -> Engine:
@@ -15,7 +19,13 @@ def init_db(db_url: str) -> Engine:
         SQLAlchemy engine instance
     """
     engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
+    
+    # Initialize SQLAlchemy tables
+    Base.metadata.create_all(engine)
+    
+    # Initialize SQLModel tables with custom metadata
+    sqlmodel_metadata.create_all(engine)
+    
     return engine
 
 

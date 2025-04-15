@@ -146,7 +146,7 @@ class EntityTracker:
         Returns:
             Created entity database object
         """
-        # Create entity using SQLModel
+        # Create entity using SQLModel with updated schema
         entity = Entity(
             article_id=article_id,
             text=entity_text,

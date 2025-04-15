@@ -5,17 +5,21 @@ from typing import List, Optional, TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.base import TimestampMixin
+from local_newsifier.models.base import TimestampMixin, SQLModelBase, sqlmodel_metadata
 
 if TYPE_CHECKING:
     from local_newsifier.models.entity import Entity
     from local_newsifier.models.analysis_result import AnalysisResult
 
 
-class Article(TimestampMixin, table=True):
+class Article(TimestampMixin, SQLModelBase, table=True):
     """SQLModel for articles - combines database and schema functionality."""
     
-    __tablename__ = "articles"
+    # Use a different table name to avoid conflicts during transition
+    __tablename__ = "sm_articles"
+    
+    # Associate with our separate metadata
+    metadata = sqlmodel_metadata
     
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(max_length=255)
