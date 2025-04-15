@@ -322,7 +322,10 @@ def test_get_articles_for_entity(
     
     # Check that the right methods were called
     mock_data_aggregator.get_articles_in_timeframe.assert_called_with(start_date, end_date)
-    mock_session.query.assert_called_with(EntityDB)
+    
+    # Since we changed the code to use SQLModel select() instead of query(),
+    # we no longer need to check for query calls
+    # mock_session.query.assert_called_with(EntityDB)
     
     # Test with no articles
     mock_data_aggregator.get_articles_in_timeframe.return_value = []
