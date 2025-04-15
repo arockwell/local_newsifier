@@ -1,32 +1,38 @@
 """Tests for database relationships."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.analysis_result import AnalysisResult
 
 
 def test_article_entity_relationship():
     """Test relationship between Article and Entity."""
     # Create test article
-    article = ArticleDB(
+    now = datetime.now(timezone.utc)
+    article = Article(
         title="Test Article",
         content="Test content",
         url="https://example.com",
         source="Test Source",
-        published_at=datetime.now(),
+        published_at=now,
         status="published",
-        scraped_at=datetime.now()
+        scraped_at=now
     )
+    # Set id to simulate database persistence
+    article.id = 1
     
     # Create test entity
-    entity = EntityDB(
+    entity = Entity(
         text="Test Entity",
         entity_type="PERSON",
         confidence=0.95,
-        article=article
+        article_id=article.id
     )
+    
+    # Set up relationships
+    article.entities.append(entity)
     
     # Verify relationships
     assert entity.article == article
@@ -36,22 +42,28 @@ def test_article_entity_relationship():
 def test_article_analysis_result_relationship():
     """Test relationship between Article and AnalysisResult."""
     # Create test article
-    article = ArticleDB(
+    now = datetime.now(timezone.utc)
+    article = Article(
         title="Test Article",
         content="Test content",
         url="https://example.com",
         source="Test Source",
-        published_at=datetime.now(),
+        published_at=now,
         status="published",
-        scraped_at=datetime.now()
+        scraped_at=now
     )
+    # Set id to simulate database persistence
+    article.id = 1
     
     # Create test analysis result
-    analysis_result = AnalysisResultDB(
+    analysis_result = AnalysisResult(
         analysis_type="sentiment",
         results={"score": 0.8},
-        article=article
+        article_id=article.id
     )
+    
+    # Set up relationships
+    article.analysis_results.append(analysis_result)
     
     # Verify relationships
     assert analysis_result.article == article

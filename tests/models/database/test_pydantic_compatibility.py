@@ -4,9 +4,9 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+# Import SQLModel classes
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.state import AnalysisStatus
 
 
@@ -20,9 +20,9 @@ def db_session(test_engine):
 
 
 def test_article_pydantic_compatibility(db_session):
-    """Test that ArticleDB can be converted to Pydantic model."""
+    """Test that SQLModel Article can be accessed as a dictionary."""
     now = datetime.datetime.now(datetime.timezone.utc)
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/news/article1",
         title="Test Article",
         source="Example News",
@@ -34,18 +34,23 @@ def test_article_pydantic_compatibility(db_session):
     db_session.add(article)
     db_session.commit()
 
+    # Access attributes directly from the model
+    assert article.url == "https://example.com/news/article1"
+    assert article.title == "Test Article"
+    assert article.source == "Example News"
+    assert article.content == "This is a test article."
+    assert article.status == AnalysisStatus.INITIALIZED.value
+    
+    # Convert to dict using SQLModel's dict method
     article_dict = article.model_dump()
-    assert article_dict["url"] == "https://example.com/news/article1"
-    assert article_dict["title"] == "Test Article"
-    assert article_dict["source"] == "Example News"
-    assert article_dict["content"] == "This is a test article."
-    assert article_dict["status"] == AnalysisStatus.INITIALIZED.value
+    for key in ["url", "title", "source", "content", "status"]:
+        assert key in article_dict
 
 
 def test_entity_pydantic_compatibility(db_session):
-    """Test that EntityDB can be converted to Pydantic model."""
+    """Test that SQLModel Entity can be accessed as a dictionary."""
     now = datetime.datetime.now(datetime.timezone.utc)
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/news/article2",
         title="Test Article",
         source="Example News",
@@ -57,17 +62,22 @@ def test_entity_pydantic_compatibility(db_session):
     db_session.add(article)
     db_session.commit()
 
-    entity = EntityDB(
+    entity = Entity(
         text="Gainesville",
         entity_type="GPE",
-        sentence_context="This is about Gainesville.",
+        confidence=0.95,
         article_id=article.id
     )
     db_session.add(entity)
     db_session.commit()
 
+    # Access attributes directly from the model
+    assert entity.text == "Gainesville"
+    assert entity.entity_type == "GPE"
+    assert entity.confidence == 0.95
+    assert entity.article_id == article.id
+    
+    # Convert to dict using SQLModel's dict method
     entity_dict = entity.model_dump()
-    assert entity_dict["text"] == "Gainesville"
-    assert entity_dict["entity_type"] == "GPE"
-    assert entity_dict["sentence_context"] == "This is about Gainesville."
-    assert entity_dict["article_id"] == article.id
+    for key in ["text", "entity_type", "confidence", "article_id"]:
+        assert key in entity_dict

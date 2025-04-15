@@ -1,23 +1,29 @@
-"""Integration tests for database models."""
+"""Integration tests for SQLModel database models."""
 
 import pytest
 from sqlalchemy import inspect
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session
 import datetime
+from datetime import timezone
 
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models import SQLModel
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.state import AnalysisStatus
 
 
 @pytest.fixture
 def db_session(test_engine):
     """Create a test database session."""
-    TestSession = sessionmaker(bind=test_engine)
-    session = TestSession()
-    yield session
-    session.close()
+    # Create all tables
+    SQLModel.metadata.create_all(test_engine)
+    
+    # Create session
+    session = Session(test_engine)
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def test_schema_generation(test_engine):
@@ -53,9 +59,9 @@ def test_schema_generation(test_engine):
 
 def test_full_article_entity_workflow(db_session):
     """Test a full workflow of creating an article with entities."""
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(timezone.utc)
     # Create an article
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/news/1",
         title="Test Article",
         source="Example News",
@@ -66,26 +72,33 @@ def test_full_article_entity_workflow(db_session):
     )
     db_session.add(article)
     db_session.commit()
+    db_session.refresh(article)
 
     # Create entities
     entities = [
-        EntityDB(
+        Entity(
             text="Gainesville",
             entity_type="GPE",
+            confidence=0.95,
+            article_id=article.id,
             sentence_context=(
                 "This is a test article about Gainesville."
             )
         ),
-        EntityDB(
+        Entity(
             text="University of Florida",
             entity_type="ORG",
+            confidence=0.92,
+            article_id=article.id,
             sentence_context=(
                 "The University of Florida is located in Gainesville."
             )
         ),
-        EntityDB(
+        Entity(
             text="John Smith",
             entity_type="PERSON",
+            confidence=0.88,
+            article_id=article.id,
             sentence_context=(
                 "John Smith is a professor at the University of Florida."
             )
@@ -96,6 +109,7 @@ def test_full_article_entity_workflow(db_session):
         article.entities.append(entity)
 
     db_session.commit()
+    db_session.refresh(article)
 
     # Verify relationships
     assert len(article.entities) == 3

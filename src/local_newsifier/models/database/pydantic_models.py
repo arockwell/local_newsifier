@@ -1,7 +1,7 @@
 """Pydantic models for the database."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
@@ -23,8 +23,11 @@ class ArticleCreate(ArticleBase):
     scraped_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class Article(ArticleBase):
-    """Pydantic model for articles with relationships."""
+class ArticlePydantic(ArticleBase):
+    """Pydantic model for articles with relationships.
+    
+    Renamed to avoid conflict with SQLModel Article class.
+    """
 
     id: int
     scraped_at: datetime
@@ -35,6 +38,10 @@ class Article(ArticleBase):
         """Pydantic config."""
 
         from_attributes = True
+
+# Add alias for backward compatibility after definition
+if not TYPE_CHECKING:
+    Article = ArticlePydantic
 
 
 class EntityBase(BaseModel):
@@ -86,4 +93,4 @@ class AnalysisResult(AnalysisResultBase):
     class Config:
         """Pydantic config."""
 
-        from_attributes = True 
+        from_attributes = True
