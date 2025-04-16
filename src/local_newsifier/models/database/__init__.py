@@ -1,21 +1,21 @@
 """Database models package."""
 
-from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel, create_engine, Session
 
-from local_newsifier.models.database.base import Base, SQLModel
+from local_newsifier.models.database.base import TableBase, SchemaBase
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
+from local_newsifier.models.database.analysis_result import AnalysisResult
 
 # Re-export all models
 __all__ = [
-    "Base",
     "SQLModel",
+    "TableBase",
+    "SchemaBase", 
     "Article",
     "Entity",
-    "AnalysisResultDB",  # To be converted to SQLModel in next phase
+    "AnalysisResult",
     "init_db",
     "get_session"
 ]
@@ -30,7 +30,7 @@ def init_db(db_url: str) -> Engine:
         SQLAlchemy engine instance
     """
     engine = create_engine(db_url)
-    Base.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)
     return engine
 
 def get_session(engine: Engine) -> sessionmaker:
@@ -42,4 +42,4 @@ def get_session(engine: Engine) -> sessionmaker:
     Returns:
         Session factory
     """
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)

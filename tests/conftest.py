@@ -8,9 +8,9 @@ import time
 import pytest
 import psycopg2
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database import SQLModel
+from sqlmodel import Session, SQLModel
 from local_newsifier.config.database import DatabaseSettings
 
 

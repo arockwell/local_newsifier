@@ -7,7 +7,6 @@ from sqlmodel import create_engine as sqlmodel_create_engine, Session, SQLModel
 from sqlalchemy.orm import sessionmaker
 
 from local_newsifier.config.settings import get_settings
-from local_newsifier.models.database.base import SQLModel
 
 # Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])

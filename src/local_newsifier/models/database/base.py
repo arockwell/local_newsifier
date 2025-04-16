@@ -3,47 +3,36 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlmodel import Field, SQLModel as _SQLModel
-from sqlalchemy import Column, DateTime
+from sqlmodel import Field, SQLModel
 
 
-class SQLModel(_SQLModel):
-    """Base SQLModel with timezone-aware timestamps."""
+# Configure SQLModel settings
+class BaseConfig(SQLModel.Config):
+    """Base configuration for all SQLModels."""
+    arbitrary_types_allowed = True
+    orm_mode = True
     
-    class Config:
-        """SQLModel configuration."""
-        arbitrary_types_allowed = True
 
-
-class TimestampModel(SQLModel):
-    """Base model with timestamp fields."""
-
-    created_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
-            nullable=False
-        )
-    )
-    
-    updated_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
-            onupdate=lambda: datetime.now(timezone.utc),
-            nullable=False
-        )
-    )
-
-
-class Base(TimestampModel):
-    """Base model for all database models."""
+# Base class for table models
+class TableBase(SQLModel, table=True):
+    """Base model for all database tables with a primary key."""
     
     id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": datetime.now(timezone.utc)}
+    )
     
-    # Keep backwards compatibility with SQLAlchemy models
-    __table_args__ = {'extend_existing': True}
-    
-    class Config:
+    class Config(BaseConfig):
         """SQLModel configuration."""
-        orm_mode = True
+        pass
+
+
+# For non-table schema classes
+class SchemaBase(SQLModel):
+    """Base model for non-table schema classes."""
+    
+    class Config(BaseConfig):
+        """SQLModel configuration."""
+        pass

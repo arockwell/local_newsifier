@@ -1,26 +1,14 @@
 """Model imports and initialization."""
 
-# Import Base first
-from local_newsifier.models.database.base import Base
+# Import base classes
+from local_newsifier.models.database.base import SQLModel, TableBase, SchemaBase
 
-# Import database models
-from local_newsifier.models.database import (
-    ArticleDB,
-    EntityDB,
-    AnalysisResultDB,
-)
+# Import models
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.database.analysis_result import AnalysisResult
 
-# Import Pydantic models
-from local_newsifier.models.pydantic_models import (
-    Article,
-    Entity,
-    AnalysisResult,
-    ArticleCreate,
-    EntityCreate,
-    AnalysisResultCreate,
-)
-
-# Import entity tracking models
+# Import entity tracking models (not yet converted to SQLModel)
 from local_newsifier.models.entity_tracking import (
     CanonicalEntityDB,
     EntityMentionContextDB,
@@ -31,16 +19,13 @@ from local_newsifier.models.entity_tracking import (
 
 # Export all models
 __all__ = [
-    "Base",
-    "ArticleDB",
-    "EntityDB",
-    "AnalysisResultDB",
+    "SQLModel",
+    "TableBase",
+    "SchemaBase",
     "Article",
     "Entity",
     "AnalysisResult",
-    "ArticleCreate",
-    "EntityCreate",
-    "AnalysisResultCreate",
+    # Legacy models not yet converted
     "CanonicalEntityDB",
     "EntityMentionContextDB",
     "EntityProfileDB",
