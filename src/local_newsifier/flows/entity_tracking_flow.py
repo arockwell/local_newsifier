@@ -28,23 +28,15 @@ from ..tools.entity_tracker import EntityTracker
 class EntityTrackingFlow(Flow):
     """Flow for tracking person entities across news articles."""
 
-    def __init__(self, db_manager_or_session: Any = None):
+    def __init__(self, session: Optional[Session] = None):
         """Initialize the entity tracking flow.
         
         Args:
-            db_manager_or_session: DatabaseManager or SQLAlchemy session instance
+            session: SQLAlchemy session instance
         """
         super().__init__()
-        self.db_manager = None
-        self.session = None
-        
-        # Check if db_manager_or_session is a DatabaseManager (without importing it)
-        if db_manager_or_session is not None and hasattr(db_manager_or_session, 'session'):
-            self.db_manager = db_manager_or_session
-        elif isinstance(db_manager_or_session, Session):
-            self.session = db_manager_or_session
-            
-        self.entity_tracker = EntityTracker(db_manager_or_session)
+        self.session = session            
+        self.entity_tracker = EntityTracker(session=session)
 
     @with_session
     def process_new_articles(self, *, session: Session = None) -> List[Dict]:
@@ -56,55 +48,31 @@ class EntityTrackingFlow(Flow):
         Returns:
             List of processed articles with entity counts
         """
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # Get articles with status "analyzed" that haven't been processed for entities
-            articles = self.db_manager.get_articles_by_status("analyzed")
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # Get articles with status "analyzed" that haven't been processed for entities
+        articles = get_articles_by_status("analyzed", session=session)
 
-            results = []
-            for article in articles:
-                # Process article
-                processed = self.process_article(article.id)
+        results = []
+        for article in articles:
+            # Process article
+            processed = self.process_article(article.id, session=session)
 
-                # Update article status to indicate entity tracking is complete
-                self.db_manager.update_article_status(article.id, "entity_tracked")
+            # Update article status to indicate entity tracking is complete
+            update_article_status(article.id, "entity_tracked", session=session)
 
-                # Add to results
-                results.append(
-                    {
-                        "article_id": article.id,
-                        "title": article.title,
-                        "url": article.url,
-                        "entity_count": len(processed),
-                        "entities": processed,
-                    }
-                )
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # Get articles with status "analyzed" that haven't been processed for entities
-            articles = get_articles_by_status("analyzed", session=session)
-
-            results = []
-            for article in articles:
-                # Process article
-                processed = self.process_article(article.id, session=session)
-
-                # Update article status to indicate entity tracking is complete
-                update_article_status(article.id, "entity_tracked", session=session)
-
-                # Add to results
-                results.append(
-                    {
-                        "article_id": article.id,
-                        "title": article.title,
-                        "url": article.url,
-                        "entity_count": len(processed),
-                        "entities": processed,
-                    }
-                )
+            # Add to results
+            results.append(
+                {
+                    "article_id": article.id,
+                    "title": article.title,
+                    "url": article.url,
+                    "entity_count": len(processed),
+                    "entities": processed,
+                }
+            )
 
         return results
 
@@ -119,17 +87,12 @@ class EntityTrackingFlow(Flow):
         Returns:
             List of processed entity mentions
         """
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # Get article
-            article = self.db_manager.get_article(article_id)
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # Get article
-            article = get_article(article_id, session=session)
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # Get article
+        article = get_article(article_id, session=session)
             
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
@@ -140,6 +103,7 @@ class EntityTrackingFlow(Flow):
             content=article.content,
             title=article.title,
             published_at=article.published_at or datetime.now(timezone.utc),
+            session=session
         )
 
         return processed_entities
@@ -162,61 +126,34 @@ class EntityTrackingFlow(Flow):
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # Get all canonical entities of the specified type
-            entities = self.db_manager.get_canonical_entities_by_type(entity_type)
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # Get all canonical entities of the specified type
+        entities = get_canonical_entities_by_type(entity_type, session=session)
 
-            # Get mention counts and trends for each entity
-            entity_data = []
-            for entity in entities:
-                # Get mention count
-                mention_count = self.db_manager.get_entity_mentions_count(entity.id)
-                timeline = self.db_manager.get_entity_timeline(entity.id, start_date, end_date)
-                sentiment_trend = self.db_manager.get_entity_sentiment_trend(entity.id, start_date, end_date)
+        # Get mention counts and trends for each entity
+        entity_data = []
+        for entity in entities:
+            # Get mention count
+            mention_count = get_entity_mentions_count(entity.id, session=session)
+            timeline = get_entity_timeline(entity.id, start_date, end_date, session=session)
+            sentiment_trend = get_entity_sentiment_trend(entity.id, start_date, end_date, session=session)
 
-                # Add to entity data
-                entity_data.append(
-                    {
-                        "id": entity.id,
-                        "name": entity.name,
-                        "type": entity.entity_type,
-                        "mention_count": mention_count,
-                        "first_seen": entity.first_seen,
-                        "last_seen": entity.last_seen,
-                        "timeline": timeline[:5],  # Include only 5 most recent mentions
-                        "sentiment_trend": sentiment_trend,
-                    }
-                )
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # Get all canonical entities of the specified type
-            entities = get_canonical_entities_by_type(entity_type, session=session)
-
-            # Get mention counts and trends for each entity
-            entity_data = []
-            for entity in entities:
-                # Get mention count
-                mention_count = get_entity_mentions_count(entity.id, session=session)
-                timeline = get_entity_timeline(entity.id, start_date, end_date, session=session)
-                sentiment_trend = get_entity_sentiment_trend(entity.id, start_date, end_date, session=session)
-
-                # Add to entity data
-                entity_data.append(
-                    {
-                        "id": entity.id,
-                        "name": entity.name,
-                        "type": entity.entity_type,
-                        "mention_count": mention_count,
-                        "first_seen": entity.first_seen,
-                        "last_seen": entity.last_seen,
-                        "timeline": timeline[:5],  # Include only 5 most recent mentions
-                        "sentiment_trend": sentiment_trend,
-                    }
-                )
+            # Add to entity data
+            entity_data.append(
+                {
+                    "id": entity.id,
+                    "name": entity.name,
+                    "type": entity.entity_type,
+                    "mention_count": mention_count,
+                    "first_seen": entity.first_seen,
+                    "last_seen": entity.last_seen,
+                    "timeline": timeline[:5],  # Include only 5 most recent mentions
+                    "sentiment_trend": sentiment_trend,
+                }
+            )
 
         # Sort entities by mention count (descending)
         entity_data.sort(key=lambda x: x["mention_count"], reverse=True)
@@ -249,89 +186,48 @@ class EntityTrackingFlow(Flow):
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # Get entity name and articles
-            entity = self.db_manager.get_canonical_entity(entity_id)
-            articles = self.db_manager.get_articles_mentioning_entity(entity_id, start_date, end_date)
-                
-            if not entity:
-                raise ValueError(f"Entity with ID {entity_id} not found")
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # Get entity name and articles
+        entity = get_canonical_entity(entity_id, session=session)
+        articles = get_articles_mentioning_entity(entity_id, start_date, end_date, session=session)
+            
+        if not entity:
+            raise ValueError(f"Entity with ID {entity_id} not found")
 
-            # Find co-occurring entities
-            co_occurrences = {}
-            for article in articles:
-                # Get all entities mentioned in this article
-                article_entities = self.db_manager.get_entities_by_article(article.id)
+        # Find co-occurring entities
+        co_occurrences = {}
+        for article in articles:
+            # Get all entities mentioned in this article
+            article_entities = get_entities_by_article(article.id, session=session)
 
-                # Get canonical entities for these mentions
-                for article_entity in article_entities:
-                    # Skip if this is the same entity we're analyzing
-                    if article_entity.text == entity.name:
-                        continue
+            # Get canonical entities for these mentions
+            for article_entity in article_entities:
+                # Skip if this is the same entity we're analyzing
+                if article_entity.text == entity.name:
+                    continue
 
-                    # Resolve to canonical entity
-                    canonical_entity = self.entity_resolver.resolve_entity(
-                        article_entity.text
-                    )
+                # Resolve to canonical entity
+                canonical_entity = self.entity_tracker.entity_resolver.resolve_entity(
+                    article_entity.text, session=session
+                )
 
-                    # Skip if this is still the same entity
-                    if canonical_entity.id == entity_id:
-                        continue
+                # Skip if this is still the same entity
+                if canonical_entity.id == entity_id:
+                    continue
 
-                    # Count co-occurrence
-                    if canonical_entity.id in co_occurrences:
-                        co_occurrences[canonical_entity.id]["count"] += 1
-                        co_occurrences[canonical_entity.id]["articles"].add(article.id)
-                    else:
-                        co_occurrences[canonical_entity.id] = {
-                            "entity": canonical_entity,
-                            "count": 1,
-                            "articles": {article.id},
-                        }
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # Get entity name and articles
-            entity = get_canonical_entity(entity_id, session=session)
-            articles = get_articles_mentioning_entity(entity_id, start_date, end_date, session=session)
-                
-            if not entity:
-                raise ValueError(f"Entity with ID {entity_id} not found")
-
-            # Find co-occurring entities
-            co_occurrences = {}
-            for article in articles:
-                # Get all entities mentioned in this article
-                article_entities = get_entities_by_article(article.id, session=session)
-
-                # Get canonical entities for these mentions
-                for article_entity in article_entities:
-                    # Skip if this is the same entity we're analyzing
-                    if article_entity.text == entity.name:
-                        continue
-
-                    # Resolve to canonical entity
-                    canonical_entity = self.entity_tracker.entity_resolver.resolve_entity(
-                        article_entity.text, session=session
-                    )
-
-                    # Skip if this is still the same entity
-                    if canonical_entity.id == entity_id:
-                        continue
-
-                    # Count co-occurrence
-                    if canonical_entity.id in co_occurrences:
-                        co_occurrences[canonical_entity.id]["count"] += 1
-                        co_occurrences[canonical_entity.id]["articles"].add(article.id)
-                    else:
-                        co_occurrences[canonical_entity.id] = {
-                            "entity": canonical_entity,
-                            "count": 1,
-                            "articles": {article.id},
-                        }
+                # Count co-occurrence
+                if canonical_entity.id in co_occurrences:
+                    co_occurrences[canonical_entity.id]["count"] += 1
+                    co_occurrences[canonical_entity.id]["articles"].add(article.id)
+                else:
+                    co_occurrences[canonical_entity.id] = {
+                        "entity": canonical_entity,
+                        "count": 1,
+                        "articles": {article.id},
+                    }
 
         # Convert to list and sort by co-occurrence count
         relationships = []

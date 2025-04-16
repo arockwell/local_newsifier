@@ -20,24 +20,16 @@ class EntityResolver:
 
     def __init__(
         self, 
-        db_manager_or_session: Any = None, 
+        session: Optional[Session] = None, 
         similarity_threshold: float = 0.85
     ):
         """Initialize the entity resolver.
 
         Args:
-            db_manager_or_session: DatabaseManager or SQLAlchemy session instance
+            session: SQLAlchemy session instance
             similarity_threshold: Threshold for entity name similarity (0.0 to 1.0)
         """
-        self.db_manager = None
-        self.session = None
-        
-        # For test compatibility, we need to directly assign DatabaseManager
-        self.db_manager = db_manager_or_session
-        if isinstance(db_manager_or_session, Session):
-            self.db_manager = None
-            self.session = db_manager_or_session
-            
+        self.session = session
         self.similarity_threshold = similarity_threshold
         self.common_titles = [
             "mr",
@@ -132,55 +124,29 @@ class EntityResolver:
         Returns:
             Matching canonical entity if found, None otherwise
         """
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # First, try exact match
-            canonical_entity = self.db_manager.get_canonical_entity_by_name(
-                name, entity_type
-            )
-            if canonical_entity:
-                return canonical_entity
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # First, try exact match
+        canonical_entity = get_canonical_entity_by_name(
+            name, entity_type, session=session
+        )
+        if canonical_entity:
+            return canonical_entity
 
-            # If no exact match, try normalized match
-            normalized_name = self.normalize_entity_name(name)
-            canonical_entity = self.db_manager.get_canonical_entity_by_name(
-                normalized_name, entity_type
-            )
-            if canonical_entity:
-                return canonical_entity
+        # If no exact match, try normalized match
+        normalized_name = self.normalize_entity_name(name)
+        canonical_entity = get_canonical_entity_by_name(
+            normalized_name, entity_type, session=session
+        )
+        if canonical_entity:
+            return canonical_entity
 
-            # If still no match, search for similar entities
-            try:
-                all_canonical_entities = self.db_manager.get_all_canonical_entities(
-                    entity_type
-                )
-            except AttributeError:
-                # Fallback if method doesn't exist
-                all_canonical_entities = []
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # First, try exact match
-            canonical_entity = get_canonical_entity_by_name(
-                name, entity_type, session=session
-            )
-            if canonical_entity:
-                return canonical_entity
-
-            # If no exact match, try normalized match
-            normalized_name = self.normalize_entity_name(name)
-            canonical_entity = get_canonical_entity_by_name(
-                normalized_name, entity_type, session=session
-            )
-            if canonical_entity:
-                return canonical_entity
-
-            # If still no match, search for similar entities
-            all_canonical_entities = get_all_canonical_entities(
-                entity_type, session=session
-            )
+        # If still no match, search for similar entities
+        all_canonical_entities = get_all_canonical_entities(
+            entity_type, session=session
+        )
 
         best_match = None
         best_similarity = 0.0
@@ -213,41 +179,24 @@ class EntityResolver:
         Returns:
             Resolved canonical entity
         """
-        # Use database manager if provided (for backward compatibility)
-        if self.db_manager is not None:
-            # Try to find a matching entity
-            canonical_entity = self.find_matching_entity(name, entity_type)
+        # Use provided session if available, otherwise use the stored session
+        if session is None and self.session is not None:
+            session = self.session
+            
+        # Try to find a matching entity
+        canonical_entity = self.find_matching_entity(name, entity_type, session=session)
 
-            # If no matching entity found, create a new one
-            if not canonical_entity:
-                normalized_name = self.normalize_entity_name(name)
-                canonical_entity_data = CanonicalEntityCreate(
-                    name=normalized_name,
-                    entity_type=entity_type,
-                    entity_metadata=metadata or {},
-                )
-                canonical_entity = self.db_manager.create_canonical_entity(
-                    canonical_entity_data
-                )
-        else:
-            # Use provided session if available, otherwise use the stored session
-            if session is None and self.session is not None:
-                session = self.session
-                
-            # Try to find a matching entity
-            canonical_entity = self.find_matching_entity(name, entity_type, session=session)
-
-            # If no matching entity found, create a new one
-            if not canonical_entity:
-                normalized_name = self.normalize_entity_name(name)
-                canonical_entity_data = CanonicalEntityCreate(
-                    name=normalized_name,
-                    entity_type=entity_type,
-                    entity_metadata=metadata or {},
-                )
-                
-                canonical_entity = create_canonical_entity(
-                    canonical_entity_data, session=session
-                )
+        # If no matching entity found, create a new one
+        if not canonical_entity:
+            normalized_name = self.normalize_entity_name(name)
+            canonical_entity_data = CanonicalEntityCreate(
+                name=normalized_name,
+                entity_type=entity_type,
+                entity_metadata=metadata or {},
+            )
+            
+            canonical_entity = create_canonical_entity(
+                canonical_entity_data, session=session
+            )
 
         return canonical_entity
