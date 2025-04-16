@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from ..models.database import AnalysisResultDB, ArticleDB
+from ..models.database.analysis_result import AnalysisResult
+from ..models.database.article import Article
 from ..models.trend import TimeFrame, TopicFrequency
 from .historical_aggregator import HistoricalDataAggregator
 from ..database.engine import with_session

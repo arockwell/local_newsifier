@@ -5,11 +5,12 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..database.engine import with_session
-from ..models.sentiment import OpinionTrendCreate, SentimentShiftCreate
-from ..models.database import ArticleDB, AnalysisResultDB
+from ..models.sentiment import OpinionTrend, SentimentShift
+from ..models.database.article import Article
+from ..models.database.analysis_result import AnalysisResult
 from ..models.trend import TrendAnalysis, TrendEntity
 
 logger = logging.getLogger(__name__)
@@ -275,17 +276,15 @@ class SentimentTracker:
         # Use provided session or instance session
         session = session or self.session
 
-        query = (
-            session.query(ArticleDB)
-            .filter(
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-                ArticleDB.status.in_(["analyzed", "entity_tracked"]),
-            )
-            .order_by(ArticleDB.published_at)
-        )
-
-        articles = query.all()
+        # Use SQLModel query syntax with select
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date,
+            Article.status.in_(["analyzed", "entity_tracked"])
+        ).order_by(Article.published_at)
+        
+        results = session.exec(statement)
+        articles = results.all()
         return articles
 
     def _group_articles_by_period(
@@ -335,15 +334,12 @@ class SentimentTracker:
         sentiment_data = []
 
         for article_id in article_ids:
-            # Query analysis results directly using session
-            results = (
-                session.query(AnalysisResultDB)
-                .filter(
-                    AnalysisResultDB.article_id == article_id,
-                    AnalysisResultDB.analysis_type == "sentiment"
-                )
-                .all()
+            # Query analysis results using SQLModel syntax
+            statement = select(AnalysisResult).where(
+                AnalysisResult.article_id == article_id,
+                AnalysisResult.analysis_type == "sentiment"
             )
+            results = session.exec(statement).all()
             
             for result in results:
                 if result.analysis_type == "sentiment":
@@ -579,8 +575,8 @@ class SentimentTracker:
                 ):
                     topic_data = period_data[topic]
 
-                    # Create trend record
-                    trend_data = OpinionTrendCreate(
+                    # Create trend record with SQLModel
+                    trend_data = OpinionTrend(
                         topic=topic,
                         period=period,
                         period_type=time_interval,
@@ -626,8 +622,8 @@ class SentimentTracker:
         created_shifts = []
 
         for shift in shifts:
-            # Create shift record
-            shift_data = SentimentShiftCreate(
+            # Create shift record with SQLModel
+            shift_data = SentimentShift(
                 topic=shift["topic"],
                 start_period=shift["start_period"],
                 end_period=shift["end_period"],
