@@ -3,9 +3,9 @@
 import logging
 from datetime import datetime, timedelta, UTC
 
-from local_newsifier.config.database import get_db_session
-from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database import ArticleCreate
+from local_newsifier.database.engine import get_session
+from local_newsifier.database.adapter import create_article
+from local_newsifier.models.pydantic_models import ArticleCreate
 
 # Set up logging
 logging.basicConfig(
@@ -69,28 +69,23 @@ TEST_HEADLINES = [
 
 def main():
     """Add test headlines to the database."""
-    session_factory = get_db_session()
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-    
-    try:
-        # Add each headline to the database
-        for headline in TEST_HEADLINES:
-            article = ArticleCreate(
-                title=headline["title"],
-                url=headline["url"],
-                published_at=headline["published_at"],
-                status="analyzed"
-            )
-            db_manager.create_article(article)
-            logger.info(f"Added headline: {headline['title']}")
+    with get_session() as session:
+        try:
+            # Add each headline to the database
+            for headline in TEST_HEADLINES:
+                article = ArticleCreate(
+                    title=headline["title"],
+                    url=headline["url"],
+                    published_at=headline["published_at"],
+                    status="analyzed"
+                )
+                create_article(article, session=session)
+                logger.info(f"Added headline: {headline['title']}")
+                
+            logger.info("Successfully added all test headlines to the database")
             
-        logger.info("Successfully added all test headlines to the database")
-        
-    except Exception as e:
-        logger.error(f"Error adding test headlines: {e}")
-    finally:
-        session.close()
+        except Exception as e:
+            logger.error(f"Error adding test headlines: {e}")
 
 if __name__ == "__main__":
     main() 

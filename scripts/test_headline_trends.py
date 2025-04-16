@@ -4,8 +4,7 @@ import logging
 import os
 from datetime import datetime, timedelta, UTC
 
-from local_newsifier.config.database import get_db_session
-from local_newsifier.database.manager import DatabaseManager
+from local_newsifier.database.engine import get_session
 from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 # Set up logging
@@ -190,26 +189,21 @@ def generate_reports(analyzer: HeadlineTrendAnalyzer, start_date: datetime, end_
 
 def main():
     """Run headline trend analysis and generate reports."""
-    session_factory = get_db_session()
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-    
-    try:
-        # Create analyzer
-        analyzer = HeadlineTrendAnalyzer(db_manager)
-        
-        # Set date range for analysis (last 30 days)
-        end_date = datetime.now(UTC)
-        start_date = end_date - timedelta(days=30)
-        
-        # Generate reports
-        generate_reports(analyzer, start_date, end_date)
-        logger.info("Successfully generated all trend reports")
-        
-    except Exception as e:
-        logger.error(f"Error generating trend reports: {e}")
-    finally:
-        session.close()
+    with get_session() as session:
+        try:
+            # Create analyzer
+            analyzer = HeadlineTrendAnalyzer(session=session)
+            
+            # Set date range for analysis (last 30 days)
+            end_date = datetime.now(UTC)
+            start_date = end_date - timedelta(days=30)
+            
+            # Generate reports
+            generate_reports(analyzer, start_date, end_date)
+            logger.info("Successfully generated all trend reports")
+            
+        except Exception as e:
+            logger.error(f"Error generating trend reports: {e}")
 
 if __name__ == "__main__":
     main() 

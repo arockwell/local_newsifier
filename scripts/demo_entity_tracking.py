@@ -6,10 +6,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from local_newsifier.config.database import get_db_session
-from local_newsifier.database.manager import DatabaseManager
+from sqlalchemy.orm import Session
+
+from local_newsifier.database.engine import get_session
+from local_newsifier.database.adapter import (
+    create_article, get_canonical_entities_by_type
+)
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.pydantic_models import ArticleCreate
 from local_newsifier.models.database.entity import EntityCreate
 
 # Set up logging
@@ -21,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def add_sample_articles(db_manager: DatabaseManager):
+def add_sample_articles(session: Session):
     """Add sample articles to the database."""
     logger.info("Adding sample articles...")
 
@@ -62,15 +67,15 @@ def add_sample_articles(db_manager: DatabaseManager):
     for article_data in articles:
         try:
             article = ArticleCreate(**article_data)
-            created_article = db_manager.create_article(article)
+            created_article = create_article(article, session=session)
             logger.info(f"Added article: {created_article.title}")
         except Exception as e:
             logger.error(f"Error adding article: {e}")
 
 
-def process_articles(db_manager: DatabaseManager):
+def process_articles(session: Session):
     """Process articles for entity tracking."""
-    flow = EntityTrackingFlow(db_manager)
+    flow = EntityTrackingFlow(session=session)
     
     # Process all articles
     results = flow.process_new_articles()
@@ -86,9 +91,9 @@ def process_articles(db_manager: DatabaseManager):
             logger.info(f"    Context: {entity['context']}")
 
 
-def show_entity_dashboard(db_manager: DatabaseManager, days: int = 30):
+def show_entity_dashboard(session: Session, days: int = 30):
     """Show entity tracking dashboard."""
-    flow = EntityTrackingFlow(db_manager)
+    flow = EntityTrackingFlow(session=session)
     
     # Get dashboard data
     dashboard = flow.get_entity_dashboard(days=days)
@@ -109,9 +114,9 @@ def show_entity_dashboard(db_manager: DatabaseManager, days: int = 30):
             logger.info(f"  Recent sentiment trend: {entity['sentiment_trend']}")
 
 
-def show_entity_relationships(db_manager: DatabaseManager, entity_id: int, days: int = 30):
+def show_entity_relationships(session: Session, entity_id: int, days: int = 30):
     """Show relationships between entities."""
-    flow = EntityTrackingFlow(db_manager)
+    flow = EntityTrackingFlow(session=session)
     
     # Get relationships data
     relationships = flow.find_entity_relationships(entity_id, days)
@@ -133,28 +138,21 @@ def main():
     parser.add_argument("--days", type=int, default=30, help="Number of days to analyze")
     args = parser.parse_args()
 
-    # Initialize database connection
-    session_factory = get_db_session()
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-
-    try:
+    # Use context manager for session
+    with get_session() as session:
         # Add sample articles
-        add_sample_articles(db_manager)
+        add_sample_articles(session)
 
         # Process articles for entity tracking
-        process_articles(db_manager)
+        process_articles(session)
 
         # Show entity dashboard
-        show_entity_dashboard(db_manager, days=args.days)
+        show_entity_dashboard(session, days=args.days)
 
         # Get first entity ID for relationship demo
-        first_entity = db_manager.get_canonical_entities_by_type("PERSON")[0]
+        first_entity = get_canonical_entities_by_type("PERSON", session=session)[0]
         if first_entity:
-            show_entity_relationships(db_manager, first_entity.id, days=args.days)
-
-    finally:
-        session.close()
+            show_entity_relationships(session, first_entity.id, days=args.days)
 
 
 if __name__ == "__main__":

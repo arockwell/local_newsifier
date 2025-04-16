@@ -16,11 +16,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from local_newsifier.config.database import get_db_session
-from local_newsifier.database.manager import DatabaseManager
+from sqlalchemy.orm import Session
+
+from local_newsifier.database.engine import get_session
+from local_newsifier.database.adapter import (
+    create_article, get_article, add_analysis_result, update_article_status
+)
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-from local_newsifier.models.database.article import ArticleCreate, ArticleDB
-from local_newsifier.models.pydantic_models import AnalysisResultCreate
+from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
@@ -34,7 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def add_sample_articles(db_manager: DatabaseManager):
+def add_sample_articles(session: Session):
     """Add sample articles to the database."""
     logger.info("Adding sample articles...")
 
@@ -88,18 +92,18 @@ def add_sample_articles(db_manager: DatabaseManager):
     for article_data in articles:
         try:
             article = ArticleCreate(**article_data)
-            created_article = db_manager.create_article(article)
+            created_article = create_article(article, session=session)
             logger.info(f"Added article: {created_article.title}")
         except Exception as e:
             logger.error(f"Error adding article: {e}")
 
 
-def analyze_articles(db_manager: DatabaseManager, article_ids: List[int]):
+def analyze_articles(session: Session, article_ids: List[int]):
     """Analyze sentiment for articles."""
     sentiment_analyzer = SentimentAnalysisTool()
     
     for article_id in article_ids:
-        article = db_manager.get_article(article_id)
+        article = get_article(article_id, session=session)
         if not article:
             continue
             
@@ -129,7 +133,7 @@ def analyze_articles(db_manager: DatabaseManager, article_ids: List[int]):
                     "topic_sentiments": sentiment_data["topic_sentiments"]
                 }
             )
-            db_manager.add_analysis_result(analysis_result)
+            add_analysis_result(analysis_result, session=session)
             
             # Log results
             logger.info(f"Document Sentiment: {sentiment_data['document_sentiment']}")
@@ -139,14 +143,14 @@ def analyze_articles(db_manager: DatabaseManager, article_ids: List[int]):
                 logger.info(f"  {topic}: {sentiment}")
                 
             # Update article status
-            db_manager.update_article_status(article.id, "analyzed")
+            update_article_status(article.id, "analyzed", session=session)
         else:
             logger.warning("No sentiment analysis results available")
 
 
-def analyze_trends(db_manager: DatabaseManager):
+def analyze_trends(session: Session):
     """Analyze sentiment trends."""
-    sentiment_tracker = SentimentTracker(db_manager)
+    sentiment_tracker = SentimentTracker(session=session)
     
     # Analyze trends for the past week
     end_date = datetime.now(timezone.utc)
@@ -401,27 +405,23 @@ def main():
     parser.add_argument("--topics", nargs="+", help="Topics to analyze")
     args = parser.parse_args()
 
-    # Initialize database connection
-    session_factory = get_db_session()
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-
-    try:
+    # Use a context manager for the session
+    with get_session() as session:
         # Add sample articles
-        add_sample_articles(db_manager)
+        add_sample_articles(session)
 
         # Get all articles and their IDs
-        articles = db_manager.session.query(ArticleDB).all()
+        articles = session.query(ArticleDB).all()
         article_ids = [int(article.id) for article in articles]  # Explicitly convert to int
 
         # Analyze articles
-        analyze_articles(db_manager, article_ids)
+        analyze_articles(session, article_ids)
 
         # Analyze trends
-        analyze_trends(db_manager)
+        analyze_trends(session)
 
         # Initialize public opinion flow
-        flow = PublicOpinionFlow(db_manager)
+        flow = PublicOpinionFlow(session=session)
 
         # Show topic trends if topics are provided
         if args.topics:
@@ -432,9 +432,6 @@ def main():
                 topic_pairs = [(args.topics[i], args.topics[i+1]) 
                              for i in range(len(args.topics)-1)]
                 compare_topics(flow, topic_pairs, days=args.days)
-
-    finally:
-        session.close()
 
 
 if __name__ == "__main__":
