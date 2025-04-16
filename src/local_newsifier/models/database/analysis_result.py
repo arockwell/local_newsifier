@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional, TYPE_CHECKING
 
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, JSON
 
 from local_newsifier.models.database.base import TableBase
 
@@ -18,7 +18,7 @@ class AnalysisResult(TableBase, table=True):
 
     article_id: int = Field(foreign_key="articles.id")
     analysis_type: str
-    results: Dict[str, Any]
+    results: Dict[str, Any] = Field(sa_type=JSON)
     
     # Define relationship
     article: Optional["Article"] = Relationship(back_populates="analysis_results")

@@ -4,9 +4,9 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from sqlmodel import SQLModel, Session, select
 
-from local_newsifier.models.database.base import Base
+from local_newsifier.models.database.base import TableBase
 
-ModelType = TypeVar("ModelType", bound=SQLModel)
+ModelType = TypeVar("ModelType", bound=TableBase)
 
 
 class CRUDBase(Generic[ModelType]):

@@ -3,8 +3,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.article import Article

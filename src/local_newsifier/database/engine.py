@@ -3,8 +3,7 @@
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
-from sqlmodel import create_engine as sqlmodel_create_engine, Session, SQLModel
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import create_engine, Session, SQLModel, sessionmaker
 
 from local_newsifier.config.settings import get_settings
 
@@ -25,7 +24,7 @@ def get_engine(url: str = None):
     settings = get_settings()
     url = url or str(settings.DATABASE_URL)
 
-    return sqlmodel_create_engine(
+    return create_engine(
         url,
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
