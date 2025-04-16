@@ -10,7 +10,7 @@ from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.article import Article
 
 
-class CRUDArticle(CRUDBase[Article, Article, Article]):
+class CRUDArticle(CRUDBase[Article]):
     """CRUD operations for articles."""
 
     def get_by_url(self, db: Session, *, url: str) -> Optional[Article]:

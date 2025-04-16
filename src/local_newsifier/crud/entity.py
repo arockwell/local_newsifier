@@ -9,7 +9,7 @@ from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.entity import Entity
 
 
-class CRUDEntity(CRUDBase[Entity, Entity, Entity]):
+class CRUDEntity(CRUDBase[Entity]):
     """CRUD operations for entities."""
 
     def get_by_article(self, db: Session, *, article_id: int) -> List[Entity]:

@@ -7,11 +7,9 @@ from sqlmodel import SQLModel, Session, select
 from local_newsifier.models.database.base import Base
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 
 
-class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+class CRUDBase(Generic[ModelType]):
     """Base class for CRUD operations."""
 
     def __init__(self, model: Type[ModelType]):
@@ -54,7 +52,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return results.all()
 
     def create(
-        self, db: Session, *, obj_in: Union[CreateSchemaType, Dict[str, Any]]
+        self, db: Session, *, obj_in: Union[ModelType, Dict[str, Any]]
     ) -> ModelType:
         """Create a new item.
 
@@ -81,7 +79,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db: Session,
         *,
         db_obj: ModelType,
-        obj_in: Union[UpdateSchemaType, Dict[str, Any]]
+        obj_in: Union[ModelType, Dict[str, Any]]
     ) -> ModelType:
         """Update an item.
 
