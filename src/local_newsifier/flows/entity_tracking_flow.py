@@ -4,14 +4,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Union, Any
 
 from crewai import Flow
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from ..database.engine import with_session
 from ..crud.article import article as article_crud
 from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
 from ..crud.entity import entity as entity_crud
 from ..crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from ..models.database import ArticleDB
+from ..models.database.article import Article
 from ..models.entity_tracking import CanonicalEntity
 from ..models.state import AnalysisStatus, NewsAnalysisState
 from ..tools.entity_tracker import EntityTracker

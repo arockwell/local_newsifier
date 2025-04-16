@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from ...database.engine import get_session, with_session
 from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
