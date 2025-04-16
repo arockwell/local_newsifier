@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from ..models.database import AnalysisResultDB, ArticleDB
 from ..models.trend import TimeFrame, TopicFrequency
 from .historical_aggregator import HistoricalDataAggregator
-from ..database.manager import DatabaseManager
+from ..database.adapter import with_session
 
 
 class TopicFrequencyAnalyzer:
@@ -75,12 +75,15 @@ class TopicFrequencyAnalyzer:
 
         return 0.0, False
 
+    @with_session
     def identify_significant_changes(
         self,
         entity_types: List[str],
         time_frame: TimeFrame,
         significance_threshold: float = 1.5,
         min_mentions: int = 2,
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """
         Identify statistically significant changes in topic frequencies.
@@ -96,7 +99,7 @@ class TopicFrequencyAnalyzer:
         """
         # Get current and baseline frequencies
         current_freqs, baseline_freqs = self.data_aggregator.get_baseline_frequencies(
-            entity_types, time_frame
+            entity_types, time_frame, session=session
         )
 
         significant_changes = {}
