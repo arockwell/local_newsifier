@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 
 from crewai import Flow
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from ..database.engine import get_session, with_session
 from ..crud.article import article as article_crud
@@ -38,7 +38,7 @@ class PublicOpinionFlow(Flow):
         Initialize the public opinion analysis flow.
 
         Args:
-            session: Optional SQLAlchemy session to use
+            session: Optional SQLModel session to use
         """
         super().__init__()
 
@@ -74,7 +74,7 @@ class PublicOpinionFlow(Flow):
 
         Args:
             article_ids: Optional list of article IDs to analyze
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Dictionary mapping article IDs to sentiment results
@@ -118,7 +118,7 @@ class PublicOpinionFlow(Flow):
             topics: List of topics to analyze
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Dictionary containing topic sentiment analysis results
@@ -174,7 +174,7 @@ class PublicOpinionFlow(Flow):
             entity_names: List of entity names to analyze
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Dictionary containing entity sentiment analysis results
@@ -230,7 +230,7 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             shift_threshold: Threshold for significant shifts
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Dictionary of detected opinion shifts by topic
@@ -280,7 +280,7 @@ class PublicOpinionFlow(Flow):
             topic_pairs: List of topic name pairs to correlate
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             List of topic correlation results
@@ -327,7 +327,7 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             format_type: Report format type ('text', 'markdown', 'html')
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Formatted report string
@@ -389,7 +389,7 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             format_type: Report format type ('text', 'markdown', 'html')
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Formatted comparison report string
