@@ -1,8 +1,9 @@
 """Tests for the entity CRUD module."""
 
-import pytest
+# We need pytest for fixtures but don't explicitly use it
 
-from local_newsifier.crud.entity import CRUDEntity, entity as entity_crud
+from local_newsifier.crud.entity import CRUDEntity
+from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.models.database.entity import EntityDB
 from local_newsifier.models.pydantic_models import Entity, EntityCreate
 
@@ -14,14 +15,14 @@ class TestEntityCRUD:
         """Test creating a new entity."""
         obj_in = EntityCreate(**sample_entity_data)
         entity = entity_crud.create(db_session, obj_in=obj_in)
-        
+
         assert entity is not None
         assert entity.id is not None
         assert entity.text == obj_in.text
         assert entity.entity_type == obj_in.entity_type
         assert entity.confidence == obj_in.confidence
         assert entity.article_id == obj_in.article_id
-        
+
         # Verify it was saved to the database
         db_entity = db_session.query(EntityDB).filter(EntityDB.id == entity.id).first()
         assert db_entity is not None
@@ -30,7 +31,7 @@ class TestEntityCRUD:
     def test_get(self, db_session, create_entity):
         """Test getting an entity by ID."""
         entity = entity_crud.get(db_session, id=create_entity.id)
-        
+
         assert entity is not None
         assert entity.id == create_entity.id
         assert entity.text == create_entity.text
@@ -46,32 +47,32 @@ class TestEntityCRUD:
                 "text": "Entity 1",
                 "entity_type": "TYPE1",
                 "confidence": 0.9,
-                "sentence_context": "Context for entity 1."
+                "sentence_context": "Context for entity 1.",
             },
             {
                 "article_id": create_article.id,
                 "text": "Entity 2",
                 "entity_type": "TYPE2",
                 "confidence": 0.85,
-                "sentence_context": "Context for entity 2."
+                "sentence_context": "Context for entity 2.",
             },
             {
                 "article_id": create_article.id,
                 "text": "Entity 3",
                 "entity_type": "TYPE1",
                 "confidence": 0.95,
-                "sentence_context": "Context for entity 3."
-            }
+                "sentence_context": "Context for entity 3.",
+            },
         ]
-        
+
         for entity_data in entities_data:
             db_entity = EntityDB(**entity_data)
             db_session.add(db_entity)
         db_session.commit()
-        
+
         # Test getting all entities for the article
         entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
-        
+
         assert len(entities) == 3
         entity_texts = [entity.text for entity in entities]
         assert "Entity 1" in entity_texts
@@ -81,7 +82,7 @@ class TestEntityCRUD:
     def test_get_by_article_empty(self, db_session, create_article):
         """Test getting entities for an article with no entities."""
         entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
-        
+
         assert len(entities) == 0
 
     def test_get_by_text_and_article(self, db_session, create_article):
@@ -92,17 +93,17 @@ class TestEntityCRUD:
             "text": "Specific Entity",
             "entity_type": "SPECIFIC",
             "confidence": 0.9,
-            "sentence_context": "Context for specific entity."
+            "sentence_context": "Context for specific entity.",
         }
         db_entity = EntityDB(**entity_data)
         db_session.add(db_entity)
         db_session.commit()
-        
+
         # Test getting the entity by text and article ID
         entity = entity_crud.get_by_text_and_article(
             db_session, text="Specific Entity", article_id=create_article.id
         )
-        
+
         assert entity is not None
         assert entity.text == "Specific Entity"
         assert entity.article_id == create_article.id
@@ -112,7 +113,7 @@ class TestEntityCRUD:
         entity = entity_crud.get_by_text_and_article(
             db_session, text="Nonexistent Entity", article_id=create_article.id
         )
-        
+
         assert entity is None
 
     def test_singleton_instance(self):

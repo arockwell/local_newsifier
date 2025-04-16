@@ -1,18 +1,15 @@
 """Test fixtures for CRUD module tests."""
 
-import pytest
 from datetime import datetime, timezone
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 
-from local_newsifier.models.database.base import Base
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.database.base import Base
 from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.entity_tracking import (
-    CanonicalEntityDB, EntityMentionContextDB, EntityProfileDB, 
-    entity_mentions, entity_relationships
-)
+from local_newsifier.models.entity_tracking import CanonicalEntityDB
 
 
 @pytest.fixture(scope="function")
@@ -43,7 +40,7 @@ def sample_article_data():
         "source": "test_source",
         "published_at": datetime.now(timezone.utc),
         "status": "new",
-        "scraped_at": datetime.now(timezone.utc)
+        "scraped_at": datetime.now(timezone.utc),
     }
 
 
@@ -55,7 +52,7 @@ def sample_entity_data():
         "text": "Test Entity",
         "entity_type": "TEST",
         "confidence": 0.95,
-        "sentence_context": "This is a test entity context."
+        "sentence_context": "This is a test entity context.",
     }
 
 
@@ -65,7 +62,7 @@ def sample_analysis_result_data():
     return {
         "article_id": 1,
         "analysis_type": "test_analysis",
-        "results": {"key": "value"}
+        "results": {"key": "value"},
     }
 
 
@@ -76,7 +73,7 @@ def sample_canonical_entity_data():
         "name": "Test Canonical Entity",
         "entity_type": "PERSON",
         "description": "This is a test canonical entity.",
-        "entity_metadata": {"key": "value"}
+        "entity_metadata": {"key": "value"},
     }
 
 
@@ -88,7 +85,7 @@ def sample_entity_mention_context_data():
         "article_id": 1,
         "context_text": "This is a test context for entity mentions.",
         "context_type": "sentence",
-        "sentiment_score": 0.8
+        "sentiment_score": 0.8,
     }
 
 
@@ -99,7 +96,7 @@ def sample_entity_profile_data():
         "canonical_entity_id": 1,
         "profile_type": "summary",
         "content": "This is a test profile content.",
-        "profile_metadata": {"key": "value"}
+        "profile_metadata": {"key": "value"},
     }
 
 
@@ -111,7 +108,7 @@ def sample_entity_relationship_data():
         "target_entity_id": 2,
         "relationship_type": "RELATED_TO",
         "confidence": 0.9,
-        "evidence": "This is evidence for the relationship."
+        "evidence": "This is evidence for the relationship.",
     }
 
 
@@ -125,7 +122,7 @@ def create_article(db_session):
         source="test_source",
         published_at=datetime.now(timezone.utc),
         status="new",
-        scraped_at=datetime.now(timezone.utc)
+        scraped_at=datetime.now(timezone.utc),
     )
     db_session.add(article)
     db_session.commit()
@@ -140,7 +137,7 @@ def create_entity(db_session, create_article):
         text="Test Entity",
         entity_type="TEST",
         confidence=0.95,
-        sentence_context="This is a test entity context."
+        sentence_context="This is a test entity context.",
     )
     db_session.add(entity)
     db_session.commit()
@@ -154,7 +151,7 @@ def create_canonical_entity(db_session):
         name="Test Canonical Entity",
         entity_type="PERSON",
         description="This is a test canonical entity.",
-        entity_metadata={"key": "value"}
+        entity_metadata={"key": "value"},
     )
     db_session.add(entity)
     db_session.commit()
@@ -169,20 +166,20 @@ def create_canonical_entities(db_session):
             name="Test Entity 1",
             entity_type="PERSON",
             description="This is test entity 1",
-            entity_metadata={"id": 1}
+            entity_metadata={"id": 1},
         ),
         CanonicalEntityDB(
             name="Test Entity 2",
             entity_type="ORG",
             description="This is test entity 2",
-            entity_metadata={"id": 2}
+            entity_metadata={"id": 2},
         ),
         CanonicalEntityDB(
             name="Test Entity 3",
             entity_type="PERSON",
             description="This is test entity 3",
-            entity_metadata={"id": 3}
-        )
+            entity_metadata={"id": 3},
+        ),
     ]
     for entity in entities:
         db_session.add(entity)
