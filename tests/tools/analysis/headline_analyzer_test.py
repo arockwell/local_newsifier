@@ -79,10 +79,10 @@ def test_headline_analyzer_with_real_db(test_session, mock_nlp):
         # Create analyzer with real database session
         analyzer = HeadlineTrendAnalyzer(session=test_session)
         
-        # Test getting headlines
+        # Test getting headlines - explicitly pass the session
         start_date = now - timedelta(days=1)
         end_date = now + timedelta(days=1)
-        headlines = analyzer.get_headlines_by_period(start_date, end_date, "day")
+        headlines = analyzer.get_headlines_by_period(start_date, end_date, "day", session=test_session)
         
         # Verify results
         assert len(headlines) > 0
@@ -94,8 +94,8 @@ def test_headline_analyzer_with_real_db(test_session, mock_nlp):
         assert len(keywords) > 0
         assert any("test" in kw.lower() for kw, _ in keywords)
         
-        # Test trend analysis
-        trends = analyzer.analyze_trends(start_date, end_date)
+        # Test trend analysis - explicitly pass the session
+        trends = analyzer.analyze_trends(start_date, end_date, session=test_session)
         assert "trending_terms" in trends
         assert "overall_top_terms" in trends
         assert "raw_data" in trends
@@ -134,10 +134,10 @@ def test_headline_analyzer_with_real_db_and_trends(test_session, mock_nlp, caplo
         # Create analyzer with real database session
         analyzer = HeadlineTrendAnalyzer(session=test_session)
         
-        # Test trend analysis
+        # Test trend analysis - explicitly pass the session
         start_date = now - timedelta(days=3)
         end_date = now
-        trends = analyzer.analyze_trends(start_date, end_date, time_interval="day")
+        trends = analyzer.analyze_trends(start_date, end_date, time_interval="day", session=test_session)
         
         # Log the results for debugging
         logger.debug("Trend analysis results: %s", trends)
@@ -182,10 +182,10 @@ def test_headline_analyzer_with_real_db_and_noise(test_session, mock_nlp):
         # Create analyzer with real database session
         analyzer = HeadlineTrendAnalyzer(session=test_session)
         
-        # Test trend analysis
+        # Test trend analysis - explicitly pass the session
         start_date = now - timedelta(days=10)
         end_date = now
-        trends = analyzer.analyze_trends(start_date, end_date, time_interval="day")
+        trends = analyzer.analyze_trends(start_date, end_date, time_interval="day", session=test_session)
         
         # Verify noisy terms are filtered out
         assert "trending_terms" in trends
@@ -260,8 +260,8 @@ class TestHeadlineTrendAnalyzer:
         mock_query.filter.return_value = mock_filter
         mock_session.query.return_value = mock_query
         
-        # Call the method
-        result = analyzer.get_headlines_by_period(start_date, end_date, "day")
+        # Call the method with mock_session
+        result = analyzer.get_headlines_by_period(start_date, end_date, "day", session=mock_session)
         
         # Verify results
         assert len(result) == 10  # One entry per day
@@ -370,13 +370,13 @@ class TestHeadlineTrendAnalyzer:
                 {"term": "term3", "growth_rate": 2.0, "total_mentions": 2}
             ]
             
-            # Call the method
+            # Call the method with mock_session
             start_date = datetime(2023, 5, 1)
             end_date = datetime(2023, 5, 2)
-            result = analyzer.analyze_trends(start_date, end_date)
+            result = analyzer.analyze_trends(start_date, end_date, session=mock_session)
             
             # Verify method calls
-            mock_get_headlines.assert_called_once_with(start_date, end_date, "day")
+            mock_get_headlines.assert_called_once_with(start_date, end_date, "day", session=mock_session)
             assert mock_extract_keywords.call_count == 3
             mock_detect_trends.assert_called_once()
             

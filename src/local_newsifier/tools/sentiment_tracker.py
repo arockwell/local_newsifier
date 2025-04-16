@@ -50,7 +50,7 @@ class SentimentTracker:
             Dictionary mapping periods to sentiment data
         """
         # Get all articles in date range
-        articles = self._get_articles_in_range(start_date, end_date)
+        articles = self._get_articles_in_range(start_date, end_date, session=session)
 
         # Group by period
         period_groups = self._group_articles_by_period(articles, time_interval)
@@ -63,7 +63,7 @@ class SentimentTracker:
 
             # Get sentiment analyses for these articles
             article_ids = [article.id for article in period_articles]
-            sentiment_data = self._get_sentiment_data_for_articles(article_ids)
+            sentiment_data = self._get_sentiment_data_for_articles(article_ids, session=session)
 
             # Calculate overall sentiment for period
             if sentiment_data:

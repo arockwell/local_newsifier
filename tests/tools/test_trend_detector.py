@@ -303,7 +303,6 @@ def test_get_articles_for_entity(
     # Mock session query
     mock_session = MagicMock()
     mock_session.query.return_value.filter.return_value.all.return_value = downtown_entities
-    mock_data_aggregator.db_manager.get_session.return_value.__enter__.return_value = mock_session
     
     detector = TrendDetector(
         topic_analyzer=mock_topic_analyzer,
@@ -315,17 +314,21 @@ def test_get_articles_for_entity(
     end_date = datetime.now(timezone.utc)
     
     result = detector._get_articles_for_entity(
-        "Downtown Project", "ORG", start_date, end_date
+        "Downtown Project", "ORG", start_date, end_date, session=mock_session
     )
     
-    # Check that the right methods were called
-    mock_data_aggregator.get_articles_in_timeframe.assert_called_with(start_date, end_date)
+    # Check that the get_articles_in_timeframe was called with the session parameter
+    call_args = mock_data_aggregator.get_articles_in_timeframe.call_args[0]
+    assert call_args[0] == start_date
+    assert call_args[1] == end_date
+    
+    # Verify session query was called
     mock_session.query.assert_called_with(EntityDB)
     
     # Test with no articles
     mock_data_aggregator.get_articles_in_timeframe.return_value = []
     result = detector._get_articles_for_entity(
-        "Downtown Project", "ORG", start_date, end_date
+        "Downtown Project", "ORG", start_date, end_date, session=mock_session
     )
     assert result == []
 

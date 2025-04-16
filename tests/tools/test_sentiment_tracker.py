@@ -241,10 +241,10 @@ class TestSentimentTracker:
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 10, tzinfo=timezone.utc)
             
-            mock_get_articles(start_date, end_date)
+            mock_get_articles(start_date, end_date, session=mock_session)
             
             # Verify the method was called with correct args
-            mock_get_articles.assert_called_once_with(start_date, end_date)
+            mock_get_articles.assert_called_once_with(start_date, end_date, session=mock_session)
             
             # To improve code coverage, call the original method with an empty session
             # This will avoid the TypeErrors from the complex query
@@ -253,10 +253,14 @@ class TestSentimentTracker:
             
             # Just assert that we didn't get an error
             try:
-                articles = tracker._get_articles_in_range(start_date, end_date)
+                # Create a new mock session for the test
+                test_mock_session = MagicMock()
+                test_mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+                
+                articles = tracker._get_articles_in_range(start_date, end_date, session=test_mock_session)
                 assert isinstance(articles, list)
             except Exception:
-                pytest.fail("_get_articles_in_range raised an exception with None session")
+                pytest.fail("_get_articles_in_range raised an exception with provided session")
             finally:
                 tracker.session = original_session
 
@@ -274,25 +278,34 @@ class TestSentimentTracker:
         mock_other_result = MagicMock()
         mock_other_result.analysis_type = "NER"
         
-        # Patch the adapter function we would be using
-        with patch('src.local_newsifier.database.adapter.get_analysis_results_by_article') as mock_get_results:
-            # Return different results for different articles
-            def get_results_side_effect(article_id, **kwargs):
-                if article_id == 1:
-                    return [mock_sentiment_result, mock_other_result]
-                else:
-                    return [mock_other_result]
-                    
-            mock_get_results.side_effect = get_results_side_effect
-            
-            # Get sentiment data
-            results = tracker._get_sentiment_data_for_articles([1, 2])
-            
-            # Should have one result (for article 1)
-            assert len(results) == 1
-            assert results[0]["document_sentiment"] == 0.5
-            assert results[0]["article_id"] == 1
-            assert "topic_sentiments" in results[0]
+        # Create a mock session for the test
+        mock_session = MagicMock()
+        
+        # Set up mock query chain for first article
+        mock_query1 = MagicMock()
+        mock_query1.all.return_value = [mock_sentiment_result, mock_other_result]
+        
+        # Set up mock query chain for second article
+        mock_query2 = MagicMock()
+        mock_query2.all.return_value = [mock_other_result]
+        
+        # Set up session query filter to return different results based on article_id
+        def mock_filter_side_effect(*args, **kwargs):
+            if args[0].right.value == 1:  # This is checking if article_id == 1
+                return mock_query1
+            else:
+                return mock_query2
+                
+        mock_session.query.return_value.filter.side_effect = mock_filter_side_effect
+        
+        # Get sentiment data
+        results = tracker._get_sentiment_data_for_articles([1, 2], session=mock_session)
+        
+        # Should have one result (for article 1)
+        assert len(results) == 1
+        assert results[0]["document_sentiment"] == 0.5
+        assert results[0]["article_id"] == 1
+        assert "topic_sentiments" in results[0]
 
     def test_get_sentiment_by_period(self, tracker):
         """Test getting sentiment data grouped by period."""
@@ -322,7 +335,7 @@ class TestSentimentTracker:
             }
             
             # Mock sentiment data
-            mock_get_data.side_effect = lambda ids: [{"document_sentiment": 0.5}] if 1 in ids else [{"document_sentiment": -0.3}]
+            mock_get_data.side_effect = lambda ids, **kwargs: [{"document_sentiment": 0.5}] if 1 in ids else [{"document_sentiment": -0.3}]
             
             # Mock sentiment calculations
             mock_calc_period.side_effect = lambda data: {
@@ -339,10 +352,14 @@ class TestSentimentTracker:
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
             
+            # Create a mock session
+            mock_sess = MagicMock()
+            
             results = tracker.get_sentiment_by_period(
                 start_date=start_date,
                 end_date=end_date,
-                topics=["climate"]
+                topics=["climate"],
+                session=mock_sess
             )
             
             # Verify results structure
@@ -352,7 +369,12 @@ class TestSentimentTracker:
             assert "climate" in results["2023-05-01"]
             
             # Verify method calls
-            mock_get_articles.assert_called_once_with(start_date, end_date)
+            assert mock_get_articles.call_count == 1
+            args, kwargs = mock_get_articles.call_args
+            assert args[0] == start_date
+            assert args[1] == end_date
+            assert "session" in kwargs
+            
             mock_group.assert_called_once()
             assert mock_get_data.call_count == 2
             assert mock_calc_period.call_count == 2
@@ -383,8 +405,8 @@ class TestSentimentTracker:
                 "2023-05-02": [mock_article2]
             }
             
-            # Mock sentiment data
-            mock_get_data.side_effect = lambda ids: [{"entity_sentiments": {"John": 0.5}}] if 1 in ids else [{"entity_sentiments": {"John": 0.7}}]
+            # Mock sentiment data with a function that accepts session
+            mock_get_data.side_effect = lambda ids, **kwargs: [{"entity_sentiments": {"John": 0.5}}] if 1 in ids else [{"entity_sentiments": {"John": 0.7}}]
             
             # Mock entity sentiment calculation (only for "John")
             def calc_entity_side_effect(data, entity):
@@ -398,10 +420,14 @@ class TestSentimentTracker:
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
             
+            # Create a mock session to pass to the method
+            mock_sess = MagicMock()
+            
             results = tracker.get_entity_sentiment_trends(
                 entity_name="John",
                 start_date=start_date,
-                end_date=end_date
+                end_date=end_date,
+                session=mock_sess
             )
             
             # Verify results structure
@@ -411,7 +437,12 @@ class TestSentimentTracker:
             assert results["2023-05-02"]["avg_sentiment"] == 0.7
             
             # Verify method calls
-            mock_get_articles.assert_called_once_with(start_date, end_date)
+            assert mock_get_articles.call_count == 1
+            args, kwargs = mock_get_articles.call_args
+            assert args[0] == start_date
+            assert args[1] == end_date
+            assert "session" in kwargs
+            
             mock_group.assert_called_once()
             assert mock_get_data.call_count == 2
             assert mock_calc_entity.call_count == 2
@@ -423,7 +454,8 @@ class TestSentimentTracker:
             results = tracker.get_entity_sentiment_trends(
                 entity_name="Jane",
                 start_date=start_date,
-                end_date=end_date
+                end_date=end_date,
+                session=mock_sess
             )
             
             assert results == {}
@@ -459,11 +491,15 @@ class TestSentimentTracker:
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
             
+            # Create a mock session
+            mock_sess = MagicMock()
+            
             results = tracker.detect_sentiment_shifts(
                 topics=["climate", "energy"],
                 start_date=start_date,
                 end_date=end_date,
-                shift_threshold=0.3
+                shift_threshold=0.3,
+                session=mock_sess
             )
             
             # Verify results
@@ -471,9 +507,16 @@ class TestSentimentTracker:
             assert results[0]["topic"] == "climate"
             
             # Verify method calls
-            mock_get_sentiment.assert_called_once_with(
-                start_date, end_date, "day", ["climate", "energy"]
-            )
+            assert mock_get_sentiment.call_count == 1
+            # Check the call arguments
+            args, kwargs = mock_get_sentiment.call_args
+            assert args[0] == start_date
+            assert args[1] == end_date
+            assert args[2] == "day"
+            assert args[3] == ["climate", "energy"]
+            # Session should be in kwargs
+            assert "session" in kwargs
+            
             assert mock_detect_shifts.call_count == 2
 
     def test_calculate_topic_correlation(self, tracker):
@@ -509,11 +552,15 @@ class TestSentimentTracker:
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
             
+            # Create a mock session
+            mock_sess = MagicMock()
+            
             result = tracker.calculate_topic_correlation(
                 topic1="climate",
                 topic2="energy",
                 start_date=start_date,
-                end_date=end_date
+                end_date=end_date,
+                session=mock_sess
             )
             
             # Verify results
@@ -523,9 +570,13 @@ class TestSentimentTracker:
             assert result["period_count"] == 3
             
             # Verify method calls
-            mock_get_sentiment.assert_called_once_with(
-                start_date, end_date, "day", ["climate", "energy"]
-            )
+            assert mock_get_sentiment.call_count == 1
+            args, kwargs = mock_get_sentiment.call_args
+            assert args[0] == start_date
+            assert args[1] == end_date
+            assert args[2] == "day"
+            assert args[3] == ["climate", "energy"]
+            assert "session" in kwargs
             
             # Should be called with the sentiment values
             mock_calc_correlation.assert_called_once_with(
