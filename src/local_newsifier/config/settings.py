@@ -3,7 +3,7 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -63,16 +63,24 @@ class Settings(BaseSettings):
 
     # NER analysis settings
     NER_MODEL: str = "en_core_web_lg"
-    ENTITY_TYPES: List[str] = Field(default_factory=lambda: ["PERSON", "ORG", "GPE"])
+    ENTITY_TYPES: List[str] = Field(
+        default_factory=lambda: ["PERSON", "ORG", "GPE"]
+    )
 
     @computed_field
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment."""
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     def create_directories(self) -> None:
         """Create necessary directories if they don't exist."""
@@ -83,9 +91,10 @@ class Settings(BaseSettings):
 # Create global settings instance
 settings = Settings()
 
+
 def get_settings() -> Settings:
     """Get the settings instance.
-    
+
     Returns:
         Settings: The global settings instance
     """
