@@ -10,7 +10,7 @@ import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from local_newsifier.models.database import Base
+from local_newsifier.models.database import SQLModel
 from local_newsifier.config.database import DatabaseSettings
 
 
@@ -61,7 +61,7 @@ def test_engine(postgres_url):
     engine = create_engine(postgres_url)
     
     # Create all tables
-    Base.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)
     
     yield engine
     

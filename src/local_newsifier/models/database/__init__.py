@@ -4,17 +4,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.base import Base, SQLModel
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
 
 # Re-export all models
 __all__ = [
     "Base",
-    "ArticleDB",
-    "EntityDB",
-    "AnalysisResultDB",
+    "SQLModel",
+    "Article",
+    "Entity",
+    "AnalysisResultDB",  # To be converted to SQLModel in next phase
     "init_db",
     "get_session"
 ]

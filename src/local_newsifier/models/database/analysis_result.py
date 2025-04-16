@@ -1,25 +1,30 @@
 """Analysis result models for the news analysis system."""
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, JSON
-from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Column, JSON, String
 
 from local_newsifier.models.database.base import Base
 
+# Handle circular imports
+if TYPE_CHECKING:
+    from local_newsifier.models.database.article import Article
 
-class AnalysisResultDB(Base):
-    """Database model for analysis results."""
+
+class AnalysisResult(Base, table=True):
+    """SQLModel for analysis results."""
 
     __tablename__ = "analysis_results"
-    __table_args__ = {'extend_existing': True}
 
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
-    analysis_type = Column(String, nullable=False)
-    results = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now())
+    article_id: int = Field(foreign_key="articles.id", nullable=False)
+    analysis_type: str = Field(sa_column=Column(String, nullable=False))
+    results: Dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    
+    # Define relationship
+    article: Optional["Article"] = Relationship(back_populates="analysis_results")
 
-    # Relationships
-    article = relationship("ArticleDB", back_populates="analysis_results")
+
+# For backward compatibility during migration
+AnalysisResultDB = AnalysisResult
