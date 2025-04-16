@@ -20,8 +20,8 @@ from typing import Dict, List, Optional, Any, Tuple
 from crewai import Flow
 from sqlalchemy.orm import Session
 
-from ..database.adapter import with_session, get_articles_by_status, update_article_status
-from ..database.engine import get_session
+from ..database.engine import get_session, with_session
+from ..crud.article import article as article_crud
 from ..models.sentiment import SentimentVisualizationData
 from ..tools.sentiment_analyzer import SentimentAnalysisTool
 from ..tools.sentiment_tracker import SentimentTracker
@@ -84,7 +84,7 @@ class PublicOpinionFlow(Flow):
         
         # If no article IDs provided, get all articles that need sentiment analysis
         if not article_ids:
-            articles = get_articles_by_status("analyzed", session=session)
+            articles = article_crud.get_by_status(session, status="analyzed")
             article_ids = [article.id for article in articles]
 
         # Analyze each article
@@ -97,7 +97,9 @@ class PublicOpinionFlow(Flow):
                 results[article_id] = sentiment_results
 
                 # Update article status to indicate sentiment analysis is complete
-                update_article_status(article_id, "sentiment_analyzed", session=session)
+                article_crud.update_status(
+                    session, article_id=article_id, status="sentiment_analyzed"
+                )
 
             except Exception as e:
                 logger.error(f"Error analyzing article {article_id}: {str(e)}")

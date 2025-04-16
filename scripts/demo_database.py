@@ -4,12 +4,11 @@ import logging
 from datetime import UTC, datetime
 
 from local_newsifier.database.engine import get_session
-from local_newsifier.database.adapter import (
-    create_article, add_entity, add_analysis_result, update_article_status
-)
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityCreate
-from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
+from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate, AnalysisResultCreate
 
 # Set up logging
 logging.basicConfig(
@@ -64,7 +63,7 @@ def main():
             published_at=datetime.now(UTC),
             status="new",
         )
-        created_article = create_article(article, session=session)
+        created_article = article_crud.create(session, obj_in=article)
         logger.info(f"Created article with ID: {created_article.id}")
 
         # Add an entity
@@ -75,7 +74,7 @@ def main():
             entity_type="PERSON",
             confidence=0.95,
         )
-        created_entity = add_entity(entity, session=session)
+        created_entity = entity_crud.create(session, obj_in=entity)
         logger.info(
             f"Added entity: {created_entity.text} ({created_entity.entity_type})"
         )
@@ -87,13 +86,13 @@ def main():
             analysis_type="NER",
             results={"entities": ["New Demo Entity"]},
         )
-        created_result = add_analysis_result(result, session=session)
+        created_result = analysis_result_crud.create(session, obj_in=result)
         logger.info(f"Added analysis result: {created_result.analysis_type}")
 
         # Update article status
         logger.info("Updating article status...")
-        updated_article = update_article_status(
-            created_article.id, "analyzed", session=session
+        updated_article = article_crud.update_status(
+            session, article_id=created_article.id, status="analyzed"
         )
         if updated_article:
             logger.info(f"Updated article status to: {updated_article.status}")

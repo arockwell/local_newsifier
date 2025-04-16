@@ -19,9 +19,8 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from local_newsifier.database.engine import get_session
-from local_newsifier.database.adapter import (
-    create_article, get_article, add_analysis_result, update_article_status
-)
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
 from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
@@ -92,7 +91,7 @@ def add_sample_articles(session: Session):
     for article_data in articles:
         try:
             article = ArticleCreate(**article_data)
-            created_article = create_article(article, session=session)
+            created_article = article_crud.create(session, obj_in=article)
             logger.info(f"Added article: {created_article.title}")
         except Exception as e:
             logger.error(f"Error adding article: {e}")
@@ -103,7 +102,7 @@ def analyze_articles(session: Session, article_ids: List[int]):
     sentiment_analyzer = SentimentAnalysisTool()
     
     for article_id in article_ids:
-        article = get_article(article_id, session=session)
+        article = article_crud.get(session, id=article_id)
         if not article:
             continue
             
@@ -118,7 +117,7 @@ def analyze_articles(session: Session, article_ids: List[int]):
         )
         
         # Analyze sentiment
-        state = sentiment_analyzer.analyze(state)
+        state = sentiment_analyzer.analyze_sentiment(state)
         
         if state.analysis_results and "sentiment" in state.analysis_results:
             sentiment_data = state.analysis_results["sentiment"]
@@ -133,7 +132,7 @@ def analyze_articles(session: Session, article_ids: List[int]):
                     "topic_sentiments": sentiment_data["topic_sentiments"]
                 }
             )
-            add_analysis_result(analysis_result, session=session)
+            analysis_result_crud.create(session, obj_in=analysis_result)
             
             # Log results
             logger.info(f"Document Sentiment: {sentiment_data['document_sentiment']}")
@@ -143,7 +142,7 @@ def analyze_articles(session: Session, article_ids: List[int]):
                 logger.info(f"  {topic}: {sentiment}")
                 
             # Update article status
-            update_article_status(article.id, "analyzed", session=session)
+            article_crud.update_status(session, article_id=article.id, status="analyzed")
         else:
             logger.warning("No sentiment analysis results available")
 

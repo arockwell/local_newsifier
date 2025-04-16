@@ -59,8 +59,8 @@ def test_entity_tracker_process_article_calls(mock_process_article):
     assert result[0]["original_text"] == "Joe Biden"
 
 
-@patch("local_newsifier.tools.entity_tracker.add_entity")
-@patch("local_newsifier.tools.entity_tracker.add_entity_mention_context")
+@patch("local_newsifier.crud.entity.entity.create")
+@patch("local_newsifier.crud.entity_mention_context.entity_mention_context.create")
 @patch("local_newsifier.tools.entity_resolver.EntityResolver.resolve_entity")
 @patch("local_newsifier.tools.context_analyzer.ContextAnalyzer.analyze_context")
 @patch("spacy.load")
@@ -119,8 +119,8 @@ def test_entity_tracker_processing_with_mocks(
     )
     
     # Create tracker and test process_article
-    with patch("local_newsifier.tools.entity_tracker.get_entity_profile") as mock_get_profile:
-        with patch("local_newsifier.tools.entity_tracker.add_entity_profile") as mock_add_profile:
+    with patch("local_newsifier.crud.entity_profile.entity_profile.get_by_entity") as mock_get_profile:
+        with patch("local_newsifier.crud.entity_profile.entity_profile.create") as mock_add_profile:
             # Set up mock_get_profile to return None (no existing profile)
             mock_get_profile.return_value = None
             
@@ -147,8 +147,8 @@ def test_entity_tracker_processing_with_mocks(
             mock_add_profile.assert_called_once()
 
 
-@patch("local_newsifier.tools.entity_tracker.get_entity_profile")
-@patch("local_newsifier.tools.entity_tracker.add_entity_profile")
+@patch("local_newsifier.crud.entity_profile.entity_profile.get_by_entity")
+@patch("local_newsifier.crud.entity_profile.entity_profile.create")
 @patch("spacy.load")
 def test_entity_tracker_update_profile_new(
     mock_spacy_load, mock_add_profile, mock_get_profile
@@ -175,18 +175,19 @@ def test_entity_tracker_update_profile_new(
     mock_get_profile.assert_called_once()
     mock_add_profile.assert_called_once()
     
-    # Verify profile data
-    profile_data = mock_add_profile.call_args[0][0]
-    assert profile_data.canonical_entity_id == 1
-    assert profile_data.content is not None  # Check that content field exists
-    assert "Joe Biden" in profile_data.content  # Verify content includes entity name
-    assert profile_data.profile_metadata["mention_count"] == 1
-    assert len(profile_data.profile_metadata["contexts"]) == 1
-    assert profile_data.profile_metadata["temporal_data"] is not None
+    # Verify profile data - for CRUD operations, the first parameter is the session
+    # and the second parameter (as a keyword arg) is the actual data
+    obj_in = mock_add_profile.call_args[1]["obj_in"]
+    assert obj_in.canonical_entity_id == 1
+    assert obj_in.content is not None  # Check that content field exists
+    assert "Joe Biden" in obj_in.content  # Verify content includes entity name
+    assert obj_in.profile_metadata["mention_count"] == 1
+    assert len(obj_in.profile_metadata["contexts"]) == 1
+    assert obj_in.profile_metadata["temporal_data"] is not None
 
 
-@patch("local_newsifier.tools.entity_tracker.get_entity_profile")
-@patch("local_newsifier.tools.entity_tracker.update_entity_profile")
+@patch("local_newsifier.crud.entity_profile.entity_profile.get_by_entity")
+@patch("local_newsifier.crud.entity_profile.entity_profile.update_or_create")
 @patch("spacy.load")
 def test_entity_tracker_update_profile_existing(
     mock_spacy_load, mock_update_profile, mock_get_profile
@@ -234,9 +235,10 @@ def test_entity_tracker_update_profile_existing(
     mock_get_profile.assert_called_once()
     mock_update_profile.assert_called_once()
     
-    # Verify profile data
-    profile_data = mock_update_profile.call_args[0][0]
-    assert profile_data.canonical_entity_id == 1
-    assert profile_data.profile_metadata["mention_count"] == 3  # Increased by 1
-    assert len(profile_data.profile_metadata["contexts"]) == 2  # Added one
-    assert "leadership" in profile_data.profile_metadata["framing_categories"]["history"]
+    # Verify profile data - for CRUD operations, the first parameter is the session
+    # and the second parameter (as a keyword arg) is the actual data
+    obj_in = mock_update_profile.call_args[1]["obj_in"]
+    assert obj_in.canonical_entity_id == 1
+    assert obj_in.profile_metadata["mention_count"] == 3  # Increased by 1
+    assert len(obj_in.profile_metadata["contexts"]) == 2  # Added one
+    assert "leadership" in obj_in.profile_metadata["framing_categories"]["history"]

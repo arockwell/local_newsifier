@@ -6,19 +6,11 @@ from typing import Dict, List, Optional, Union, Any
 from crewai import Flow
 from sqlalchemy.orm import Session
 
-from ..database.adapter import (
-    get_article, 
-    get_articles_by_status,
-    update_article_status,
-    get_canonical_entity,
-    get_canonical_entities_by_type,
-    get_entity_mentions_count,
-    get_entity_timeline,
-    get_entity_sentiment_trend,
-    get_articles_mentioning_entity,
-    get_entities_by_article,
-    with_session
-)
+from ..database.engine import with_session
+from ..crud.article import article as article_crud
+from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
+from ..crud.entity import entity as entity_crud
+from ..crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
 from ..models.database import ArticleDB
 from ..models.entity_tracking import CanonicalEntity
 from ..models.state import AnalysisStatus, NewsAnalysisState
@@ -53,7 +45,7 @@ class EntityTrackingFlow(Flow):
             session = self.session
             
         # Get articles with status "analyzed" that haven't been processed for entities
-        articles = get_articles_by_status("analyzed", session=session)
+        articles = article_crud.get_by_status(session, status="analyzed")
 
         results = []
         for article in articles:
@@ -61,7 +53,7 @@ class EntityTrackingFlow(Flow):
             processed = self.process_article(article.id, session=session)
 
             # Update article status to indicate entity tracking is complete
-            update_article_status(article.id, "entity_tracked", session=session)
+            article_crud.update_status(session, article_id=article.id, status="entity_tracked")
 
             # Add to results
             results.append(
@@ -92,7 +84,7 @@ class EntityTrackingFlow(Flow):
             session = self.session
             
         # Get article
-        article = get_article(article_id, session=session)
+        article = article_crud.get(session, id=article_id)
             
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
@@ -131,15 +123,19 @@ class EntityTrackingFlow(Flow):
             session = self.session
             
         # Get all canonical entities of the specified type
-        entities = get_canonical_entities_by_type(entity_type, session=session)
+        entities = canonical_entity_crud.get_by_type(session, entity_type=entity_type)
 
         # Get mention counts and trends for each entity
         entity_data = []
         for entity in entities:
             # Get mention count
-            mention_count = get_entity_mentions_count(entity.id, session=session)
-            timeline = get_entity_timeline(entity.id, start_date, end_date, session=session)
-            sentiment_trend = get_entity_sentiment_trend(entity.id, start_date, end_date, session=session)
+            mention_count = canonical_entity_crud.get_mentions_count(session, entity_id=entity.id)
+            timeline = canonical_entity_crud.get_entity_timeline(
+                session, entity_id=entity.id, start_date=start_date, end_date=end_date
+            )
+            sentiment_trend = entity_mention_context_crud.get_sentiment_trend(
+                session, entity_id=entity.id, start_date=start_date, end_date=end_date
+            )
 
             # Add to entity data
             entity_data.append(
@@ -191,8 +187,10 @@ class EntityTrackingFlow(Flow):
             session = self.session
             
         # Get entity name and articles
-        entity = get_canonical_entity(entity_id, session=session)
-        articles = get_articles_mentioning_entity(entity_id, start_date, end_date, session=session)
+        entity = canonical_entity_crud.get(session, id=entity_id)
+        articles = canonical_entity_crud.get_articles_mentioning_entity(
+            session, entity_id=entity_id, start_date=start_date, end_date=end_date
+        )
             
         if not entity:
             raise ValueError(f"Entity with ID {entity_id} not found")
@@ -201,7 +199,7 @@ class EntityTrackingFlow(Flow):
         co_occurrences = {}
         for article in articles:
             # Get all entities mentioned in this article
-            article_entities = get_entities_by_article(article.id, session=session)
+            article_entities = entity_crud.get_by_article(session, article_id=article.id)
 
             # Get canonical entities for these mentions
             for article_entity in article_entities:

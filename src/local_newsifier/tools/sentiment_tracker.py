@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from sqlalchemy.orm import Session
 
-from ..database.adapter import with_session
+from ..database.engine import with_session
 from ..models.sentiment import OpinionTrendCreate, SentimentShiftCreate
 from ..models.database import ArticleDB, AnalysisResultDB
 from ..models.trend import TrendAnalysis, TrendEntity

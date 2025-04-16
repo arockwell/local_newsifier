@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.orm import Session
 
-from ..database.adapter import with_session
+from ..database.engine import with_session
 from ..models.database import ArticleDB, EntityDB
 from ..models.trend import TimeFrame, TopicFrequency
 

@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from ..database.adapter import with_session, get_article, add_analysis_result
+from ..database.engine import with_session
+from ..crud.article import article as article_crud
+from ..crud.analysis_result import analysis_result as analysis_result_crud
 from ..models.database import ArticleDB
 from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
 from ..models.sentiment import (
@@ -212,7 +214,7 @@ class SentimentAnalysisTool:
         session = session or self.session
         
         # Get article from database
-        article = get_article(article_id, session=session)
+        article = article_crud.get(session, id=article_id)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
 
@@ -247,7 +249,7 @@ class SentimentAnalysisTool:
         session = session or self.session
         
         # Get article from database
-        article = get_article(article_id, session=session)
+        article = article_crud.get(session, id=article_id)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
 
@@ -261,4 +263,4 @@ class SentimentAnalysisTool:
             results=sentiment_results
         )
 
-        return add_analysis_result(analysis_result, session=session)
+        return analysis_result_crud.create(session, obj_in=analysis_result)

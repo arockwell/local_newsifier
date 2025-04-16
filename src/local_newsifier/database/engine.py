@@ -1,13 +1,17 @@
 """Database engine and session management."""
 
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional, Callable, TypeVar, Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_newsifier.config.settings import get_settings
 from local_newsifier.models.database.base import Base
+
+# Type variables for the with_session decorator
+F = TypeVar('F', bound=Callable[..., Any])
+T = TypeVar('T')
 
 
 def get_engine(url: str = None):
@@ -90,3 +94,72 @@ def create_db_and_tables(engine=None):
         engine = get_engine()
 
     Base.metadata.create_all(engine)
+
+
+class SessionManager:
+    """Session manager for database operations.
+
+    This class provides a context manager for database sessions.
+    """
+
+    def __init__(self):
+        """Initialize the session manager."""
+        self.session = None
+
+    def __enter__(self):
+        """Enter the context manager.
+
+        Returns:
+            Session: Database session
+        """
+        self.session_generator = get_session()
+        self.session = next(self.session_generator)
+        return self.session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager.
+
+        Args:
+            exc_type: Exception type
+            exc_val: Exception value
+            exc_tb: Exception traceback
+        """
+        try:
+            next(self.session_generator, None)
+        except StopIteration:
+            pass
+
+
+def with_session(func: F) -> F:
+    """Add session management to database functions.
+
+    This decorator ensures that a database session is available to the
+    decorated function. If a session is provided as a keyword argument,
+    it is used directly. Otherwise, a new session is created and managed
+    for the duration of the function call.
+
+    Args:
+        func: Function to decorate
+
+    Returns:
+        Decorated function
+    """
+
+    def wrapper(*args, session: Optional[Session] = None, **kwargs):
+        """Execute function with session management.
+
+        Args:
+            session: SQLAlchemy session
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+
+        Returns:
+            Result of the decorated function
+        """
+        if session is not None:
+            return func(*args, session=session, **kwargs)
+
+        with SessionManager() as new_session:
+            return func(*args, session=new_session, **kwargs)
+
+    return wrapper
