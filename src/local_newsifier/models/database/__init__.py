@@ -1,9 +1,11 @@
-"""Database models package."""
+"""Database models package - pure SQLModel implementation."""
 
-from sqlmodel import SQLModel, create_engine, Session, sessionmaker
-from typing import Protocol, Any, Generator
+from typing import Any, Callable, Generator, Protocol
+from contextlib import contextmanager
 
-from local_newsifier.models.database.base import TableBase, SchemaBase
+from sqlmodel import SQLModel, create_engine, Session
+
+from local_newsifier.models.database.base import TableBase, SchemaBase, Base
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.database.analysis_result import AnalysisResult
@@ -17,18 +19,20 @@ class EngineProtocol(Protocol):
 # Re-export all models
 __all__ = [
     "SQLModel",
-    "TableBase",
-    "SchemaBase", 
+    "TableBase", 
+    "SchemaBase",
+    "Base",  # For backwards compatibility
     "Article",
     "Entity",
     "AnalysisResult",
-    "init_db",
+    "create_db_and_tables",
+    "get_engine",
     "get_session",
-    "EngineProtocol"
+    "get_session_context"
 ]
 
-def init_db(db_url: str) -> EngineProtocol:
-    """Initialize the database engine.
+def get_engine(db_url: str) -> EngineProtocol:
+    """Get a database engine.
     
     Args:
         db_url: Database URL
@@ -36,17 +40,55 @@ def init_db(db_url: str) -> EngineProtocol:
     Returns:
         SQLModel engine instance
     """
-    engine = create_engine(db_url)
+    return create_engine(
+        db_url,
+        echo=False,
+        connect_args={"application_name": "local_newsifier"}
+    )
+
+def create_db_and_tables(db_url: str) -> EngineProtocol:
+    """Initialize the database engine and create tables.
+    
+    Args:
+        db_url: Database URL
+        
+    Returns:
+        SQLModel engine instance
+    """
+    engine = get_engine(db_url)
     SQLModel.metadata.create_all(engine)
     return engine
 
-def get_session(engine: EngineProtocol) -> sessionmaker:
-    """Get a session factory for the database.
+def get_session(engine: EngineProtocol) -> Callable[[], Session]:
+    """Get a session factory function.
     
     Args:
         engine: SQLModel engine instance
         
     Returns:
-        Session factory
+        Function that creates a new session
     """
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)
+    def create_session() -> Session:
+        return Session(engine)
+    
+    return create_session
+
+@contextmanager
+def get_session_context(engine: EngineProtocol) -> Generator[Session, None, None]:
+    """Create a session context that handles commits and rollbacks.
+    
+    Args:
+        engine: SQLModel engine instance
+        
+    Yields:
+        Database session
+    """
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()

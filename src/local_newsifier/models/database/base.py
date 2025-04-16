@@ -1,21 +1,16 @@
-"""Base database model with common fields for all models using SQLModel."""
+"""Base database model definitions using SQLModel only."""
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Dict, Any, Callable, TypeVar, Generic, Generator, Type
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Session, create_engine
 
+# Type variables
+T = TypeVar('T')
 
-# Configure SQLModel settings in model classes
-class BaseConfig:
-    """Base configuration for all SQLModels."""
-    arbitrary_types_allowed = True
-    orm_mode = True
-    
-
-# Base class for table models
+# Base class for table models with timestamps
 class TableBase(SQLModel, table=True):
-    """Base model for all database tables with a primary key."""
+    """Base model for all database tables with a primary key and timestamps."""
     
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -27,7 +22,7 @@ class TableBase(SQLModel, table=True):
     class Config:
         """SQLModel configuration."""
         arbitrary_types_allowed = True
-        from_attributes = True  # Updated from orm_mode
+        from_attributes = True
 
 
 # For non-table schema classes
@@ -37,4 +32,9 @@ class SchemaBase(SQLModel):
     class Config:
         """SQLModel configuration."""
         arbitrary_types_allowed = True
-        from_attributes = True  # Updated from orm_mode
+        from_attributes = True
+
+
+# Provide compatibility for code that still uses Base
+# This will work during migration but should be phased out
+Base = TableBase
