@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import spacy
 from sqlalchemy.orm import Session
 
-from ...database.adapter import with_session
+from ...database.engine import with_session
 from ...models.database import ArticleDB
 from ...models.pydantic_models import Article
 
