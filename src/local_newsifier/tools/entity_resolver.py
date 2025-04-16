@@ -4,11 +4,11 @@ import re
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 from difflib import SequenceMatcher
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from ..database.engine import with_session
 from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
-from ..models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
+from ..models.entity_tracking import CanonicalEntity
 
 
 class EntityResolver:
@@ -185,7 +185,7 @@ class EntityResolver:
         # If no matching entity found, create a new one
         if not canonical_entity:
             normalized_name = self.normalize_entity_name(name)
-            canonical_entity_data = CanonicalEntityCreate(
+            canonical_entity_data = CanonicalEntity(
                 name=normalized_name,
                 entity_type=entity_type,
                 entity_metadata=metadata or {},
