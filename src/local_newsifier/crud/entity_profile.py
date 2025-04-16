@@ -3,17 +3,13 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.entity_tracking import (EntityProfile,
-                                                    EntityProfileCreate,
-                                                    EntityProfileDB)
+from local_newsifier.models.entity_tracking import EntityProfile
 
 
-class CRUDEntityProfile(
-    CRUDBase[EntityProfileDB, EntityProfileCreate, EntityProfile]
-):
+class CRUDEntityProfile(CRUDBase[EntityProfile]):
     """CRUD operations for entity profiles."""
 
     def get_by_entity(
@@ -28,12 +24,11 @@ class CRUDEntityProfile(
         Returns:
             Entity profile if found, None otherwise
         """
-        db_profile = (
-            db.query(EntityProfileDB)
-            .filter(EntityProfileDB.canonical_entity_id == entity_id)
-            .first()
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == entity_id
         )
-        return EntityProfile.model_validate(db_profile) if db_profile else None
+        results = db.exec(statement)
+        return results.first()
 
     def get_by_entity_and_type(
         self, db: Session, *, entity_id: int, profile_type: str
@@ -48,18 +43,15 @@ class CRUDEntityProfile(
         Returns:
             Entity profile if found, None otherwise
         """
-        db_profile = (
-            db.query(EntityProfileDB)
-            .filter(
-                EntityProfileDB.canonical_entity_id == entity_id,
-                EntityProfileDB.profile_type == profile_type,
-            )
-            .first()
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == entity_id,
+            EntityProfile.profile_type == profile_type
         )
-        return EntityProfile.model_validate(db_profile) if db_profile else None
+        results = db.exec(statement)
+        return results.first()
 
     def create(
-        self, db: Session, *, obj_in: EntityProfileCreate
+        self, db: Session, *, obj_in: EntityProfile
     ) -> EntityProfile:
         """Create a new entity profile.
 
@@ -71,14 +63,11 @@ class CRUDEntityProfile(
             Created profile
         """
         # Check if profile already exists
-        existing_profile = (
-            db.query(EntityProfileDB)
-            .filter(
-                EntityProfileDB.canonical_entity_id
-                == obj_in.canonical_entity_id
-            )
-            .first()
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == obj_in.canonical_entity_id
         )
+        results = db.exec(statement)
+        existing_profile = results.first()
 
         if existing_profile:
             entity_id = obj_in.canonical_entity_id
@@ -87,7 +76,7 @@ class CRUDEntityProfile(
         return super().create(db, obj_in=obj_in)
 
     def update_or_create(
-        self, db: Session, *, obj_in: EntityProfileCreate
+        self, db: Session, *, obj_in: EntityProfile
     ) -> EntityProfile:
         """Update an entity profile or create if it doesn't exist.
 
@@ -99,19 +88,16 @@ class CRUDEntityProfile(
             Updated or created profile
         """
         # Get existing profile
-        db_profile = (
-            db.query(EntityProfileDB)
-            .filter(
-                EntityProfileDB.canonical_entity_id
-                == obj_in.canonical_entity_id,
-                EntityProfileDB.profile_type == obj_in.profile_type,
-            )
-            .first()
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == obj_in.canonical_entity_id,
+            EntityProfile.profile_type == obj_in.profile_type
         )
+        results = db.exec(statement)
+        db_profile = results.first()
 
         if db_profile:
             # Update profile data
-            update_data = obj_in.model_dump()
+            update_data = obj_in.model_dump(exclude_unset=True)
             update_data["updated_at"] = datetime.now(timezone.utc)
 
             for field, value in update_data.items():
@@ -121,10 +107,10 @@ class CRUDEntityProfile(
             db.add(db_profile)
             db.commit()
             db.refresh(db_profile)
-            return EntityProfile.model_validate(db_profile)
+            return db_profile
 
         # If profile doesn't exist, create it
         return self.create(db, obj_in=obj_in)
 
 
-entity_profile = CRUDEntityProfile(EntityProfileDB, EntityProfile)
+entity_profile = CRUDEntityProfile(EntityProfile)

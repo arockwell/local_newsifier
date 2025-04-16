@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlmodel import Session, create_engine
 
 from local_newsifier.config.settings import get_settings
 from local_newsifier.models.database import init_db
@@ -63,20 +63,24 @@ def get_database() -> Any:
     """Get a database engine instance.
 
     Returns:
-        SQLAlchemy engine instance
+        SQLModel engine instance
     """
     settings = get_settings()
     return init_db(str(settings.DATABASE_URL))
 
 
-def get_db_session() -> sessionmaker:
-    """Get a database session factory.
+def create_session_factory(engine=None):
+    """Create a session factory.
+
+    Args:
+        engine: SQLModel engine (if None, creates one)
 
     Returns:
-        SQLAlchemy session factory
+        Session factory
     """
-    engine = get_database()
-    return sessionmaker(bind=engine)
+    if engine is None:
+        engine = get_database()
+    return Session
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -85,12 +89,12 @@ def get_db() -> Generator[Session, None, None]:
     Yields:
         Session: Database session
     """
-    SessionLocal = get_db_session()
-    db = SessionLocal()
+    engine = get_database()
+    session = Session(engine)
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        session.close()
 
 
 @contextmanager
