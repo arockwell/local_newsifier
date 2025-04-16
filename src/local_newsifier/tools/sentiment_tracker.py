@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from sqlalchemy.orm import Session
 
-from ..database.manager import DatabaseManager
+from ..database.adapter import with_session
 from ..models.sentiment import OpinionTrendCreate, SentimentShiftCreate
 from ..models.database import ArticleDB, AnalysisResultDB
 from ..models.trend import TrendAnalysis, TrendEntity
@@ -18,21 +18,24 @@ logger = logging.getLogger(__name__)
 class SentimentTracker:
     """Tool for tracking and analyzing sentiment trends over time."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the sentiment tracker.
 
         Args:
-            db_manager: Database manager instance
+            session: Optional SQLAlchemy session
         """
-        self.db_manager = db_manager
+        self.session = session
 
+    @with_session
     def get_sentiment_by_period(
         self,
         start_date: datetime,
         end_date: datetime,
         time_interval: str = "day",
         topics: Optional[List[str]] = None,
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """
         Get sentiment data grouped by time periods.
@@ -81,12 +84,15 @@ class SentimentTracker:
 
         return results
 
+    @with_session
     def get_entity_sentiment_trends(
         self,
         entity_name: str,
         start_date: datetime,
         end_date: datetime,
         time_interval: str = "day",
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """
         Get sentiment trends for a specific entity over time.
@@ -100,8 +106,11 @@ class SentimentTracker:
         Returns:
             Dictionary mapping periods to entity sentiment data
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Get all articles in date range
-        articles = self._get_articles_in_range(start_date, end_date)
+        articles = self._get_articles_in_range(start_date, end_date, session=session)
 
         # Group by period
         period_groups = self._group_articles_by_period(articles, time_interval)
@@ -112,7 +121,7 @@ class SentimentTracker:
         for period, period_articles in period_groups.items():
             # Get sentiment analyses for these articles
             article_ids = [article.id for article in period_articles]
-            sentiment_data = self._get_sentiment_data_for_articles(article_ids)
+            sentiment_data = self._get_sentiment_data_for_articles(article_ids, session=session)
 
             # Extract entity sentiment
             entity_sentiment = self._calculate_entity_sentiment(
@@ -124,6 +133,7 @@ class SentimentTracker:
 
         return results
 
+    @with_session
     def detect_sentiment_shifts(
         self,
         topics: List[str],
@@ -131,6 +141,8 @@ class SentimentTracker:
         end_date: datetime,
         time_interval: str = "day",
         shift_threshold: float = 0.3,
+        *,
+        session: Optional[Session] = None
     ) -> List[Dict]:
         """
         Detect significant shifts in sentiment.
@@ -145,9 +157,12 @@ class SentimentTracker:
         Returns:
             List of detected sentiment shifts
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Get sentiment by period for all specified topics
         sentiment_by_period = self.get_sentiment_by_period(
-            start_date, end_date, time_interval, topics
+            start_date, end_date, time_interval, topics, session=session
         )
 
         # Detect shifts for each topic
@@ -161,6 +176,7 @@ class SentimentTracker:
 
         return shifts
 
+    @with_session
     def calculate_topic_correlation(
         self,
         topic1: str,
@@ -168,6 +184,8 @@ class SentimentTracker:
         start_date: datetime,
         end_date: datetime,
         time_interval: str = "day",
+        *,
+        session: Optional[Session] = None
     ) -> Dict:
         """
         Calculate correlation between sentiment trends of two topics.
@@ -182,9 +200,12 @@ class SentimentTracker:
         Returns:
             Dictionary with correlation statistics
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Get sentiment by period for both topics
         sentiment_by_period = self.get_sentiment_by_period(
-            start_date, end_date, time_interval, [topic1, topic2]
+            start_date, end_date, time_interval, [topic1, topic2], session=session
         )
 
         # Extract sentiment values for each topic
@@ -238,12 +259,21 @@ class SentimentTracker:
 
         return correlation
 
-    def _get_articles_in_range(self, start_date: datetime, end_date: datetime) -> List:
-        """Get all articles published within the date range."""
-        # This is a simplified implementation - in a real system you would filter
-        # in the database query to avoid loading all articles
-        articles = []
-        session = self.db_manager.session
+    @with_session
+    def _get_articles_in_range(self, start_date: datetime, end_date: datetime, *, session: Optional[Session] = None) -> List:
+        """
+        Get all articles published within the date range.
+        
+        Args:
+            start_date: Start date for the range
+            end_date: End date for the range
+            session: Optional SQLAlchemy session
+            
+        Returns:
+            List of articles in the date range
+        """
+        # Use provided session or instance session
+        session = session or self.session
 
         query = (
             session.query(ArticleDB)
@@ -287,12 +317,34 @@ class SentimentTracker:
         else:
             return date.strftime("%Y-%m-%d")  # Default to day
 
-    def _get_sentiment_data_for_articles(self, article_ids: List[int]) -> List[Dict]:
-        """Get sentiment analysis results for articles."""
+    @with_session
+    def _get_sentiment_data_for_articles(self, article_ids: List[int], *, session: Optional[Session] = None) -> List[Dict]:
+        """
+        Get sentiment analysis results for articles.
+        
+        Args:
+            article_ids: List of article IDs to get sentiment data for
+            session: Optional SQLAlchemy session
+            
+        Returns:
+            List of sentiment data dictionaries
+        """
+        # Use provided session or instance session
+        session = session or self.session
+        
         sentiment_data = []
 
         for article_id in article_ids:
-            results = self.db_manager.get_analysis_results_by_article(article_id)
+            # Query analysis results directly using session
+            results = (
+                session.query(AnalysisResultDB)
+                .filter(
+                    AnalysisResultDB.article_id == article_id,
+                    AnalysisResultDB.analysis_type == "sentiment"
+                )
+                .all()
+            )
+            
             for result in results:
                 if result.analysis_type == "sentiment":
                     data = {

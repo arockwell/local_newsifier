@@ -18,10 +18,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 
 from crewai import Flow
+from sqlalchemy.orm import Session
 
-from ..config.database import get_database_settings
-from ..database.manager import DatabaseManager
-from ..models.database import init_db, get_session
+from ..database.adapter import with_session, get_articles_by_status, update_article_status
+from ..database.engine import get_session
 from ..models.sentiment import SentimentVisualizationData
 from ..tools.sentiment_analyzer import SentimentAnalysisTool
 from ..tools.sentiment_tracker import SentimentTracker
@@ -33,55 +33,58 @@ logger = logging.getLogger(__name__)
 class PublicOpinionFlow(Flow):
     """Flow for analyzing public opinion and sentiment in news articles."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the public opinion analysis flow.
 
         Args:
-            db_manager: Optional database manager to use
+            session: Optional SQLAlchemy session to use
         """
         super().__init__()
 
         # Set up database connection if not provided
-        if db_manager is None:
-            db_settings = get_database_settings()
-            engine = init_db(
-                str(db_settings.DATABASE_URL)
-            )  # Convert PostgresDsn to string
-            session_factory = get_session(engine)
-            session = session_factory()
-            self.db_manager = DatabaseManager(session)
+        if session is None:
+            self.session_generator = get_session()
+            self.session = next(self.session_generator)
             self._owns_session = True
         else:
-            self.db_manager = db_manager
+            self.session = session
             self._owns_session = False
 
         # Initialize tools
-        self.sentiment_analyzer = SentimentAnalysisTool()
-        self.sentiment_tracker = SentimentTracker(self.db_manager)
-        self.opinion_visualizer = OpinionVisualizerTool(self.db_manager)
+        self.sentiment_analyzer = SentimentAnalysisTool(self.session)
+        self.sentiment_tracker = SentimentTracker(self.session)
+        self.opinion_visualizer = OpinionVisualizerTool(self.session)
 
     def __del__(self):
         """Clean up resources when the flow is deleted."""
         if hasattr(self, "_owns_session") and self._owns_session:
-            if hasattr(self, "db_manager") and self.db_manager is not None:
-                self.db_manager.session.close()
+            if hasattr(self, "session") and self.session is not None:
+                try:
+                    next(self.session_generator, None)
+                except StopIteration:
+                    pass
 
+    @with_session
     def analyze_articles(
-        self, article_ids: Optional[List[int]] = None
+        self, article_ids: Optional[List[int]] = None, *, session: Optional[Session] = None
     ) -> Dict[int, Dict]:
         """
         Analyze sentiment for specific articles or all unanalyzed articles.
 
         Args:
             article_ids: Optional list of article IDs to analyze
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary mapping article IDs to sentiment results
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # If no article IDs provided, get all articles that need sentiment analysis
         if not article_ids:
-            articles = self.db_manager.get_articles_by_status("analyzed")
+            articles = get_articles_by_status("analyzed", session=session)
             article_ids = [article.id for article in articles]
 
         # Analyze each article
@@ -89,12 +92,12 @@ class PublicOpinionFlow(Flow):
         for article_id in article_ids:
             try:
                 sentiment_results = self.sentiment_analyzer.analyze_article(
-                    self.db_manager, article_id
+                    article_id, session=session
                 )
                 results[article_id] = sentiment_results
 
                 # Update article status to indicate sentiment analysis is complete
-                self.db_manager.update_article_status(article_id, "sentiment_analyzed")
+                update_article_status(article_id, "sentiment_analyzed", session=session)
 
             except Exception as e:
                 logger.error(f"Error analyzing article {article_id}: {str(e)}")
@@ -102,8 +105,9 @@ class PublicOpinionFlow(Flow):
 
         return results
 
+    @with_session
     def analyze_topic_sentiment(
-        self, topics: List[str], days_back: int = 30, interval: str = "day"
+        self, topics: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """
         Analyze sentiment trends for specific topics.
@@ -112,10 +116,14 @@ class PublicOpinionFlow(Flow):
             topics: List of topics to analyze
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary containing topic sentiment analysis results
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -130,6 +138,7 @@ class PublicOpinionFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             topics=topics,
+            session=session
         )
 
         # Detect sentiment shifts
@@ -138,6 +147,7 @@ class PublicOpinionFlow(Flow):
             start_date=start_date,
             end_date=end_date,
             time_interval=interval,
+            session=session
         )
 
         # Prepare results
@@ -151,8 +161,9 @@ class PublicOpinionFlow(Flow):
 
         return results
 
+    @with_session
     def analyze_entity_sentiment(
-        self, entity_names: List[str], days_back: int = 30, interval: str = "day"
+        self, entity_names: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
     ) -> Dict[str, Dict]:
         """
         Analyze sentiment trends for specific entities.
@@ -161,10 +172,14 @@ class PublicOpinionFlow(Flow):
             entity_names: List of entity names to analyze
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary containing entity sentiment analysis results
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -181,6 +196,7 @@ class PublicOpinionFlow(Flow):
                 start_date=start_date,
                 end_date=end_date,
                 time_interval=interval,
+                session=session
             )
             entity_sentiments[entity_name] = entity_sentiment
 
@@ -194,12 +210,15 @@ class PublicOpinionFlow(Flow):
 
         return results
 
+    @with_session
     def detect_opinion_shifts(
         self,
         topics: List[str],
         days_back: int = 30,
         interval: str = "day",
         shift_threshold: float = 0.3,
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, List]:
         """
         Detect significant shifts in public opinion.
@@ -209,10 +228,14 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             shift_threshold: Threshold for significant shifts
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary of detected opinion shifts by topic
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -228,6 +251,7 @@ class PublicOpinionFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             shift_threshold=shift_threshold,
+            session=session
         )
 
         # Group shifts by topic
@@ -238,11 +262,14 @@ class PublicOpinionFlow(Flow):
 
         return shifts_by_topic
 
+    @with_session
     def correlate_topics(
         self,
         topic_pairs: List[Tuple[str, str]],
         days_back: int = 30,
         interval: str = "day",
+        *,
+        session: Optional[Session] = None
     ) -> List[Dict]:
         """
         Analyze correlation between sentiment of topic pairs.
@@ -251,10 +278,14 @@ class PublicOpinionFlow(Flow):
             topic_pairs: List of topic name pairs to correlate
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
+            session: Optional SQLAlchemy session
 
         Returns:
             List of topic correlation results
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -270,17 +301,21 @@ class PublicOpinionFlow(Flow):
                 start_date=start_date,
                 end_date=end_date,
                 time_interval=interval,
+                session=session
             )
             correlations.append(correlation)
 
         return correlations
 
+    @with_session
     def generate_topic_report(
         self,
         topic: str,
         days_back: int = 30,
         interval: str = "day",
         format_type: str = "markdown",
+        *,
+        session: Optional[Session] = None
     ) -> str:
         """
         Generate a report for a specific topic's sentiment analysis.
@@ -290,10 +325,14 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             format_type: Report format type ('text', 'markdown', 'html')
+            session: Optional SQLAlchemy session
 
         Returns:
             Formatted report string
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -305,7 +344,11 @@ class PublicOpinionFlow(Flow):
         # Prepare visualization data
         try:
             viz_data = self.opinion_visualizer.prepare_timeline_data(
-                topic=topic, start_date=start_date, end_date=end_date, interval=interval
+                topic=topic, 
+                start_date=start_date, 
+                end_date=end_date, 
+                interval=interval,
+                session=session
             )
 
             # Generate report based on format
@@ -326,12 +369,15 @@ class PublicOpinionFlow(Flow):
             logger.error(f"Error generating report: {str(e)}")
             return f"Error generating report: {str(e)}"
 
+    @with_session
     def generate_comparison_report(
         self,
         topics: List[str],
         days_back: int = 30,
         interval: str = "day",
         format_type: str = "markdown",
+        *,
+        session: Optional[Session] = None
     ) -> str:
         """
         Generate a comparison report for multiple topics.
@@ -341,10 +387,14 @@ class PublicOpinionFlow(Flow):
             days_back: Number of days to look back
             interval: Time interval for grouping ('day', 'week', 'month')
             format_type: Report format type ('text', 'markdown', 'html')
+            session: Optional SQLAlchemy session
 
         Returns:
             Formatted comparison report string
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -361,6 +411,7 @@ class PublicOpinionFlow(Flow):
                         start_date=start_date,
                         end_date=end_date,
                         interval=interval,
+                        session=session
                     )
                     comparison_data[topic] = topic_data
                 except Exception as topic_error:
