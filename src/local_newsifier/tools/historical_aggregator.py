@@ -3,10 +3,11 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..database.engine import with_session
-from ..models.database import ArticleDB, EntityDB
+from ..models.database.article import Article
+from ..models.database.entity import Entity
 from ..models.trend import TimeFrame, TopicFrequency
 
 
@@ -18,7 +19,7 @@ class HistoricalDataAggregator:
         Initialize the historical data aggregator.
 
         Args:
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
         """
         self.session = session
         self._cache: Dict[str, any] = {}
@@ -31,7 +32,7 @@ class HistoricalDataAggregator:
         source: Optional[str] = None,
         *,
         session: Optional[Session] = None
-    ) -> List[ArticleDB]:
+    ) -> List[Article]:
         """
         Retrieve articles within the specified timeframe.
 
@@ -39,7 +40,7 @@ class HistoricalDataAggregator:
             start_date: Start date for the query
             end_date: End date for the query (defaults to current time)
             source: Optional filter for news source
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             List of article records
@@ -54,15 +55,17 @@ class HistoricalDataAggregator:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        query = session.query(ArticleDB).filter(
-            ArticleDB.published_at >= start_date,
-            ArticleDB.published_at <= end_date,
+        # Use SQLModel query syntax
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
         )
-
+        
         if source:
-            query = query.filter(ArticleDB.source == source)
-
-        articles = query.all()
+            statement = statement.where(Article.source == source)
+            
+        results = session.exec(statement)
+        articles = results.all()
         self._cache[cache_key] = articles
         return articles
 
@@ -117,7 +120,7 @@ class HistoricalDataAggregator:
             start_date: Start date for the analysis
             end_date: End date for the analysis (defaults to current time)
             top_n: Number of top entities to return
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Dictionary mapping entity text to frequency information
@@ -143,16 +146,14 @@ class HistoricalDataAggregator:
         # Build a date lookup for articles
         article_dates = {article.id: article.published_at for article in articles}
 
-        # Query all entities for these articles
+        # Query all entities for these articles using SQLModel syntax
         frequencies: Dict[str, TopicFrequency] = {}
-        entities = (
-            session.query(EntityDB)
-            .filter(
-                EntityDB.article_id.in_(article_ids),
-                EntityDB.entity_type.in_(entity_types),
-            )
-            .all()
+        statement = select(Entity).where(
+            Entity.article_id.in_(article_ids),
+            Entity.entity_type.in_(entity_types)
         )
+        results = session.exec(statement)
+        entities = results.all()
 
         # Process entities
         for entity in entities:
@@ -202,7 +203,7 @@ class HistoricalDataAggregator:
             time_frame: The time frame to analyze
             current_period: Number of time frame units for current period
             baseline_periods: Number of time frame units for baseline
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
 
         Returns:
             Tuple of (current_frequencies, baseline_frequencies)
