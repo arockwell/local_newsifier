@@ -15,11 +15,9 @@ class TestHeadlineTrendFlow:
     """Tests for the HeadlineTrendFlow class."""
 
     @pytest.fixture
-    def mock_db_manager(self) -> MagicMock:
-        """Create a mock database manager."""
-        mock = MagicMock()
-        mock.session = MagicMock()
-        return mock
+    def mock_session(self) -> MagicMock:
+        """Create a mock database session."""
+        return MagicMock()
 
     @pytest.fixture
     def mock_headline_analyzer(self) -> MagicMock:
@@ -27,11 +25,11 @@ class TestHeadlineTrendFlow:
         return MagicMock()
 
     @pytest.fixture
-    def flow(self, mock_db_manager: MagicMock, mock_headline_analyzer: MagicMock) -> HeadlineTrendFlow:
+    def flow(self, mock_session: MagicMock, mock_headline_analyzer: MagicMock) -> HeadlineTrendFlow:
         """Create a flow with mocked components."""
         with patch('src.local_newsifier.tools.analysis.headline_analyzer.HeadlineTrendAnalyzer', autospec=True) as mock_analyzer_class:
             mock_analyzer_class.return_value = mock_headline_analyzer
-            flow = HeadlineTrendFlow(mock_db_manager)
+            flow = HeadlineTrendFlow(session=mock_session)
             flow.headline_analyzer = mock_headline_analyzer
             return flow
 
@@ -109,12 +107,13 @@ class TestHeadlineTrendFlow:
         )
         
         # Verify analyzer was called with correct parameters
-        mock_headline_analyzer.analyze_trends.assert_called_once_with(
-            start_date=start_date,
-            end_date=end_date,
-            time_interval="week",
-            top_n=15
-        )
+        # We need to check that all expected params were passed, ignoring the session param
+        args, kwargs = mock_headline_analyzer.analyze_trends.call_args
+        assert kwargs["start_date"] == start_date
+        assert kwargs["end_date"] == end_date
+        assert kwargs["time_interval"] == "week"
+        assert kwargs["top_n"] == 15
+        assert "session" in kwargs
         
         # Verify results
         assert result == mock_results
@@ -207,54 +206,52 @@ class TestHeadlineTrendFlow:
         assert "Error:" in report
         assert "No headlines found" in report
         
-    def test_flow_cleanup(self, mock_db_manager: MagicMock) -> None:
+    def test_flow_cleanup(self, mock_session: MagicMock) -> None:
         """Test that resources are properly cleaned up."""
-        # Create a flow using the provided mock
-        flow = HeadlineTrendFlow(db_manager=mock_db_manager)
+        # Create a flow generator to mock
+        session_generator = MagicMock()
+        
+        # Create a flow using the provided mock session
+        flow = HeadlineTrendFlow(session=mock_session)
+        flow.session_generator = session_generator
         flow._owns_session = True
         
         # Call the destructor
         flow.__del__()
         
-        # Verify session was closed
-        mock_db_manager.session.close.assert_called_once()
+        # Verify next was called on session generator
+        session_generator.__next__.assert_called_once()
         
         # Test with a flow that doesn't own its session
-        flow = HeadlineTrendFlow(db_manager=mock_db_manager)
+        flow = HeadlineTrendFlow(session=mock_session)
         flow._owns_session = False
         
         # Reset the mock
-        mock_db_manager.session.close.reset_mock()
+        session_generator.reset_mock()
         
         # Call the destructor
         flow.__del__()
         
-        # Verify session was not closed
-        mock_db_manager.session.close.assert_not_called()
+        # Verify session generator was not used
+        session_generator.__next__.assert_not_called()
 
-    def test_init_without_db_manager(self, monkeypatch):
-        """Test initialization without providing a database manager."""
-        # Mock the database settings and initialization
-        mock_db_settings = MagicMock()
-        mock_db_settings.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db"
-        
-        mock_engine = MagicMock()
-        mock_session_factory = MagicMock()
+    def test_init_without_session(self, monkeypatch):
+        """Test initialization without providing a session."""
+        # Mock session generator
         mock_session = MagicMock()
-        mock_session_factory.return_value = mock_session
+        mock_session_generator = MagicMock()
+        mock_session_generator.__next__.return_value = mock_session
         
-        with patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_database_settings', return_value=mock_db_settings), \
-             patch('src.local_newsifier.flows.analysis.headline_trend_flow.init_db', return_value=mock_engine), \
-             patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_session', return_value=mock_session_factory):
+        with patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_session', return_value=mock_session_generator):
             
-            # Create flow without providing a db_manager
+            # Create flow without providing a session
             flow = HeadlineTrendFlow()
             
-            # Verify database was initialized
-            assert flow.db_manager is not None
-            assert flow.db_manager.session == mock_session
+            # Verify session was created
+            assert flow.session is not None
+            assert flow.session == mock_session
             assert flow._owns_session is True
             
             # Clean up
             del flow
-            mock_session.close.assert_called_once()
+            mock_session_generator.__next__.assert_called()

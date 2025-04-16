@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from local_newsifier.models.database import ArticleDB
 from local_newsifier.models.state import AnalysisStatus
-from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.database.entity import EntityDB
 
 
@@ -16,7 +15,6 @@ def test_article_creation():
     """Test creating an Article instance."""
     # Create a mock session
     mock_session = MagicMock(spec=Session)
-    db_manager = DatabaseManager(mock_session)
     
     # Create article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -30,7 +28,7 @@ def test_article_creation():
         updated_at=now,
         scraped_at=now,
     )
-    db_manager.session.add(article)
+    mock_session.add(article)
     
     # Verify attributes using direct attribute access
     assert str(article.url) == "https://example.com/news/1"
@@ -50,7 +48,6 @@ def test_article_entity_relationship():
     """Test the relationship between Article and Entity."""
     # Create mock session
     mock_session = MagicMock(spec=Session)
-    db_manager = DatabaseManager(mock_session)
     
     # Create an article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -64,7 +61,7 @@ def test_article_entity_relationship():
         updated_at=now,
         scraped_at=now,
     )
-    db_manager.session.add(article)
+    mock_session.add(article)
     
     # Create an entity and associate it with the article
     entity = EntityDB(
@@ -75,7 +72,7 @@ def test_article_entity_relationship():
         updated_at=now,
     )
     article.entities.append(entity)
-    db_manager.session.add(entity)
+    mock_session.add(entity)
     
     # Verify relationship using list operations
     assert len(article.entities) == 1
@@ -88,7 +85,6 @@ def test_article_unique_url_constraint():
     # Create mock session that raises IntegrityError
     mock_session = MagicMock(spec=Session)
     mock_session.commit.side_effect = Exception("Unique constraint violation")
-    db_manager = DatabaseManager(mock_session)
     
     # Create first article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -100,7 +96,7 @@ def test_article_unique_url_constraint():
         updated_at=now,
         scraped_at=now,
     )
-    db_manager.session.add(article1)
+    mock_session.add(article1)
     
     # Create second article with same URL
     article2 = ArticleDB(
@@ -111,8 +107,8 @@ def test_article_unique_url_constraint():
         updated_at=now,
         scraped_at=now,
     )
-    db_manager.session.add(article2)
+    mock_session.add(article2)
     
     # Verify that commit raises an exception
     with pytest.raises(Exception):
-        db_manager.session.commit()
+        mock_session.commit()

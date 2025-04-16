@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 from src.local_newsifier.config.database import get_database_settings
-from src.local_newsifier.database.manager import DatabaseManager
-from src.local_newsifier.models.database import init_db, get_session
+from src.local_newsifier.database.adapter import create_article
+from src.local_newsifier.database.engine import get_session, init_db
 from src.local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from src.local_newsifier.tools.sentiment_tracker import SentimentTracker
 from src.local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
@@ -17,15 +17,7 @@ async def analyze_sample_articles():
     # Initialize database connection
     db_settings = get_database_settings()
     engine = init_db(str(db_settings.DATABASE_URL))
-    session_factory = get_session(engine)
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-
-    # Initialize tools
-    sentiment_analyzer = SentimentAnalysisTool()
-    sentiment_tracker = SentimentTracker(db_manager)
-    visualizer = OpinionVisualizerTool(db_manager)
-
+    
     # Sample articles with different sentiment profiles
     articles = [
         {
@@ -59,68 +51,72 @@ async def analyze_sample_articles():
 
     print("\n=== Analyzing Sample Articles ===\n")
 
-    # Add articles to database and analyze them
-    for article_data in articles:
-        # Add article to database
-        article = db_manager.add_article(article_data)
-        print(f"\nAnalyzing article: {article.title}")
-        
-        # Perform sentiment analysis
-        sentiment_results = sentiment_analyzer.analyze_article(db_manager, article.id)
-        
-        # Print results
-        print(f"Document Sentiment: {sentiment_results['document_sentiment']:.2f}")
-        print(f"Document Magnitude: {sentiment_results['document_magnitude']:.2f}")
-        
-        print("\nEntity Sentiments:")
-        for entity, sentiment in sentiment_results['entity_sentiments'].items():
-            print(f"  {entity}: {sentiment:.2f}")
-        
-        print("\nTopic Sentiments:")
-        for topic, sentiment in sentiment_results['topic_sentiments'].items():
-            print(f"  {topic}: {sentiment:.2f}")
+    # Use a single session for the entire process
+    with get_session() as session:
+        # Initialize tools
+        sentiment_analyzer = SentimentAnalysisTool(session=session)
+        sentiment_tracker = SentimentTracker(session=session)
+        visualizer = OpinionVisualizerTool(session=session)
 
-    # Demonstrate trend analysis
-    print("\n=== Analyzing Sentiment Trends ===\n")
-    
-    # Get sentiment trends for different time periods
-    start_date = datetime.now(timezone.utc) - timedelta(days=7)
-    end_date = datetime.now(timezone.utc)
-    
-    trends = sentiment_tracker.get_sentiment_by_period(
-        start_date=start_date,
-        end_date=end_date,
-        time_interval="day",
-        topics=["climate change", "politics"]
-    )
-    
-    print("Sentiment Trends:")
-    for period, period_data in trends.items():
-        print(f"\nPeriod: {period}")
-        for topic, topic_data in period_data.items():
-            print(f"  {topic}:")
-            print(f"    Average Sentiment: {topic_data['avg_sentiment']:.2f}")
-            print(f"    Article Count: {topic_data['article_count']}")
-            print(f"    Distribution: {topic_data['sentiment_distribution']}")
+        # Add articles to database and analyze them
+        for article_data in articles:
+            # Add article to database
+            article = create_article(article_data, session=session)
+            print(f"\nAnalyzing article: {article.title}")
+            
+            # Perform sentiment analysis
+            sentiment_results = sentiment_analyzer.analyze_article(article.id)
+            
+            # Print results
+            print(f"Document Sentiment: {sentiment_results['document_sentiment']:.2f}")
+            print(f"Document Magnitude: {sentiment_results['document_magnitude']:.2f}")
+            
+            print("\nEntity Sentiments:")
+            for entity, sentiment in sentiment_results['entity_sentiments'].items():
+                print(f"  {entity}: {sentiment:.2f}")
+            
+            print("\nTopic Sentiments:")
+            for topic, sentiment in sentiment_results['topic_sentiments'].items():
+                print(f"  {topic}: {sentiment:.2f}")
 
-    # Demonstrate visualization
-    print("\n=== Generating Visualizations ===\n")
-    
-    # Generate HTML report
-    html_report = visualizer.generate_html_report(
-        start_date=start_date,
-        end_date=end_date,
-        topics=["climate change", "politics"]
-    )
-    
-    # Save report to file
-    with open("sentiment_analysis_report.html", "w") as f:
-        f.write(html_report)
-    
-    print("HTML report generated: sentiment_analysis_report.html")
+        # Demonstrate trend analysis
+        print("\n=== Analyzing Sentiment Trends ===\n")
+        
+        # Get sentiment trends for different time periods
+        start_date = datetime.now(timezone.utc) - timedelta(days=7)
+        end_date = datetime.now(timezone.utc)
+        
+        trends = sentiment_tracker.get_sentiment_by_period(
+            start_date=start_date,
+            end_date=end_date,
+            time_interval="day",
+            topics=["climate change", "politics"]
+        )
+        
+        print("Sentiment Trends:")
+        for period, period_data in trends.items():
+            print(f"\nPeriod: {period}")
+            for topic, topic_data in period_data.items():
+                print(f"  {topic}:")
+                print(f"    Average Sentiment: {topic_data['avg_sentiment']:.2f}")
+                print(f"    Article Count: {topic_data['article_count']}")
+                print(f"    Distribution: {topic_data['sentiment_distribution']}")
 
-    # Clean up
-    session.close()
+        # Demonstrate visualization
+        print("\n=== Generating Visualizations ===\n")
+        
+        # Generate HTML report
+        html_report = visualizer.generate_html_report(
+            start_date=start_date,
+            end_date=end_date,
+            topics=["climate change", "politics"]
+        )
+        
+        # Save report to file
+        with open("sentiment_analysis_report.html", "w") as f:
+            f.write(html_report)
+        
+        print("HTML report generated: sentiment_analysis_report.html")
 
 
 if __name__ == "__main__":

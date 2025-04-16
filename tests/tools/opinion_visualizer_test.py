@@ -9,23 +9,20 @@ from pytest_mock import MockFixture
 
 from src.local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from src.local_newsifier.models.sentiment import SentimentVisualizationData
-from src.local_newsifier.database.manager import DatabaseManager
 
 
 class TestOpinionVisualizerTool:
     """Test class for OpinionVisualizerTool."""
 
     @pytest.fixture
-    def mock_db_manager(self):
-        """Create a mock database manager."""
-        mock = MagicMock(spec=DatabaseManager)
-        mock.session = MagicMock()
-        return mock
+    def mock_session(self):
+        """Create a mock database session."""
+        return MagicMock()
 
     @pytest.fixture
-    def visualizer(self, mock_db_manager):
+    def visualizer(self, mock_session):
         """Create an opinion visualizer instance."""
-        return OpinionVisualizerTool(mock_db_manager)
+        return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
     def sample_data(self):
@@ -74,7 +71,7 @@ class TestOpinionVisualizerTool:
             "renewable energy": energy_data
         }
 
-    def test_prepare_timeline_data(self, visualizer, mock_db_manager):
+    def test_prepare_timeline_data(self, visualizer, mock_session):
         """Test preparing timeline visualization data."""
         # Use patch to mock session.query.filter.order_by.all directly
         with patch.object(visualizer, 'prepare_timeline_data', autospec=True) as mock_prepare:

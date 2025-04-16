@@ -7,7 +7,10 @@ from typing import Generator
 import pytest
 from sqlalchemy.orm import Session
 
-from local_newsifier.database.manager import DatabaseManager
+from local_newsifier.database.adapter import (add_entity, add_entity_mention_context, 
+                                              add_entity_profile, create_article, 
+                                              create_canonical_entity, get_entity_sentiment_trend, 
+                                              get_entity_timeline, update_entity_profile)
 from local_newsifier.models.database.base import Base
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
                                                     CanonicalEntityCreate,
@@ -24,13 +27,7 @@ from local_newsifier.models.state import AnalysisStatus
 
 
 @pytest.fixture
-def db_manager(db_session: Session) -> DatabaseManager:
-    """Create a database manager instance."""
-    return DatabaseManager(db_session)
-
-
-@pytest.fixture
-def sample_article(db_manager: DatabaseManager):
+def sample_article(db_session: Session):
     """Create a sample article."""
     article = ArticleCreate(
         url="https://example.com/biden",
@@ -41,11 +38,11 @@ def sample_article(db_manager: DatabaseManager):
         source="example.com",
         status=AnalysisStatus.INITIALIZED.value,
     )
-    return db_manager.create_article(article)
+    return create_article(article, session=db_session)
 
 
 @pytest.fixture
-def sample_entity(db_manager: DatabaseManager, sample_article):
+def sample_entity(db_session: Session, sample_article):
     """Create a sample entity."""
     entity = EntityCreate(
         article_id=sample_article.id,
@@ -53,10 +50,10 @@ def sample_entity(db_manager: DatabaseManager, sample_article):
         entity_type="PERSON",
         confidence=0.95,
     )
-    return db_manager.add_entity(entity)
+    return add_entity(entity, session=db_session)
 
 
-def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
+def test_add_entity_mention_context(db_session: Session, sample_entity):
     """Test adding context for an entity mention."""
     # Add entity mention context
     context_data = EntityMentionContextCreate(
@@ -66,7 +63,7 @@ def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
         sentiment_score=0.5,
     )
 
-    context = db_manager.add_entity_mention_context(context_data)
+    context = add_entity_mention_context(context_data, session=db_session)
 
     # Verify context was added
     assert context.id is not None
@@ -76,7 +73,7 @@ def test_add_entity_mention_context(db_manager: DatabaseManager, sample_entity):
     assert context.sentiment_score == 0.5
 
 
-def test_add_entity_profile(db_manager: DatabaseManager):
+def test_add_entity_profile(db_session: Session):
     """Test adding an entity profile."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -85,7 +82,7 @@ def test_add_entity_profile(db_manager: DatabaseManager):
         description="45th President of the United States",
     )
 
-    canonical_entity = db_manager.create_canonical_entity(entity_data)
+    canonical_entity = create_canonical_entity(entity_data, session=db_session)
 
     # Add entity profile
     profile_data = EntityProfileCreate(
@@ -99,7 +96,7 @@ def test_add_entity_profile(db_manager: DatabaseManager):
         },
     )
 
-    profile = db_manager.add_entity_profile(profile_data)
+    profile = add_entity_profile(profile_data, session=db_session)
 
     # Verify profile was added
     assert profile.canonical_entity_id == canonical_entity.id
@@ -108,7 +105,7 @@ def test_add_entity_profile(db_manager: DatabaseManager):
     assert profile.profile_metadata["mention_count"] == 10
 
 
-def test_update_entity_profile(db_manager: DatabaseManager):
+def test_update_entity_profile(db_session: Session):
     """Test updating an entity profile."""
     # Create canonical entity
     entity_data = CanonicalEntityCreate(
@@ -117,7 +114,7 @@ def test_update_entity_profile(db_manager: DatabaseManager):
         description="46th President of the United States",
     )
 
-    canonical_entity = db_manager.create_canonical_entity(entity_data)
+    canonical_entity = create_canonical_entity(entity_data, session=db_session)
 
     # Add initial profile
     profile_data = EntityProfileCreate(
@@ -131,7 +128,7 @@ def test_update_entity_profile(db_manager: DatabaseManager):
         },
     )
 
-    initial_profile = db_manager.add_entity_profile(profile_data)
+    initial_profile = add_entity_profile(profile_data, session=db_session)
 
     # Update profile
     updated_profile_data = EntityProfileCreate(
@@ -145,16 +142,14 @@ def test_update_entity_profile(db_manager: DatabaseManager):
         },
     )
 
-    updated_profile = db_manager.update_entity_profile(updated_profile_data)
+    updated_profile = update_entity_profile(updated_profile_data, session=db_session)
 
     # Verify profile was updated
     assert updated_profile.profile_metadata["mention_count"] == 10
     assert len(updated_profile.profile_metadata["contexts"]) == 2
 
 
-def test_entity_timeline_and_sentiment_trend(
-    db_manager: DatabaseManager, db_session: Session
-):
+def test_entity_timeline_and_sentiment_trend(db_session: Session):
     """Test getting entity timeline and sentiment trend."""
     # Create article
     article = ArticleCreate(
@@ -166,12 +161,12 @@ def test_entity_timeline_and_sentiment_trend(
         status=AnalysisStatus.INITIALIZED.value,
     )
 
-    created_article = db_manager.create_article(article)
+    created_article = create_article(article, session=db_session)
 
     # Create canonical entity
     entity_data = CanonicalEntityCreate(name="Joe Biden", entity_type="PERSON")
 
-    canonical_entity = db_manager.create_canonical_entity(entity_data)
+    canonical_entity = create_canonical_entity(entity_data, session=db_session)
 
     # Create entity
     entity = EntityCreate(
@@ -181,7 +176,7 @@ def test_entity_timeline_and_sentiment_trend(
         confidence=0.95,
     )
 
-    created_entity = db_manager.add_entity(entity)
+    created_entity = add_entity(entity, session=db_session)
 
     # Add entity mention context
     context_data = EntityMentionContextCreate(
@@ -191,7 +186,7 @@ def test_entity_timeline_and_sentiment_trend(
         sentiment_score=0.5,
     )
 
-    db_manager.add_entity_mention_context(context_data)
+    add_entity_mention_context(context_data, session=db_session)
 
     # Create entity mention association
     db_session.execute(
@@ -208,7 +203,7 @@ def test_entity_timeline_and_sentiment_trend(
     start_date = datetime.now(UTC) - timedelta(days=1)
     end_date = datetime.now(UTC) + timedelta(days=1)
 
-    timeline = db_manager.get_entity_timeline(canonical_entity.id, start_date, end_date)
+    timeline = get_entity_timeline(canonical_entity.id, start_date, end_date, session=db_session)
 
     # Verify timeline
     assert len(timeline) == 1
@@ -217,8 +212,8 @@ def test_entity_timeline_and_sentiment_trend(
     assert timeline[0]["mention_count"] > 0
 
     # Get sentiment trend
-    sentiment_trend = db_manager.get_entity_sentiment_trend(
-        canonical_entity.id, start_date, end_date
+    sentiment_trend = get_entity_sentiment_trend(
+        canonical_entity.id, start_date, end_date, session=db_session
     )
 
     # Verify results

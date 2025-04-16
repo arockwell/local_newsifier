@@ -8,7 +8,7 @@ from ..models.database import ArticleDB, EntityDB
 from ..models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 from .historical_aggregator import HistoricalDataAggregator
 from .topic_analyzer import TopicFrequencyAnalyzer
-from ..database.manager import DatabaseManager
+from ..database.adapter import with_session
 
 
 class TrendDetector:
@@ -31,8 +31,15 @@ class TrendDetector:
         self.data_aggregator = data_aggregator or HistoricalDataAggregator()
         self.topic_analyzer = topic_analyzer or TopicFrequencyAnalyzer(self.data_aggregator)
         
+    @with_session
     def _get_articles_for_entity(
-        self, entity_text: str, entity_type: str, start_date: datetime, end_date: datetime
+        self, 
+        entity_text: str, 
+        entity_type: str, 
+        start_date: datetime, 
+        end_date: datetime,
+        *,
+        session: Optional[Session] = None
     ) -> List[ArticleDB]:
         """
         Get articles that mention a specific entity.
@@ -42,12 +49,15 @@ class TrendDetector:
             entity_type: Type of the entity
             start_date: Start date for search
             end_date: End date for search
+            session: Optional SQLAlchemy session
 
         Returns:
             List of articles mentioning the entity
         """
         # Get articles in time range
-        articles = self.data_aggregator.get_articles_in_timeframe(start_date, end_date)
+        articles = self.data_aggregator.get_articles_in_timeframe(
+            start_date, end_date, session=session
+        )
         article_ids = [article.id for article in articles]
         
         if not article_ids:
@@ -58,22 +68,21 @@ class TrendDetector:
         
         # Get entities matching our criteria
         matched_articles = []
-        with self.data_aggregator.db_manager.get_session() as session:
-            entities = (
-                session.query(EntityDB)
-                .filter(
-                    EntityDB.article_id.in_(article_ids),
-                    EntityDB.entity_type == entity_type,
-                    EntityDB.text == entity_text,
-                )
-                .all()
+        entities = (
+            session.query(EntityDB)
+            .filter(
+                EntityDB.article_id.in_(article_ids),
+                EntityDB.entity_type == entity_type,
+                EntityDB.text == entity_text,
             )
-            
-            # Get unique articles
-            for entity in entities:
-                article = article_lookup.get(entity.article_id)
-                if article and article not in matched_articles:
-                    matched_articles.append(article)
+            .all()
+        )
+        
+        # Get unique articles
+        for entity in entities:
+            article = article_lookup.get(entity.article_id)
+            if article and article not in matched_articles:
+                matched_articles.append(article)
         
         return matched_articles
 
@@ -234,12 +243,15 @@ class TrendDetector:
             
         return result
 
+    @with_session
     def detect_entity_trends(
         self,
         entity_types: List[str] = None,
         min_significance: float = 1.5,
         min_mentions: int = 2,
         max_trends: int = 20,
+        *,
+        session: Optional[Session] = None
     ) -> List[TrendAnalysis]:
         """
         Detect trends based on entity frequency analysis.
@@ -249,6 +261,7 @@ class TrendDetector:
             min_significance: Minimum significance score for trends
             min_mentions: Minimum number of mentions required
             max_trends: Maximum number of trends to return
+            session: Optional SQLAlchemy session
 
         Returns:
             List of detected trends
@@ -262,11 +275,12 @@ class TrendDetector:
             time_frame="WEEK",
             significance_threshold=min_significance,
             min_mentions=min_mentions,
+            session=session
         )
         
         # Get current frequency data for pattern analysis
         current_frequencies, _ = self.data_aggregator.get_baseline_frequencies(
-            entity_types, "WEEK", current_period=1
+            entity_types, "WEEK", current_period=1, session=session
         )
         
         # Analyze patterns in the frequencies
@@ -293,7 +307,7 @@ class TrendDetector:
             # Get articles as evidence
             start_date, end_date = self.data_aggregator.calculate_date_range("WEEK", 2)
             articles = self._get_articles_for_entity(
-                topic, entity_type, start_date, end_date
+                topic, entity_type, start_date, end_date, session=session
             )
             
             # Add evidence to trend

@@ -1,8 +1,7 @@
 """Database package for the Local Newsifier application.
 
 This package provides database access functions, classes, and utilities.
-It includes a compatibility layer for existing code that uses DatabaseManager
-as well as new adapter functions for direct access to CRUD operations.
+It uses adapter functions for direct access to CRUD operations.
 """
 
 from local_newsifier.database.adapter import (SessionManager,
@@ -32,7 +31,6 @@ from local_newsifier.database.engine import (create_db_and_tables,
                                              create_session_factory,
                                              get_engine, get_session,
                                              transaction)
-from local_newsifier.database.manager import DatabaseManager
 
 __all__ = [
     # Engine functions
@@ -41,8 +39,6 @@ __all__ = [
     "get_engine",
     "get_session",
     "transaction",
-    # Legacy DatabaseManager
-    "DatabaseManager",
     # Adapter functions and classes
     "SessionManager",
     "with_session",

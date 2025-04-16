@@ -5,8 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.orm import Session
 
-from ..config.database import get_database_settings
-from ..database.manager import DatabaseManager
+from ..database.adapter import with_session
 from ..models.database import ArticleDB, EntityDB
 from ..models.trend import TimeFrame, TopicFrequency
 
@@ -14,22 +13,24 @@ from ..models.trend import TimeFrame, TopicFrequency
 class HistoricalDataAggregator:
     """Tool for retrieving and organizing historical news data for analysis."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the historical data aggregator.
 
         Args:
-            db_manager: Optional database manager instance. If not provided,
-                       a new one will be created.
+            session: Optional SQLAlchemy session
         """
-        self.db_manager = db_manager or DatabaseManager(get_database_settings())
+        self.session = session
         self._cache: Dict[str, any] = {}
 
+    @with_session
     def get_articles_in_timeframe(
         self,
         start_date: datetime,
         end_date: Optional[datetime] = None,
         source: Optional[str] = None,
+        *,
+        session: Optional[Session] = None
     ) -> List[ArticleDB]:
         """
         Retrieve articles within the specified timeframe.
@@ -38,6 +39,7 @@ class HistoricalDataAggregator:
             start_date: Start date for the query
             end_date: End date for the query (defaults to current time)
             source: Optional filter for news source
+            session: Optional SQLAlchemy session
 
         Returns:
             List of article records
@@ -45,22 +47,24 @@ class HistoricalDataAggregator:
         if end_date is None:
             end_date = datetime.now(timezone.utc)
 
+        # Use provided session or instance session
+        session = session or self.session
+
         cache_key = f"articles_{start_date.isoformat()}_{end_date.isoformat()}_{source}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        with self.db_manager.get_session() as session:
-            query = session.query(ArticleDB).filter(
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
+        query = session.query(ArticleDB).filter(
+            ArticleDB.published_at >= start_date,
+            ArticleDB.published_at <= end_date,
+        )
 
-            if source:
-                query = query.filter(ArticleDB.source == source)
+        if source:
+            query = query.filter(ArticleDB.source == source)
 
-            articles = query.all()
-            self._cache[cache_key] = articles
-            return articles
+        articles = query.all()
+        self._cache[cache_key] = articles
+        return articles
 
     def calculate_date_range(
         self, time_frame: TimeFrame, periods: int = 1
@@ -95,12 +99,15 @@ class HistoricalDataAggregator:
 
         return start_date, end_date
 
+    @with_session
     def get_entity_frequencies(
         self,
         entity_types: List[str],
         start_date: datetime,
         end_date: Optional[datetime] = None,
         top_n: int = 20,
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, TopicFrequency]:
         """
         Get frequency data for entities within a time period.
@@ -110,6 +117,7 @@ class HistoricalDataAggregator:
             start_date: Start date for the analysis
             end_date: End date for the analysis (defaults to current time)
             top_n: Number of top entities to return
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary mapping entity text to frequency information
@@ -117,12 +125,15 @@ class HistoricalDataAggregator:
         if end_date is None:
             end_date = datetime.now(timezone.utc)
 
+        # Use provided session or instance session
+        session = session or self.session
+
         cache_key = f"entity_freq_{start_date.isoformat()}_{end_date.isoformat()}_{','.join(entity_types)}_{top_n}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         # Get all articles in the time period
-        articles = self.get_articles_in_timeframe(start_date, end_date)
+        articles = self.get_articles_in_timeframe(start_date, end_date, session=session)
         article_ids = [article.id for article in articles]
 
         # No articles found
@@ -134,32 +145,31 @@ class HistoricalDataAggregator:
 
         # Query all entities for these articles
         frequencies: Dict[str, TopicFrequency] = {}
-        with self.db_manager.get_session() as session:
-            entities = (
-                session.query(EntityDB)
-                .filter(
-                    EntityDB.article_id.in_(article_ids),
-                    EntityDB.entity_type.in_(entity_types),
-                )
-                .all()
+        entities = (
+            session.query(EntityDB)
+            .filter(
+                EntityDB.article_id.in_(article_ids),
+                EntityDB.entity_type.in_(entity_types),
             )
+            .all()
+        )
 
-            # Process entities
-            for entity in entities:
-                entity_key = f"{entity.text}:{entity.entity_type}"
+        # Process entities
+        for entity in entities:
+            entity_key = f"{entity.text}:{entity.entity_type}"
 
-                if entity_key not in frequencies:
-                    frequencies[entity_key] = TopicFrequency(
-                        topic=entity.text,
-                        entity_type=entity.entity_type,
-                        frequencies={},
-                        total_mentions=0,
-                    )
+            if entity_key not in frequencies:
+                frequencies[entity_key] = TopicFrequency(
+                    topic=entity.text,
+                    entity_type=entity.entity_type,
+                    frequencies={},
+                    total_mentions=0,
+                )
 
-                # Get the article date
-                article_date = article_dates.get(entity.article_id)
-                if article_date:
-                    frequencies[entity_key].add_occurrence(article_date)
+            # Get the article date
+            article_date = article_dates.get(entity.article_id)
+            if article_date:
+                frequencies[entity_key].add_occurrence(article_date)
 
         # Sort by total mentions and take top N
         sorted_frequencies = sorted(
@@ -174,12 +184,15 @@ class HistoricalDataAggregator:
         self._cache[cache_key] = result
         return result
 
+    @with_session
     def get_baseline_frequencies(
         self,
         entity_types: List[str],
         time_frame: TimeFrame,
         current_period: int = 1,
         baseline_periods: int = 3,
+        *,
+        session: Optional[Session] = None
     ) -> Tuple[Dict[str, TopicFrequency], Dict[str, TopicFrequency]]:
         """
         Get current and baseline frequencies for comparison.
@@ -189,6 +202,7 @@ class HistoricalDataAggregator:
             time_frame: The time frame to analyze
             current_period: Number of time frame units for current period
             baseline_periods: Number of time frame units for baseline
+            session: Optional SQLAlchemy session
 
         Returns:
             Tuple of (current_frequencies, baseline_frequencies)
@@ -208,11 +222,11 @@ class HistoricalDataAggregator:
 
         # Get frequencies for both periods
         current_frequencies = self.get_entity_frequencies(
-            entity_types, current_start, current_end
+            entity_types, current_start, current_end, session=session
         )
 
         baseline_frequencies = self.get_entity_frequencies(
-            entity_types, baseline_start, baseline_end
+            entity_types, baseline_start, baseline_end, session=session
         )
 
         return current_frequencies, baseline_frequencies

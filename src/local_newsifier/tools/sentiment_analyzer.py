@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
+from ..database.adapter import with_session, get_article, add_analysis_result
 from ..models.database import ArticleDB
 from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
 from ..models.sentiment import (
@@ -19,7 +20,6 @@ from ..models.sentiment import (
     SentimentAnalysisResultCreate
 )
 from ..models.state import AnalysisStatus, NewsAnalysisState
-from ..database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,14 @@ class EntitySentimentError(SentimentAnalysisError):
 class SentimentAnalysisTool:
     """Tool for performing sentiment analysis on news article content."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, session: Optional[Session] = None):
         """Initialize the sentiment analysis tool with required models.
         
         Args:
-            db_manager: Database manager instance for storing results
+            session: Optional SQLAlchemy session for database access
         """
         self.nlp = spacy.load("en_core_web_sm")
-        self.db_manager = db_manager
+        self.session = session
         logger.info("Initialized SentimentAnalysisTool with spaCy model")
 
     def _analyze_text_sentiment(self, text: str) -> SentimentScore:
@@ -194,21 +194,25 @@ class SentimentAnalysisTool:
 
         return state
 
+    @with_session
     def analyze_article(
-        self, db_manager: DatabaseManager, article_id: int
+        self, article_id: int, *, session: Optional[Session] = None
     ) -> Dict[str, Any]:
         """
         Analyze sentiment of an article from the database.
 
         Args:
-            db_manager: Database manager instance
             article_id: ID of the article to analyze
+            session: Optional SQLAlchemy session
 
         Returns:
             Dictionary containing sentiment analysis results
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Get article from database
-        article = db_manager.get_article(article_id)
+        article = get_article(article_id, session=session)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
 
@@ -227,23 +231,28 @@ class SentimentAnalysisTool:
             return {}
         return state.analysis_results.get("sentiment", {})
 
-    def analyze_article_sentiment(self, article_id: int) -> AnalysisResult:
+    @with_session
+    def analyze_article_sentiment(self, article_id: int, *, session: Optional[Session] = None) -> AnalysisResult:
         """
         Analyze sentiment of an article and save results to database.
 
         Args:
             article_id: ID of the article to analyze
+            session: Optional SQLAlchemy session
 
         Returns:
             AnalysisResult containing the sentiment analysis
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         # Get article from database
-        article = self.db_manager.get_article(article_id)
+        article = get_article(article_id, session=session)
         if not article:
             raise ValueError(f"Article with ID {article_id} not found")
 
         # Analyze sentiment
-        sentiment_results = self.analyze_article(self.db_manager, article_id)
+        sentiment_results = self.analyze_article(article_id, session=session)
 
         # Create analysis result
         analysis_result = AnalysisResultCreate(
@@ -252,4 +261,4 @@ class SentimentAnalysisTool:
             results=sentiment_results
         )
 
-        return self.db_manager.add_analysis_result(analysis_result)
+        return add_analysis_result(analysis_result, session=session)

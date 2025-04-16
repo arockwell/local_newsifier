@@ -3,11 +3,13 @@
 import logging
 from datetime import UTC, datetime
 
-from local_newsifier.config.database import get_db_session
-from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.models.database.article import ArticleCreate, ArticleDB
+from local_newsifier.database.engine import get_session
+from local_newsifier.database.adapter import (
+    create_article, add_entity, add_analysis_result, update_article_status
+)
+from local_newsifier.models.database.article import ArticleDB
 from local_newsifier.models.database.entity import EntityCreate
-from local_newsifier.models.pydantic_models import AnalysisResultCreate
+from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
 
 # Set up logging
 logging.basicConfig(
@@ -16,12 +18,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def show_database_state(db_manager):
+def show_database_state(session):
     """Show current state of the database."""
     logger.info("\n=== Current Database State ===")
 
     # Get all articles
-    articles = db_manager.session.query(ArticleDB).all()
+    articles = session.query(ArticleDB).all()
     logger.info(f"\nFound {len(articles)} articles in database:")
 
     for article in articles:
@@ -48,14 +50,10 @@ def show_database_state(db_manager):
 
 
 def main():
-    # Get database session
-    session_factory = get_db_session()
-    session = session_factory()
-    db_manager = DatabaseManager(session)
-
-    try:
+    # Use a context manager for the session
+    with get_session() as session:
         # Show current state
-        show_database_state(db_manager)
+        show_database_state(session)
 
         # Create a new article with unique URL
         logger.info("\nCreating new article...")
@@ -66,7 +64,7 @@ def main():
             published_at=datetime.now(UTC),
             status="new",
         )
-        created_article = db_manager.create_article(article)
+        created_article = create_article(article, session=session)
         logger.info(f"Created article with ID: {created_article.id}")
 
         # Add an entity
@@ -77,7 +75,7 @@ def main():
             entity_type="PERSON",
             confidence=0.95,
         )
-        created_entity = db_manager.add_entity(entity)
+        created_entity = add_entity(entity, session=session)
         logger.info(
             f"Added entity: {created_entity.text} ({created_entity.entity_type})"
         )
@@ -89,13 +87,13 @@ def main():
             analysis_type="NER",
             results={"entities": ["New Demo Entity"]},
         )
-        created_result = db_manager.add_analysis_result(result)
+        created_result = add_analysis_result(result, session=session)
         logger.info(f"Added analysis result: {created_result.analysis_type}")
 
         # Update article status
         logger.info("Updating article status...")
-        updated_article = db_manager.update_article_status(
-            created_article.id, "analyzed"
+        updated_article = update_article_status(
+            created_article.id, "analyzed", session=session
         )
         if updated_article:
             logger.info(f"Updated article status to: {updated_article.status}")
@@ -103,10 +101,7 @@ def main():
             logger.warning("Failed to update article status")
 
         # Show final state
-        show_database_state(db_manager)
-
-    finally:
-        session.close()
+        show_database_state(session)
 
 
 if __name__ == "__main__":

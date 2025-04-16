@@ -12,7 +12,6 @@ from local_newsifier.database.adapter import (add_analysis_result, add_entity,
                                               get_articles_by_status,
                                               get_entities_by_article,
                                               update_article_status)
-from local_newsifier.database.manager import DatabaseManager
 from local_newsifier.models.pydantic_models import (AnalysisResultCreate,
                                                     ArticleCreate,
                                                     EntityCreate)
@@ -54,8 +53,7 @@ def test_get_article(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     # Act
     article = get_article(created_article.id, session=db_session)
@@ -80,8 +78,7 @@ def test_get_article_by_url(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    manager.create_article(article_data)
+    create_article(article_data, session=db_session)
 
     # Act
     article = get_article_by_url(url, session=db_session)
@@ -104,8 +101,7 @@ def test_update_article_status(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     # Act
     updated_article = update_article_status(
@@ -139,9 +135,8 @@ def test_get_articles_by_status(db_session: Session):
         published_at=current_time,
         status=status,
     )
-    manager = DatabaseManager(db_session)
-    manager.create_article(article_data1)
-    manager.create_article(article_data2)
+    create_article(article_data1, session=db_session)
+    create_article(article_data2, session=db_session)
 
     # Act
     articles = get_articles_by_status(status, session=db_session)
@@ -164,8 +159,7 @@ def test_add_entity(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     entity_data = EntityCreate(
         article_id=created_article.id,
@@ -197,8 +191,7 @@ def test_get_entities_by_article(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     entity_data1 = EntityCreate(
         article_id=created_article.id,
@@ -212,8 +205,8 @@ def test_get_entities_by_article(db_session: Session):
         entity_type="ORG",
         confidence=0.8,
     )
-    manager.add_entity(entity_data1)
-    manager.add_entity(entity_data2)
+    add_entity(entity_data1, session=db_session)
+    add_entity(entity_data2, session=db_session)
 
     # Act
     entities = get_entities_by_article(created_article.id, session=db_session)
@@ -236,8 +229,7 @@ def test_add_analysis_result(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     result_data = AnalysisResultCreate(
         article_id=created_article.id,
@@ -267,8 +259,7 @@ def test_get_analysis_results_by_article(db_session: Session):
         published_at=current_time,
         status="initialized",
     )
-    manager = DatabaseManager(db_session)
-    created_article = manager.create_article(article_data)
+    created_article = create_article(article_data, session=db_session)
 
     result_data1 = AnalysisResultCreate(
         article_id=created_article.id,
@@ -280,8 +271,8 @@ def test_get_analysis_results_by_article(db_session: Session):
         analysis_type="TOPIC",
         results={"topic": "politics", "confidence": 0.9},
     )
-    manager.add_analysis_result(result_data1)
-    manager.add_analysis_result(result_data2)
+    add_analysis_result(result_data1, session=db_session)
+    add_analysis_result(result_data2, session=db_session)
 
     # Act
     results = get_analysis_results_by_article(created_article.id, session=db_session)

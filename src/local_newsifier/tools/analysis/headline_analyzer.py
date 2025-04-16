@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import spacy
 from sqlalchemy.orm import Session
 
-from ...database.manager import DatabaseManager
+from ...database.adapter import with_session
 from ...models.database import ArticleDB
 from ...models.pydantic_models import Article
 
@@ -32,26 +32,29 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendAnalyzer:
     """Tool for analyzing trends in article headlines over time."""
 
-    def __init__(self, db_manager: DatabaseManager, nlp_model: Optional[str] = "en_core_web_lg"):
+    def __init__(self, session: Optional[Session] = None, nlp_model: Optional[str] = "en_core_web_lg"):
         """
         Initialize the headline trend analyzer.
         
         Args:
-            db_manager: Database manager for accessing articles
+            session: Optional SQLAlchemy session for database access
             nlp_model: Name of the spaCy model to use
         """
-        self.db_manager = db_manager
+        self.session = session
         try:
             self.nlp = spacy.load(nlp_model)
         except OSError:
             logger.error(f"spaCy model '{nlp_model}' not found. Some NLP features will be disabled.")
             self.nlp = None
 
+    @with_session
     def get_headlines_by_period(
         self, 
         start_date: datetime, 
         end_date: datetime, 
-        interval: str = "day"
+        interval: str = "day",
+        *, 
+        session: Optional[Session] = None
     ) -> Dict[str, List[str]]:
         """
         Retrieve headlines grouped by time period.
@@ -60,12 +63,16 @@ class HeadlineTrendAnalyzer:
             start_date: Start date for analysis
             end_date: End date for analysis
             interval: Time interval for grouping ('day', 'week', 'month')
+            session: Optional SQLAlchemy session
             
         Returns:
             Dictionary mapping time periods to lists of headlines
         """
+        # Use provided session, instance session, or create new session
+        session = session or self.session
+        
         # Query all articles in the date range
-        articles = self.db_manager.session.query(ArticleDB).filter(
+        articles = session.query(ArticleDB).filter(
             ArticleDB.published_at.between(start_date, end_date)
         ).order_by(ArticleDB.published_at).all()
         
@@ -122,12 +129,15 @@ class HeadlineTrendAnalyzer:
         # Count frequencies and return top N
         return Counter(keywords).most_common(top_n)
     
+    @with_session
     def analyze_trends(
         self, 
         start_date: datetime, 
         end_date: datetime, 
         time_interval: str = "day",
-        top_n: int = 20
+        top_n: int = 20,
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, Any]:
         """
         Analyze headline trends over the specified time period.
@@ -137,13 +147,14 @@ class HeadlineTrendAnalyzer:
             end_date: End date for analysis
             time_interval: Time interval for grouping ('day', 'week', 'month')
             top_n: Number of top keywords to analyze per period
+            session: Optional SQLAlchemy session
             
         Returns:
             Dictionary containing trend analysis results
         """
         # Fetch headlines grouped by time interval
         grouped_headlines = self.get_headlines_by_period(
-            start_date, end_date, time_interval
+            start_date, end_date, time_interval, session=session
         )
         
         if not grouped_headlines:
