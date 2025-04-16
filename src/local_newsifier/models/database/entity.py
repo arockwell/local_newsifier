@@ -1,59 +1,42 @@
 """Entity models for the news analysis system."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Column, Float, String
 
 from local_newsifier.models.database.base import Base
 
+# Handle circular imports
+if TYPE_CHECKING:
+    from local_newsifier.models.database.article import Article
 
-class EntityDB(Base):
-    """Database model for entities."""
+
+class Entity(Base, table=True):
+    """SQLModel for entities, combining Pydantic validation and SQLAlchemy ORM."""
 
     __tablename__ = "entities"
-    __table_args__ = {'extend_existing': True}
 
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
-    text = Column(String, nullable=False)
-    entity_type = Column(String, nullable=False)
-    confidence = Column(Float, default=1.0)
-    sentence_context = Column(String)
-    created_at = Column(DateTime, default=lambda: datetime.now())
-
-    # Relationships
-    article = relationship("ArticleDB", back_populates="entities")
+    article_id: int = Field(foreign_key="articles.id", nullable=False)
+    text: str = Field(sa_column=Column(String, nullable=False))
+    entity_type: str = Field(sa_column=Column(String, nullable=False))
+    confidence: float = Field(default=1.0, sa_column=Column(Float, default=1.0))
+    sentence_context: Optional[str] = Field(default=None)
+    
+    # Define relationship
+    article: Optional["Article"] = Relationship(back_populates="entities")
 
 
-class EntityBase(BaseModel):
-    """Base Pydantic model for entities."""
-
+# Create schema for entity creation
+class EntityCreate(SQLModel):
+    """Schema for creating entities."""
+    
+    article_id: int
     text: str
     entity_type: str
-    confidence: float
+    confidence: float = 1.0
     sentence_context: Optional[str] = None
 
 
-class EntityCreate(EntityBase):
-    """Pydantic model for creating entities."""
-
-    article_id: int
-
-
-class Entity(EntityBase):
-    """Pydantic model for entities with relationships."""
-
-    id: int
-    article_id: int
-
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
-
-
-# Update forward references
-Entity.model_rebuild()
+# No backward compatibility - we'll refactor references directly

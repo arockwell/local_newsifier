@@ -27,5 +27,4 @@ class Article(Base, table=True):
     analysis_results: List["AnalysisResult"] = Relationship(back_populates="article")
 
 
-# For backward compatibility
-ArticleDB = Article
+# No backward compatibility - we'll refactor references directly
