@@ -1,7 +1,7 @@
-"""Flow for tracking entities across news articles (refactored version).
+"""Flow for tracking entities across news articles (refactored).
 
 This module provides a refactored version of the EntityTrackingFlow that uses
-the database adapter functions directly instead of DatabaseManager.
+database adapter functions directly instead of DatabaseManager.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -10,25 +10,12 @@ from typing import Dict, List, Optional
 from crewai import Flow
 from sqlalchemy.orm import Session
 
-from local_newsifier.database import (
-    # Direct adapter functions
-    get_article,
-    get_articles_by_status,
-    update_article_status,
-    get_canonical_entities_by_type,
-    get_entity_mentions_count,
-    get_entity_timeline,
-    get_entity_sentiment_trend,
-    get_canonical_entity,
-    get_articles_mentioning_entity,
-    get_entities_by_article,
-    
-    # Session management
-    SessionManager,
-    with_session,
-)
-from local_newsifier.models.entity_tracking import CanonicalEntity
-from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.database import (  # Direct adapter functions; Session management
+    SessionManager, get_article, get_articles_by_status,
+    get_articles_mentioning_entity, get_canonical_entities_by_type,
+    get_canonical_entity, get_entities_by_article, get_entity_mentions_count,
+    get_entity_sentiment_trend, get_entity_timeline, update_article_status,
+    with_session)
 from local_newsifier.tools.entity_tracker import EntityTracker
 
 
@@ -37,23 +24,23 @@ class EntityTrackingFlowRefactored(Flow):
 
     def __init__(self, session: Optional[Session] = None):
         """Initialize the entity tracking flow.
-        
+
         Args:
             session: Optional database session (if not provided, one will be created when needed)
         """
         super().__init__()
         self.session = session
         self.entity_tracker = EntityTracker(self, session=session)
-    
+
     def get_db_session(self):
         """Get the database session.
-        
+
         Returns:
             Database session
         """
         if self.session:
             return self.session
-        
+
         return SessionManager()
 
     def process_new_articles(self) -> List[Dict]:

@@ -1,46 +1,37 @@
-"""Entity tracking tool for tracking person entities across news articles (refactored version).
+"""Entity tracking tool for person entities across news articles (refactored).
 
 This module provides a refactored version of the EntityTracker that uses
 the database adapter functions directly instead of DatabaseManager.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import spacy
 from spacy.language import Language
 from sqlalchemy.orm import Session
 
-from local_newsifier.database import (
-    # Direct adapter functions
-    add_entity,
-    add_entity_mention_context,
-    add_entity_profile,
-    get_entity_profile,
-    update_entity_profile,
-    get_entity_timeline,
-    get_entity_sentiment_trend,
-    
-    # Session management
-    with_session,
-)
+from local_newsifier.database import (  # Direct adapter functions; Session management
+    add_entity, add_entity_mention_context, add_entity_profile,
+    get_entity_profile, get_entity_sentiment_trend, get_entity_timeline,
+    update_entity_profile, with_session)
+from local_newsifier.models.entity_tracking import (EntityMentionContextCreate,
+                                                    EntityProfileCreate)
 from local_newsifier.models.pydantic_models import EntityCreate
-from local_newsifier.models.entity_tracking import (
-    EntityMentionContextCreate, EntityProfileCreate
-)
-from local_newsifier.tools.entity_resolver_refactored import EntityResolverRefactored
 from local_newsifier.tools.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.entity_resolver_refactored import \
+    EntityResolverRefactored
 
 
 class EntityTrackerRefactored:
     """Tool for tracking person entities across news articles."""
 
     def __init__(
-        self, 
-        flow: Any = None, 
+        self,
+        flow: Any = None,
         session: Optional[Session] = None,
         model_name: str = "en_core_web_lg",
-        similarity_threshold: float = 0.85
+        similarity_threshold: float = 0.85,
     ):
         """Initialize the entity tracker.
 
@@ -52,7 +43,7 @@ class EntityTrackerRefactored:
         """
         self.flow = flow
         self.session = session
-        
+
         try:
             self.nlp: Language = spacy.load(model_name)
         except OSError:
@@ -60,72 +51,71 @@ class EntityTrackerRefactored:
                 f"spaCy model '{model_name}' not found. "
                 f"Please install it using: python -m spacy download {model_name}"
             )
-        
+
         self.entity_resolver = EntityResolverRefactored(
-            session=session, 
-            similarity_threshold=similarity_threshold
+            session=session, similarity_threshold=similarity_threshold
         )
         self.context_analyzer = ContextAnalyzer(model_name)
-    
+
     @with_session
     def process_article(
-        self, 
+        self,
         article_id: int,
         content: str,
         title: str,
         published_at: datetime,
         *,
-        session: Session
+        session: Session,
     ) -> List[Dict]:
         """Process an article to track entity mentions.
-        
+
         Args:
             article_id: ID of the article being processed
             content: Article content
             title: Article title
             published_at: Article publication date
             session: Database session
-            
+
         Returns:
             List of processed entity mentions
         """
         # Extract person entities
         doc = self.nlp(content)
         person_entities = [ent for ent in doc.ents if ent.label_ == "PERSON"]
-        
+
         # Process and deduplicate entities
         processed_entities = []
         unique_canonical_ids = set()
-        
+
         for entity in person_entities:
             # Extract context for the entity
             context_text = entity.sent.text
-            
+
             # Resolve to canonical entity
             canonical_entity = self.entity_resolver.resolve_entity(
                 entity.text, "PERSON", session=session
             )
-            
+
             # Skip if we've already processed this canonical entity for this article
             if canonical_entity.id in unique_canonical_ids:
                 continue
-            
+
             unique_canonical_ids.add(canonical_entity.id)
-            
+
             # Analyze context for sentiment and framing
             context_analysis = self.context_analyzer.analyze_context(context_text)
-            
+
             # Store entity in database
-            db_entity = self._store_entity(
+            self._store_entity(
                 article_id=article_id,
                 entity_text=entity.text,
                 canonical_entity_id=canonical_entity.id,
                 context_text=context_text,
                 sentiment_score=context_analysis["sentiment"]["score"],
                 published_at=published_at,
-                session=session
+                session=session,
             )
-            
+
             # Update entity profile
             self._update_entity_profile(
                 canonical_entity_id=canonical_entity.id,
@@ -134,21 +124,23 @@ class EntityTrackerRefactored:
                 sentiment_score=context_analysis["sentiment"]["score"],
                 framing_category=context_analysis["framing"]["category"],
                 published_at=published_at,
-                session=session
+                session=session,
             )
-            
+
             # Add to results
-            processed_entities.append({
-                "original_text": entity.text,
-                "canonical_name": canonical_entity.name,
-                "canonical_id": canonical_entity.id,
-                "context": context_text,
-                "sentiment_score": context_analysis["sentiment"]["score"],
-                "framing_category": context_analysis["framing"]["category"]
-            })
-        
+            processed_entities.append(
+                {
+                    "original_text": entity.text,
+                    "canonical_name": canonical_entity.name,
+                    "canonical_id": canonical_entity.id,
+                    "context": context_text,
+                    "sentiment_score": context_analysis["sentiment"]["score"],
+                    "framing_category": context_analysis["framing"]["category"],
+                }
+            )
+
         return processed_entities
-    
+
     @with_session
     def _store_entity(
         self,
@@ -159,10 +151,10 @@ class EntityTrackerRefactored:
         sentiment_score: float,
         published_at: datetime,
         *,
-        session: Session
+        session: Session,
     ) -> Any:
         """Store entity and context information in the database.
-        
+
         Args:
             article_id: ID of the article
             entity_text: Original entity text
@@ -171,7 +163,7 @@ class EntityTrackerRefactored:
             sentiment_score: Sentiment score for the context
             published_at: Publication date of the article
             session: Database session
-            
+
         Returns:
             Created entity database object
         """
@@ -180,22 +172,22 @@ class EntityTrackerRefactored:
             article_id=article_id,
             text=entity_text,
             entity_type="PERSON",
-            confidence=1.0  # We could calculate this based on NER confidence
+            confidence=1.0,  # We could calculate this based on NER confidence
         )
         entity = add_entity(entity_data, session=session)
-        
+
         # Store entity mention context
         context_data = EntityMentionContextCreate(
             entity_id=entity.id,
             article_id=article_id,
             context_text=context_text,
             context_type="sentence",
-            sentiment_score=sentiment_score
+            sentiment_score=sentiment_score,
         )
         add_entity_mention_context(context_data, session=session)
-        
+
         return entity
-    
+
     @with_session
     def _update_entity_profile(
         self,
@@ -206,7 +198,7 @@ class EntityTrackerRefactored:
         framing_category: str,
         published_at: datetime,
         *,
-        session: Session
+        session: Session,
     ) -> None:
         """Update entity profile with new mention data.
 
@@ -251,21 +243,33 @@ class EntityTrackerRefactored:
                     "temporal_data": temporal_data,
                     "sentiment_scores": {
                         "latest": sentiment_score,
-                        "average": ((
-                            current_profile.profile_metadata["sentiment_scores"]["average"]
-                            if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
-                            else sentiment_score
-                        ) + sentiment_score) / 2
+                        "average": (
+                            (
+                                current_profile.profile_metadata["sentiment_scores"][
+                                    "average"
+                                ]
+                                if current_profile.profile_metadata
+                                and "sentiment_scores"
+                                in current_profile.profile_metadata
+                                else sentiment_score
+                            )
+                            + sentiment_score
+                        )
+                        / 2,
                     },
                     "framing_categories": {
                         "latest": framing_category,
                         "history": (
-                            current_profile.profile_metadata["framing_categories"]["history"]
-                            if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
+                            current_profile.profile_metadata["framing_categories"][
+                                "history"
+                            ]
+                            if current_profile.profile_metadata
+                            and "framing_categories" in current_profile.profile_metadata
                             else []
-                        ) + [framing_category]
-                    }
-                }
+                        )
+                        + [framing_category],
+                    },
+                },
             )
             update_entity_profile(profile_data, session=session)
         else:
@@ -280,57 +284,55 @@ class EntityTrackerRefactored:
                     "temporal_data": {published_at.strftime("%Y-%m-%d"): 1},
                     "sentiment_scores": {
                         "latest": sentiment_score,
-                        "average": sentiment_score
+                        "average": sentiment_score,
                     },
                     "framing_categories": {
                         "latest": framing_category,
-                        "history": [framing_category]
-                    }
-                }
+                        "history": [framing_category],
+                    },
+                },
             )
             add_entity_profile(profile_data, session=session)
-    
+
     @with_session
     def get_entity_timeline(
-        self, 
-        entity_id: int, 
-        start_date: datetime, 
+        self,
+        entity_id: int,
+        start_date: datetime,
         end_date: datetime,
         *,
-        session: Session
+        session: Session,
     ) -> List[Dict]:
         """Get timeline of mentions for a specific entity.
-        
+
         Args:
             entity_id: ID of the canonical entity
             start_date: Start date for the timeline
             end_date: End date for the timeline
             session: Database session
-            
+
         Returns:
             List of mentions with article details
         """
-        return get_entity_timeline(
-            entity_id, start_date, end_date, session=session
-        )
-    
+        return get_entity_timeline(entity_id, start_date, end_date, session=session)
+
     @with_session
     def get_entity_sentiment_trend(
-        self, 
-        entity_id: int, 
-        start_date: datetime, 
+        self,
+        entity_id: int,
+        start_date: datetime,
         end_date: datetime,
         *,
-        session: Session
+        session: Session,
     ) -> List[Dict]:
         """Get sentiment trend for a specific entity over time.
-        
+
         Args:
             entity_id: ID of the canonical entity
             start_date: Start date for the trend
             end_date: End date for the trend
             session: Database session
-            
+
         Returns:
             List of sentiment scores by date
         """

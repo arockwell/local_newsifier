@@ -1,37 +1,33 @@
 """Tests for the database adapter module."""
 
-import pytest
 from datetime import datetime, timezone
 
+# pytest is used as a fixture marker
 from sqlalchemy.orm import Session
 
+from local_newsifier.database.adapter import (add_analysis_result, add_entity,
+                                              create_article,
+                                              get_analysis_results_by_article,
+                                              get_article, get_article_by_url,
+                                              get_articles_by_status,
+                                              get_entities_by_article,
+                                              update_article_status)
 from local_newsifier.database.manager import DatabaseManager
-from local_newsifier.database.adapter import (
-    create_article,
-    get_article,
-    get_article_by_url,
-    update_article_status,
-    get_articles_by_status,
-    add_entity,
-    get_entities_by_article,
-    add_analysis_result,
-    get_analysis_results_by_article,
-)
-from local_newsifier.models.pydantic_models import (
-    ArticleCreate,
-    EntityCreate,
-    AnalysisResultCreate,
-)
+from local_newsifier.models.pydantic_models import (AnalysisResultCreate,
+                                                    ArticleCreate,
+                                                    EntityCreate)
 
 
 def test_create_article(db_session: Session):
     """Test creating an article with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test",
         title="Test Article",
         content="Test content",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
 
@@ -49,11 +45,13 @@ def test_create_article(db_session: Session):
 def test_get_article(db_session: Session):
     """Test getting an article with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-get",
         title="Test Get Article",
         content="Test content for get",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -72,12 +70,14 @@ def test_get_article(db_session: Session):
 def test_get_article_by_url(db_session: Session):
     """Test getting an article by URL with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     url = "https://example.com/test-get-by-url"
     article_data = ArticleCreate(
         url=url,
         title="Test Get Article By URL",
         content="Test content for get by URL",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -95,11 +95,13 @@ def test_get_article_by_url(db_session: Session):
 def test_update_article_status(db_session: Session):
     """Test updating an article status with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-update-status",
         title="Test Update Status",
         content="Test content for update status",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -119,19 +121,22 @@ def test_update_article_status(db_session: Session):
 def test_get_articles_by_status(db_session: Session):
     """Test getting articles by status with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     status = "test_status"
     article_data1 = ArticleCreate(
         url="https://example.com/test-get-by-status-1",
         title="Test Get By Status 1",
         content="Test content for get by status 1",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status=status,
     )
     article_data2 = ArticleCreate(
         url="https://example.com/test-get-by-status-2",
         title="Test Get By Status 2",
         content="Test content for get by status 2",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status=status,
     )
     manager = DatabaseManager(db_session)
@@ -150,11 +155,13 @@ def test_get_articles_by_status(db_session: Session):
 def test_add_entity(db_session: Session):
     """Test adding an entity with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-add-entity",
         title="Test Add Entity",
         content="Test content for add entity",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -181,11 +188,13 @@ def test_add_entity(db_session: Session):
 def test_get_entities_by_article(db_session: Session):
     """Test getting entities by article with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-get-entities",
         title="Test Get Entities",
         content="Test content for get entities",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -218,11 +227,13 @@ def test_get_entities_by_article(db_session: Session):
 def test_add_analysis_result(db_session: Session):
     """Test adding an analysis result with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-add-result",
         title="Test Add Result",
         content="Test content for add result",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -231,7 +242,7 @@ def test_add_analysis_result(db_session: Session):
     result_data = AnalysisResultCreate(
         article_id=created_article.id,
         analysis_type="SENTIMENT",
-        result={"sentiment": "positive", "score": 0.8},
+        results={"sentiment": "positive", "score": 0.8},
     )
 
     # Act
@@ -241,17 +252,19 @@ def test_add_analysis_result(db_session: Session):
     assert result.id is not None
     assert result.article_id == created_article.id
     assert result.analysis_type == result_data.analysis_type
-    assert result.result == result_data.result
+    assert result.results == result_data.results  # Compare results dictionaries
 
 
 def test_get_analysis_results_by_article(db_session: Session):
     """Test getting analysis results by article with the adapter function."""
     # Arrange
+    current_time = datetime.now(timezone.utc)
     article_data = ArticleCreate(
         url="https://example.com/test-get-results",
         title="Test Get Results",
         content="Test content for get results",
-        published_at=datetime.now(timezone.utc),
+        source="Test Source",
+        published_at=current_time,
         status="initialized",
     )
     manager = DatabaseManager(db_session)
@@ -260,12 +273,12 @@ def test_get_analysis_results_by_article(db_session: Session):
     result_data1 = AnalysisResultCreate(
         article_id=created_article.id,
         analysis_type="SENTIMENT",
-        result={"sentiment": "positive", "score": 0.8},
+        results={"sentiment": "positive", "score": 0.8},
     )
     result_data2 = AnalysisResultCreate(
         article_id=created_article.id,
         analysis_type="TOPIC",
-        result={"topic": "politics", "confidence": 0.9},
+        results={"topic": "politics", "confidence": 0.9},
     )
     manager.add_analysis_result(result_data1)
     manager.add_analysis_result(result_data2)

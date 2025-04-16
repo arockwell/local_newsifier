@@ -1,4 +1,4 @@
-"""Entity resolver tool for resolving entity mentions to canonical entities (refactored version).
+"""Entity resolver tool for entity mention to canonical entity resolution (refactored).
 
 This module provides a refactored version of the EntityResolver that uses
 the database adapter functions directly instead of DatabaseManager.
@@ -6,27 +6,21 @@ the database adapter functions directly instead of DatabaseManager.
 
 from typing import Optional
 
-import spacy
 from sqlalchemy.orm import Session
 from thefuzz import fuzz
 
-from local_newsifier.database import (
-    get_canonical_entity_by_name,
-    create_canonical_entity,
-    with_session,
-)
-from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, CanonicalEntityCreate,
-)
+from local_newsifier.database import (create_canonical_entity,
+                                      get_canonical_entity_by_name,
+                                      with_session)
+from local_newsifier.models.entity_tracking import (CanonicalEntity,
+                                                    CanonicalEntityCreate)
 
 
 class EntityResolverRefactored:
     """Tool for resolving entity mentions to canonical entities."""
 
     def __init__(
-        self,
-        session: Optional[Session] = None,
-        similarity_threshold: float = 0.85
+        self, session: Optional[Session] = None, similarity_threshold: float = 0.85
     ):
         """Initialize the entity resolver.
 
@@ -63,8 +57,12 @@ class EntityResolverRefactored:
         canonical_entities = []
         # We need to use a session-specific query here
         # Implement this in the adapter module later
-        from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-        canonical_entities = canonical_entity_crud.get_by_type(session, entity_type=entity_type)
+        from local_newsifier.crud.canonical_entity import \
+            canonical_entity as canonical_entity_crud
+
+        canonical_entities = canonical_entity_crud.get_by_type(
+            session, entity_type=entity_type
+        )
 
         best_match = None
         best_score = 0

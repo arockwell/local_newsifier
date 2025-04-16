@@ -21,7 +21,7 @@ def get_engine(url: str = None):
     """
     settings = get_settings()
     url = url or str(settings.DATABASE_URL)
-    
+
     return create_engine(
         url,
         pool_size=settings.DB_POOL_SIZE,
@@ -88,5 +88,5 @@ def create_db_and_tables(engine=None):
     """
     if engine is None:
         engine = get_engine()
-    
+
     Base.metadata.create_all(engine)
