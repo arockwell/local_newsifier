@@ -8,23 +8,20 @@ import pytest
 from pytest_mock import MockFixture
 
 from src.local_newsifier.tools.sentiment_tracker import SentimentTracker
-from src.local_newsifier.database.manager import DatabaseManager
 
 
 class TestSentimentTracker:
     """Test class for SentimentTracker."""
 
     @pytest.fixture
-    def mock_db_manager(self):
-        """Create a mock database manager."""
-        mock = MagicMock(spec=DatabaseManager)
-        mock.session = MagicMock()
-        return mock
+    def mock_session(self):
+        """Create a mock database session."""
+        return MagicMock()
 
     @pytest.fixture
-    def tracker(self, mock_db_manager):
+    def tracker(self, mock_session):
         """Create a sentiment tracker instance."""
-        return SentimentTracker(mock_db_manager)
+        return SentimentTracker(session=mock_session)
 
     def test_get_period_key(self, tracker):
         """Test period key generation."""
@@ -233,7 +230,7 @@ class TestSentimentTracker:
         # Edge case: Zero variance
         assert tracker._calculate_correlation([1.0, 1.0, 1.0], [2.0, 3.0, 4.0]) == 0.0
 
-    def test_get_articles_in_range(self, tracker, mock_db_manager):
+    def test_get_articles_in_range(self, tracker, mock_session):
         """Test getting articles in a date range."""
         # Instead of trying to mock a complex SQLAlchemy query,
         # let's patch the entire method to return our test data
@@ -251,8 +248,8 @@ class TestSentimentTracker:
             
             # To improve code coverage, call the original method with an empty session
             # This will avoid the TypeErrors from the complex query
-            original_session = mock_db_manager.session
-            mock_db_manager.session = None
+            original_session = tracker.session
+            tracker.session = None
             
             # Just assert that we didn't get an error
             try:
@@ -261,9 +258,9 @@ class TestSentimentTracker:
             except Exception:
                 pytest.fail("_get_articles_in_range raised an exception with None session")
             finally:
-                mock_db_manager.session = original_session
+                tracker.session = original_session
 
-    def test_get_sentiment_data_for_articles(self, tracker, mock_db_manager):
+    def test_get_sentiment_data_for_articles(self, tracker):
         """Test getting sentiment data for articles."""
         # Mock database results
         mock_sentiment_result = MagicMock()
@@ -277,23 +274,25 @@ class TestSentimentTracker:
         mock_other_result = MagicMock()
         mock_other_result.analysis_type = "NER"
         
-        # Return different results for different articles
-        def get_results_side_effect(article_id):
-            if article_id == 1:
-                return [mock_sentiment_result, mock_other_result]
-            else:
-                return [mock_other_result]
-                
-        mock_db_manager.get_analysis_results_by_article.side_effect = get_results_side_effect
-        
-        # Get sentiment data
-        results = tracker._get_sentiment_data_for_articles([1, 2])
-        
-        # Should have one result (for article 1)
-        assert len(results) == 1
-        assert results[0]["document_sentiment"] == 0.5
-        assert results[0]["article_id"] == 1
-        assert "topic_sentiments" in results[0]
+        # Patch the adapter function we would be using
+        with patch('src.local_newsifier.database.adapter.get_analysis_results_by_article') as mock_get_results:
+            # Return different results for different articles
+            def get_results_side_effect(article_id, **kwargs):
+                if article_id == 1:
+                    return [mock_sentiment_result, mock_other_result]
+                else:
+                    return [mock_other_result]
+                    
+            mock_get_results.side_effect = get_results_side_effect
+            
+            # Get sentiment data
+            results = tracker._get_sentiment_data_for_articles([1, 2])
+            
+            # Should have one result (for article 1)
+            assert len(results) == 1
+            assert results[0]["document_sentiment"] == 0.5
+            assert results[0]["article_id"] == 1
+            assert "topic_sentiments" in results[0]
 
     def test_get_sentiment_by_period(self, tracker):
         """Test getting sentiment data grouped by period."""

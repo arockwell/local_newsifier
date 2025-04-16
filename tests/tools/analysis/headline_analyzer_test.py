@@ -7,23 +7,20 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 import logging
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
-from src.local_newsifier.database.manager import DatabaseManager
 from src.local_newsifier.models.database import ArticleDB, Base
 
 logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="function")
-def test_db(test_engine):
-    """Create a test database."""
+def test_session(test_engine):
+    """Create a test database session."""
     Session = sessionmaker(bind=test_engine)
     session = Session()
     
-    db_manager = DatabaseManager(session)
-    
-    yield db_manager
+    yield session
     
     session.close()
 
@@ -56,7 +53,7 @@ def mock_nlp():
     mock_nlp.side_effect = create_mock_doc
     return mock_nlp
 
-def test_headline_analyzer_with_real_db(test_db, mock_nlp):
+def test_headline_analyzer_with_real_db(test_session, mock_nlp):
     """Test headline analyzer with real database session."""
     with patch("spacy.load", return_value=mock_nlp):
         # Create test articles
@@ -76,11 +73,11 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
         
         # Add articles to database
         for article in articles:
-            test_db.session.add(article)
-        test_db.session.commit()
+            test_session.add(article)
+        test_session.commit()
         
-        # Create analyzer with real database manager
-        analyzer = HeadlineTrendAnalyzer(test_db)
+        # Create analyzer with real database session
+        analyzer = HeadlineTrendAnalyzer(session=test_session)
         
         # Test getting headlines
         start_date = now - timedelta(days=1)
@@ -104,7 +101,7 @@ def test_headline_analyzer_with_real_db(test_db, mock_nlp):
         assert "raw_data" in trends
         assert "period_counts" in trends
 
-def test_headline_analyzer_with_real_db_and_trends(test_db, mock_nlp, caplog):
+def test_headline_analyzer_with_real_db_and_trends(test_session, mock_nlp, caplog):
     """Test headline analyzer with real database and trending terms."""
     caplog.set_level(logging.DEBUG)
     with patch("spacy.load", return_value=mock_nlp):
@@ -131,11 +128,11 @@ def test_headline_analyzer_with_real_db_and_trends(test_db, mock_nlp, caplog):
         
         # Add articles to database
         for article in articles:
-            test_db.session.add(article)
-        test_db.session.commit()
+            test_session.add(article)
+        test_session.commit()
         
-        # Create analyzer with real database manager
-        analyzer = HeadlineTrendAnalyzer(test_db)
+        # Create analyzer with real database session
+        analyzer = HeadlineTrendAnalyzer(session=test_session)
         
         # Test trend analysis
         start_date = now - timedelta(days=3)
@@ -156,7 +153,7 @@ def test_headline_analyzer_with_real_db_and_trends(test_db, mock_nlp, caplog):
         assert trending_topic["growth_rate"] > 0
         assert trending_topic["total_mentions"] >= 3
 
-def test_headline_analyzer_with_real_db_and_noise(test_db, mock_nlp):
+def test_headline_analyzer_with_real_db_and_noise(test_session, mock_nlp):
     """Test headline analyzer with real database and noise filtering."""
     with patch("spacy.load", return_value=mock_nlp):
         # Create test articles with some noisy terms
@@ -179,11 +176,11 @@ def test_headline_analyzer_with_real_db_and_noise(test_db, mock_nlp):
         
         # Add articles to database
         for article in articles:
-            test_db.session.add(article)
-        test_db.session.commit()
+            test_session.add(article)
+        test_session.commit()
         
-        # Create analyzer with real database manager
-        analyzer = HeadlineTrendAnalyzer(test_db)
+        # Create analyzer with real database session
+        analyzer = HeadlineTrendAnalyzer(session=test_session)
         
         # Test trend analysis
         start_date = now - timedelta(days=10)
@@ -200,11 +197,9 @@ class TestHeadlineTrendAnalyzer:
     """Tests for the HeadlineTrendAnalyzer class."""
 
     @pytest.fixture
-    def mock_db_manager(self) -> MagicMock:
-        """Create a mock database manager."""
-        mock = MagicMock()
-        mock.session = MagicMock()
-        return mock
+    def mock_session(self) -> MagicMock:
+        """Create a mock database session."""
+        return MagicMock()
 
     @pytest.fixture
     def mock_nlp(self) -> MagicMock:
@@ -215,11 +210,11 @@ class TestHeadlineTrendAnalyzer:
         return mock
 
     @pytest.fixture
-    def analyzer(self, mock_db_manager: MagicMock) -> HeadlineTrendAnalyzer:
+    def analyzer(self, mock_session: MagicMock) -> HeadlineTrendAnalyzer:
         """Create a headline analyzer with mocked components."""
         with patch("spacy.load") as mock_load:
             mock_load.return_value = MagicMock()
-            analyzer = HeadlineTrendAnalyzer(mock_db_manager)
+            analyzer = HeadlineTrendAnalyzer(session=mock_session)
             return analyzer
 
     def test_get_interval_key_day(self, analyzer: HeadlineTrendAnalyzer) -> None:
@@ -241,7 +236,7 @@ class TestHeadlineTrendAnalyzer:
         assert key == "2023-05"
 
     def test_get_headlines_by_period(
-        self, analyzer: HeadlineTrendAnalyzer, mock_db_manager: MagicMock
+        self, analyzer: HeadlineTrendAnalyzer, mock_session: MagicMock
     ) -> None:
         """Test getting headlines grouped by period."""
         # Create sample articles in the database
@@ -263,7 +258,7 @@ class TestHeadlineTrendAnalyzer:
         mock_order_by.all.return_value = mock_articles
         mock_filter.order_by.return_value = mock_order_by
         mock_query.filter.return_value = mock_filter
-        mock_db_manager.session.query.return_value = mock_query
+        mock_session.query.return_value = mock_query
         
         # Call the method
         result = analyzer.get_headlines_by_period(start_date, end_date, "day")
@@ -347,7 +342,7 @@ class TestHeadlineTrendAnalyzer:
         assert result == []
         
     def test_analyze_trends(
-        self, analyzer: HeadlineTrendAnalyzer, mock_db_manager: MagicMock
+        self, analyzer: HeadlineTrendAnalyzer, mock_session: MagicMock
     ) -> None:
         """Test analyzing trends across time periods."""
         # Mock the get_headlines_by_period and extract_keywords methods
@@ -417,15 +412,15 @@ class TestHeadlineTrendAnalyzer:
         if term2_trend:
             assert term2_trend["growth_rate"] == 0
 
-    def test_init_with_invalid_nlp_model(self, mock_db_manager: MagicMock) -> None:
+    def test_init_with_invalid_nlp_model(self, mock_session: MagicMock) -> None:
         """Test initialization with an invalid spaCy model."""
         with patch("spacy.load") as mock_load:
             mock_load.side_effect = OSError("Model not found")
-            analyzer = HeadlineTrendAnalyzer(mock_db_manager, nlp_model="invalid_model")
+            analyzer = HeadlineTrendAnalyzer(session=mock_session, nlp_model="invalid_model")
             assert analyzer.nlp is None
 
     def test_get_headlines_by_period_with_empty_title(
-        self, analyzer: HeadlineTrendAnalyzer, mock_db_manager: MagicMock
+        self, analyzer: HeadlineTrendAnalyzer, mock_session: MagicMock
     ) -> None:
         """Test handling of articles with empty titles."""
         # Create sample articles with empty title
@@ -440,7 +435,7 @@ class TestHeadlineTrendAnalyzer:
         mock_order_by.all.return_value = [mock_article]
         mock_filter.order_by.return_value = mock_order_by
         mock_query.filter.return_value = mock_filter
-        mock_db_manager.session.query.return_value = mock_query
+        mock_session.query.return_value = mock_query
         
         # Call the method
         result = analyzer.get_headlines_by_period(
@@ -453,7 +448,7 @@ class TestHeadlineTrendAnalyzer:
         assert result == {}
 
     def test_analyze_trends_no_headlines(
-        self, analyzer: HeadlineTrendAnalyzer, mock_db_manager: MagicMock
+        self, analyzer: HeadlineTrendAnalyzer, mock_session: MagicMock
     ) -> None:
         """Test handling when no headlines are found in the period."""
         with patch.object(analyzer, 'get_headlines_by_period') as mock_get_headlines:
