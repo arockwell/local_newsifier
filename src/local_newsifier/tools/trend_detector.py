@@ -8,7 +8,7 @@ from ..models.database import ArticleDB, EntityDB
 from ..models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 from .historical_aggregator import HistoricalDataAggregator
 from .topic_analyzer import TopicFrequencyAnalyzer
-from ..database.adapter import with_session
+from ..database.engine import with_session
 
 
 class TrendDetector:

@@ -6,12 +6,8 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 from difflib import SequenceMatcher
 from sqlalchemy.orm import Session
 
-from ..database.adapter import (
-    get_canonical_entity_by_name, 
-    get_all_canonical_entities,
-    create_canonical_entity,
-    with_session
-)
+from ..database.engine import with_session
+from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
 from ..models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
 
 
@@ -129,23 +125,23 @@ class EntityResolver:
             session = self.session
             
         # First, try exact match
-        canonical_entity = get_canonical_entity_by_name(
-            name, entity_type, session=session
+        canonical_entity = canonical_entity_crud.get_by_name(
+            session, name=name, entity_type=entity_type
         )
         if canonical_entity:
             return canonical_entity
 
         # If no exact match, try normalized match
         normalized_name = self.normalize_entity_name(name)
-        canonical_entity = get_canonical_entity_by_name(
-            normalized_name, entity_type, session=session
+        canonical_entity = canonical_entity_crud.get_by_name(
+            session, name=normalized_name, entity_type=entity_type
         )
         if canonical_entity:
             return canonical_entity
 
         # If still no match, search for similar entities
-        all_canonical_entities = get_all_canonical_entities(
-            entity_type, session=session
+        all_canonical_entities = canonical_entity_crud.get_all(
+            session, entity_type=entity_type
         )
 
         best_match = None
@@ -195,8 +191,8 @@ class EntityResolver:
                 entity_metadata=metadata or {},
             )
             
-            canonical_entity = create_canonical_entity(
-                canonical_entity_data, session=session
+            canonical_entity = canonical_entity_crud.create(
+                session, obj_in=canonical_entity_data
             )
 
         return canonical_entity

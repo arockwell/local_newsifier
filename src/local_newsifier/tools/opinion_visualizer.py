@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any, Tuple, Union
 
 from sqlalchemy.orm import Session
 
-from ..database.adapter import with_session
+from ..database.engine import with_session
 from ..models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)

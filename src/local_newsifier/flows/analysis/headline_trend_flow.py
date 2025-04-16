@@ -20,8 +20,7 @@ from typing import Dict, List, Optional, Any
 from crewai import Flow
 from sqlalchemy.orm import Session
 
-from ...database.adapter import with_session
-from ...database.engine import get_session
+from ...database.engine import get_session, with_session
 from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 logger = logging.getLogger(__name__)
