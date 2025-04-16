@@ -1,13 +1,12 @@
 """Entity resolver tool for resolving entity mentions to canonical entities."""
 
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 from difflib import SequenceMatcher
 from sqlalchemy.orm import Session
 
-from ..database.manager import DatabaseManager
-from ..database import (
+from ..database.adapter import (
     get_canonical_entity_by_name, 
     get_all_canonical_entities,
     create_canonical_entity,
@@ -21,7 +20,7 @@ class EntityResolver:
 
     def __init__(
         self, 
-        db_manager_or_session: Union[DatabaseManager, Session, None] = None, 
+        db_manager_or_session: Any = None, 
         similarity_threshold: float = 0.85
     ):
         """Initialize the entity resolver.
@@ -33,9 +32,10 @@ class EntityResolver:
         self.db_manager = None
         self.session = None
         
-        if isinstance(db_manager_or_session, DatabaseManager):
-            self.db_manager = db_manager_or_session
-        elif isinstance(db_manager_or_session, Session):
+        # For test compatibility, we need to directly assign DatabaseManager
+        self.db_manager = db_manager_or_session
+        if isinstance(db_manager_or_session, Session):
+            self.db_manager = None
             self.session = db_manager_or_session
             
         self.similarity_threshold = similarity_threshold
@@ -132,7 +132,7 @@ class EntityResolver:
         Returns:
             Matching canonical entity if found, None otherwise
         """
-        # Use database manager if provided
+        # Use database manager if provided (for backward compatibility)
         if self.db_manager is not None:
             # First, try exact match
             canonical_entity = self.db_manager.get_canonical_entity_by_name(
@@ -158,7 +158,10 @@ class EntityResolver:
                 # Fallback if method doesn't exist
                 all_canonical_entities = []
         else:
-            # Use adapter functions with session
+            # Use provided session if available, otherwise use the stored session
+            if session is None and self.session is not None:
+                session = self.session
+                
             # First, try exact match
             canonical_entity = get_canonical_entity_by_name(
                 name, entity_type, session=session
@@ -210,27 +213,39 @@ class EntityResolver:
         Returns:
             Resolved canonical entity
         """
-        # Use provided session if available, otherwise use the stored session
-        if session is None and self.session is not None:
-            session = self.session
-            
-        # Try to find a matching entity
-        canonical_entity = self.find_matching_entity(name, entity_type, session=session)
+        # Use database manager if provided (for backward compatibility)
+        if self.db_manager is not None:
+            # Try to find a matching entity
+            canonical_entity = self.find_matching_entity(name, entity_type)
 
-        # If no matching entity found, create a new one
-        if not canonical_entity:
-            normalized_name = self.normalize_entity_name(name)
-            canonical_entity_data = CanonicalEntityCreate(
-                name=normalized_name,
-                entity_type=entity_type,
-                entity_metadata=metadata or {},
-            )
-            
-            if self.db_manager is not None:
+            # If no matching entity found, create a new one
+            if not canonical_entity:
+                normalized_name = self.normalize_entity_name(name)
+                canonical_entity_data = CanonicalEntityCreate(
+                    name=normalized_name,
+                    entity_type=entity_type,
+                    entity_metadata=metadata or {},
+                )
                 canonical_entity = self.db_manager.create_canonical_entity(
                     canonical_entity_data
                 )
-            else:
+        else:
+            # Use provided session if available, otherwise use the stored session
+            if session is None and self.session is not None:
+                session = self.session
+                
+            # Try to find a matching entity
+            canonical_entity = self.find_matching_entity(name, entity_type, session=session)
+
+            # If no matching entity found, create a new one
+            if not canonical_entity:
+                normalized_name = self.normalize_entity_name(name)
+                canonical_entity_data = CanonicalEntityCreate(
+                    name=normalized_name,
+                    entity_type=entity_type,
+                    entity_metadata=metadata or {},
+                )
+                
                 canonical_entity = create_canonical_entity(
                     canonical_entity_data, session=session
                 )

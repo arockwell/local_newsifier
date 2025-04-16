@@ -1,15 +1,14 @@
 """Entity tracking tool for tracking person entities across news articles."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 from sqlalchemy.orm import Session
 
-from ..database.manager import DatabaseManager
-from ..database import (
+from ..database.adapter import (
     add_entity, 
     add_entity_mention_context,
     add_entity_profile,
@@ -32,7 +31,7 @@ class EntityTracker:
 
     def __init__(
         self, 
-        db_manager_or_session: Union[DatabaseManager, Session, None] = None, 
+        db_manager_or_session: Any = None, 
         model_name: str = "en_core_web_lg",
         similarity_threshold: float = 0.85
     ):
@@ -46,7 +45,8 @@ class EntityTracker:
         self.db_manager = None
         self.session = None
         
-        if isinstance(db_manager_or_session, DatabaseManager):
+        # Check if db_manager_or_session is a DatabaseManager (without importing it)
+        if db_manager_or_session is not None and hasattr(db_manager_or_session, 'session'):
             self.db_manager = db_manager_or_session
         elif isinstance(db_manager_or_session, Session):
             self.session = db_manager_or_session
@@ -167,19 +167,15 @@ class EntityTracker:
         Returns:
             Created entity database object
         """
-        # Use provided session if available, otherwise use the stored session
-        if session is None and self.session is not None:
-            session = self.session
-            
-        # Store entity
-        entity_data = EntityCreate(
-            article_id=article_id,
-            text=entity_text,
-            entity_type="PERSON",
-            confidence=1.0  # We could calculate this based on NER confidence
-        )
-        
+        # Use database manager if provided (for backward compatibility)
         if self.db_manager is not None:
+            # Store entity
+            entity_data = EntityCreate(
+                article_id=article_id,
+                text=entity_text,
+                entity_type="PERSON",
+                confidence=1.0  # We could calculate this based on NER confidence
+            )
             entity = self.db_manager.add_entity(entity_data)
             
             # Store entity mention context
@@ -192,6 +188,18 @@ class EntityTracker:
             )
             self.db_manager.add_entity_mention_context(context_data)
         else:
+            # Use provided session if available, otherwise use the stored session
+            if session is None and self.session is not None:
+                session = self.session
+                
+            # Store entity
+            entity_data = EntityCreate(
+                article_id=article_id,
+                text=entity_text,
+                entity_type="PERSON",
+                confidence=1.0  # We could calculate this based on NER confidence
+            )
+            
             entity = add_entity(entity_data, session=session)
             
             # Store entity mention context
@@ -229,90 +237,154 @@ class EntityTracker:
             published_at: Publication date of the article
             session: Database session
         """
-        # Use provided session if available, otherwise use the stored session
-        if session is None and self.session is not None:
-            session = self.session
-            
-        # Get existing profile or create new one
+        # Use database manager if provided (for backward compatibility)
         if self.db_manager is not None:
+            # Get existing profile or create new one
             current_profile = self.db_manager.get_entity_profile(canonical_entity_id)
-        else:
-            current_profile = get_entity_profile(canonical_entity_id, session=session)
 
-        if current_profile:
-            # Get existing metadata or create new
-            metadata = current_profile.profile_metadata or {}
-            mention_count = metadata.get("mention_count", 0) + 1
+            if current_profile:
+                # Get existing metadata or create new
+                metadata = current_profile.profile_metadata or {}
+                mention_count = metadata.get("mention_count", 0) + 1
 
-            # Get existing temporal data or create new
-            temporal_data = metadata.get("temporal_data", {})
-            date_key = published_at.strftime("%Y-%m-%d")
-            if date_key in temporal_data:
-                temporal_data[date_key] += 1
-            else:
-                temporal_data[date_key] = 1
+                # Get existing temporal data or create new
+                temporal_data = metadata.get("temporal_data", {})
+                date_key = published_at.strftime("%Y-%m-%d")
+                if date_key in temporal_data:
+                    temporal_data[date_key] += 1
+                else:
+                    temporal_data[date_key] = 1
 
-            # Update contexts (keep only a sample)
-            contexts = metadata.get("contexts", [])
-            if len(contexts) < 10:  # Limit to 10 sample contexts
-                contexts.append(context_text)
+                # Update contexts (keep only a sample)
+                contexts = metadata.get("contexts", [])
+                if len(contexts) < 10:  # Limit to 10 sample contexts
+                    contexts.append(context_text)
 
-            # Update profile
-            profile_data = EntityProfileCreate(
-                canonical_entity_id=canonical_entity_id,
-                profile_type="summary",
-                content=f"Entity {entity_text} has been mentioned {mention_count} times.",
-                profile_metadata={
-                    "mention_count": mention_count,
-                    "contexts": contexts,
-                    "temporal_data": temporal_data,
-                    "sentiment_scores": {
-                        "latest": sentiment_score,
-                        "average": ((
-                            current_profile.profile_metadata["sentiment_scores"]["average"]
-                            if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
-                            else sentiment_score
-                        ) + sentiment_score) / 2
-                    },
-                    "framing_categories": {
-                        "latest": framing_category,
-                        "history": (
-                            current_profile.profile_metadata["framing_categories"]["history"]
-                            if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
-                            else []
-                        ) + [framing_category]
+                # Update profile
+                profile_data = EntityProfileCreate(
+                    canonical_entity_id=canonical_entity_id,
+                    profile_type="summary",
+                    content=f"Entity {entity_text} has been mentioned {mention_count} times.",
+                    profile_metadata={
+                        "mention_count": mention_count,
+                        "contexts": contexts,
+                        "temporal_data": temporal_data,
+                        "sentiment_scores": {
+                            "latest": sentiment_score,
+                            "average": ((
+                                current_profile.profile_metadata["sentiment_scores"]["average"]
+                                if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
+                                else sentiment_score
+                            ) + sentiment_score) / 2
+                        },
+                        "framing_categories": {
+                            "latest": framing_category,
+                            "history": (
+                                current_profile.profile_metadata["framing_categories"]["history"]
+                                if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
+                                else []
+                            ) + [framing_category]
+                        }
                     }
-                }
-            )
-            
-            if self.db_manager is not None:
+                )
                 self.db_manager.update_entity_profile(profile_data)
             else:
-                update_entity_profile(profile_data, session=session)
-        else:
-            # Create new profile
-            profile_data = EntityProfileCreate(
-                canonical_entity_id=canonical_entity_id,
-                profile_type="summary",
-                content=f"Entity {entity_text} has been mentioned once.",
-                profile_metadata={
-                    "mention_count": 1,
-                    "contexts": [context_text],
-                    "temporal_data": {published_at.strftime("%Y-%m-%d"): 1},
-                    "sentiment_scores": {
-                        "latest": sentiment_score,
-                        "average": sentiment_score
-                    },
-                    "framing_categories": {
-                        "latest": framing_category,
-                        "history": [framing_category]
+                # Create new profile
+                profile_data = EntityProfileCreate(
+                    canonical_entity_id=canonical_entity_id,
+                    profile_type="summary",
+                    content=f"Entity {entity_text} has been mentioned once.",
+                    profile_metadata={
+                        "mention_count": 1,
+                        "contexts": [context_text],
+                        "temporal_data": {published_at.strftime("%Y-%m-%d"): 1},
+                        "sentiment_scores": {
+                            "latest": sentiment_score,
+                            "average": sentiment_score
+                        },
+                        "framing_categories": {
+                            "latest": framing_category,
+                            "history": [framing_category]
+                        }
                     }
-                }
-            )
-            
-            if self.db_manager is not None:
+                )
                 self.db_manager.add_entity_profile(profile_data)
+        else:
+            # Use provided session if available, otherwise use the stored session
+            if session is None and self.session is not None:
+                session = self.session
+                
+            # Get existing profile or create new one
+            current_profile = get_entity_profile(canonical_entity_id, session=session)
+
+            if current_profile:
+                # Get existing metadata or create new
+                metadata = current_profile.profile_metadata or {}
+                mention_count = metadata.get("mention_count", 0) + 1
+
+                # Get existing temporal data or create new
+                temporal_data = metadata.get("temporal_data", {})
+                date_key = published_at.strftime("%Y-%m-%d")
+                if date_key in temporal_data:
+                    temporal_data[date_key] += 1
+                else:
+                    temporal_data[date_key] = 1
+
+                # Update contexts (keep only a sample)
+                contexts = metadata.get("contexts", [])
+                if len(contexts) < 10:  # Limit to 10 sample contexts
+                    contexts.append(context_text)
+
+                # Update profile
+                profile_data = EntityProfileCreate(
+                    canonical_entity_id=canonical_entity_id,
+                    profile_type="summary",
+                    content=f"Entity {entity_text} has been mentioned {mention_count} times.",
+                    profile_metadata={
+                        "mention_count": mention_count,
+                        "contexts": contexts,
+                        "temporal_data": temporal_data,
+                        "sentiment_scores": {
+                            "latest": sentiment_score,
+                            "average": ((
+                                current_profile.profile_metadata["sentiment_scores"]["average"]
+                                if current_profile.profile_metadata and "sentiment_scores" in current_profile.profile_metadata
+                                else sentiment_score
+                            ) + sentiment_score) / 2
+                        },
+                        "framing_categories": {
+                            "latest": framing_category,
+                            "history": (
+                                current_profile.profile_metadata["framing_categories"]["history"]
+                                if current_profile.profile_metadata and "framing_categories" in current_profile.profile_metadata
+                                else []
+                            ) + [framing_category]
+                        }
+                    }
+                )
+                
+                update_entity_profile(profile_data, session=session)
             else:
+                # Create new profile
+                profile_data = EntityProfileCreate(
+                    canonical_entity_id=canonical_entity_id,
+                    profile_type="summary",
+                    content=f"Entity {entity_text} has been mentioned once.",
+                    profile_metadata={
+                        "mention_count": 1,
+                        "contexts": [context_text],
+                        "temporal_data": {published_at.strftime("%Y-%m-%d"): 1},
+                        "sentiment_scores": {
+                            "latest": sentiment_score,
+                            "average": sentiment_score
+                        },
+                        "framing_categories": {
+                            "latest": framing_category,
+                            "history": [framing_category]
+                        }
+                    }
+                )
+                
                 add_entity_profile(profile_data, session=session)
     
     @with_session
@@ -335,14 +407,15 @@ class EntityTracker:
         Returns:
             List of mentions with article details
         """
+        # Use database manager if provided (for backward compatibility)
+        if self.db_manager is not None:
+            return self.db_manager.get_entity_timeline(entity_id, start_date, end_date)
+        
         # Use provided session if available, otherwise use the stored session
         if session is None and self.session is not None:
             session = self.session
             
-        if self.db_manager is not None:
-            return self.db_manager.get_entity_timeline(entity_id, start_date, end_date)
-        else:
-            return get_entity_timeline(entity_id, start_date, end_date, session=session)
+        return get_entity_timeline(entity_id, start_date, end_date, session=session)
     
     @with_session
     def get_entity_sentiment_trend(
@@ -364,11 +437,12 @@ class EntityTracker:
         Returns:
             List of sentiment scores by date
         """
+        # Use database manager if provided (for backward compatibility)
+        if self.db_manager is not None:
+            return self.db_manager.get_entity_sentiment_trend(entity_id, start_date, end_date)
+        
         # Use provided session if available, otherwise use the stored session
         if session is None and self.session is not None:
             session = self.session
             
-        if self.db_manager is not None:
-            return self.db_manager.get_entity_sentiment_trend(entity_id, start_date, end_date)
-        else:
-            return get_entity_sentiment_trend(entity_id, start_date, end_date, session=session)
+        return get_entity_sentiment_trend(entity_id, start_date, end_date, session=session)
