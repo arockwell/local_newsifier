@@ -51,7 +51,7 @@ def test_entity_resolver_resolve_methods():
     by mocking the class method directly to avoid internal implementation differences.
     """
     with patch("local_newsifier.tools.entity_resolver.EntityResolver.find_matching_entity") as mock_find:
-        with patch("local_newsifier.tools.entity_resolver.create_canonical_entity") as mock_create:
+        with patch("local_newsifier.crud.canonical_entity.canonical_entity.create") as mock_create:
             # Setup mocks
             mock_find.return_value = None  # No match found
             
@@ -145,7 +145,7 @@ def test_entity_resolver_different_entity_types():
         assert org.entity_type == "ORG"
 
 
-@patch("local_newsifier.tools.entity_resolver.get_canonical_entity_by_name")
+@patch("local_newsifier.crud.canonical_entity.canonical_entity.get_by_name")
 def test_entity_resolver_find_matching_entity(mock_get_by_name):
     """Test finding a matching entity."""
     # Setup mock to return an entity
@@ -177,8 +177,8 @@ def test_entity_resolver_find_matching_entity(mock_get_by_name):
 
 def test_find_matching_similar_entity():
     """Test finding a similar entity."""
-    with patch("local_newsifier.tools.entity_resolver.get_canonical_entity_by_name") as mock_get_by_name:
-        with patch("local_newsifier.tools.entity_resolver.get_all_canonical_entities") as mock_get_all:
+    with patch("local_newsifier.crud.canonical_entity.canonical_entity.get_by_name") as mock_get_by_name:
+        with patch("local_newsifier.crud.canonical_entity.canonical_entity.get_all") as mock_get_all:
             # Setup mocks
             mock_get_by_name.return_value = None  # No exact match
             
