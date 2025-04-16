@@ -18,10 +18,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
+from sqlalchemy.orm import Session
 
-from ...config.database import get_database_settings
-from ...database.manager import DatabaseManager
-from ...models.database import init_db, get_session
+from ...database.adapter import with_session
+from ...database.engine import get_session
 from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -30,37 +30,35 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, db_manager: Optional[DatabaseManager] = None):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the headline trend analysis flow.
 
         Args:
-            db_manager: Optional database manager to use
+            session: Optional SQLAlchemy session to use
         """
         super().__init__()
 
         # Set up database connection if not provided
-        if db_manager is None:
-            db_settings = get_database_settings()
-            engine = init_db(
-                str(db_settings.DATABASE_URL)
-            )  # Convert PostgresDsn to string
-            session_factory = get_session(engine)
-            session = session_factory()
-            self.db_manager = DatabaseManager(session)
+        if session is None:
+            self.session_generator = get_session()
+            self.session = next(self.session_generator)
             self._owns_session = True
         else:
-            self.db_manager = db_manager
+            self.session = session
             self._owns_session = False
 
         # Initialize tools
-        self.headline_analyzer = HeadlineTrendAnalyzer(self.db_manager)
+        self.headline_analyzer = HeadlineTrendAnalyzer(self.session)
 
     def __del__(self):
         """Clean up resources when the flow is deleted."""
         if hasattr(self, "_owns_session") and self._owns_session:
-            if hasattr(self, "db_manager") and self.db_manager is not None:
-                self.db_manager.session.close()
+            if hasattr(self, "session") and self.session is not None:
+                try:
+                    next(self.session_generator, None)
+                except StopIteration:
+                    pass
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20
@@ -86,6 +84,7 @@ class HeadlineTrendFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             top_n=top_n,
+            session=self.session
         )
 
         return results
@@ -116,6 +115,7 @@ class HeadlineTrendFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             top_n=top_n,
+            session=self.session
         )
 
         return results
