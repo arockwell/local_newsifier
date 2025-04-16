@@ -8,16 +8,11 @@ from spacy.language import Language
 from spacy.tokens import Doc, Span
 from sqlalchemy.orm import Session
 
-from ..database.adapter import (
-    add_entity, 
-    add_entity_mention_context,
-    add_entity_profile,
-    update_entity_profile,
-    get_entity_profile,
-    get_entity_timeline,
-    get_entity_sentiment_trend,
-    with_session
-)
+from ..database.engine import with_session
+from ..crud.entity import entity as entity_crud
+from ..crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from ..crud.entity_profile import entity_profile as entity_profile_crud
+from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
 from ..models.pydantic_models import ArticleCreate, EntityCreate, Entity
 from ..models.entity_tracking import (
     CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate
@@ -179,7 +174,7 @@ class EntityTracker:
             confidence=1.0  # We could calculate this based on NER confidence
         )
         
-        entity = add_entity(entity_data, session=session)
+        entity = entity_crud.create(session, obj_in=entity_data)
         
         # Store entity mention context
         context_data = EntityMentionContextCreate(
@@ -189,7 +184,7 @@ class EntityTracker:
             context_type="sentence",
             sentiment_score=sentiment_score
         )
-        add_entity_mention_context(context_data, session=session)
+        entity_mention_context_crud.create(session, obj_in=context_data)
         
         return entity
     
@@ -221,7 +216,7 @@ class EntityTracker:
             session = self.session
             
         # Get existing profile or create new one
-        current_profile = get_entity_profile(canonical_entity_id, session=session)
+        current_profile = entity_profile_crud.get_by_entity(session, entity_id=canonical_entity_id)
 
         if current_profile:
             # Get existing metadata or create new
@@ -269,7 +264,7 @@ class EntityTracker:
                 }
             )
             
-            update_entity_profile(profile_data, session=session)
+            entity_profile_crud.update_or_create(session, obj_in=profile_data)
         else:
             # Create new profile
             profile_data = EntityProfileCreate(
@@ -291,7 +286,7 @@ class EntityTracker:
                 }
             )
             
-            add_entity_profile(profile_data, session=session)
+            entity_profile_crud.create(session, obj_in=profile_data)
     
     @with_session
     def get_entity_timeline(
@@ -317,7 +312,9 @@ class EntityTracker:
         if session is None and self.session is not None:
             session = self.session
             
-        return get_entity_timeline(entity_id, start_date, end_date, session=session)
+        return canonical_entity_crud.get_entity_timeline(
+            session, entity_id=entity_id, start_date=start_date, end_date=end_date
+        )
     
     @with_session
     def get_entity_sentiment_trend(
@@ -343,4 +340,6 @@ class EntityTracker:
         if session is None and self.session is not None:
             session = self.session
             
-        return get_entity_sentiment_trend(entity_id, start_date, end_date, session=session)
+        return entity_mention_context_crud.get_sentiment_trend(
+            session, entity_id=entity_id, start_date=start_date, end_date=end_date
+        )
