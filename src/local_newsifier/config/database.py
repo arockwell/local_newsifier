@@ -1,7 +1,9 @@
 """Database configuration and connection management."""
 
-from typing import Any
-from sqlalchemy.orm import sessionmaker
+from contextlib import contextmanager
+from typing import Any, Generator
+
+from sqlalchemy.orm import sessionmaker, Session
 
 from local_newsifier.models.database import Base, init_db
 from local_newsifier.config.settings import get_settings
@@ -69,6 +71,41 @@ def get_db_session() -> sessionmaker:
     """
     engine = get_database()
     return sessionmaker(bind=engine)
+
+
+def get_db() -> Generator[Session, None, None]:
+    """Get database session.
+    
+    Yields:
+        Session: Database session
+    """
+    SessionLocal = get_db_session()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@contextmanager
+def transaction(db: Session):
+    """Transaction context manager.
+    
+    Args:
+        db: Database session
+        
+    Yields:
+        None
+        
+    Raises:
+        Exception: Any exception that occurs during the transaction
+    """
+    try:
+        yield
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def get_database_settings() -> DatabaseSettings:

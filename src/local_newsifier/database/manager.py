@@ -1,4 +1,8 @@
-"""Database manager for handling database operations."""
+"""Database manager for handling database operations (legacy compatibility layer).
+
+This module provides a compatibility layer for existing code that uses the DatabaseManager
+class. New code should use the CRUD modules directly instead.
+"""
 
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
@@ -8,7 +12,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-# Import models from their original locations
+# Import CRUD modules
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+from local_newsifier.crud.entity_relationship import entity_relationship as entity_relationship_crud
+
+# Import models from their original locations for backward compatibility
 from local_newsifier.models.database import ArticleDB, EntityDB, AnalysisResultDB
 from local_newsifier.models.pydantic_models import (
     Article, ArticleCreate,
@@ -38,8 +51,13 @@ __all__ = [
     'EntityRelationship', 'EntityRelationshipCreate',
 ]
 
+
 class DatabaseManager:
-    """Manager class for database operations."""
+    """Manager class for database operations (legacy compatibility layer).
+    
+    This class provides a compatibility layer for existing code that uses the 
+    DatabaseManager class. New code should use the CRUD modules directly instead.
+    """
 
     def __init__(self, session: Session):
         """Initialize the database manager.
@@ -58,14 +76,7 @@ class DatabaseManager:
         Returns:
             Created article
         """
-        article_data = article.model_dump()
-        if 'scraped_at' not in article_data or article_data['scraped_at'] is None:
-            article_data['scraped_at'] = datetime.now(timezone.utc)
-        db_article = ArticleDB(**article_data)
-        self.session.add(db_article)
-        self.session.commit()
-        self.session.refresh(db_article)
-        return Article.model_validate(db_article)
+        return article_crud.create(self.session, obj_in=article)
 
     def get_article(self, article_id: int) -> Optional[Article]:
         """Get an article by ID.
@@ -76,10 +87,7 @@ class DatabaseManager:
         Returns:
             Article if found, None otherwise
         """
-        db_article = (
-            self.session.query(ArticleDB).filter(ArticleDB.id == article_id).first()
-        )
-        return Article.model_validate(db_article) if db_article else None
+        return article_crud.get(self.session, id=article_id)
 
     def get_article_by_url(self, url: str) -> Optional[Article]:
         """Get an article by URL.
@@ -90,8 +98,7 @@ class DatabaseManager:
         Returns:
             Article if found, None otherwise
         """
-        db_article = self.session.query(ArticleDB).filter(ArticleDB.url == url).first()
-        return Article.model_validate(db_article) if db_article else None
+        return article_crud.get_by_url(self.session, url=url)
 
     def add_entity(self, entity: EntityCreate) -> Entity:
         """Add an entity to an article.
@@ -102,11 +109,7 @@ class DatabaseManager:
         Returns:
             Created entity
         """
-        db_entity = EntityDB(**entity.model_dump())
-        self.session.add(db_entity)
-        self.session.commit()
-        self.session.refresh(db_entity)
-        return Entity.model_validate(db_entity)
+        return entity_crud.create(self.session, obj_in=entity)
 
     def add_analysis_result(self, result: AnalysisResultCreate) -> AnalysisResult:
         """Add an analysis result to an article.
@@ -117,11 +120,7 @@ class DatabaseManager:
         Returns:
             Created analysis result
         """
-        db_result = AnalysisResultDB(**result.model_dump())
-        self.session.add(db_result)
-        self.session.commit()
-        self.session.refresh(db_result)
-        return AnalysisResult.model_validate(db_result)
+        return analysis_result_crud.create(self.session, obj_in=result)
 
     def update_article_status(self, article_id: int, status: str) -> Optional[Article]:
         """Update an article's status.
@@ -133,15 +132,7 @@ class DatabaseManager:
         Returns:
             Updated article if found, None otherwise
         """
-        db_article = (
-            self.session.query(ArticleDB).filter(ArticleDB.id == article_id).first()
-        )
-        if db_article:
-            db_article.status = status  # type: ignore
-            self.session.commit()
-            self.session.refresh(db_article)
-            return Article.model_validate(db_article)
-        return None
+        return article_crud.update_status(self.session, article_id=article_id, status=status)
 
     def get_articles_by_status(self, status: str) -> List[Article]:
         """Get all articles with a specific status.
@@ -152,10 +143,7 @@ class DatabaseManager:
         Returns:
             List of articles with the specified status
         """
-        db_articles = (
-            self.session.query(ArticleDB).filter(ArticleDB.status == status).all()
-        )
-        return [Article.model_validate(article) for article in db_articles]
+        return article_crud.get_by_status(self.session, status=status)
 
     def get_entities_by_article(self, article_id: int) -> List[Entity]:
         """Get all entities for an article.
@@ -166,10 +154,7 @@ class DatabaseManager:
         Returns:
             List of entities for the article
         """
-        db_entities = (
-            self.session.query(EntityDB).filter(EntityDB.article_id == article_id).all()
-        )
-        return [Entity.model_validate(entity) for entity in db_entities]
+        return entity_crud.get_by_article(self.session, article_id=article_id)
 
     def get_analysis_results_by_article(self, article_id: int) -> List[AnalysisResult]:
         """Get all analysis results for an article.
@@ -180,12 +165,7 @@ class DatabaseManager:
         Returns:
             List of analysis results for the article
         """
-        db_results = (
-            self.session.query(AnalysisResultDB)
-            .filter(AnalysisResultDB.article_id == article_id)
-            .all()
-        )
-        return [AnalysisResult.model_validate(result) for result in db_results]
+        return analysis_result_crud.get_by_article(self.session, article_id=article_id)
 
     # Entity Tracking Methods
     
@@ -198,11 +178,7 @@ class DatabaseManager:
         Returns:
             Created canonical entity
         """
-        db_entity = CanonicalEntityDB(**entity.model_dump())
-        self.session.add(db_entity)
-        self.session.commit()
-        self.session.refresh(db_entity)
-        return CanonicalEntity.model_validate(db_entity)
+        return canonical_entity_crud.create(self.session, obj_in=entity)
 
     def get_canonical_entity(self, entity_id: int) -> Optional[CanonicalEntity]:
         """Get a canonical entity by ID.
@@ -213,12 +189,7 @@ class DatabaseManager:
         Returns:
             Canonical entity if found, None otherwise
         """
-        db_entity = (
-            self.session.query(CanonicalEntityDB)
-            .filter(CanonicalEntityDB.id == entity_id)
-            .first()
-        )
-        return CanonicalEntity.model_validate(db_entity) if db_entity else None
+        return canonical_entity_crud.get(self.session, id=entity_id)
 
     def get_canonical_entity_by_name(
         self, name: str, entity_type: str
@@ -232,15 +203,9 @@ class DatabaseManager:
         Returns:
             Canonical entity if found, None otherwise
         """
-        db_entity = (
-            self.session.query(CanonicalEntityDB)
-            .filter(
-                CanonicalEntityDB.name == name, 
-                CanonicalEntityDB.entity_type == entity_type
-            )
-            .first()
+        return canonical_entity_crud.get_by_name(
+            self.session, name=name, entity_type=entity_type
         )
-        return CanonicalEntity.model_validate(db_entity) if db_entity else None
 
     def add_entity_mention_context(
         self, context: EntityMentionContextCreate
@@ -253,11 +218,7 @@ class DatabaseManager:
         Returns:
             Created entity mention context
         """
-        db_context = EntityMentionContextDB(**context.model_dump())
-        self.session.add(db_context)
-        self.session.commit()
-        self.session.refresh(db_context)
-        return EntityMentionContext.model_validate(db_context)
+        return entity_mention_context_crud.create(self.session, obj_in=context)
 
     def add_entity_profile(self, profile: EntityProfileCreate) -> EntityProfile:
         """Add a new entity profile.
@@ -268,21 +229,12 @@ class DatabaseManager:
         Returns:
             Created entity profile
         """
-        # Check if profile already exists
-        existing_profile = (
-            self.session.query(EntityProfileDB)
-            .filter(EntityProfileDB.canonical_entity_id == profile.canonical_entity_id)
-            .first()
-        )
-        
-        if existing_profile:
-            raise ValueError(f"Profile already exists for entity {profile.canonical_entity_id}")
-            
-        db_profile = EntityProfileDB(**profile.model_dump())
-        self.session.add(db_profile)
-        self.session.commit()
-        self.session.refresh(db_profile)
-        return EntityProfile.model_validate(db_profile)
+        try:
+            return entity_profile_crud.create(self.session, obj_in=profile)
+        except ValueError as e:
+            if "Profile already exists" in str(e):
+                raise ValueError(f"Profile already exists for entity {profile.canonical_entity_id}")
+            raise
 
     def update_entity_profile(self, profile: EntityProfileCreate) -> EntityProfile:
         """Update an entity profile.
@@ -293,32 +245,7 @@ class DatabaseManager:
         Returns:
             Updated profile
         """
-        # Get existing profile
-        db_profile = (
-            self.session.query(EntityProfileDB)
-            .filter(
-                EntityProfileDB.canonical_entity_id == profile.canonical_entity_id,
-                EntityProfileDB.profile_type == profile.profile_type
-            )
-            .first()
-        )
-        
-        if db_profile:
-            # Update profile data using SQLAlchemy's update method
-            self.session.query(EntityProfileDB).filter(
-                EntityProfileDB.id == db_profile.id
-            ).update({
-                "content": profile.content,
-                "profile_metadata": profile.profile_metadata,
-                "updated_at": datetime.now(timezone.utc)
-            })
-            
-            self.session.commit()
-            self.session.refresh(db_profile)
-            return EntityProfile.model_validate(db_profile)
-        
-        # If profile doesn't exist, create it
-        return self.add_entity_profile(profile)
+        return entity_profile_crud.update_or_create(self.session, obj_in=profile)
 
     def add_entity_relationship(
         self, relationship: EntityRelationshipCreate
@@ -331,95 +258,7 @@ class DatabaseManager:
         Returns:
             Created entity relationship
         """
-        # Check if relationship already exists
-        existing = (
-            self.session.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id == relationship.source_entity_id,
-                entity_relationships.c.target_entity_id == relationship.target_entity_id,
-                entity_relationships.c.relationship_type == relationship.relationship_type,
-            )
-            .first()
-        )
-        
-        if existing:
-            # Update existing relationship
-            self.session.execute(
-                entity_relationships.update()
-                .where(
-                    entity_relationships.c.source_entity_id == relationship.source_entity_id,
-                    entity_relationships.c.target_entity_id == relationship.target_entity_id,
-                    entity_relationships.c.relationship_type == relationship.relationship_type,
-                )
-                .values(
-                    confidence=relationship.confidence,
-                    evidence=relationship.evidence,
-                    updated_at=datetime.now(timezone.utc),
-                )
-            )
-            self.session.commit()
-            
-            # Get the updated relationship
-            updated = (
-                self.session.query(entity_relationships)
-                .filter(
-                    entity_relationships.c.source_entity_id == relationship.source_entity_id,
-                    entity_relationships.c.target_entity_id == relationship.target_entity_id,
-                    entity_relationships.c.relationship_type == relationship.relationship_type,
-                )
-                .first()
-            )
-            
-            if updated:
-                return EntityRelationship(
-                    id=updated.id,  # type: ignore
-                    source_entity_id=updated.source_entity_id,
-                    target_entity_id=updated.target_entity_id,
-                    relationship_type=updated.relationship_type,
-                    confidence=updated.confidence,
-                    evidence=updated.evidence,
-                    created_at=updated.created_at,  # type: ignore
-                    updated_at=updated.updated_at,  # type: ignore
-                )
-        
-        # Create new relationship
-        result = self.session.execute(
-            entity_relationships.insert().values(
-                source_entity_id=relationship.source_entity_id,
-                target_entity_id=relationship.target_entity_id,
-                relationship_type=relationship.relationship_type,
-                confidence=relationship.confidence,
-                evidence=relationship.evidence,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-            )
-        )
-        self.session.commit()
-        
-        # Get the created relationship
-        created = (
-            self.session.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id == relationship.source_entity_id,
-                entity_relationships.c.target_entity_id == relationship.target_entity_id,
-                entity_relationships.c.relationship_type == relationship.relationship_type,
-            )
-            .first()
-        )
-        
-        if created:
-            return EntityRelationship(
-                id=created.id,  # type: ignore
-                source_entity_id=created.source_entity_id,
-                target_entity_id=created.target_entity_id,
-                relationship_type=created.relationship_type,
-                confidence=created.confidence,
-                evidence=created.evidence,
-                created_at=created.created_at,  # type: ignore
-                updated_at=created.updated_at,  # type: ignore
-            )
-        
-        raise ValueError("Failed to create entity relationship")
+        return entity_relationship_crud.create_or_update(self.session, obj_in=relationship)
 
     def get_entity_mentions_count(self, entity_id: int) -> int:
         """Get the count of mentions for an entity.
@@ -430,11 +269,7 @@ class DatabaseManager:
         Returns:
             Count of mentions
         """
-        return (
-            self.session.query(func.count(entity_mentions.c.id))
-            .filter(entity_mentions.c.canonical_entity_id == entity_id)
-            .scalar()
-        )
+        return canonical_entity_crud.get_mentions_count(self.session, entity_id=entity_id)
 
     def get_entity_timeline(
         self, entity_id: int, start_date: datetime, end_date: datetime
@@ -449,29 +284,9 @@ class DatabaseManager:
         Returns:
             List of timeline entries
         """
-        results = (
-            self.session.query(
-                ArticleDB.published_at,
-                func.count(entity_mentions.c.id).label("mention_count"),
-            )
-            .join(entity_mentions, ArticleDB.id == entity_mentions.c.article_id)
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
-            .group_by(ArticleDB.published_at)
-            .order_by(ArticleDB.published_at)
-            .all()
+        return canonical_entity_crud.get_entity_timeline(
+            self.session, entity_id=entity_id, start_date=start_date, end_date=end_date
         )
-        
-        return [
-            {
-                "date": date,
-                "mention_count": count,
-            }
-            for date, count in results
-        ]
 
     def get_entity_sentiment_trend(
         self, entity_id: int, start_date: datetime, end_date: datetime
@@ -486,33 +301,9 @@ class DatabaseManager:
         Returns:
             List of sentiment trend entries
         """
-        results = (
-            self.session.query(
-                ArticleDB.published_at,
-                func.avg(EntityMentionContextDB.sentiment_score).label("avg_sentiment"),
-            )
-            .join(entity_mentions, ArticleDB.id == entity_mentions.c.article_id)
-            .join(
-                EntityMentionContextDB,
-                EntityMentionContextDB.entity_id == entity_mentions.c.entity_id,
-            )
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
-            .group_by(ArticleDB.published_at)
-            .order_by(ArticleDB.published_at)
-            .all()
+        return entity_mention_context_crud.get_sentiment_trend(
+            self.session, entity_id=entity_id, start_date=start_date, end_date=end_date
         )
-        
-        return [
-            {
-                "date": date,
-                "avg_sentiment": float(sentiment) if sentiment is not None else None,
-            }
-            for date, sentiment in results
-        ]
 
     def get_canonical_entities_by_type(self, entity_type: str) -> List[CanonicalEntity]:
         """Get all canonical entities of a specific type.
@@ -523,12 +314,7 @@ class DatabaseManager:
         Returns:
             List of canonical entities
         """
-        db_entities = (
-            self.session.query(CanonicalEntityDB)
-            .filter(CanonicalEntityDB.entity_type == entity_type)
-            .all()
-        )
-        return [CanonicalEntity.model_validate(entity) for entity in db_entities]
+        return canonical_entity_crud.get_by_type(self.session, entity_type=entity_type)
 
     def get_all_canonical_entities(self, entity_type: Optional[str] = None) -> List[CanonicalEntity]:
         """Get all canonical entities, optionally filtered by type.
@@ -539,11 +325,7 @@ class DatabaseManager:
         Returns:
             List of canonical entities
         """
-        query = self.session.query(CanonicalEntityDB)
-        if entity_type:
-            query = query.filter(CanonicalEntityDB.entity_type == entity_type)
-        db_entities = query.all()
-        return [CanonicalEntity.model_validate(entity) for entity in db_entities]
+        return canonical_entity_crud.get_all(self.session, entity_type=entity_type)
 
     def get_entity_profile(self, entity_id: int) -> Optional[EntityProfile]:
         """Get the profile for an entity.
@@ -554,12 +336,7 @@ class DatabaseManager:
         Returns:
             Entity profile if found, None otherwise
         """
-        db_profile = (
-            self.session.query(EntityProfileDB)
-            .filter(EntityProfileDB.canonical_entity_id == entity_id)
-            .first()
-        )
-        return EntityProfile.model_validate(db_profile) if db_profile else None
+        return entity_profile_crud.get_by_entity(self.session, entity_id=entity_id)
 
     def get_articles_mentioning_entity(
         self, entity_id: int, start_date: datetime, end_date: datetime
@@ -574,14 +351,7 @@ class DatabaseManager:
         Returns:
             List of articles mentioning the entity
         """
-        db_articles = (
-            self.session.query(ArticleDB)
-            .join(entity_mentions, ArticleDB.id == entity_mentions.c.article_id)
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
-            .all()
+        db_articles = canonical_entity_crud.get_articles_mentioning_entity(
+            self.session, entity_id=entity_id, start_date=start_date, end_date=end_date
         )
         return [Article.model_validate(article) for article in db_articles]
