@@ -37,16 +37,21 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
             Created article
         """
         article_data = obj_in.model_dump()
-        if "scraped_at" not in article_data or article_data["scraped_at"] is None:
+        if (
+            "scraped_at" not in article_data
+            or article_data["scraped_at"] is None
+        ):
             article_data["scraped_at"] = datetime.now(timezone.utc)
-        
+
         db_article = ArticleDB(**article_data)
         db.add(db_article)
         db.commit()
         db.refresh(db_article)
         return Article.model_validate(db_article)
 
-    def update_status(self, db: Session, *, article_id: int, status: str) -> Optional[Article]:
+    def update_status(
+        self, db: Session, *, article_id: int, status: str
+    ) -> Optional[Article]:
         """Update an article's status.
 
         Args:
@@ -57,7 +62,9 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Updated article if found, None otherwise
         """
-        db_article = db.query(ArticleDB).filter(ArticleDB.id == article_id).first()
+        db_article = (
+            db.query(ArticleDB).filter(ArticleDB.id == article_id).first()
+        )
         if db_article:
             db_article.status = status
             db.commit()
@@ -75,7 +82,9 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             List of articles with the specified status
         """
-        db_articles = db.query(ArticleDB).filter(ArticleDB.status == status).all()
+        db_articles = (
+            db.query(ArticleDB).filter(ArticleDB.status == status).all()
+        )
         return [Article.model_validate(article) for article in db_articles]
 
 

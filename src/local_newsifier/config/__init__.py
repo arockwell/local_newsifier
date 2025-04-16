@@ -1,6 +1,10 @@
 """Configuration package for the Local Newsifier application."""
 
-from local_newsifier.config.settings import Settings, get_settings, get_cursor_db_name
+from local_newsifier.config.settings import (
+    Settings,
+    get_cursor_db_name,
+    get_settings,
+)
 
 # Import after settings to avoid circular imports
 from local_newsifier.config.database import (

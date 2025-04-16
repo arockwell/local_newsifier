@@ -55,7 +55,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         db_objs = db.query(self.model).offset(skip).limit(limit).all()
         return [self.schema.model_validate(obj) for obj in db_objs]
 
-    def create(self, db: Session, *, obj_in: Union[CreateSchemaType, Dict[str, Any]]) -> SchemaType:
+    def create(
+        self, db: Session, *, obj_in: Union[CreateSchemaType, Dict[str, Any]]
+    ) -> SchemaType:
         """Create a new item.
 
         Args:
@@ -69,7 +71,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
             obj_data = obj_in
         else:
             obj_data = obj_in.model_dump()
-            
+
         db_obj = self.model(**obj_data)
         db.add(db_obj)
         db.commit()
@@ -77,10 +79,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         return self.schema.model_validate(db_obj)
 
     def update(
-        self, 
-        db: Session, 
-        *, 
-        db_obj: ModelType, 
+        self,
+        db: Session,
+        *,
+        db_obj: ModelType,
         obj_in: Union[UpdateSchemaType, Dict[str, Any]]
     ) -> SchemaType:
         """Update an item.
@@ -94,16 +96,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
             Updated item
         """
         obj_data = db_obj.model_dump()
-        
+
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
-            
+
         for field in obj_data:
             if field in update_data:
                 setattr(db_obj, field, update_data[field])
-                
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

@@ -6,13 +6,18 @@ from sqlalchemy.orm import Session
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.pydantic_models import AnalysisResult, AnalysisResultCreate
+from local_newsifier.models.pydantic_models import (AnalysisResult,
+                                                    AnalysisResultCreate)
 
 
-class CRUDAnalysisResult(CRUDBase[AnalysisResultDB, AnalysisResultCreate, AnalysisResult]):
+class CRUDAnalysisResult(
+    CRUDBase[AnalysisResultDB, AnalysisResultCreate, AnalysisResult]
+):
     """CRUD operations for analysis results."""
 
-    def get_by_article(self, db: Session, *, article_id: int) -> List[AnalysisResult]:
+    def get_by_article(
+        self, db: Session, *, article_id: int
+    ) -> List[AnalysisResult]:
         """Get all analysis results for an article.
 
         Args:

@@ -22,7 +22,9 @@ class CRUDEntity(CRUDBase[EntityDB, EntityCreate, Entity]):
         Returns:
             List of entities for the article
         """
-        db_entities = db.query(EntityDB).filter(EntityDB.article_id == article_id).all()
+        db_entities = (
+            db.query(EntityDB).filter(EntityDB.article_id == article_id).all()
+        )
         return [Entity.model_validate(entity) for entity in db_entities]
 
     def get_by_text_and_article(

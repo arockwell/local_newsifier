@@ -3,18 +3,24 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.entity_tracking import (
-    EntityMentionContextDB, EntityMentionContext, EntityMentionContextCreate,
-    entity_mentions
-)
 from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.entity_tracking import (EntityMentionContext,
+                                                    EntityMentionContextCreate,
+                                                    EntityMentionContextDB,
+                                                    entity_mentions)
 
 
-class CRUDEntityMentionContext(CRUDBase[EntityMentionContextDB, EntityMentionContextCreate, EntityMentionContext]):
+class CRUDEntityMentionContext(
+    CRUDBase[
+        EntityMentionContextDB,
+        EntityMentionContextCreate,
+        EntityMentionContext,
+    ]
+):
     """CRUD operations for entity mention contexts."""
 
     def get_by_entity_and_article(
@@ -38,9 +44,15 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContextDB, EntityMentionCon
             )
             .first()
         )
-        return EntityMentionContext.model_validate(db_context) if db_context else None
+        return (
+            EntityMentionContext.model_validate(db_context)
+            if db_context
+            else None
+        )
 
-    def get_by_entity(self, db: Session, *, entity_id: int) -> List[EntityMentionContext]:
+    def get_by_entity(
+        self, db: Session, *, entity_id: int
+    ) -> List[EntityMentionContext]:
         """Get all contexts for an entity.
 
         Args:
@@ -55,10 +67,18 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContextDB, EntityMentionCon
             .filter(EntityMentionContextDB.entity_id == entity_id)
             .all()
         )
-        return [EntityMentionContext.model_validate(context) for context in db_contexts]
+        return [
+            EntityMentionContext.model_validate(context)
+            for context in db_contexts
+        ]
 
     def get_sentiment_trend(
-        self, db: Session, *, entity_id: int, start_date: datetime, end_date: datetime
+        self,
+        db: Session,
+        *,
+        entity_id: int,
+        start_date: datetime,
+        end_date: datetime
     ) -> List[dict]:
         """Get the sentiment trend for an entity.
 
@@ -74,12 +94,17 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContextDB, EntityMentionCon
         results = (
             db.query(
                 ArticleDB.published_at,
-                func.avg(EntityMentionContextDB.sentiment_score).label("avg_sentiment"),
+                func.avg(EntityMentionContextDB.sentiment_score).label(
+                    "avg_sentiment"
+                ),
             )
-            .join(entity_mentions, ArticleDB.id == entity_mentions.c.article_id)
+            .join(
+                entity_mentions, ArticleDB.id == entity_mentions.c.article_id
+            )
             .join(
                 EntityMentionContextDB,
-                EntityMentionContextDB.entity_id == entity_mentions.c.entity_id,
+                EntityMentionContextDB.entity_id
+                == entity_mentions.c.entity_id,
             )
             .filter(
                 entity_mentions.c.canonical_entity_id == entity_id,
@@ -90,14 +115,18 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContextDB, EntityMentionCon
             .order_by(ArticleDB.published_at)
             .all()
         )
-        
+
         return [
             {
                 "date": date,
-                "avg_sentiment": float(sentiment) if sentiment is not None else None,
+                "avg_sentiment": (
+                    float(sentiment) if sentiment is not None else None
+                ),
             }
             for date, sentiment in results
         ]
 
 
-entity_mention_context = CRUDEntityMentionContext(EntityMentionContextDB, EntityMentionContext)
+entity_mention_context = CRUDEntityMentionContext(
+    EntityMentionContextDB, EntityMentionContext
+)
