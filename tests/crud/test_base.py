@@ -77,7 +77,9 @@ class TestCRUDBase:
 
         # Verify it was saved to the database
         db_article = (
-            db_session.query(ArticleDB).filter(ArticleDB.id == article.id).first()
+            db_session.query(ArticleDB)
+            .filter(ArticleDB.id == article.id)
+            .first()
         )
         assert db_article is not None
         assert db_article.title == sample_article_data["title"]
@@ -116,7 +118,9 @@ class TestCRUDBase:
 
         # Update with a dictionary
         update_data = {"title": "Updated Title", "content": "Updated content."}
-        updated_article = crud.update(db_session, db_obj=db_obj, obj_in=update_data)
+        updated_article = crud.update(
+            db_session, db_obj=db_obj, obj_in=update_data
+        )
 
         assert updated_article is not None
         assert updated_article.id == create_article.id
@@ -150,12 +154,16 @@ class TestCRUDBase:
         )
 
         # Update with a Pydantic model
-        updated_article = crud.update(db_session, db_obj=db_obj, obj_in=update_data)
+        updated_article = crud.update(
+            db_session, db_obj=db_obj, obj_in=update_data
+        )
 
         assert updated_article is not None
         assert updated_article.id == create_article.id
         assert updated_article.title == "Updated with Model"
-        assert updated_article.content == create_article.content  # Unchanged field
+        assert (
+            updated_article.content == create_article.content
+        )  # Unchanged field
 
     def test_remove(self, db_session, create_article):
         """Test removing an item."""

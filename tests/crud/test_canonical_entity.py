@@ -45,7 +45,9 @@ class TestCanonicalEntityCRUD:
 
     def test_get(self, db_session, create_canonical_entity):
         """Test getting a canonical entity by ID."""
-        entity = canonical_entity_crud.get(db_session, id=create_canonical_entity.id)
+        entity = canonical_entity_crud.get(
+            db_session, id=create_canonical_entity.id
+        )
 
         assert entity is not None
         assert entity.id == create_canonical_entity.id
@@ -76,14 +78,18 @@ class TestCanonicalEntityCRUD:
     def test_get_by_type(self, db_session, create_canonical_entities):
         """Test getting canonical entities by type."""
         # Test getting entities of type "PERSON"
-        entities = canonical_entity_crud.get_by_type(db_session, entity_type="PERSON")
+        entities = canonical_entity_crud.get_by_type(
+            db_session, entity_type="PERSON"
+        )
 
         assert len(entities) == 2
         for entity in entities:
             assert entity.entity_type == "PERSON"
 
         # Test getting entities of type "ORG"
-        entities = canonical_entity_crud.get_by_type(db_session, entity_type="ORG")
+        entities = canonical_entity_crud.get_by_type(
+            db_session, entity_type="ORG"
+        )
 
         assert len(entities) == 1
         assert entities[0].entity_type == "ORG"
@@ -103,7 +109,9 @@ class TestCanonicalEntityCRUD:
         assert len(entities) == 3
 
         # Test getting all entities with filtering by type
-        entities = canonical_entity_crud.get_all(db_session, entity_type="PERSON")
+        entities = canonical_entity_crud.get_all(
+            db_session, entity_type="PERSON"
+        )
 
         assert len(entities) == 2
         for entity in entities:
@@ -173,7 +181,7 @@ class TestCanonicalEntityCRUD:
 
         # Create entity mentions for different articles
         for i, article in enumerate(articles):
-            # Add entity mention with the same canonical entity but different articles
+            # Add entity mention for different articles
             db_session.execute(
                 entity_mentions.insert().values(
                     canonical_entity_id=create_canonical_entity.id,
@@ -207,7 +215,8 @@ class TestCanonicalEntityCRUD:
         assert len(timeline) == 5
         # The first article should have 2 mentions
         assert any(
-            entry["date"] == articles[0].published_at and entry["mention_count"] == 2
+            entry["date"] == articles[0].published_at
+            and entry["mention_count"] == 2
             for entry in timeline
         )
         # The other articles should have 1 mention each
@@ -241,7 +250,9 @@ class TestCanonicalEntityCRUD:
         db_session.commit()
 
         # Create entity mentions for some of the articles
-        for i in range(0, 3):  # Only mention the entity in the first 3 articles
+        for i in range(
+            0, 3
+        ):  # Only mention the entity in the first 3 articles
             db_session.execute(
                 entity_mentions.insert().values(
                     canonical_entity_id=create_canonical_entity.id,
@@ -268,7 +279,7 @@ class TestCanonicalEntityCRUD:
             assert articles[i].id in article_ids
 
     def test_singleton_instance(self):
-        """Test that the canonical_entity_crud is a singleton instance of CRUDCanonicalEntity."""
+        """Test singleton instance behavior."""
         assert isinstance(canonical_entity_crud, CRUDCanonicalEntity)
         assert canonical_entity_crud.model == CanonicalEntityDB
         assert canonical_entity_crud.schema == CanonicalEntity

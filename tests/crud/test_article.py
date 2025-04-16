@@ -27,12 +27,16 @@ class TestArticleCRUD:
 
         # Verify it was saved to the database
         db_article = (
-            db_session.query(ArticleDB).filter(ArticleDB.id == article.id).first()
+            db_session.query(ArticleDB)
+            .filter(ArticleDB.id == article.id)
+            .first()
         )
         assert db_article is not None
         assert db_article.title == obj_in.title
 
-    def test_create_with_missing_scraped_at(self, db_session, sample_article_data):
+    def test_create_with_missing_scraped_at(
+        self, db_session, sample_article_data
+    ):
         """Test creating a new article with missing scraped_at field."""
         # Remove scraped_at from the data
         sample_article_data.pop("scraped_at")
@@ -111,7 +115,9 @@ class TestArticleCRUD:
             assert article.status == "new"
 
         # Test getting articles with status "analyzed"
-        analyzed_articles = article_crud.get_by_status(db_session, status="analyzed")
+        analyzed_articles = article_crud.get_by_status(
+            db_session, status="analyzed"
+        )
         assert len(analyzed_articles) == 1
         assert analyzed_articles[0].status == "analyzed"
 
@@ -122,7 +128,7 @@ class TestArticleCRUD:
         assert len(nonexistent_articles) == 0
 
     def test_singleton_instance(self):
-        """Test that the article_crud is a singleton instance of CRUDArticle."""
+        """Test singleton instance behavior."""
         assert isinstance(article_crud, CRUDArticle)
         assert article_crud.model == ArticleDB
         assert article_crud.schema == Article

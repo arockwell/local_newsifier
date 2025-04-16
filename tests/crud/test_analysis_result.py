@@ -1,15 +1,22 @@
 """Tests for the analysis result CRUD module."""
 
 from local_newsifier.crud.analysis_result import CRUDAnalysisResult
-from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.crud.analysis_result import (
+    analysis_result as analysis_result_crud,
+)
 from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.pydantic_models import AnalysisResult, AnalysisResultCreate
+from local_newsifier.models.pydantic_models import (
+    AnalysisResult,
+    AnalysisResultCreate,
+)
 
 
 class TestAnalysisResultCRUD:
     """Tests for AnalysisResultCRUD class."""
 
-    def test_create(self, db_session, create_article, sample_analysis_result_data):
+    def test_create(
+        self, db_session, create_article, sample_analysis_result_data
+    ):
         """Test creating a new analysis result."""
         obj_in = AnalysisResultCreate(**sample_analysis_result_data)
         result = analysis_result_crud.create(db_session, obj_in=obj_in)
@@ -29,7 +36,9 @@ class TestAnalysisResultCRUD:
         assert db_result is not None
         assert db_result.analysis_type == obj_in.analysis_type
 
-    def test_get(self, db_session, create_article, sample_analysis_result_data):
+    def test_get(
+        self, db_session, create_article, sample_analysis_result_data
+    ):
         """Test getting an analysis result by ID."""
         # Create an analysis result
         db_result = AnalysisResultDB(**sample_analysis_result_data)
@@ -126,16 +135,20 @@ class TestAnalysisResultCRUD:
         assert result.analysis_type == "sentiment"
         assert result.results == {"sentiment": "positive", "score": 0.8}
 
-    def test_get_by_article_and_type_not_found(self, db_session, create_article):
-        """Test getting a non-existent analysis result by article ID and type."""
+    def test_get_by_article_and_type_not_found(
+        self, db_session, create_article
+    ):
+        """Test getting non-existent analysis result."""
         result = analysis_result_crud.get_by_article_and_type(
-            db_session, article_id=create_article.id, analysis_type="nonexistent"
+            db_session,
+            article_id=create_article.id,
+            analysis_type="nonexistent",
         )
 
         assert result is None
 
     def test_singleton_instance(self):
-        """Test that the analysis_result_crud is a singleton instance of CRUDAnalysisResult."""
+        """Test singleton instance behavior."""
         assert isinstance(analysis_result_crud, CRUDAnalysisResult)
         assert analysis_result_crud.model == AnalysisResultDB
         assert analysis_result_crud.schema == AnalysisResult

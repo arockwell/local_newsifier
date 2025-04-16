@@ -24,7 +24,9 @@ class TestEntityCRUD:
         assert entity.article_id == obj_in.article_id
 
         # Verify it was saved to the database
-        db_entity = db_session.query(EntityDB).filter(EntityDB.id == entity.id).first()
+        db_entity = (
+            db_session.query(EntityDB).filter(EntityDB.id == entity.id).first()
+        )
         assert db_entity is not None
         assert db_entity.text == obj_in.text
 
@@ -71,7 +73,9 @@ class TestEntityCRUD:
         db_session.commit()
 
         # Test getting all entities for the article
-        entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
+        entities = entity_crud.get_by_article(
+            db_session, article_id=create_article.id
+        )
 
         assert len(entities) == 3
         entity_texts = [entity.text for entity in entities]
@@ -81,7 +85,9 @@ class TestEntityCRUD:
 
     def test_get_by_article_empty(self, db_session, create_article):
         """Test getting entities for an article with no entities."""
-        entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
+        entities = entity_crud.get_by_article(
+            db_session, article_id=create_article.id
+        )
 
         assert len(entities) == 0
 
@@ -108,7 +114,9 @@ class TestEntityCRUD:
         assert entity.text == "Specific Entity"
         assert entity.article_id == create_article.id
 
-    def test_get_by_text_and_article_not_found(self, db_session, create_article):
+    def test_get_by_text_and_article_not_found(
+        self, db_session, create_article
+    ):
         """Test getting a non-existent entity by text and article ID."""
         entity = entity_crud.get_by_text_and_article(
             db_session, text="Nonexistent Entity", article_id=create_article.id
