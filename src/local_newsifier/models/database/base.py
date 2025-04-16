@@ -1,36 +1,49 @@
-"""Base database model with common fields for all models."""
+"""Base database model with common fields for all models using SQLModel."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Optional
 
-from sqlalchemy import Column, DateTime, Integer, MetaData
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import declarative_base
+from sqlmodel import Field, SQLModel as _SQLModel
+from sqlalchemy import Column, DateTime
 
 
-class BaseModel:
-    """Base SQLAlchemy model with common fields."""
+class SQLModel(_SQLModel):
+    """Base SQLModel with timezone-aware timestamps."""
     
-    @declared_attr
-    def __tablename__(cls) -> str:
-        """Create tablename from class name."""
-        return cls.__name__.lower()
+    class Config:
+        """SQLModel configuration."""
+        arbitrary_types_allowed = True
+
+
+class TimestampModel(SQLModel):
+    """Base model with timestamp fields."""
+
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            default=lambda: datetime.now(timezone.utc),
+            nullable=False
+        )
+    )
     
-    id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime, 
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            default=lambda: datetime.now(timezone.utc),
+            onupdate=lambda: datetime.now(timezone.utc),
+            nullable=False
+        )
     )
 
-    def model_dump(self) -> Dict[str, Any]:
-        """Convert model to dictionary for Pydantic compatibility."""
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-
-# Create a shared metadata instance
-metadata = MetaData()
-
-# Create a base class for all models
-Base = declarative_base(cls=BaseModel, metadata=metadata)
+class Base(TimestampModel):
+    """Base model for all database models."""
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # Keep backwards compatibility with SQLAlchemy models
+    __table_args__ = {'extend_existing': True}
+    
+    class Config:
+        """SQLModel configuration."""
+        orm_mode = True

@@ -4,13 +4,26 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
+from sqlmodel import select, SQLModel
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.pydantic_models import Article, ArticleCreate
+from local_newsifier.models.database.article import Article
 
 
-class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
+# Create a simple class for article creation
+class ArticleCreate(SQLModel):
+    """Schema for creating articles."""
+    
+    url: str
+    title: str
+    content: str
+    source: str
+    published_at: datetime
+    status: str
+    scraped_at: Optional[datetime] = None
+
+
+class CRUDArticle(CRUDBase[Article, ArticleCreate, Article]):
     """CRUD operations for articles."""
 
     def get_by_url(self, db: Session, *, url: str) -> Optional[Article]:
@@ -23,8 +36,9 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Article if found, None otherwise
         """
-        db_article = db.query(ArticleDB).filter(ArticleDB.url == url).first()
-        return Article.model_validate(db_article) if db_article else None
+        statement = select(Article).where(Article.url == url)
+        results = db.exec(statement)
+        return results.first()
 
     def create(self, db: Session, *, obj_in: ArticleCreate) -> Article:
         """Create a new article.
@@ -43,11 +57,11 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         ):
             article_data["scraped_at"] = datetime.now(timezone.utc)
 
-        db_article = ArticleDB(**article_data)
+        db_article = Article(**article_data)
         db.add(db_article)
         db.commit()
         db.refresh(db_article)
-        return Article.model_validate(db_article)
+        return db_article
 
     def update_status(
         self, db: Session, *, article_id: int, status: str
@@ -62,14 +76,16 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Updated article if found, None otherwise
         """
-        db_article = (
-            db.query(ArticleDB).filter(ArticleDB.id == article_id).first()
-        )
+        statement = select(Article).where(Article.id == article_id)
+        results = db.exec(statement)
+        db_article = results.first()
+        
         if db_article:
             db_article.status = status
+            db.add(db_article)
             db.commit()
             db.refresh(db_article)
-            return Article.model_validate(db_article)
+            return db_article
         return None
 
     def get_by_status(self, db: Session, *, status: str) -> List[Article]:
@@ -82,10 +98,9 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             List of articles with the specified status
         """
-        db_articles = (
-            db.query(ArticleDB).filter(ArticleDB.status == status).all()
-        )
-        return [Article.model_validate(article) for article in db_articles]
+        statement = select(Article).where(Article.status == status)
+        results = db.exec(statement)
+        return results.all()
 
 
-article = CRUDArticle(ArticleDB, Article)
+article = CRUDArticle(Article, ArticleCreate)
