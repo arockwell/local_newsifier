@@ -6,8 +6,8 @@ from typing import Optional
 from sqlmodel import Field, SQLModel
 
 
-# Configure SQLModel settings
-class BaseConfig(SQLModel.Config):
+# Configure SQLModel settings in model classes
+class BaseConfig:
     """Base configuration for all SQLModels."""
     arbitrary_types_allowed = True
     orm_mode = True
@@ -24,15 +24,17 @@ class TableBase(SQLModel, table=True):
         sa_column_kwargs={"onupdate": datetime.now(timezone.utc)}
     )
     
-    class Config(BaseConfig):
+    class Config:
         """SQLModel configuration."""
-        pass
+        arbitrary_types_allowed = True
+        from_attributes = True  # Updated from orm_mode
 
 
 # For non-table schema classes
 class SchemaBase(SQLModel):
     """Base model for non-table schema classes."""
     
-    class Config(BaseConfig):
+    class Config:
         """SQLModel configuration."""
-        pass
+        arbitrary_types_allowed = True
+        from_attributes = True  # Updated from orm_mode
