@@ -4,7 +4,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union
 
-from ..database.manager import DatabaseManager
+from sqlalchemy.orm import Session
+
+from ..database.adapter import with_session
 from ..models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)
@@ -13,21 +15,24 @@ logger = logging.getLogger(__name__)
 class OpinionVisualizerTool:
     """Tool for generating visualizations of sentiment and opinion data."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, session: Optional[Session] = None):
         """
         Initialize the opinion visualizer.
 
         Args:
-            db_manager: Database manager instance
+            session: Optional SQLAlchemy session
         """
-        self.db_manager = db_manager
+        self.session = session
 
+    @with_session
     def prepare_timeline_data(
         self,
         topic: str,
         start_date: datetime,
         end_date: datetime,
         interval: str = "day",
+        *,
+        session: Optional[Session] = None
     ) -> SentimentVisualizationData:
         """
         Prepare data for a sentiment timeline visualization.
@@ -41,18 +46,21 @@ class OpinionVisualizerTool:
         Returns:
             Sentiment visualization data
         """
-        # Get trend data from database
-        session = self.db_manager.session
+        # Use provided session or instance session
+        session = session or self.session
 
+        # Import necessary classes here to avoid circular imports
+        from ..models.database import AnalysisResultDB, ArticleDB
+        
         # Get analysis results for the topic
         analysis_results = (
-            session.query(self.db_manager.AnalysisResultDB)
+            session.query(AnalysisResultDB)
             .filter(
-                self.db_manager.AnalysisResultDB.analysis_type == "SENTIMENT",
-                self.db_manager.ArticleDB.published_at >= start_date,
-                self.db_manager.ArticleDB.published_at <= end_date,
+                AnalysisResultDB.analysis_type == "SENTIMENT",
+                ArticleDB.published_at >= start_date,
+                ArticleDB.published_at <= end_date,
             )
-            .join(self.db_manager.ArticleDB)
+            .join(ArticleDB)
             .all()
         )
 
@@ -122,12 +130,15 @@ class OpinionVisualizerTool:
             },
         )
 
+    @with_session
     def prepare_comparison_data(
         self,
         topics: List[str],
         start_date: datetime,
         end_date: datetime,
         interval: str = "day",
+        *,
+        session: Optional[Session] = None
     ) -> Dict[str, SentimentVisualizationData]:
         """
         Prepare data for comparative sentiment visualization.
@@ -141,11 +152,14 @@ class OpinionVisualizerTool:
         Returns:
             Dictionary mapping topics to visualization data
         """
+        # Use provided session or instance session
+        session = session or self.session
+        
         comparison_data = {}
 
         for topic in topics:
             topic_data = self.prepare_timeline_data(
-                topic, start_date, end_date, interval
+                topic, start_date, end_date, interval, session=session
             )
             comparison_data[topic] = topic_data
 
