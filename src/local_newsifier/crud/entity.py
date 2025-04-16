@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 from sqlmodel import select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.entity import Entity, EntityCreate
+from local_newsifier.models.database.entity import Entity
 
 
-class CRUDEntity(CRUDBase[Entity, EntityCreate, Entity]):
+class CRUDEntity(CRUDBase[Entity, Entity, Entity]):
     """CRUD operations for entities."""
 
     def get_by_article(self, db: Session, *, article_id: int) -> List[Entity]:
@@ -46,4 +46,4 @@ class CRUDEntity(CRUDBase[Entity, EntityCreate, Entity]):
         return results.first()
 
 
-entity = CRUDEntity(Entity, EntityCreate)
+entity = CRUDEntity(Entity)

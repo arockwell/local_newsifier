@@ -14,15 +14,13 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     """Base class for CRUD operations."""
 
-    def __init__(self, model: Type[ModelType], create_schema: Type[CreateSchemaType] = None):
+    def __init__(self, model: Type[ModelType]):
         """Initialize with model class.
 
         Args:
             model: SQLModel model class
-            create_schema: Optional schema for creation operations
         """
         self.model = model
-        self.create_schema = create_schema or model
 
     def get(self, db: Session, id: int) -> Optional[ModelType]:
         """Get an item by id.

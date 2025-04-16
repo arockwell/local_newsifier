@@ -4,26 +4,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
-from sqlmodel import select, SQLModel
+from sqlmodel import select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.article import Article
 
 
-# Create a simple class for article creation
-class ArticleCreate(SQLModel):
-    """Schema for creating articles."""
-    
-    url: str
-    title: str
-    content: str
-    source: str
-    published_at: datetime
-    status: str
-    scraped_at: Optional[datetime] = None
-
-
-class CRUDArticle(CRUDBase[Article, ArticleCreate, Article]):
+class CRUDArticle(CRUDBase[Article, Article, Article]):
     """CRUD operations for articles."""
 
     def get_by_url(self, db: Session, *, url: str) -> Optional[Article]:
@@ -40,7 +27,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, Article]):
         results = db.exec(statement)
         return results.first()
 
-    def create(self, db: Session, *, obj_in: ArticleCreate) -> Article:
+    def create(self, db: Session, *, obj_in: Article) -> Article:
         """Create a new article.
 
         Args:
@@ -50,11 +37,9 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, Article]):
         Returns:
             Created article
         """
-        article_data = obj_in.model_dump()
-        if (
-            "scraped_at" not in article_data
-            or article_data["scraped_at"] is None
-        ):
+        # Convert to dict and handle special case for scraped_at
+        article_data = obj_in.model_dump(exclude_unset=True)
+        if "scraped_at" not in article_data or article_data["scraped_at"] is None:
             article_data["scraped_at"] = datetime.now(timezone.utc)
 
         db_article = Article(**article_data)
@@ -103,4 +88,4 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, Article]):
         return results.all()
 
 
-article = CRUDArticle(Article, ArticleCreate)
+article = CRUDArticle(Article)

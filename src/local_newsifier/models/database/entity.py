@@ -28,15 +28,5 @@ class Entity(Base, table=True):
     article: Optional["Article"] = Relationship(back_populates="entities")
 
 
-# Create schema for entity creation
-class EntityCreate(SQLModel):
-    """Schema for creating entities."""
-    
-    article_id: int
-    text: str
-    entity_type: str
-    confidence: float = 1.0
-    sentence_context: Optional[str] = None
-
-
+# No separate schema for entity creation, using the main Entity model instead
 # No backward compatibility - we'll refactor references directly
