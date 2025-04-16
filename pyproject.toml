@@ -21,6 +21,7 @@ webdriver-manager = "^4.0.2"
 python-dateutil = "^2.9.0"
 psycopg2-binary = "^2.9.9"
 textblob = "^0.18.0"
+sqlmodel = "^0.0.24"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

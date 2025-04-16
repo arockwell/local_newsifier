@@ -4,58 +4,81 @@ This module provides a compatibility layer for existing code that uses the Datab
 class. New code should use the CRUD modules directly instead.
 """
 
-from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from local_newsifier.crud.analysis_result import \
+    analysis_result as analysis_result_crud
 # Import CRUD modules
 from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.canonical_entity import \
+    canonical_entity as canonical_entity_crud
 from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
-from local_newsifier.crud.entity_relationship import entity_relationship as entity_relationship_crud
-
+from local_newsifier.crud.entity_mention_context import \
+    entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import \
+    entity_profile as entity_profile_crud
+from local_newsifier.crud.entity_relationship import \
+    entity_relationship as entity_relationship_crud
 # Import models from their original locations for backward compatibility
-from local_newsifier.models.database import ArticleDB, EntityDB, AnalysisResultDB
-from local_newsifier.models.pydantic_models import (
-    Article, ArticleCreate,
-    Entity, EntityCreate,
-    AnalysisResult, AnalysisResultCreate
-)
+from local_newsifier.models.database import (AnalysisResultDB, ArticleDB,
+                                             EntityDB)
 from local_newsifier.models.database.base import Base
-from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, CanonicalEntityCreate, CanonicalEntityDB,
-    EntityMentionContext, EntityMentionContextCreate, EntityMentionContextDB,
-    EntityProfile, EntityProfileCreate, EntityProfileDB,
-    EntityRelationship, EntityRelationshipCreate,
-    entity_mentions, entity_relationships
-)
+from local_newsifier.models.entity_tracking import (CanonicalEntity,
+                                                    CanonicalEntityCreate,
+                                                    CanonicalEntityDB,
+                                                    EntityMentionContext,
+                                                    EntityMentionContextCreate,
+                                                    EntityMentionContextDB,
+                                                    EntityProfile,
+                                                    EntityProfileCreate,
+                                                    EntityProfileDB,
+                                                    EntityRelationship,
+                                                    EntityRelationshipCreate,
+                                                    entity_mentions,
+                                                    entity_relationships)
+from local_newsifier.models.pydantic_models import (AnalysisResult,
+                                                    AnalysisResultCreate,
+                                                    Article, ArticleCreate,
+                                                    Entity, EntityCreate)
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 
 # Export models through manager
 __all__ = [
-    'DatabaseManager',
-    'Article', 'ArticleCreate', 'ArticleDB',
-    'Entity', 'EntityCreate', 'EntityDB',
-    'AnalysisResult', 'AnalysisResultCreate', 'AnalysisResultDB',
-    'CanonicalEntity', 'CanonicalEntityCreate', 'CanonicalEntityDB',
-    'EntityMentionContext', 'EntityMentionContextCreate', 'EntityMentionContextDB',
-    'EntityProfile', 'EntityProfileCreate', 'EntityProfileDB',
-    'EntityRelationship', 'EntityRelationshipCreate',
+    "DatabaseManager",
+    "Article",
+    "ArticleCreate",
+    "ArticleDB",
+    "Entity",
+    "EntityCreate",
+    "EntityDB",
+    "AnalysisResult",
+    "AnalysisResultCreate",
+    "AnalysisResultDB",
+    "CanonicalEntity",
+    "CanonicalEntityCreate",
+    "CanonicalEntityDB",
+    "EntityMentionContext",
+    "EntityMentionContextCreate",
+    "EntityMentionContextDB",
+    "EntityProfile",
+    "EntityProfileCreate",
+    "EntityProfileDB",
+    "EntityRelationship",
+    "EntityRelationshipCreate",
 ]
 
 
 class DatabaseManager:
     """Manager class for database operations (legacy compatibility layer).
-    
-    This class provides a compatibility layer for existing code that uses the 
+
+    This class provides a compatibility layer for existing code that uses the
     DatabaseManager class. New code should use the CRUD modules directly instead.
     """
 
@@ -132,7 +155,9 @@ class DatabaseManager:
         Returns:
             Updated article if found, None otherwise
         """
-        return article_crud.update_status(self.session, article_id=article_id, status=status)
+        return article_crud.update_status(
+            self.session, article_id=article_id, status=status
+        )
 
     def get_articles_by_status(self, status: str) -> List[Article]:
         """Get all articles with a specific status.
@@ -168,7 +193,7 @@ class DatabaseManager:
         return analysis_result_crud.get_by_article(self.session, article_id=article_id)
 
     # Entity Tracking Methods
-    
+
     def create_canonical_entity(self, entity: CanonicalEntityCreate) -> CanonicalEntity:
         """Create a new canonical entity in the database.
 
@@ -233,7 +258,9 @@ class DatabaseManager:
             return entity_profile_crud.create(self.session, obj_in=profile)
         except ValueError as e:
             if "Profile already exists" in str(e):
-                raise ValueError(f"Profile already exists for entity {profile.canonical_entity_id}")
+                raise ValueError(
+                    f"Profile already exists for entity {profile.canonical_entity_id}"
+                )
             raise
 
     def update_entity_profile(self, profile: EntityProfileCreate) -> EntityProfile:
@@ -258,7 +285,9 @@ class DatabaseManager:
         Returns:
             Created entity relationship
         """
-        return entity_relationship_crud.create_or_update(self.session, obj_in=relationship)
+        return entity_relationship_crud.create_or_update(
+            self.session, obj_in=relationship
+        )
 
     def get_entity_mentions_count(self, entity_id: int) -> int:
         """Get the count of mentions for an entity.
@@ -269,7 +298,9 @@ class DatabaseManager:
         Returns:
             Count of mentions
         """
-        return canonical_entity_crud.get_mentions_count(self.session, entity_id=entity_id)
+        return canonical_entity_crud.get_mentions_count(
+            self.session, entity_id=entity_id
+        )
 
     def get_entity_timeline(
         self, entity_id: int, start_date: datetime, end_date: datetime
@@ -316,7 +347,9 @@ class DatabaseManager:
         """
         return canonical_entity_crud.get_by_type(self.session, entity_type=entity_type)
 
-    def get_all_canonical_entities(self, entity_type: Optional[str] = None) -> List[CanonicalEntity]:
+    def get_all_canonical_entities(
+        self, entity_type: Optional[str] = None
+    ) -> List[CanonicalEntity]:
         """Get all canonical entities, optionally filtered by type.
 
         Args:
