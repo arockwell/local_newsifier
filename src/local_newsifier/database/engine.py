@@ -149,7 +149,7 @@ def with_session(func: F) -> F:
         """Execute function with session management.
 
         Args:
-            session: SQLAlchemy session
+            session: SQLModel session
             *args: Positional arguments
             **kwargs: Keyword arguments
 
