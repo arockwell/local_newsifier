@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.models.database import ArticleDB, EntityDB
+from src.local_newsifier.models.database import Article, Entity
 from src.local_newsifier.models.trend import TimeFrame, TopicFrequency
 from src.local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 
@@ -31,7 +31,7 @@ def sample_articles():
     """Fixture providing sample article data."""
     now = datetime.now(timezone.utc)
     return [
-        ArticleDB(
+        Article(
             id=1,
             url="https://example.com/news/article1",
             title="Mayor Johnson announces new development",
@@ -40,7 +40,7 @@ def sample_articles():
             content="Article content about Mayor Johnson...",
             status="analyzed",
         ),
-        ArticleDB(
+        Article(
             id=2,
             url="https://example.com/news/article2",
             title="City Council approves downtown project",
@@ -49,7 +49,7 @@ def sample_articles():
             content="Article content about City Council...",
             status="analyzed",
         ),
-        ArticleDB(
+        Article(
             id=3,
             url="https://example.com/news/article3",
             title="Local businesses react to new development",
@@ -65,12 +65,12 @@ def sample_articles():
 def sample_entities():
     """Fixture providing sample entity data."""
     return [
-        EntityDB(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
-        EntityDB(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
-        EntityDB(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
-        EntityDB(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
+        Entity(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
+        Entity(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
+        Entity(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
+        Entity(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        Entity(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        Entity(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
     ]
 
 

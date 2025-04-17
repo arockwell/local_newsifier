@@ -8,9 +8,8 @@ import time
 import pytest
 import psycopg2
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, SQLModel, create_engine
 
-from sqlmodel import Session, SQLModel
 from local_newsifier.config.database import DatabaseSettings
 
 # Import all models to ensure they're registered with SQLModel.metadata
@@ -21,11 +20,8 @@ from local_newsifier.models.database.analysis_result import AnalysisResult
 
 # Entity tracking models
 from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, CanonicalEntityCreate, 
-    EntityMention, EntityMentionCreate,
-    EntityMentionContext, EntityMentionContextCreate,
-    EntityProfile, EntityProfileCreate,
-    EntityRelationship, EntityRelationshipCreate
+    CanonicalEntity, EntityMention, EntityMentionContext, 
+    EntityProfile, EntityRelationship
 )
 
 # Sentiment models
@@ -131,9 +127,5 @@ def setup_test_db(test_engine) -> Generator[None, None, None]:
 @pytest.fixture
 def db_session(test_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    session = SessionLocal()
-    try:
+    with Session(test_engine) as session:
         yield session
-    finally:
-        session.close() 

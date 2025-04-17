@@ -125,3 +125,15 @@ def get_database_settings() -> DatabaseSettings:
         DatabaseSettings instance
     """
     return DatabaseSettings()
+
+
+def get_db_session() -> Session:
+    """Get a new database session.
+    
+    This is a convenience wrapper around get_db() for non-generator contexts.
+    
+    Returns:
+        Session: Database session
+    """
+    engine = get_database()
+    return Session(engine)

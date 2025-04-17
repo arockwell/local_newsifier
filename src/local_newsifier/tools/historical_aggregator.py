@@ -64,7 +64,7 @@ class HistoricalDataAggregator:
         if source:
             statement = statement.where(Article.source == source)
             
-        results = session.exec(statement)
+        results = session.execute(statement)
         articles = results.all()
         self._cache[cache_key] = articles
         return articles
@@ -152,7 +152,7 @@ class HistoricalDataAggregator:
             Entity.article_id.in_(article_ids),
             Entity.entity_type.in_(entity_types)
         )
-        results = session.exec(statement)
+        results = session.execute(statement)
         entities = results.all()
 
         # Process entities

@@ -1,7 +1,7 @@
 """CRUD operations for articles."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union
 
 from sqlmodel import Session, select
 
@@ -24,9 +24,12 @@ class CRUDArticle(CRUDBase[Article]):
         """
         statement = select(Article).where(Article.url == url)
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
-    def create(self, db: Session, *, obj_in: Article) -> Article:
+    def create(
+        self, db: Session, *, obj_in: Union[Dict[str, Any], Article]
+    ) -> Article:
         """Create a new article.
 
         Args:
@@ -36,8 +39,13 @@ class CRUDArticle(CRUDBase[Article]):
         Returns:
             Created article
         """
-        # Convert to dict and handle special case for scraped_at
-        article_data = obj_in.model_dump(exclude_unset=True)
+        # Handle dict or model instance
+        if isinstance(obj_in, dict):
+            article_data = obj_in
+        else:
+            article_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in.model_dump(exclude_unset=True)
+            
+        # Add scraped_at if not provided
         if "scraped_at" not in article_data or article_data["scraped_at"] is None:
             article_data["scraped_at"] = datetime.now(timezone.utc)
 

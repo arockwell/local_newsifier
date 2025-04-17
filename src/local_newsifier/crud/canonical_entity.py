@@ -31,7 +31,8 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
             CanonicalEntity.entity_type == entity_type
         )
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
     def get_by_type(
         self, db: Session, *, entity_type: str

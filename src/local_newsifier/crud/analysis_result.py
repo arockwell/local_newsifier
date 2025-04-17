@@ -45,7 +45,8 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
             AnalysisResult.analysis_type == analysis_type
         )
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
 
 analysis_result = CRUDAnalysisResult(AnalysisResult)

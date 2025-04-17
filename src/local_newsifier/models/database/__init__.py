@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 from sqlmodel import SQLModel, create_engine, Session
 
-from local_newsifier.models.database.base import TableBase, SchemaBase, Base
+from local_newsifier.models.database.base import TableBase
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.database.analysis_result import AnalysisResult
@@ -19,9 +19,7 @@ class EngineProtocol(Protocol):
 # Re-export all models
 __all__ = [
     "SQLModel",
-    "TableBase", 
-    "SchemaBase",
-    "Base",  # For backwards compatibility
+    "TableBase",
     "Article",
     "Entity",
     "AnalysisResult",

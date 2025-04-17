@@ -1,40 +1,21 @@
-"""Base database model definitions using SQLModel only."""
+"""Base database model definitions using SQLModel."""
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Callable, TypeVar, Generic, Generator, Type
+from typing import Optional
 
-from sqlmodel import Field, SQLModel, Session, create_engine
+from sqlmodel import Field, SQLModel
 
-# Type variables
-T = TypeVar('T')
 
-# Base class for table models with timestamps - not a real table but used for inheritance
 class TableBase(SQLModel):
-    """Base model for all database tables with a primary key and timestamps."""
+    """Base model with common fields for all database tables.
     
+    This is not a table itself but provides common fields for all tables.
+    """
+    
+    # These fields will be included in all models that inherit from TableBase
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
     )
-    
-    class Config:
-        """SQLModel configuration."""
-        arbitrary_types_allowed = True
-        from_attributes = True
-
-
-# For non-table schema classes
-class SchemaBase(SQLModel):
-    """Base model for non-table schema classes."""
-    
-    class Config:
-        """SQLModel configuration."""
-        arbitrary_types_allowed = True
-        from_attributes = True
-
-
-# Provide compatibility for code that still uses Base
-# This will work during migration but should be phased out
-Base = TableBase

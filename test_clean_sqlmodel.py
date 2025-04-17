@@ -1,84 +1,126 @@
-"""Clean test of SQLModel implementation without entity_tracking dependencies."""
+"""Clean test of SQLModel implementation with actual application models."""
 
 import os
 import sys
 from datetime import datetime, timezone
 
-from sqlmodel import SQLModel, Field, create_engine, Session
+# Add the src directory to the path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 
-# Create clean models for testing without dependencies
-class Article(SQLModel, table=True):
-    """Article model for testing."""
-    
-    id: int = Field(default=None, primary_key=True)
-    title: str
-    content: str
-    url: str = Field(unique=True)
-    source: str
-    status: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": datetime.now(timezone.utc)}
-    )
-    published_at: datetime
-    scraped_at: datetime
+from sqlmodel import SQLModel, create_engine, Session
 
-class Entity(SQLModel, table=True):
-    """Entity model for testing."""
-    
-    id: int = Field(default=None, primary_key=True)
-    article_id: int = Field(foreign_key="article.id")
-    text: str
-    entity_type: str
-    confidence: float = Field(default=1.0)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+# Import all models to ensure they're registered
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity  
+from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.entity_tracking import (
+    CanonicalEntity,
+    EntityMention,
+    EntityMentionContext, 
+    EntityProfile,
+    EntityRelationship
+)
     
 def main():
-    """Create in-memory database and test models."""
-    # Create an in-memory database
+    """Test the SQLModel setup with all tables."""
+    # Create in-memory SQLite database
     engine = create_engine("sqlite:///:memory:", echo=True)
     
-    # Create tables
+    # Drop all tables and recreate them
+    SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
     
-    # Create instances
-    article = Article(
-        title="Test Article",
-        content="This is a test article",
-        url="http://example.com/test",
-        source="Test Source",
-        published_at=datetime.now(timezone.utc),
-        status="new",
-        scraped_at=datetime.now(timezone.utc)
-    )
-    
-    # Use session context
+    # Create a session
     with Session(engine) as session:
+        # Create test article
+        article = Article(
+            title="Test Article",
+            content="This is test content about John Doe.",
+            url="https://example.com/test",
+            source="Test Source",
+            published_at=datetime.now(timezone.utc),
+            status="INITIALIZED",
+            scraped_at=datetime.now(timezone.utc)
+        )
         session.add(article)
         session.commit()
+        session.refresh(article)
+        print(f"Created article: {article.id} - {article.title}")
         
-        # Create entity after article is saved
+        # Create entity
         entity = Entity(
             article_id=article.id,
-            text="Test Entity",
+            text="John Doe",
             entity_type="PERSON",
             confidence=0.95
         )
-        
         session.add(entity)
         session.commit()
+        session.refresh(entity)
+        print(f"Created entity: {entity.id} - {entity.text}")
         
-        # Query data
-        print("\nQuery Article:")
-        db_article = session.get(Article, article.id)
-        print(f"Article: {db_article.title} - {db_article.url}")
+        # Create canonical entity
+        canonical = CanonicalEntity(
+            name="John Doe",
+            entity_type="PERSON",
+            description="A test person",
+            entity_metadata={"test": "data"}
+        )
+        session.add(canonical)
+        session.commit()
+        session.refresh(canonical)
+        print(f"Created canonical entity: {canonical.id} - {canonical.name}")
         
-        print("\nQuery Entity:")
-        db_entity = session.get(Entity, entity.id)
-        print(f"Entity: {db_entity.text} ({db_entity.entity_type})")
+        # Create entity mention
+        mention = EntityMention(
+            canonical_entity_id=canonical.id,
+            entity_id=entity.id,
+            article_id=article.id,
+            confidence=0.9
+        )
+        session.add(mention)
+        session.commit()
+        session.refresh(mention)
+        print(f"Created entity mention: {mention.id}")
         
-    print("\nTest completed successfully!")
+        # Test entity mention context
+        context = EntityMentionContext(
+            entity_id=entity.id,
+            article_id=article.id,
+            context_text="This is test content about John Doe.",
+            sentiment_score=0.5
+        )
+        session.add(context)
+        session.commit()
+        session.refresh(context)
+        print(f"Created entity mention context: {context.id}")
+        
+        # Test relationship
+        relationship = EntityRelationship(
+            source_entity_id=canonical.id,
+            target_entity_id=canonical.id,  # self-reference as test
+            relationship_type="SELF",
+            confidence=1.0,
+            evidence="Test evidence"
+        )
+        session.add(relationship)
+        session.commit()
+        session.refresh(relationship)
+        print(f"Created entity relationship: {relationship.id}")
+        
+        # Test entity profile
+        profile = EntityProfile(
+            canonical_entity_id=canonical.id,
+            profile_type="SUMMARY",
+            content="This is a test profile for John Doe",
+            profile_metadata={"test": "profile"}
+        )
+        session.add(profile)
+        session.commit()
+        session.refresh(profile)
+        print(f"Created entity profile: {profile.id}")
+        
+        print("\nAll models created successfully!")
 
 if __name__ == "__main__":
     main()

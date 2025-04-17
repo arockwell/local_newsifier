@@ -1,11 +1,9 @@
-"""Article models for the news analysis system."""
+"""Article model for the news analysis system."""
 
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlmodel import Field, Relationship
-
-from local_newsifier.models.database.base import TableBase
+from sqlmodel import Field, Relationship, SQLModel
 
 # Handle circular imports
 if TYPE_CHECKING:
@@ -13,14 +11,20 @@ if TYPE_CHECKING:
     from local_newsifier.models.database.analysis_result import AnalysisResult
 
 
-class Article(TableBase, table=True):
-    """SQLModel for articles."""
+class Article(SQLModel, table=True):
+    """SQLModel for articles - serves as both ORM model and Pydantic schema."""
 
     __tablename__ = "articles"
     
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
     
+    # Primary key and timestamps
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    # Article fields
     title: str
     content: str
     url: str = Field(unique=True)
@@ -32,3 +36,22 @@ class Article(TableBase, table=True):
     # Define relationships
     entities: List["Entity"] = Relationship(back_populates="article")
     analysis_results: List["AnalysisResult"] = Relationship(back_populates="article")
+    
+    # Model configuration for both SQLModel and Pydantic functionality
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "title": "Sample Article",
+                    "content": "This is a sample article content.",
+                    "url": "https://example.com/sample",
+                    "source": "Example News",
+                    "published_at": "2023-01-01T00:00:00Z",
+                    "status": "new",
+                    "scraped_at": "2023-01-01T01:00:00Z",
+                }
+            ]
+        }
+    }

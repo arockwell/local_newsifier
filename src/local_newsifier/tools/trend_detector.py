@@ -74,7 +74,7 @@ class TrendDetector:
             Entity.entity_type == entity_type,
             Entity.text == entity_text
         )
-        results = session.exec(statement)
+        results = session.execute(statement)
         entities = results.all()
         
         # Get unique articles

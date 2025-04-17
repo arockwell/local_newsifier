@@ -12,24 +12,21 @@ from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.models.database.base import TableBase
-from local_newsifier.models.entity_tracking import (CanonicalEntity,
-                                                    CanonicalEntityCreate,
-                                                    EntityMention,
-                                                    EntityMentionContext,
-                                                    EntityMentionContextCreate,
-                                                    EntityMentionContextDB,
-                                                    EntityProfile,
-                                                    EntityProfileCreate,
-                                                    EntityProfileDB)
-from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate
+from local_newsifier.models.entity_tracking import (
+    CanonicalEntity,
+    EntityMention,
+    EntityMentionContext,
+    EntityProfile
+)
+from local_newsifier.models.database.article import Article 
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.state import AnalysisStatus
 
 
 @pytest.fixture
 def sample_article(db_session: Session):
     """Create a sample article."""
-    article = ArticleCreate(
+    article = Article(
         url="https://example.com/biden",
         title="Article about Biden",
         content="Joe Biden is the president of the United States. "
@@ -37,6 +34,7 @@ def sample_article(db_session: Session):
         published_at=datetime.now(UTC),
         source="example.com",
         status=AnalysisStatus.INITIALIZED.value,
+        scraped_at=datetime.now(UTC)
     )
     return article_crud.create(db_session, obj_in=article)
 
@@ -44,7 +42,7 @@ def sample_article(db_session: Session):
 @pytest.fixture
 def sample_entity(db_session: Session, sample_article):
     """Create a sample entity."""
-    entity = EntityCreate(
+    entity = Entity(
         article_id=sample_article.id,
         text="Joe Biden",
         entity_type="PERSON",
@@ -56,7 +54,7 @@ def sample_entity(db_session: Session, sample_article):
 def test_add_entity_mention_context(db_session: Session, sample_entity):
     """Test adding context for an entity mention."""
     # Add entity mention context
-    context_data = EntityMentionContextCreate(
+    context_data = EntityMentionContext(
         entity_id=sample_entity.id,
         article_id=sample_entity.article_id,
         context_text="Joe Biden is the president of the United States.",
@@ -76,7 +74,7 @@ def test_add_entity_mention_context(db_session: Session, sample_entity):
 def test_add_entity_profile(db_session: Session):
     """Test adding an entity profile."""
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(
+    entity_data = CanonicalEntity(
         name="Donald Trump",
         entity_type="PERSON",
         description="45th President of the United States",
@@ -85,7 +83,7 @@ def test_add_entity_profile(db_session: Session):
     canonical_entity = canonical_entity_crud.create(db_session, obj_in=entity_data)
 
     # Add entity profile
-    profile_data = EntityProfileCreate(
+    profile_data = EntityProfile(
         canonical_entity_id=canonical_entity.id,
         profile_type="summary",
         content="Donald Trump is a former president.",
@@ -108,7 +106,7 @@ def test_add_entity_profile(db_session: Session):
 def test_update_entity_profile(db_session: Session):
     """Test updating an entity profile."""
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(
+    entity_data = CanonicalEntity(
         name="Joe Biden",
         entity_type="PERSON",
         description="46th President of the United States",
@@ -117,7 +115,7 @@ def test_update_entity_profile(db_session: Session):
     canonical_entity = canonical_entity_crud.create(db_session, obj_in=entity_data)
 
     # Add initial profile
-    profile_data = EntityProfileCreate(
+    profile_data = EntityProfile(
         canonical_entity_id=canonical_entity.id,
         profile_type="summary",
         content="Joe Biden is the president.",
@@ -131,7 +129,7 @@ def test_update_entity_profile(db_session: Session):
     initial_profile = entity_profile_crud.create(db_session, obj_in=profile_data)
 
     # Update profile
-    updated_profile_data = EntityProfileCreate(
+    updated_profile_data = EntityProfile(
         canonical_entity_id=canonical_entity.id,
         profile_type="summary",
         content="Joe Biden is the 46th president.",
@@ -152,24 +150,28 @@ def test_update_entity_profile(db_session: Session):
 def test_entity_timeline_and_sentiment_trend(db_session: Session):
     """Test getting entity timeline and sentiment trend."""
     # Create article
-    article = ArticleCreate(
+    article = Article(
         url="https://example.com/biden-timeline",
         title="Biden Timeline Article",
         content="Joe Biden announced new policies today.",
         published_at=datetime.now(UTC),
         source="example.com",
         status=AnalysisStatus.INITIALIZED.value,
+        scraped_at=datetime.now(UTC)
     )
 
     created_article = article_crud.create(db_session, obj_in=article)
 
     # Create canonical entity
-    entity_data = CanonicalEntityCreate(name="Joe Biden", entity_type="PERSON")
+    entity_data = CanonicalEntity(
+        name="Joe Biden", 
+        entity_type="PERSON"
+    )
 
     canonical_entity = canonical_entity_crud.create(db_session, obj_in=entity_data)
 
     # Create entity
-    entity = EntityCreate(
+    entity = Entity(
         article_id=created_article.id,
         text="Joe Biden",
         entity_type="PERSON",
@@ -179,7 +181,7 @@ def test_entity_timeline_and_sentiment_trend(db_session: Session):
     created_entity = entity_crud.create(db_session, obj_in=entity)
 
     # Add entity mention context
-    context_data = EntityMentionContextCreate(
+    context_data = EntityMentionContext(
         entity_id=created_entity.id,
         article_id=created_article.id,
         context_text="Joe Biden announced new policies today.",

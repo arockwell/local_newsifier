@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
-from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.database.article import Article
 
 
 @pytest.fixture

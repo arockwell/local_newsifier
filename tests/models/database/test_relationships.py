@@ -2,15 +2,15 @@
 
 from datetime import datetime
 
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.database.analysis_result import AnalysisResult
 
 
 def test_article_entity_relationship():
     """Test relationship between Article and Entity."""
     # Create test article
-    article = ArticleDB(
+    article = Article(
         title="Test Article",
         content="Test content",
         url="https://example.com",
@@ -21,7 +21,7 @@ def test_article_entity_relationship():
     )
     
     # Create test entity
-    entity = EntityDB(
+    entity = Entity(
         text="Test Entity",
         entity_type="PERSON",
         confidence=0.95,
@@ -36,7 +36,7 @@ def test_article_entity_relationship():
 def test_article_analysis_result_relationship():
     """Test relationship between Article and AnalysisResult."""
     # Create test article
-    article = ArticleDB(
+    article = Article(
         title="Test Article",
         content="Test content",
         url="https://example.com",
@@ -47,7 +47,7 @@ def test_article_analysis_result_relationship():
     )
     
     # Create test analysis result
-    analysis_result = AnalysisResultDB(
+    analysis_result = AnalysisResult(
         analysis_type="sentiment",
         results={"score": 0.8},
         article=article

@@ -10,10 +10,7 @@ from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
 from local_newsifier.crud.entity_relationship import (
     entity_relationship as entity_relationship_crud,
 )
-from local_newsifier.models.entity_tracking import (
-    EntityRelationshipCreate,
-    EntityRelationship,
-)
+from local_newsifier.models.entity_tracking import EntityRelationship
 
 
 class TestEntityRelationshipCRUD:
@@ -34,28 +31,29 @@ class TestEntityRelationshipCRUD:
             create_canonical_entities[1].id
         )
 
-        obj_in = EntityRelationshipCreate(**sample_entity_relationship_data)
+        # We can use the dict directly with SQLModel
         relationship = entity_relationship_crud.create_or_update(
-            db_session, obj_in=obj_in
+            db_session, obj_in=sample_entity_relationship_data
         )
 
         assert relationship is not None
-        assert relationship.source_entity_id == obj_in.source_entity_id
-        assert relationship.target_entity_id == obj_in.target_entity_id
-        assert relationship.relationship_type == obj_in.relationship_type
-        assert relationship.confidence == obj_in.confidence
-        assert relationship.evidence == obj_in.evidence
+        assert relationship.source_entity_id == sample_entity_relationship_data["source_entity_id"]
+        assert relationship.target_entity_id == sample_entity_relationship_data["target_entity_id"]
+        assert relationship.relationship_type == sample_entity_relationship_data["relationship_type"]
+        assert relationship.confidence == sample_entity_relationship_data["confidence"]
+        assert relationship.evidence == sample_entity_relationship_data["evidence"]
 
         # Verify it was saved to the database
         statement = select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == obj_in.source_entity_id,
-            EntityRelationship.target_entity_id == obj_in.target_entity_id,
-            EntityRelationship.relationship_type == obj_in.relationship_type
+            EntityRelationship.source_entity_id == sample_entity_relationship_data["source_entity_id"],
+            EntityRelationship.target_entity_id == sample_entity_relationship_data["target_entity_id"],
+            EntityRelationship.relationship_type == sample_entity_relationship_data["relationship_type"]
         )
-        db_relationship = db_session.exec(statement).first()
+        result = db_session.execute(statement).first()
+        db_relationship = result[0] if result else None
         assert db_relationship is not None
-        assert db_relationship.confidence == obj_in.confidence
-        assert db_relationship.evidence == obj_in.evidence
+        assert db_relationship.confidence == sample_entity_relationship_data["confidence"]
+        assert db_relationship.evidence == sample_entity_relationship_data["evidence"]
 
     def test_create_or_update_update(
         self,
@@ -97,16 +95,15 @@ class TestEntityRelationshipCRUD:
             "confidence": 0.95,  # Changed confidence
             "evidence": "Updated evidence.",  # Changed evidence
         }
-        obj_in = EntityRelationshipCreate(**update_data)
         updated_relationship = entity_relationship_crud.create_or_update(
-            db_session, obj_in=obj_in
+            db_session, obj_in=update_data
         )
 
         assert updated_relationship is not None
-        assert updated_relationship.source_entity_id == obj_in.source_entity_id
-        assert updated_relationship.target_entity_id == obj_in.target_entity_id
+        assert updated_relationship.source_entity_id == update_data["source_entity_id"]
+        assert updated_relationship.target_entity_id == update_data["target_entity_id"]
         assert (
-            updated_relationship.relationship_type == obj_in.relationship_type
+            updated_relationship.relationship_type == update_data["relationship_type"]
         )
         assert updated_relationship.confidence == 0.95  # Updated value
         assert (
@@ -115,11 +112,12 @@ class TestEntityRelationshipCRUD:
 
         # Verify it was updated in the database
         statement = select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == obj_in.source_entity_id,
-            EntityRelationship.target_entity_id == obj_in.target_entity_id,
-            EntityRelationship.relationship_type == obj_in.relationship_type
+            EntityRelationship.source_entity_id == update_data["source_entity_id"],
+            EntityRelationship.target_entity_id == update_data["target_entity_id"],
+            EntityRelationship.relationship_type == update_data["relationship_type"]
         )
-        db_updated = db_session.exec(statement).first()
+        result = db_session.execute(statement).first()
+        db_updated = result[0] if result else None
         assert db_updated.confidence == 0.95
         assert db_updated.evidence == "Updated evidence."
 
@@ -296,16 +294,13 @@ class TestEntityRelationshipCRUD:
         assert removed is True
 
         # Verify it was removed from the database
-        db_relationship = (
-            db_session.exec(
-                select(EntityRelationship).where(
-                    EntityRelationship.source_entity_id == sample_entity_relationship_data["source_entity_id"],
-                    EntityRelationship.target_entity_id == sample_entity_relationship_data["target_entity_id"],
-                    EntityRelationship.relationship_type == sample_entity_relationship_data["relationship_type"]
-                )
-            )
-            .first()
+        statement = select(EntityRelationship).where(
+            EntityRelationship.source_entity_id == sample_entity_relationship_data["source_entity_id"],
+            EntityRelationship.target_entity_id == sample_entity_relationship_data["target_entity_id"],
+            EntityRelationship.relationship_type == sample_entity_relationship_data["relationship_type"]
         )
+        result = db_session.execute(statement).first()
+        db_relationship = result[0] if result else None
         assert db_relationship is None
 
     def test_remove_not_found(self, db_session, create_canonical_entities):
@@ -339,20 +334,19 @@ class TestEntityRelationshipCRUD:
             create_canonical_entities[1].id
         )
 
-        # Create a mock query that returns None for the created relationship
-        mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = None
+        # Create a mock statement that returns None for the created relationship
+        def mock_execute(*args, **kwargs):
+            mock_result = MagicMock()
+            mock_result.first.return_value = None
+            return mock_result
 
-        # Patch the db.query method to use our mock
-        monkeypatch.setattr(db_session, "query", lambda x: mock_query)
+        # Patch the execute method to use our mock
+        monkeypatch.setattr(db_session, "execute", mock_execute)
 
         # Test that ValueError is raised
         with pytest.raises(
             ValueError, match="Failed to create entity relationship"
         ):
-            obj_in = EntityRelationshipCreate(
-                **sample_entity_relationship_data
-            )
             entity_relationship_crud.create_or_update(
-                db_session, obj_in=obj_in
+                db_session, obj_in=sample_entity_relationship_data
             )

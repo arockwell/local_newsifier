@@ -8,8 +8,6 @@ from local_newsifier.crud.entity_profile import (
 )
 from local_newsifier.models.entity_tracking import (
     EntityProfile,
-    EntityProfileCreate,
-    EntityProfileDB,
 )
 
 
@@ -25,27 +23,27 @@ class TestEntityProfileCRUD:
             create_canonical_entity.id
         )
 
-        obj_in = EntityProfileCreate(**sample_entity_profile_data)
+        obj_in = sample_entity_profile_data
         profile = entity_profile_crud.create(db_session, obj_in=obj_in)
 
         assert profile is not None
         assert profile.id is not None
-        assert profile.canonical_entity_id == obj_in.canonical_entity_id
-        assert profile.profile_type == obj_in.profile_type
-        assert profile.content == obj_in.content
-        assert profile.profile_metadata == obj_in.profile_metadata
+        assert profile.canonical_entity_id == obj_in["canonical_entity_id"]
+        assert profile.profile_type == obj_in["profile_type"]
+        assert profile.content == obj_in["content"]
+        assert profile.profile_metadata == obj_in["profile_metadata"]
         assert profile.created_at is not None
         assert profile.updated_at is not None
 
         # Verify it was saved to the database
         db_profile = (
-            db_session.query(EntityProfileDB)
-            .filter(EntityProfileDB.id == profile.id)
+            db_session.query(EntityProfile)
+            .filter(EntityProfile.id == profile.id)
             .first()
         )
         assert db_profile is not None
-        assert db_profile.canonical_entity_id == obj_in.canonical_entity_id
-        assert db_profile.profile_type == obj_in.profile_type
+        assert db_profile.canonical_entity_id == obj_in["canonical_entity_id"]
+        assert db_profile.profile_type == obj_in["profile_type"]
 
     def test_create_duplicate_fails(
         self, db_session, create_canonical_entity, sample_entity_profile_data
@@ -57,7 +55,7 @@ class TestEntityProfileCRUD:
         )
 
         # Create the first profile
-        obj_in = EntityProfileCreate(**sample_entity_profile_data)
+        obj_in = sample_entity_profile_data
         entity_profile_crud.create(db_session, obj_in=obj_in)
 
         # Attempt to create a duplicate profile
@@ -77,7 +75,7 @@ class TestEntityProfileCRUD:
         )
 
         # Create a profile
-        db_profile = EntityProfileDB(**sample_entity_profile_data)
+        db_profile = EntityProfile(**sample_entity_profile_data)
         db_session.add(db_profile)
         db_session.commit()
 
@@ -101,7 +99,7 @@ class TestEntityProfileCRUD:
         )
 
         # Create a profile
-        db_profile = EntityProfileDB(**sample_entity_profile_data)
+        db_profile = EntityProfile(**sample_entity_profile_data)
         db_session.add(db_profile)
         db_session.commit()
 
@@ -146,7 +144,7 @@ class TestEntityProfileCRUD:
         ]
 
         for profile_data in profiles_data:
-            db_profile = EntityProfileDB(**profile_data)
+            db_profile = EntityProfile(**profile_data)
             db_session.add(db_profile)
         db_session.commit()
 
@@ -186,7 +184,7 @@ class TestEntityProfileCRUD:
         sample_entity_profile_data["profile_type"] = "summary"
 
         # Create a profile first
-        db_profile = EntityProfileDB(**sample_entity_profile_data)
+        db_profile = EntityProfile(**sample_entity_profile_data)
         db_session.add(db_profile)
         db_session.commit()
 
@@ -200,7 +198,7 @@ class TestEntityProfileCRUD:
             "content": "Updated profile content.",
             "profile_metadata": {"updated": True},
         }
-        obj_in = EntityProfileCreate(**update_data)
+        obj_in = update_data
         updated_profile = entity_profile_crud.update_or_create(
             db_session, obj_in=obj_in
         )
@@ -219,8 +217,8 @@ class TestEntityProfileCRUD:
 
         # Verify it was updated in the database
         db_updated = (
-            db_session.query(EntityProfileDB)
-            .filter(EntityProfileDB.id == db_profile.id)
+            db_session.query(EntityProfile)
+            .filter(EntityProfile.id == db_profile.id)
             .first()
         )
         assert db_updated.content == "Updated profile content."
@@ -236,7 +234,7 @@ class TestEntityProfileCRUD:
             "content": "This is a new profile that didn't exist before.",
             "profile_metadata": {"new": True},
         }
-        obj_in = EntityProfileCreate(**profile_data)
+        obj_in = profile_data
         profile = entity_profile_crud.update_or_create(
             db_session, obj_in=obj_in
         )
@@ -253,11 +251,11 @@ class TestEntityProfileCRUD:
 
         # Verify it was saved to the database
         db_profile = (
-            db_session.query(EntityProfileDB)
+            db_session.query(EntityProfile)
             .filter(
-                EntityProfileDB.canonical_entity_id
+                EntityProfile.canonical_entity_id
                 == create_canonical_entity.id,
-                EntityProfileDB.profile_type == "new_type",
+                EntityProfile.profile_type == "new_type",
             )
             .first()
         )
@@ -270,5 +268,4 @@ class TestEntityProfileCRUD:
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
         assert isinstance(entity_profile_crud, CRUDEntityProfile)
-        assert entity_profile_crud.model == EntityProfileDB
-        assert entity_profile_crud.schema == EntityProfile
+        assert entity_profile_crud.model == EntityProfile

@@ -10,13 +10,11 @@ from local_newsifier.crud.entity_mention_context import (
 from local_newsifier.crud.entity_mention_context import (
     entity_mention_context as entity_mention_context_crud,
 )
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.entity_tracking import (
     EntityMentionContext,
-    EntityMentionContextCreate,
-    EntityMentionContextDB,
-    entity_mentions,
+    EntityMention,
 )
 
 
@@ -27,36 +25,34 @@ class TestEntityMentionContextCRUD:
         self, db_session, create_entity, sample_entity_mention_context_data
     ):
         """Test creating a new entity mention context."""
-        obj_in = EntityMentionContextCreate(
-            **sample_entity_mention_context_data
-        )
+        obj_in = sample_entity_mention_context_data
         context = entity_mention_context_crud.create(db_session, obj_in=obj_in)
 
         assert context is not None
         assert context.id is not None
-        assert context.entity_id == obj_in.entity_id
-        assert context.article_id == obj_in.article_id
-        assert context.context_text == obj_in.context_text
-        assert context.context_type == obj_in.context_type
-        assert context.sentiment_score == obj_in.sentiment_score
+        assert context.entity_id == obj_in["entity_id"]
+        assert context.article_id == obj_in["article_id"]
+        assert context.context_text == obj_in["context_text"]
+        assert context.context_type == obj_in["context_type"]
+        assert context.sentiment_score == obj_in["sentiment_score"]
         assert context.created_at is not None
 
         # Verify it was saved to the database
         db_context = (
-            db_session.query(EntityMentionContextDB)
-            .filter(EntityMentionContextDB.id == context.id)
+            db_session.query(EntityMentionContext)
+            .filter(EntityMentionContext.id == context.id)
             .first()
         )
         assert db_context is not None
-        assert db_context.entity_id == obj_in.entity_id
-        assert db_context.article_id == obj_in.article_id
+        assert db_context.entity_id == obj_in["entity_id"]
+        assert db_context.article_id == obj_in["article_id"]
 
     def test_get(
         self, db_session, create_entity, sample_entity_mention_context_data
     ):
         """Test getting an entity mention context by ID."""
         # Create an entity mention context
-        db_context = EntityMentionContextDB(
+        db_context = EntityMentionContext(
             **sample_entity_mention_context_data
         )
         db_session.add(db_context)
@@ -78,7 +74,7 @@ class TestEntityMentionContextCRUD:
     ):
         """Test getting context by entity and article ID."""
         # Create an entity mention context
-        db_context = EntityMentionContextDB(
+        db_context = EntityMentionContext(
             **sample_entity_mention_context_data
         )
         db_session.add(db_context)
@@ -121,7 +117,7 @@ class TestEntityMentionContextCRUD:
                 "sentiment_score": 0.5 + (i * 0.1),
             }
             contexts_data.append(context_data)
-            db_context = EntityMentionContextDB(**context_data)
+            db_context = EntityMentionContext(**context_data)
             db_session.add(db_context)
         db_session.commit()
 
@@ -157,7 +153,7 @@ class TestEntityMentionContextCRUD:
         articles = []
         base_date = datetime.now(timezone.utc)
         for i in range(5):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -174,7 +170,7 @@ class TestEntityMentionContextCRUD:
         # Create entities for each article
         entities = []
         for i, article in enumerate(articles):
-            entity = EntityDB(
+            entity = Entity(
                 article_id=article.id,
                 text=f"Entity {i}",
                 entity_type="TEST",
@@ -188,19 +184,18 @@ class TestEntityMentionContextCRUD:
 
         # Add entity mentions linking entities to canonical entity
         for i, entity in enumerate(entities):
-            db_session.execute(
-                entity_mentions.insert().values(
-                    canonical_entity_id=create_canonical_entity.id,
-                    entity_id=entity.id,
-                    article_id=entity.article_id,
-                    confidence=0.9,
-                )
+            entity_mention = EntityMention(
+                canonical_entity_id=create_canonical_entity.id,
+                entity_id=entity.id,
+                article_id=entity.article_id,
+                confidence=0.9,
             )
+            db_session.add(entity_mention)
         db_session.commit()
 
         # Add entity mention contexts with different sentiment scores
         for i, entity in enumerate(entities):
-            context = EntityMentionContextDB(
+            context = EntityMentionContext(
                 entity_id=entity.id,
                 article_id=entity.article_id,
                 context_text=f"Context for entity {i}",
@@ -232,5 +227,4 @@ class TestEntityMentionContextCRUD:
         assert isinstance(
             entity_mention_context_crud, CRUDEntityMentionContext
         )
-        assert entity_mention_context_crud.model == EntityMentionContextDB
-        assert entity_mention_context_crud.schema == EntityMentionContext
+        assert entity_mention_context_crud.model == EntityMentionContext

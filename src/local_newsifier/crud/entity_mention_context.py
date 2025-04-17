@@ -31,7 +31,8 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
             EntityMentionContext.article_id == article_id
         )
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
     def get_by_entity(
         self, db: Session, *, entity_id: int

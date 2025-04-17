@@ -9,8 +9,8 @@ from pytest_mock import MockFixture
 import logging
 from sqlalchemy.orm import sessionmaker, Session
 
-from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
-from src.local_newsifier.models.database import ArticleDB, Base
+from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.models.database.article import Article
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def test_headline_analyzer_with_real_db(test_session, mock_nlp):
         # Create test articles
         now = datetime.now()
         articles = [
-            ArticleDB(
+            Article(
                 url=f"https://example.com/article{i}",
                 title=f"Test Article {i}",
                 content=f"Content {i}",
@@ -115,7 +115,7 @@ def test_headline_analyzer_with_real_db_and_trends(test_session, mock_nlp, caplo
             num_articles = i + 1  # 1 on day 1, 2 on day 2, 3 on day 3
             for j in range(num_articles):
                 articles.append(
-                    ArticleDB(
+                    Article(
                         url=f"https://example.com/article{i}_{j}",
                         title=f"Trending Topic Test",  # Use exact same term to ensure trend
                         content=f"Content {i}_{j}",
@@ -163,7 +163,7 @@ def test_headline_analyzer_with_real_db_and_noise(test_session, mock_nlp):
         # Add some articles with noisy terms (appearing only once or twice)
         for i in range(2):
             articles.append(
-                ArticleDB(
+                Article(
                     url=f"https://example.com/noise{i}",
                     title=f"Noisy Term {i}",
                     content=f"Content {i}",

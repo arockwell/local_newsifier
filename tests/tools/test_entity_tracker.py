@@ -5,11 +5,10 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from local_newsifier.models.pydantic_models import Entity, EntityCreate
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
-                                                  EntityMentionContextCreate,
-                                                  EntityProfile,
-                                                  EntityProfileCreate)
+                                                  EntityMentionContext,
+                                                  EntityProfile)
 from local_newsifier.tools.entity_tracker import EntityTracker
 
 

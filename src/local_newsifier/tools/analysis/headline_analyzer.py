@@ -75,7 +75,7 @@ class HeadlineTrendAnalyzer:
             Article.published_at >= start_date,
             Article.published_at <= end_date
         ).order_by(Article.published_at)
-        results = session.exec(statement)
+        results = session.execute(statement)
         articles = results.all()
         
         # Group by time interval

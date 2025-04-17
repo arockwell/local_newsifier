@@ -5,14 +5,14 @@ import pytest
 from sqlalchemy import Column, Integer
 from sqlalchemy.orm import sessionmaker
 
-from local_newsifier.models.database.base import Base
+from local_newsifier.models.database.base import TableBase
+from typing import Optional
 
 
-class TestModel(Base):
-    """A test model for testing Base functionality."""
+class TestModel(TableBase, table=True):
+    """A test model for testing TableBase functionality."""
 
     __tablename__ = "test_model"
-    id = Column(Integer, primary_key=True)
 
 
 @pytest.fixture

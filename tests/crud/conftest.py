@@ -3,31 +3,27 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel, create_engine, Session
 
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.entity_tracking import CanonicalEntityDB
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity_tracking import CanonicalEntity
 
 
 @pytest.fixture(scope="function")
 def db_engine():
     """Create a test database engine."""
     engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)
     yield engine
-    Base.metadata.drop_all(engine)
+    SQLModel.metadata.drop_all(engine)
 
 
 @pytest.fixture(scope="function")
 def db_session(db_engine):
     """Create a test database session."""
-    session_factory = sessionmaker(bind=db_engine)
-    session = session_factory()
-    yield session
-    session.close()
+    with Session(db_engine) as session:
+        yield session
 
 
 @pytest.fixture(scope="function")
@@ -115,7 +111,7 @@ def sample_entity_relationship_data():
 @pytest.fixture(scope="function")
 def create_article(db_session):
     """Create a test article in the database."""
-    article = ArticleDB(
+    article = Article(
         title="Test Article",
         content="This is a test article.",
         url="https://example.com/test-article",
@@ -126,13 +122,14 @@ def create_article(db_session):
     )
     db_session.add(article)
     db_session.commit()
+    db_session.refresh(article)
     return article
 
 
 @pytest.fixture(scope="function")
 def create_entity(db_session, create_article):
     """Create a test entity in the database."""
-    entity = EntityDB(
+    entity = Entity(
         article_id=create_article.id,
         text="Test Entity",
         entity_type="TEST",
@@ -141,13 +138,14 @@ def create_entity(db_session, create_article):
     )
     db_session.add(entity)
     db_session.commit()
+    db_session.refresh(entity)
     return entity
 
 
 @pytest.fixture(scope="function")
 def create_canonical_entity(db_session):
     """Create a test canonical entity in the database."""
-    entity = CanonicalEntityDB(
+    entity = CanonicalEntity(
         name="Test Canonical Entity",
         entity_type="PERSON",
         description="This is a test canonical entity.",
@@ -155,6 +153,7 @@ def create_canonical_entity(db_session):
     )
     db_session.add(entity)
     db_session.commit()
+    db_session.refresh(entity)
     return entity
 
 
@@ -162,19 +161,19 @@ def create_canonical_entity(db_session):
 def create_canonical_entities(db_session):
     """Create multiple test canonical entities in the database."""
     entities = [
-        CanonicalEntityDB(
+        CanonicalEntity(
             name="Test Entity 1",
             entity_type="PERSON",
             description="This is test entity 1",
             entity_metadata={"id": 1},
         ),
-        CanonicalEntityDB(
+        CanonicalEntity(
             name="Test Entity 2",
             entity_type="ORG",
             description="This is test entity 2",
             entity_metadata={"id": 2},
         ),
-        CanonicalEntityDB(
+        CanonicalEntity(
             name="Test Entity 3",
             entity_type="PERSON",
             description="This is test entity 3",
@@ -184,4 +183,6 @@ def create_canonical_entities(db_session):
     for entity in entities:
         db_session.add(entity)
     db_session.commit()
+    for entity in entities:
+        db_session.refresh(entity)
     return entities

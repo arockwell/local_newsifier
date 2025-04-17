@@ -1,7 +1,7 @@
 """CRUD operations for entity relationships."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 from sqlmodel import Session, select, delete
 
@@ -35,8 +35,8 @@ class CRUDEntityRelationship:
             EntityRelationship.target_entity_id == target_entity_id,
             EntityRelationship.relationship_type == relationship_type
         )
-        results = db.execute(statement)
-        return results.first()
+        result = db.execute(statement).first()
+        return result[0] if result else None
 
     def get_by_source_entity(
         self, db: Session, *, source_entity_id: int
@@ -57,30 +57,44 @@ class CRUDEntityRelationship:
         return [row[0] for row in results]
 
     def create_or_update(
-        self, db: Session, *, obj_in: EntityRelationship
+        self, db: Session, *, obj_in: Union[EntityRelationship, Dict[str, Any]]
     ) -> EntityRelationship:
         """Create or update an entity relationship.
 
         Args:
             db: Database session
-            obj_in: Relationship data to create or update
+            obj_in: Relationship data to create or update (as model or dict)
 
         Returns:
             Created or updated relationship
         """
+        # Extract data from input (handle both model and dict inputs)
+        if isinstance(obj_in, dict):
+            source_entity_id = obj_in["source_entity_id"]
+            target_entity_id = obj_in["target_entity_id"]
+            relationship_type = obj_in["relationship_type"]
+            confidence = obj_in.get("confidence", 1.0)
+            evidence = obj_in.get("evidence")
+        else:
+            source_entity_id = obj_in.source_entity_id
+            target_entity_id = obj_in.target_entity_id
+            relationship_type = obj_in.relationship_type
+            confidence = obj_in.confidence
+            evidence = obj_in.evidence
+            
         # Check if relationship already exists
         statement = select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == obj_in.source_entity_id,
-            EntityRelationship.target_entity_id == obj_in.target_entity_id,
-            EntityRelationship.relationship_type == obj_in.relationship_type
+            EntityRelationship.source_entity_id == source_entity_id,
+            EntityRelationship.target_entity_id == target_entity_id,
+            EntityRelationship.relationship_type == relationship_type
         )
         result = db.execute(statement).first()
         existing = result[0] if result else None
 
         if existing:
             # Update fields of existing relationship
-            existing.confidence = obj_in.confidence
-            existing.evidence = obj_in.evidence
+            existing.confidence = confidence
+            existing.evidence = evidence
             existing.updated_at = datetime.now(timezone.utc)
             
             db.add(existing)
@@ -90,18 +104,28 @@ class CRUDEntityRelationship:
         
         # Create new relationship
         db_obj = EntityRelationship(
-            source_entity_id=obj_in.source_entity_id,
-            target_entity_id=obj_in.target_entity_id,
-            relationship_type=obj_in.relationship_type,
-            confidence=obj_in.confidence,
-            evidence=obj_in.evidence
+            source_entity_id=source_entity_id,
+            target_entity_id=target_entity_id,
+            relationship_type=relationship_type,
+            confidence=confidence,
+            evidence=evidence
         )
         
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
         
-        return db_obj
+        result = self.get(
+            db,
+            source_entity_id=source_entity_id,
+            target_entity_id=target_entity_id,
+            relationship_type=relationship_type,
+        )
+        
+        if not result:
+            raise ValueError("Failed to create entity relationship")
+            
+        return result
 
     def remove(
         self,

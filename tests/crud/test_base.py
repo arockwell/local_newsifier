@@ -6,8 +6,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.pydantic_models import Article
+from local_newsifier.models.database.article import Article
 
 
 class TestCRUDBase:
@@ -15,7 +14,7 @@ class TestCRUDBase:
 
     def test_get(self, db_session, create_article):
         """Test getting a single item by ID."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.get(db_session, id=create_article.id)
 
         assert article is not None
@@ -25,7 +24,7 @@ class TestCRUDBase:
 
     def test_get_not_found(self, db_session):
         """Test getting a non-existent item by ID."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.get(db_session, id=999)
 
         assert article is None
@@ -34,7 +33,7 @@ class TestCRUDBase:
         """Test getting multiple items with pagination."""
         # Create multiple articles
         for i in range(5):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -46,7 +45,7 @@ class TestCRUDBase:
             db_session.add(article)
         db_session.commit()
 
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Test default pagination
         articles = crud.get_multi(db_session)
@@ -67,7 +66,7 @@ class TestCRUDBase:
 
     def test_create_from_dict(self, db_session, sample_article_data):
         """Test creating a new item from dictionary data."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.create(db_session, obj_in=sample_article_data)
 
         assert article is not None
@@ -77,8 +76,8 @@ class TestCRUDBase:
 
         # Verify it was saved to the database
         db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == article.id)
+            db_session.query(Article)
+            .filter(Article.id == article.id)
             .first()
         )
         assert db_article is not None
@@ -97,7 +96,7 @@ class TestCRUDBase:
             scraped_at: datetime
 
         obj_in = ArticleCreate(**sample_article_data)
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.create(db_session, obj_in=obj_in)
 
         assert article is not None
@@ -107,12 +106,12 @@ class TestCRUDBase:
 
     def test_update(self, db_session, create_article):
         """Test updating an existing item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Get the article from the database
         db_obj = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
+            db_session.query(Article)
+            .filter(Article.id == create_article.id)
             .first()
         )
 
@@ -130,8 +129,8 @@ class TestCRUDBase:
 
         # Verify it was saved to the database
         db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
+            db_session.query(Article)
+            .filter(Article.id == create_article.id)
             .first()
         )
         assert db_article.title == "Updated Title"
@@ -144,12 +143,12 @@ class TestCRUDBase:
             title: str
 
         update_data = ArticleUpdate(title="Updated with Model")
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Get the article from the database
         db_obj = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
+            db_session.query(Article)
+            .filter(Article.id == create_article.id)
             .first()
         )
 
@@ -167,7 +166,7 @@ class TestCRUDBase:
 
     def test_remove(self, db_session, create_article):
         """Test removing an item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Remove the article
         removed_article = crud.remove(db_session, id=create_article.id)
@@ -178,15 +177,15 @@ class TestCRUDBase:
 
         # Verify it was removed from the database
         db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
+            db_session.query(Article)
+            .filter(Article.id == create_article.id)
             .first()
         )
         assert db_article is None
 
     def test_remove_not_found(self, db_session):
         """Test removing a non-existent item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Try to remove a non-existent article
         removed_article = crud.remove(db_session, id=999)

@@ -4,8 +4,8 @@ import datetime
 
 import pytest
 
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.state import AnalysisStatus
 
 
@@ -13,7 +13,7 @@ from local_newsifier.models.state import AnalysisStatus
 def article(db_session):
     """Create a test article."""
     now = datetime.datetime.now(datetime.timezone.utc)
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/news/1",
         title="Test Article",
         source="Example News",
@@ -29,7 +29,7 @@ def article(db_session):
 
 def test_entity_creation(db_session, article):
     """Test creating an Entity instance."""
-    entity = EntityDB(
+    entity = Entity(
         text="Gainesville",
         entity_type="GPE",
         sentence_context="This is about Gainesville.",
@@ -47,7 +47,7 @@ def test_entity_creation(db_session, article):
 
 def test_entity_article_relationship(db_session, article):
     """Test relationship between Entity and Article."""
-    entity = EntityDB(
+    entity = Entity(
         text="Gainesville",
         entity_type="GPE",
         sentence_context="This is about Gainesville.",
@@ -66,9 +66,9 @@ def test_entity_article_relationship(db_session, article):
 def test_multiple_entities_for_article(db_session, article):
     """Test that an article can have multiple entities."""
     entities = [
-        EntityDB(text="Gainesville", entity_type="GPE"),
-        EntityDB(text="University of Florida", entity_type="ORG"),
-        EntityDB(text="John Smith", entity_type="PERSON"),
+        Entity(text="Gainesville", entity_type="GPE"),
+        Entity(text="University of Florida", entity_type="ORG"),
+        Entity(text="John Smith", entity_type="PERSON"),
     ]
 
     for entity in entities:
@@ -90,7 +90,7 @@ def test_multiple_entities_for_article(db_session, article):
 
 def test_entity_default_values(db_session, article):
     """Test default values for Entity fields."""
-    entity = EntityDB(text="Gainesville", entity_type="GPE")
+    entity = Entity(text="Gainesville", entity_type="GPE")
     article.entities.append(entity)
     db_session.commit()
 

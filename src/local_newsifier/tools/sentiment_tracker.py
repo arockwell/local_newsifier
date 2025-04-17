@@ -283,7 +283,7 @@ class SentimentTracker:
             Article.status.in_(["analyzed", "entity_tracked"])
         ).order_by(Article.published_at)
         
-        results = session.exec(statement)
+        results = session.execute(statement)
         articles = results.all()
         return articles
 
@@ -339,7 +339,7 @@ class SentimentTracker:
                 AnalysisResult.article_id == article_id,
                 AnalysisResult.analysis_type == "sentiment"
             )
-            results = session.exec(statement).all()
+            results = session.execute(statement).all()
             
             for result in results:
                 if result.analysis_type == "sentiment":

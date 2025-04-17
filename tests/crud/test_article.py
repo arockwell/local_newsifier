@@ -2,12 +2,11 @@
 
 from datetime import datetime, timezone
 
-# We need pytest for fixtures but don't explicitly use it
+from sqlmodel import select
 
 from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.crud.article import article as article_crud
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.pydantic_models import Article, ArticleCreate
+from local_newsifier.models.database.article import Article
 
 
 class TestArticleCRUD:
@@ -15,38 +14,46 @@ class TestArticleCRUD:
 
     def test_create(self, db_session, sample_article_data):
         """Test creating a new article."""
-        obj_in = ArticleCreate(**sample_article_data)
-        article = article_crud.create(db_session, obj_in=obj_in)
+        # Now we can create directly with a dict
+        article = article_crud.create(db_session, obj_in=sample_article_data)
 
         assert article is not None
         assert article.id is not None
-        assert article.title == obj_in.title
-        assert article.url == obj_in.url
-        assert article.status == obj_in.status
-        assert article.source == obj_in.source
+        assert article.title == sample_article_data["title"]
+        assert article.url == sample_article_data["url"]
+        assert article.status == sample_article_data["status"]
+        assert article.source == sample_article_data["source"]
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == article.id)
+        result = db_session.execute(statement).first()
+        db_article = result[0] if result else None
         assert db_article is not None
-        assert db_article.title == obj_in.title
+        assert db_article.title == sample_article_data["title"]
 
     def test_create_with_missing_scraped_at(
         self, db_session, sample_article_data
     ):
         """Test creating a new article with missing scraped_at field."""
         # Remove scraped_at from the data
-        sample_article_data.pop("scraped_at")
+        sample_article_data_copy = sample_article_data.copy()
+        sample_article_data_copy.pop("scraped_at")
 
-        obj_in = ArticleCreate(**sample_article_data)
-        article = article_crud.create(db_session, obj_in=obj_in)
+        article = article_crud.create(db_session, obj_in=sample_article_data_copy)
 
         assert article is not None
         assert article.id is not None
         assert article.scraped_at is not None  # Should be auto-populated
+
+    def test_create_with_model_instance(self, db_session, sample_article_data):
+        """Test creating an article with a model instance."""
+        # Create from model instance directly
+        article_instance = Article(**sample_article_data)
+        article = article_crud.create(db_session, obj_in=article_instance)
+        
+        assert article is not None
+        assert article.id is not None
+        assert article.title == sample_article_data["title"]
 
     def test_get_by_url(self, db_session, create_article):
         """Test getting an article by URL."""
@@ -76,11 +83,9 @@ class TestArticleCRUD:
         assert updated_article.status == "analyzed"
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        result = db_session.execute(statement).first()
+        db_article = result[0] if result else None
         assert db_article.status == "analyzed"
 
     def test_update_status_not_found(self, db_session):
@@ -96,7 +101,7 @@ class TestArticleCRUD:
         # Create articles with different statuses
         statuses = ["new", "scraped", "analyzed", "saved", "new"]
         for i, status in enumerate(statuses):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -130,5 +135,4 @@ class TestArticleCRUD:
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
         assert isinstance(article_crud, CRUDArticle)
-        assert article_crud.model == ArticleDB
-        assert article_crud.schema == Article
+        assert article_crud.model == Article

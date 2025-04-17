@@ -42,7 +42,8 @@ class CRUDEntity(CRUDBase[Entity]):
             Entity.text == text, Entity.article_id == article_id
         )
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
 
 entity = CRUDEntity(Entity)

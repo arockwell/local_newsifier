@@ -4,9 +4,8 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from sqlmodel import SQLModel, Session, select
 
-from local_newsifier.models.database.base import TableBase
-
-ModelType = TypeVar("ModelType", bound=TableBase)
+# Type for the model class - doesn't need to be bound to TableBase anymore
+ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
 class CRUDBase(Generic[ModelType]):
@@ -32,7 +31,8 @@ class CRUDBase(Generic[ModelType]):
         """
         statement = select(self.model).where(self.model.id == id)
         results = db.execute(statement)
-        return results.first()
+        result = results.first()
+        return result[0] if result else None
 
     def get_multi(
         self, db: Session, *, skip: int = 0, limit: int = 100
@@ -52,13 +52,13 @@ class CRUDBase(Generic[ModelType]):
         return [row[0] for row in results]
 
     def create(
-        self, db: Session, *, obj_in: Union[ModelType, Dict[str, Any]]
+        self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]
     ) -> ModelType:
         """Create a new item.
 
         Args:
             db: Database session
-            obj_in: Item create data
+            obj_in: Item data as dict or model instance
 
         Returns:
             Created item
@@ -66,7 +66,7 @@ class CRUDBase(Generic[ModelType]):
         if isinstance(obj_in, dict):
             obj_data = obj_in
         else:
-            obj_data = obj_in.model_dump()
+            obj_data = obj_in.dict() if hasattr(obj_in, 'dict') else obj_in.model_dump()
 
         db_obj = self.model(**obj_data)
         db.add(db_obj)
@@ -79,14 +79,14 @@ class CRUDBase(Generic[ModelType]):
         db: Session,
         *,
         db_obj: ModelType,
-        obj_in: Union[ModelType, Dict[str, Any]]
+        obj_in: Union[Dict[str, Any], ModelType]
     ) -> ModelType:
         """Update an item.
 
         Args:
             db: Database session
             db_obj: Database object to update
-            obj_in: Update data
+            obj_in: Update data as dict or model instance
 
         Returns:
             Updated item
@@ -94,7 +94,7 @@ class CRUDBase(Generic[ModelType]):
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
-            update_data = obj_in.model_dump(exclude_unset=True)
+            update_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in.model_dump(exclude_unset=True)
 
         for field in update_data:
             if hasattr(db_obj, field):

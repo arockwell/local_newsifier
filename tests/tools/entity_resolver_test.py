@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from local_newsifier.models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
+from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.tools.entity_resolver import EntityResolver
 
 

@@ -60,7 +60,7 @@ class OpinionVisualizerTool:
             Article.published_at <= end_date
         ).join(Article)
         
-        results = session.exec(statement)
+        results = session.execute(statement)
         analysis_results = results.all()
 
         # Process results into time periods
