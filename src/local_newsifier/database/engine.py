@@ -3,7 +3,8 @@
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
-from sqlmodel import create_engine, Session, SQLModel, sessionmaker
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import create_engine, Session, SQLModel
 
 from local_newsifier.config.settings import get_settings
 
@@ -24,12 +25,16 @@ def get_engine(url: str = None):
     settings = get_settings()
     url = url or str(settings.DATABASE_URL)
 
+    # Only add application_name for PostgreSQL
+    connect_args = {}
+    if url.startswith("postgresql:"):
+        connect_args = {"application_name": "local_newsifier"}
+        
     return create_engine(
         url,
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
-        # Connect args for handling disconnects
-        connect_args={"application_name": "local_newsifier"},
+        connect_args=connect_args,
         echo=settings.DB_ECHO,
     )
 
