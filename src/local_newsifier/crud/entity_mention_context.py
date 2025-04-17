@@ -30,7 +30,7 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
             EntityMentionContext.entity_id == entity_id,
             EntityMentionContext.article_id == article_id
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def get_by_entity(
@@ -48,8 +48,8 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         statement = select(EntityMentionContext).where(
             EntityMentionContext.entity_id == entity_id
         )
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_sentiment_trend(
         self,
@@ -88,7 +88,7 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
             Article.published_at
         )
         
-        results = db.exec(statement)
+        results = db.execute(statement)
         
         return [
             {

@@ -23,7 +23,7 @@ class CRUDArticle(CRUDBase[Article]):
             Article if found, None otherwise
         """
         statement = select(Article).where(Article.url == url)
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def create(self, db: Session, *, obj_in: Article) -> Article:
@@ -61,8 +61,8 @@ class CRUDArticle(CRUDBase[Article]):
             Updated article if found, None otherwise
         """
         statement = select(Article).where(Article.id == article_id)
-        results = db.exec(statement)
-        db_article = results.first()
+        result = db.execute(statement).first()
+        db_article = result[0] if result else None
         
         if db_article:
             db_article.status = status
@@ -83,8 +83,8 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles with the specified status
         """
         statement = select(Article).where(Article.status == status)
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
 
 article = CRUDArticle(Article)

@@ -31,7 +31,7 @@ class CRUDBase(Generic[ModelType]):
             The item if found, None otherwise
         """
         statement = select(self.model).where(self.model.id == id)
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def get_multi(
@@ -48,8 +48,8 @@ class CRUDBase(Generic[ModelType]):
             List of items
         """
         statement = select(self.model).offset(skip).limit(limit)
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def create(
         self, db: Session, *, obj_in: Union[ModelType, Dict[str, Any]]
@@ -116,8 +116,8 @@ class CRUDBase(Generic[ModelType]):
             Removed item if found, None otherwise
         """
         statement = select(self.model).where(self.model.id == id)
-        results = db.exec(statement)
-        db_obj = results.first()
+        result = db.execute(statement).first()
+        db_obj = result[0] if result else None
         if db_obj:
             db.delete(db_obj)
             db.commit()

@@ -30,7 +30,7 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
             CanonicalEntity.name == name,
             CanonicalEntity.entity_type == entity_type
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def get_by_type(
@@ -48,8 +48,8 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         statement = select(CanonicalEntity).where(
             CanonicalEntity.entity_type == entity_type
         )
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_all(
         self, db: Session, *, entity_type: Optional[str] = None
@@ -66,8 +66,8 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         statement = select(CanonicalEntity)
         if entity_type:
             statement = statement.where(CanonicalEntity.entity_type == entity_type)
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_mentions_count(self, db: Session, *, entity_id: int) -> int:
         """Get the count of mentions for an entity.
@@ -82,7 +82,7 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         statement = select(func.count(EntityMention.id)).where(
             EntityMention.canonical_entity_id == entity_id
         )
-        result = db.exec(statement)
+        result = db.execute(statement)
         return result.one_or_none()[0] or 0
 
     def get_entity_timeline(
@@ -119,7 +119,7 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
             Article.published_at
         )
         
-        results = db.exec(statement)
+        results = db.execute(statement)
         
         return [
             {
@@ -156,8 +156,8 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
             Article.published_at <= end_date
         )
         
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
 
 canonical_entity = CRUDCanonicalEntity(CanonicalEntity)

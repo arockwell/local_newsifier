@@ -24,8 +24,8 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
             List of analysis results for the article
         """
         statement = select(AnalysisResult).where(AnalysisResult.article_id == article_id)
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_by_article_and_type(
         self, db: Session, *, article_id: int, analysis_type: str
@@ -44,7 +44,7 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
             AnalysisResult.article_id == article_id,
             AnalysisResult.analysis_type == analysis_type
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
 

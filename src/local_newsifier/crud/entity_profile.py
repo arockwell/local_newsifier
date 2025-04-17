@@ -27,7 +27,7 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         statement = select(EntityProfile).where(
             EntityProfile.canonical_entity_id == entity_id
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def get_by_entity_and_type(
@@ -47,7 +47,7 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
             EntityProfile.canonical_entity_id == entity_id,
             EntityProfile.profile_type == profile_type
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def create(
@@ -66,8 +66,8 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         statement = select(EntityProfile).where(
             EntityProfile.canonical_entity_id == obj_in.canonical_entity_id
         )
-        results = db.exec(statement)
-        existing_profile = results.first()
+        result = db.execute(statement).first()
+        existing_profile = result[0] if result else None
 
         if existing_profile:
             entity_id = obj_in.canonical_entity_id
@@ -92,8 +92,8 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
             EntityProfile.canonical_entity_id == obj_in.canonical_entity_id,
             EntityProfile.profile_type == obj_in.profile_type
         )
-        results = db.exec(statement)
-        db_profile = results.first()
+        result = db.execute(statement).first()
+        db_profile = result[0] if result else None
 
         if db_profile:
             # Update profile data

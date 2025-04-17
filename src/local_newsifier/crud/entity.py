@@ -22,8 +22,8 @@ class CRUDEntity(CRUDBase[Entity]):
             List of entities for the article
         """
         statement = select(Entity).where(Entity.article_id == article_id)
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_by_text_and_article(
         self, db: Session, *, text: str, article_id: int
@@ -41,7 +41,7 @@ class CRUDEntity(CRUDBase[Entity]):
         statement = select(Entity).where(
             Entity.text == text, Entity.article_id == article_id
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
 

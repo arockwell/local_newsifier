@@ -35,7 +35,7 @@ class CRUDEntityRelationship:
             EntityRelationship.target_entity_id == target_entity_id,
             EntityRelationship.relationship_type == relationship_type
         )
-        results = db.exec(statement)
+        results = db.execute(statement)
         return results.first()
 
     def get_by_source_entity(
@@ -53,8 +53,8 @@ class CRUDEntityRelationship:
         statement = select(EntityRelationship).where(
             EntityRelationship.source_entity_id == source_entity_id
         )
-        results = db.exec(statement)
-        return results.all()
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def create_or_update(
         self, db: Session, *, obj_in: EntityRelationship
@@ -74,8 +74,8 @@ class CRUDEntityRelationship:
             EntityRelationship.target_entity_id == obj_in.target_entity_id,
             EntityRelationship.relationship_type == obj_in.relationship_type
         )
-        results = db.exec(statement)
-        existing = results.first()
+        result = db.execute(statement).first()
+        existing = result[0] if result else None
 
         if existing:
             # Update fields of existing relationship
@@ -127,8 +127,8 @@ class CRUDEntityRelationship:
             EntityRelationship.target_entity_id == target_entity_id,
             EntityRelationship.relationship_type == relationship_type
         )
-        results = db.exec(statement)
-        entity_to_delete = results.first()
+        result = db.execute(statement).first()
+        entity_to_delete = result[0] if result else None
         
         if entity_to_delete:
             db.delete(entity_to_delete)
