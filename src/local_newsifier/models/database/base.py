@@ -8,15 +8,15 @@ from sqlmodel import Field, SQLModel, Session, create_engine
 # Type variables
 T = TypeVar('T')
 
-# Base class for table models with timestamps
-class TableBase(SQLModel, table=True):
+# Base class for table models with timestamps - not a real table but used for inheritance
+class TableBase(SQLModel):
     """Base model for all database tables with a primary key and timestamps."""
     
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": datetime.now(timezone.utc)}
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
     )
     
     class Config:
