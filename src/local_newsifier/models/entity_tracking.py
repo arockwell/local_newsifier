@@ -3,8 +3,7 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
-from sqlalchemy import UniqueConstraint
-from sqlmodel import SQLModel, Field, Relationship, JSON
+from sqlmodel import SQLModel, Field, Relationship, JSON, UniqueConstraint
 
 from local_newsifier.models.database.base import TableBase
 

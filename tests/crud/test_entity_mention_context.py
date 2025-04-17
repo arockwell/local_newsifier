@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlmodel import select
 
 from local_newsifier.crud.entity_mention_context import (
     CRUDEntityMentionContext,
@@ -39,7 +40,7 @@ class TestEntityMentionContextCRUD:
 
         # Verify it was saved to the database
         db_context = (
-            db_session.query(EntityMentionContext)
+            db_session.exec(select(EntityMentionContext))
             .filter(EntityMentionContext.id == context.id)
             .first()
         )

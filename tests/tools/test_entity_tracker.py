@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity,

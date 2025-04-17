@@ -1,6 +1,7 @@
 """Tests for the entity profile CRUD module."""
 
 import pytest
+from sqlmodel import select
 
 from local_newsifier.crud.entity_profile import CRUDEntityProfile
 from local_newsifier.crud.entity_profile import (
@@ -37,7 +38,7 @@ class TestEntityProfileCRUD:
 
         # Verify it was saved to the database
         db_profile = (
-            db_session.query(EntityProfile)
+            db_session.exec(select(EntityProfile))
             .filter(EntityProfile.id == profile.id)
             .first()
         )
@@ -216,11 +217,8 @@ class TestEntityProfileCRUD:
         )  # Content should have changed
 
         # Verify it was updated in the database
-        db_updated = (
-            db_session.query(EntityProfile)
-            .filter(EntityProfile.id == db_profile.id)
-            .first()
-        )
+        statement = select(EntityProfile).where(EntityProfile.id == db_profile.id)
+        db_updated = db_session.exec(statement).first()
         assert db_updated.content == "Updated profile content."
         assert db_updated.profile_metadata == {"updated": True}
 
@@ -250,15 +248,11 @@ class TestEntityProfileCRUD:
         assert profile.profile_metadata == {"new": True}
 
         # Verify it was saved to the database
-        db_profile = (
-            db_session.query(EntityProfile)
-            .filter(
-                EntityProfile.canonical_entity_id
-                == create_canonical_entity.id,
-                EntityProfile.profile_type == "new_type",
-            )
-            .first()
+        statement = select(EntityProfile).where(
+            EntityProfile.canonical_entity_id == create_canonical_entity.id,
+            EntityProfile.profile_type == "new_type"
         )
+        db_profile = db_session.exec(statement).first()
         assert db_profile is not None
         assert (
             db_profile.content

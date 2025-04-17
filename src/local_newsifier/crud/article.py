@@ -23,9 +23,8 @@ class CRUDArticle(CRUDBase[Article]):
             Article if found, None otherwise
         """
         statement = select(Article).where(Article.url == url)
-        results = db.execute(statement)
-        result = results.first()
-        return result[0] if result else None
+        results = db.exec(statement)
+        return results.first()
 
     def create(
         self, db: Session, *, obj_in: Union[Dict[str, Any], Article]
@@ -43,7 +42,7 @@ class CRUDArticle(CRUDBase[Article]):
         if isinstance(obj_in, dict):
             article_data = obj_in
         else:
-            article_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in.model_dump(exclude_unset=True)
+            article_data = obj_in.model_dump(exclude_unset=True)
             
         # Add scraped_at if not provided
         if "scraped_at" not in article_data or article_data["scraped_at"] is None:
@@ -69,8 +68,7 @@ class CRUDArticle(CRUDBase[Article]):
             Updated article if found, None otherwise
         """
         statement = select(Article).where(Article.id == article_id)
-        result = db.execute(statement).first()
-        db_article = result[0] if result else None
+        db_article = db.exec(statement).first()
         
         if db_article:
             db_article.status = status
@@ -91,8 +89,7 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles with the specified status
         """
         statement = select(Article).where(Article.status == status)
-        results = db.execute(statement).all()
-        return [row[0] for row in results]
+        return db.exec(statement).all()
 
 
 article = CRUDArticle(Article)

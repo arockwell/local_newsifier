@@ -30,9 +30,8 @@ class CRUDBase(Generic[ModelType]):
             The item if found, None otherwise
         """
         statement = select(self.model).where(self.model.id == id)
-        results = db.execute(statement)
-        result = results.first()
-        return result[0] if result else None
+        results = db.exec(statement)
+        return results.first()
 
     def get_multi(
         self, db: Session, *, skip: int = 0, limit: int = 100
@@ -48,8 +47,7 @@ class CRUDBase(Generic[ModelType]):
             List of items
         """
         statement = select(self.model).offset(skip).limit(limit)
-        results = db.execute(statement).all()
-        return [row[0] for row in results]
+        return db.exec(statement).all()
 
     def create(
         self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]
@@ -66,7 +64,8 @@ class CRUDBase(Generic[ModelType]):
         if isinstance(obj_in, dict):
             obj_data = obj_in
         else:
-            obj_data = obj_in.dict() if hasattr(obj_in, 'dict') else obj_in.model_dump()
+            # Use only SQLModel's model_dump method
+            obj_data = obj_in.model_dump()
 
         db_obj = self.model(**obj_data)
         db.add(db_obj)
@@ -94,7 +93,8 @@ class CRUDBase(Generic[ModelType]):
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
-            update_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in.model_dump(exclude_unset=True)
+            # Use only SQLModel's model_dump method
+            update_data = obj_in.model_dump(exclude_unset=True)
 
         for field in update_data:
             if hasattr(db_obj, field):
@@ -116,8 +116,7 @@ class CRUDBase(Generic[ModelType]):
             Removed item if found, None otherwise
         """
         statement = select(self.model).where(self.model.id == id)
-        result = db.execute(statement).first()
-        db_obj = result[0] if result else None
+        db_obj = db.exec(statement).first()
         if db_obj:
             db.delete(db_obj)
             db.commit()

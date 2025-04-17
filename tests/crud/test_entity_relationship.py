@@ -340,8 +340,8 @@ class TestEntityRelationshipCRUD:
             mock_result.first.return_value = None
             return mock_result
 
-        # Patch the execute method to use our mock
-        monkeypatch.setattr(db_session, "execute", mock_execute)
+        # Patch the exec method to use our mock
+        monkeypatch.setattr(db_session, "exec", mock_execute)
 
         # Test that ValueError is raised
         with pytest.raises(

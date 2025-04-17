@@ -34,7 +34,7 @@ class TestCanonicalEntityCRUD:
 
         # Verify it was saved to the database
         db_entity = (
-            db_session.query(CanonicalEntity)
+            db_session.exec(select(CanonicalEntity))
             .filter(CanonicalEntity.id == entity.id)
             .first()
         )

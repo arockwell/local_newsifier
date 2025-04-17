@@ -3,8 +3,7 @@
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
-from sqlalchemy import UniqueConstraint
-from sqlmodel import SQLModel, Field, JSON
+from sqlmodel import SQLModel, Field, JSON, UniqueConstraint
 
 
 class SentimentAnalysis(SQLModel, table=True):

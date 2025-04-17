@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 # We need pytest for fixtures but don't explicitly use it
 from pydantic import BaseModel
+from sqlmodel import select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.article import Article
@@ -75,11 +76,8 @@ class TestCRUDBase:
         assert article.url == sample_article_data["url"]
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(Article)
-            .filter(Article.id == article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article is not None
         assert db_article.title == sample_article_data["title"]
 
@@ -109,11 +107,8 @@ class TestCRUDBase:
         crud = CRUDBase(Article)
 
         # Get the article from the database
-        db_obj = (
-            db_session.query(Article)
-            .filter(Article.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_obj = db_session.exec(statement).first()
 
         # Update with a dictionary
         update_data = {"title": "Updated Title", "content": "Updated content."}
@@ -128,11 +123,8 @@ class TestCRUDBase:
         assert updated_article.url == create_article.url  # Unchanged field
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(Article)
-            .filter(Article.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article.title == "Updated Title"
         assert db_article.content == "Updated content."
 
@@ -146,11 +138,8 @@ class TestCRUDBase:
         crud = CRUDBase(Article)
 
         # Get the article from the database
-        db_obj = (
-            db_session.query(Article)
-            .filter(Article.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_obj = db_session.exec(statement).first()
 
         # Update with a Pydantic model
         updated_article = crud.update(
@@ -176,11 +165,8 @@ class TestCRUDBase:
         assert removed_article.title == create_article.title
 
         # Verify it was removed from the database
-        db_article = (
-            db_session.query(Article)
-            .filter(Article.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article is None
 
     def test_remove_not_found(self, db_session):

@@ -116,7 +116,7 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
             if isinstance(obj_in, dict):
                 update_data = obj_in.copy()
             else:
-                update_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in.model_dump(exclude_unset=True)
+                update_data = obj_in.model_dump(exclude_unset=True)
                 
             update_data["updated_at"] = datetime.now(timezone.utc)
 

@@ -4,7 +4,7 @@ import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.state import AnalysisStatus

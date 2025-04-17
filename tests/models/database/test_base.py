@@ -2,8 +2,7 @@
 
 import datetime
 import pytest
-from sqlalchemy import Column, Integer
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, Field
 
 from local_newsifier.models.database.base import TableBase
 from typing import Optional
@@ -18,10 +17,8 @@ class TestModel(TableBase, table=True):
 @pytest.fixture
 def db_session(test_engine):
     """Create a test database session."""
-    TestSession = sessionmaker(bind=test_engine)
-    session = TestSession()
-    yield session
-    session.close()
+    with Session(test_engine) as session:
+        yield session
 
 
 def test_timestamps_are_datetime(db_session):

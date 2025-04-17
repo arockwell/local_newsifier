@@ -3,7 +3,6 @@
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
-from sqlalchemy.orm import sessionmaker
 from sqlmodel import create_engine, Session, SQLModel
 
 from local_newsifier.config.settings import get_settings
@@ -50,7 +49,7 @@ def create_session_factory(engine=None):
     """
     if engine is None:
         engine = get_engine()
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)
+    return lambda: Session(engine)
 
 
 def get_session() -> Generator[Session, None, None]:

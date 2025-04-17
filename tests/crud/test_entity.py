@@ -1,6 +1,7 @@
 """Tests for the entity CRUD module."""
 
 # We need pytest for fixtures but don't explicitly use it
+from sqlmodel import select
 
 from local_newsifier.crud.entity import CRUDEntity
 from local_newsifier.crud.entity import entity as entity_crud
@@ -23,7 +24,7 @@ class TestEntityCRUD:
 
         # Verify it was saved to the database
         db_entity = (
-            db_session.query(Entity).filter(Entity.id == entity.id).first()
+            db_session.exec(select(Entity)).filter(Entity.id == entity.id).first()
         )
         assert db_entity is not None
         assert db_entity.text == sample_entity_data["text"]

@@ -3,27 +3,13 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import Session
 
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity
 
-
-@pytest.fixture(scope="function")
-def db_engine():
-    """Create a test database engine."""
-    engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(engine)
-    yield engine
-    SQLModel.metadata.drop_all(engine)
-
-
-@pytest.fixture(scope="function")
-def db_session(db_engine):
-    """Create a test database session."""
-    with Session(db_engine) as session:
-        yield session
+# We don't need to define db_engine and db_session here as they are imported from the main conftest.py
 
 
 @pytest.fixture(scope="function")

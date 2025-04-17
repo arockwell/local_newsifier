@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 import logging
-from sqlalchemy.orm import sessionmaker, Session
+from sqlmodel import Session
 
 from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 from local_newsifier.models.database.article import Article
@@ -17,12 +17,8 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="function")
 def test_session(test_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=test_engine)
-    session = Session()
-    
-    yield session
-    
-    session.close()
+    with Session(test_engine) as session:
+        yield session
 
 @pytest.fixture
 def mock_nlp():

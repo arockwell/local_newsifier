@@ -7,8 +7,7 @@ import time
 
 import pytest
 import psycopg2
-from sqlalchemy import create_engine, text
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, text
 
 from local_newsifier.config.database import DatabaseSettings
 

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from local_newsifier.config.database import (
     get_database,

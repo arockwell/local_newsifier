@@ -1,5 +1,7 @@
 """Tests for the analysis result CRUD module."""
 
+from sqlmodel import select
+
 from local_newsifier.crud.analysis_result import CRUDAnalysisResult
 from local_newsifier.crud.analysis_result import (
     analysis_result as analysis_result_crud,
@@ -24,7 +26,7 @@ class TestAnalysisResultCRUD:
 
         # Verify it was saved to the database
         db_result = (
-            db_session.query(AnalysisResult)
+            db_session.exec(select(AnalysisResult))
             .filter(AnalysisResult.id == result.id)
             .first()
         )

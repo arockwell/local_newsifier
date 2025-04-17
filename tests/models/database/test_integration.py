@@ -1,8 +1,8 @@
 """Integration tests for database models."""
 
 import pytest
-from sqlalchemy import inspect
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import inspect
+from sqlmodel import Session
 import datetime
 
 from local_newsifier.models.database.base import TableBase
