@@ -13,6 +13,26 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, SQLModel
 from local_newsifier.config.database import DatabaseSettings
 
+# Import all models to ensure they're registered with SQLModel.metadata
+# Database models
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.database.analysis_result import AnalysisResult
+
+# Entity tracking models
+from local_newsifier.models.entity_tracking import (
+    CanonicalEntity, CanonicalEntityCreate, 
+    EntityMention, EntityMentionCreate,
+    EntityMentionContext, EntityMentionContextCreate,
+    EntityProfile, EntityProfileCreate,
+    EntityRelationship, EntityRelationshipCreate
+)
+
+# Sentiment models
+from local_newsifier.models.sentiment import (
+    SentimentAnalysis, OpinionTrend, SentimentShift
+)
+
 
 def get_test_db_name() -> str:
     """Get a unique test database name.
@@ -61,6 +81,7 @@ def test_engine(postgres_url):
     engine = create_engine(postgres_url)
     
     # Create all tables
+    SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
     
     yield engine

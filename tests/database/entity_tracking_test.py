@@ -5,24 +5,23 @@ from datetime import UTC, datetime, timedelta
 from typing import Generator
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.models.database.base import Base
+from local_newsifier.models.database.base import TableBase
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
                                                     CanonicalEntityCreate,
-                                                    CanonicalEntityDB,
+                                                    EntityMention,
                                                     EntityMentionContext,
                                                     EntityMentionContextCreate,
                                                     EntityMentionContextDB,
                                                     EntityProfile,
                                                     EntityProfileCreate,
-                                                    EntityProfileDB,
-                                                    entity_mentions)
+                                                    EntityProfileDB)
 from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate
 from local_newsifier.models.state import AnalysisStatus
 
@@ -190,14 +189,13 @@ def test_entity_timeline_and_sentiment_trend(db_session: Session):
     entity_mention_context_crud.create(db_session, obj_in=context_data)
 
     # Create entity mention association
-    db_session.execute(
-        entity_mentions.insert().values(
-            canonical_entity_id=canonical_entity.id,
-            entity_id=created_entity.id,
-            article_id=created_article.id,
-            confidence=0.95,
-        )
+    entity_mention = EntityMention(
+        canonical_entity_id=canonical_entity.id,
+        entity_id=created_entity.id,
+        article_id=created_article.id,
+        confidence=0.95
     )
+    db_session.add(entity_mention)
     db_session.commit()
 
     # Get timeline
