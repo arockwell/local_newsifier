@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship, JSON
 
 from local_newsifier.models.database.base import TableBase
@@ -13,7 +14,7 @@ class SentimentAnalysis(TableBase, table=True):
     
     __tablename__ = "sentiment_analyses"
     
-    article_id: int = Field(foreign_key="articles.id")
+    article_id: Optional[int] = Field(default=None)
     document_sentiment: float
     document_magnitude: float
     entity_sentiments: Optional[Dict[str, float]] = Field(default=None, sa_type=JSON)
@@ -22,7 +23,7 @@ class SentimentAnalysis(TableBase, table=True):
     
     # Define a unique constraint
     __table_args__ = (
-        {"UniqueConstraint": ("article_id", "name", "uix_sentiment_article")},
+        UniqueConstraint("article_id", name="uix_sentiment_article"),
         {"extend_existing": True}
     )
     
@@ -44,7 +45,7 @@ class OpinionTrend(TableBase, table=True):
     
     # Define a unique constraint
     __table_args__ = (
-        {"UniqueConstraint": ("topic", "period", "period_type", "name", "uix_topic_period")},
+        UniqueConstraint("topic", "period", "period_type", name="uix_topic_period"),
         {"extend_existing": True}
     )
 
@@ -53,6 +54,9 @@ class SentimentShift(TableBase, table=True):
     """SQLModel for tracking significant sentiment shifts."""
     
     __tablename__ = "sentiment_shifts"
+    
+    # Define table arguments
+    __table_args__ = {"extend_existing": True}
     
     topic: str
     start_period: str
