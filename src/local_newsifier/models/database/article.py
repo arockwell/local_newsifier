@@ -18,6 +18,9 @@ class Article(TableBase, table=True):
 
     __tablename__ = "articles"
     
+    # Handle multiple imports during test collection
+    __table_args__ = {"extend_existing": True}
+    
     title: str
     content: str
     url: str = Field(unique=True)

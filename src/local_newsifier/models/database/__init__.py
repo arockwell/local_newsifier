@@ -28,7 +28,8 @@ __all__ = [
     "create_db_and_tables",
     "get_engine",
     "get_session",
-    "get_session_context"
+    "get_session_context",
+    "init_db"
 ]
 
 def get_engine(db_url: str) -> EngineProtocol:
@@ -92,3 +93,17 @@ def get_session_context(engine: EngineProtocol) -> Generator[Session, None, None
         raise
     finally:
         session.close()
+
+
+def init_db(db_url: str) -> EngineProtocol:
+    """Initialize the database and create tables.
+    
+    This is an alias for create_db_and_tables for compatibility.
+    
+    Args:
+        db_url: Database URL
+        
+    Returns:
+        SQLModel engine instance
+    """
+    return create_db_and_tables(db_url)

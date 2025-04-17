@@ -15,6 +15,9 @@ class Entity(TableBase, table=True):
     """SQLModel for entities."""
 
     __tablename__ = "entities"
+    
+    # Handle multiple imports during test collection
+    __table_args__ = {"extend_existing": True}
 
     article_id: int = Field(foreign_key="articles.id")
     text: str
