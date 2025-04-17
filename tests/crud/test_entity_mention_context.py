@@ -39,11 +39,8 @@ class TestEntityMentionContextCRUD:
         assert context.created_at is not None
 
         # Verify it was saved to the database
-        db_context = (
-            db_session.exec(select(EntityMentionContext))
-            .filter(EntityMentionContext.id == context.id)
-            .first()
-        )
+        statement = select(EntityMentionContext).where(EntityMentionContext.id == context.id)
+        db_context = db_session.exec(statement).first()
         assert db_context is not None
         assert db_context.entity_id == obj_in["entity_id"]
         assert db_context.article_id == obj_in["article_id"]

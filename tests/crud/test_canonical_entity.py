@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 # We need pytest for fixtures but don't explicitly use it
+from sqlmodel import select
 
 from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
 from local_newsifier.crud.canonical_entity import (
@@ -33,11 +34,8 @@ class TestCanonicalEntityCRUD:
         assert entity.last_seen is not None
 
         # Verify it was saved to the database
-        db_entity = (
-            db_session.exec(select(CanonicalEntity))
-            .filter(CanonicalEntity.id == entity.id)
-            .first()
-        )
+        statement = select(CanonicalEntity).where(CanonicalEntity.id == entity.id)
+        db_entity = db_session.exec(statement).first()
         assert db_entity is not None
         assert db_entity.name == obj_in["name"]
 

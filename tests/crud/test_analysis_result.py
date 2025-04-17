@@ -25,11 +25,8 @@ class TestAnalysisResultCRUD:
         assert result.results == sample_analysis_result_data["results"]
 
         # Verify it was saved to the database
-        db_result = (
-            db_session.exec(select(AnalysisResult))
-            .filter(AnalysisResult.id == result.id)
-            .first()
-        )
+        statement = select(AnalysisResult).where(AnalysisResult.id == result.id)
+        db_result = db_session.exec(statement).first()
         assert db_result is not None
         assert db_result.analysis_type == sample_analysis_result_data["analysis_type"]
 

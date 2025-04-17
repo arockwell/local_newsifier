@@ -37,11 +37,8 @@ class TestEntityProfileCRUD:
         assert profile.updated_at is not None
 
         # Verify it was saved to the database
-        db_profile = (
-            db_session.exec(select(EntityProfile))
-            .filter(EntityProfile.id == profile.id)
-            .first()
-        )
+        statement = select(EntityProfile).where(EntityProfile.id == profile.id)
+        db_profile = db_session.exec(statement).first()
         assert db_profile is not None
         assert db_profile.canonical_entity_id == obj_in["canonical_entity_id"]
         assert db_profile.profile_type == obj_in["profile_type"]

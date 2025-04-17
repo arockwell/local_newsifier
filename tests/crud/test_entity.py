@@ -23,9 +23,8 @@ class TestEntityCRUD:
         assert entity.article_id == sample_entity_data["article_id"]
 
         # Verify it was saved to the database
-        db_entity = (
-            db_session.exec(select(Entity)).filter(Entity.id == entity.id).first()
-        )
+        statement = select(Entity).where(Entity.id == entity.id)
+        db_entity = db_session.exec(statement).first()
         assert db_entity is not None
         assert db_entity.text == sample_entity_data["text"]
 
