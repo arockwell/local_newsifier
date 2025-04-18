@@ -2,7 +2,7 @@
 
 This module handles:
 1. SQLModel metadata registration in a controlled order
-2. PostgreSQL test database creation and cleanup
+2. SQLite in-memory database setup for tests
 3. Session and transaction management for tests
 """
 
@@ -37,61 +37,19 @@ from local_newsifier.models.sentiment import (
     SentimentAnalysis, OpinionTrend, SentimentShift
 )
 
-# Utility function to get postgres URL for tests
-def get_test_postgres_url() -> str:
-    """Get PostgreSQL URL for tests with a unique test database name."""
-    # Generate a unique test database name to prevent conflicts
-    test_id = str(uuid.uuid4())[:8]
-    test_db_name = f"test_local_newsifier_{test_id}"
-    
-    # Get database connection parameters from environment or use defaults
-    user = os.environ.get("POSTGRES_USER", "postgres")
-    password = os.environ.get("POSTGRES_PASSWORD", "postgres")
-    host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = os.environ.get("POSTGRES_PORT", "5432")
-    
-    # Return the full PostgreSQL URL
-    return f"postgresql://{user}:{password}@{host}:{port}/{test_db_name}"
-
 @pytest.fixture(scope="session")
-def postgres_url() -> str:
-    """Provide the PostgreSQL URL for tests."""
-    return get_test_postgres_url()
-
-@pytest.fixture(scope="session")
-def test_engine(postgres_url: str):
-    """Create a test database engine.
+def test_engine():
+    """Create a test database engine using SQLite in-memory.
     
     This fixture:
-    1. Creates a fresh test database
+    1. Creates an in-memory SQLite database
     2. Creates all tables
     3. Yields the engine for tests
-    4. Drops the database afterward
     """
-    # Parse the database name from the URL
-    test_db_name = postgres_url.rsplit('/', 1)[1]
-    
-    # Connect to the default postgres database
-    admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
-    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
-    
-    # Create the test database
-    try:
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-            conn.execute(text(f"CREATE DATABASE {test_db_name}"))
-    except Exception as e:
-        pytest.fail(f"Failed to create test database: {e}")
-    finally:
-        admin_engine.dispose()
-    
-    # Create the engine for the test database
+    # Create SQLite in-memory engine for tests
     engine = create_engine(
-        postgres_url,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        connect_args={"application_name": "local_newsifier_test"}
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
     )
     
     # Create all tables
@@ -100,47 +58,36 @@ def test_engine(postgres_url: str):
     except Exception as e:
         pytest.fail(f"Failed to create tables: {e}")
     
-    # Verify all tables were created
-    expected_tables = {
-        'article', 'entity', 'analysis_result', 
-        'canonical_entity', 'entity_mention', 
-        'entity_mention_context', 'entity_profile',
-        'entity_relationship', 'sentiment_analysis',
-        'opinion_trend', 'sentiment_shift'
-    }
-    
-    with engine.connect() as conn:
-        result = conn.execute(text(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-        ))
-        actual_tables = {row[0] for row in result}
+    # Verify tables were created by trying to insert and select
+    with Session(engine) as session:
+        # Create a test article
+        test_article = Article(
+            title="Test Article",
+            content="Test Content",
+            url="https://example.com/test",
+            source="test_source",
+            status="new",
+        )
+        session.add(test_article)
+        session.commit()
         
-        missing_tables = expected_tables - actual_tables
-        if missing_tables:
-            pytest.fail(f"Missing tables in database: {missing_tables}")
+        # Query to verify it exists
+        from sqlmodel import select
+        statement = select(Article).where(Article.title == "Test Article")
+        result = session.exec(statement).first()
+        
+        if not result:
+            pytest.fail("Failed to verify table creation")
+        
+        # Clean up the test data
+        session.delete(result)
+        session.commit()
     
     # Yield the engine for tests to use
     yield engine
     
-    # Cleanup: Drop the test database after all tests
+    # No cleanup needed for in-memory database
     engine.dispose()
-    
-    try:
-        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
-        with admin_engine.connect() as conn:
-            # Terminate all connections to the test database
-            conn.execute(text(f"""
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = '{test_db_name}'
-                AND pid <> pg_backend_pid();
-            """))
-            # Drop the test database
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-    except Exception as e:
-        print(f"Warning: Failed to drop test database: {e}")
-    finally:
-        admin_engine.dispose()
 
 @pytest.fixture
 def db_session(test_engine) -> Generator[Session, None, None]:

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to run tests with improved SQLModel configuration
+# Script to run tests with SQLite in-memory database
 
 set -euo pipefail
 
@@ -20,16 +20,16 @@ if [ $# -gt 0 ]; then
     SPECIFIC_TEST="$1"
 fi
 
-run_test_group() {
-    local group_name="$1"
+run_tests() {
+    local name="$1"
     local path="$2"
     
-    echo -e "${BLUE}=== Running ${group_name} Tests ===${NC}"
+    echo -e "${BLUE}=== Running ${name} Tests ===${NC}"
     if poetry run pytest "$path" -v; then
-        echo -e "${GREEN}✓ ${group_name} tests passed${NC}\n"
+        echo -e "${GREEN}✓ ${name} tests passed${NC}\n"
         return 0
     else
-        echo -e "${RED}✗ ${group_name} tests failed${NC}\n"
+        echo -e "${RED}✗ ${name} tests failed${NC}\n"
         return 1
     fi
 }
@@ -41,39 +41,40 @@ if [ $RUN_ALL -eq 0 ]; then
     exit $?
 fi
 
-# Otherwise run all test groups
-failed_groups=()
-
-# Run each test module
-if ! run_test_group "Config" "tests/config/"; then
-    failed_groups+=("Config")
-fi
-
-if ! run_test_group "Flow" "tests/flows/"; then
-    failed_groups+=("Flow")
-fi
-
-if ! run_test_group "CRUD" "tests/crud/"; then
-    failed_groups+=("CRUD")
-fi
-
-if ! run_test_group "Model" "tests/models/"; then
-    failed_groups+=("Model")
-fi
-
-if ! run_test_group "Tools" "tests/tools/"; then
-    failed_groups+=("Tools")
-fi
-
-# Summary
-echo -e "${BLUE}=== Test Summary ===${NC}"
-
-if [ ${#failed_groups[@]} -eq 0 ]; then
-    echo -e "${GREEN}All tests executed successfully!${NC}"
-    echo -e "${BLUE}With our new test configuration, we can now run tests in a single command:${NC}"
-    echo -e "${YELLOW}poetry run pytest${NC}"
+# Run all tests in one go with our improved configuration
+echo -e "${BLUE}=== Running All Tests ===${NC}"
+if poetry run pytest -v; then
+    echo -e "${GREEN}✓ All tests passed${NC}\n"
     exit 0
 else
+    echo -e "${RED}✗ Some tests failed${NC}\n"
+    
+    # Run individual test modules to identify which ones are failing
+    echo -e "${YELLOW}Running tests by module to identify failures:${NC}\n"
+    
+    failed_groups=()
+    
+    # Run each test module
+    if ! run_tests "Config" "tests/config/"; then
+        failed_groups+=("Config")
+    fi
+    
+    if ! run_tests "CRUD" "tests/crud/"; then
+        failed_groups+=("CRUD")
+    fi
+    
+    if ! run_tests "Flow" "tests/flows/"; then
+        failed_groups+=("Flow")
+    fi
+    
+    if ! run_tests "Model" "tests/models/"; then
+        failed_groups+=("Model")
+    fi
+    
+    if ! run_tests "Tools" "tests/tools/"; then
+        failed_groups+=("Tools")
+    fi
+    
     echo -e "${RED}The following test groups failed:${NC}"
     for group in "${failed_groups[@]}"; do
         echo -e "${RED}- ${group}${NC}"
