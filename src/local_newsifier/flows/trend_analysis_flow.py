@@ -7,18 +7,18 @@ from uuid import UUID, uuid4
 
 from crewai import Flow
 
-from ..models.state import AnalysisStatus
-from ..models.trend import (
+from local_newsifier.models.state import AnalysisStatus
+from local_newsifier.models.trend import (
     TimeFrame,
     TrendAnalysis,
     TrendAnalysisConfig,
     TrendStatus,
     TrendType,
 )
-from ..tools.historical_aggregator import HistoricalDataAggregator
-from ..tools.topic_analyzer import TopicFrequencyAnalyzer
-from ..tools.trend_detector import TrendDetector
-from ..tools.trend_reporter import ReportFormat, TrendReporter
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer
+from local_newsifier.tools.trend_detector import TrendDetector
+from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
 
 
 class TrendAnalysisState:

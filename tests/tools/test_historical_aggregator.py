@@ -5,9 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.models.database import Article, Entity
-from src.local_newsifier.models.trend import TimeFrame, TopicFrequency
-from src.local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def mock_session():
 @pytest.fixture
 def mock_database_engine():
     """Fixture to mock database engine."""
-    with patch("src.local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
         mock_session_context = MagicMock()
         mock_session = MagicMock()
         mock_session_context.__enter__.return_value = mock_session
@@ -77,7 +78,7 @@ def sample_entities():
 def test_init(mock_session):
     """Test HistoricalDataAggregator initialization."""
     # Test with default initialization (inject mock session as context manager)
-    with patch("src.local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
         session_context = MagicMock()
         session_context.__enter__.return_value = mock_session
         mock_get_session.return_value = session_context
@@ -142,8 +143,8 @@ def test_get_entity_frequencies(mock_session, sample_articles, sample_entities):
     assert aggregator._cache == {}
 
 
-@patch("src.local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.get_entity_frequencies")
-@patch("src.local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.calculate_date_range")
+@patch("local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.get_entity_frequencies")
+@patch("local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.calculate_date_range")
 def test_get_baseline_frequencies(mock_calculate_date_range, mock_get_entity_frequencies, mock_session):
     """Test getting baseline frequencies for comparison."""
     # Setup

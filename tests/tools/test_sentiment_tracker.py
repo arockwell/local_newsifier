@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from src.local_newsifier.tools.sentiment_tracker import SentimentTracker
+from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
 
 class TestSentimentTracker:

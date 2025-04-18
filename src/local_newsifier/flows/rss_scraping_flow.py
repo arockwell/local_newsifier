@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from ..models.state import AnalysisStatus, NewsAnalysisState
-from ..tools.rss_parser import RSSItem, RSSParser
-from ..tools.web_scraper import WebScraperTool
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.tools.rss_parser import RSSItem, RSSParser
+from local_newsifier.tools.web_scraper import WebScraperTool
 
 logger = logging.getLogger(__name__)
 

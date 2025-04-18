@@ -5,12 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.models.database.article import Article as Article
-from src.local_newsifier.models.database.entity import Entity as Entity
-from src.local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
+from local_newsifier.models.database.article import Article as Article
+from local_newsifier.models.database.entity import Entity as Entity
+from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,
                                             TrendType)
-from src.local_newsifier.tools.trend_detector import TrendDetector
+from local_newsifier.tools.trend_detector import TrendDetector
 
 
 @pytest.fixture

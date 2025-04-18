@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import numpy as np
 
-from src.local_newsifier.models.trend import TimeFrame, TopicFrequency
-from src.local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer
 
 
 @pytest.fixture

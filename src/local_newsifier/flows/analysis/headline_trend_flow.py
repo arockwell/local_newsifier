@@ -20,8 +20,8 @@ from typing import Dict, List, Optional, Any
 from crewai import Flow
 from sqlmodel import Session
 
-from ...database.engine import get_session, with_session
-from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.database.engine import get_session, with_session
+from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 logger = logging.getLogger(__name__)
 

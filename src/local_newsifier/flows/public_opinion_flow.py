@@ -20,12 +20,12 @@ from typing import Dict, List, Optional, Any, Tuple
 from crewai import Flow
 from sqlmodel import Session
 
-from ..database.engine import get_session, with_session
-from ..crud.article import article as article_crud
-from ..models.sentiment import SentimentVisualizationData
-from ..tools.sentiment_analyzer import SentimentAnalysisTool
-from ..tools.sentiment_tracker import SentimentTracker
-from ..tools.opinion_visualizer import OpinionVisualizerTool
+from local_newsifier.database.engine import get_session, with_session
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.models.sentiment import SentimentVisualizationData
+from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+from local_newsifier.tools.sentiment_tracker import SentimentTracker
+from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 
 logger = logging.getLogger(__name__)
 
