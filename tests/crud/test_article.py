@@ -26,10 +26,9 @@ class TestArticleCRUD:
 
         # Verify it was saved to the database
         statement = select(Article).where(Article.id == article.id)
-        result = db_session.execute(statement).first()
-        db_article = result[0] if result else None
-        assert db_article is not None
-        assert db_article.title == sample_article_data["title"]
+        result = db_session.exec(statement).first()  # Using exec instead of execute for SQLModel
+        assert result is not None
+        assert result.title == sample_article_data["title"]
 
     def test_create_with_missing_scraped_at(
         self, db_session, sample_article_data
@@ -84,8 +83,8 @@ class TestArticleCRUD:
 
         # Verify it was saved to the database
         statement = select(Article).where(Article.id == create_article.id)
-        result = db_session.execute(statement).first()
-        db_article = result[0] if result else None
+        db_article = db_session.exec(statement).first()  # Using exec instead of execute for SQLModel
+        assert db_article is not None
         assert db_article.status == "analyzed"
 
     def test_update_status_not_found(self, db_session):

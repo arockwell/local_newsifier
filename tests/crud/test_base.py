@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 # We need pytest for fixtures but don't explicitly use it
 from pydantic import BaseModel
-from sqlmodel import select
+from sqlmodel import select, SQLModel
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.database.article import Article
@@ -82,25 +82,16 @@ class TestCRUDBase:
         assert db_article.title == sample_article_data["title"]
 
     def test_create_from_model(self, db_session, sample_article_data):
-        """Test creating a new item from Pydantic model data."""
-
-        class ArticleCreate(BaseModel):
-            title: str
-            content: str
-            url: str
-            source: str
-            published_at: datetime
-            status: str
-            scraped_at: datetime
-
-        obj_in = ArticleCreate(**sample_article_data)
+        """Test creating a new item from SQLModel instance."""
+        # Create a SQLModel instance directly
+        article_model = Article(**sample_article_data)
         crud = CRUDBase(Article)
-        article = crud.create(db_session, obj_in=obj_in)
+        article = crud.create(db_session, obj_in=article_model)
 
         assert article is not None
         assert article.id is not None
-        assert article.title == obj_in.title
-        assert article.url == obj_in.url
+        assert article.title == article_model.title
+        assert article.url == article_model.url
 
     def test_update(self, db_session, create_article):
         """Test updating an existing item."""
@@ -129,21 +120,18 @@ class TestCRUDBase:
         assert db_article.content == "Updated content."
 
     def test_update_with_model(self, db_session, create_article):
-        """Test updating an existing item with a Pydantic model."""
-
-        class ArticleUpdate(BaseModel):
-            title: str
-
-        update_data = ArticleUpdate(title="Updated with Model")
+        """Test updating an existing item with a SQLModel instance."""
+        # Create an updated model
+        updated_model = Article(title="Updated with Model")
         crud = CRUDBase(Article)
 
         # Get the article from the database
         statement = select(Article).where(Article.id == create_article.id)
         db_obj = db_session.exec(statement).first()
 
-        # Update with a Pydantic model
+        # Update with a SQLModel instance
         updated_article = crud.update(
-            db_session, db_obj=db_obj, obj_in=update_data
+            db_session, db_obj=db_obj, obj_in=updated_model
         )
 
         assert updated_article is not None
