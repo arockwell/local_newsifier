@@ -10,15 +10,15 @@ from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from ..database.engine import with_session
-from ..crud.article import article as article_crud
-from ..crud.analysis_result import analysis_result as analysis_result_crud
-from ..models.database.article import Article
-from ..models.database.analysis_result import AnalysisResult
-from ..models.sentiment import (
+from local_newsifier.database.engine import with_session
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.sentiment import (
     SentimentAnalysis
 )
-from ..models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 logger = logging.getLogger(__name__)
 

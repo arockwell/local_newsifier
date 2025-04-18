@@ -8,17 +8,17 @@ from spacy.language import Language
 from spacy.tokens import Doc, Span
 from sqlmodel import Session
 
-from ..database.engine import with_session
-from ..crud.entity import entity as entity_crud
-from ..crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from ..crud.entity_profile import entity_profile as entity_profile_crud
-from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
-from ..models.database.entity import Entity
-from ..models.entity_tracking import (
+from local_newsifier.database.engine import with_session
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity_tracking import (
     CanonicalEntity, EntityMentionContext, EntityProfile
 )
-from .entity_resolver import EntityResolver
-from .context_analyzer import ContextAnalyzer
+from local_newsifier.tools.entity_resolver import EntityResolver
+from local_newsifier.tools.context_analyzer import ContextAnalyzer
 
 
 class EntityTracker:

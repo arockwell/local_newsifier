@@ -6,9 +6,9 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 from difflib import SequenceMatcher
 from sqlmodel import Session
 
-from ..database.engine import with_session
-from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
-from ..models.entity_tracking import CanonicalEntity
+from local_newsifier.database.engine import with_session
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.models.entity_tracking import CanonicalEntity
 
 
 class EntityResolver:

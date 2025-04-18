@@ -8,11 +8,11 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from sqlmodel import Session
 
-from ..models.database.analysis_result import AnalysisResult
-from ..models.database.article import Article
-from ..models.trend import TimeFrame, TopicFrequency
-from .historical_aggregator import HistoricalDataAggregator
-from ..database.engine import with_session
+from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.database.engine import with_session
 
 
 class TopicFrequencyAnalyzer:

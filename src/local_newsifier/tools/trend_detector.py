@@ -4,12 +4,12 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
 from sqlmodel import Session, select
-from ..models.database.article import Article 
-from ..models.database.entity import Entity
-from ..models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
-from .historical_aggregator import HistoricalDataAggregator
-from .topic_analyzer import TopicFrequencyAnalyzer
-from ..database.engine import with_session
+from local_newsifier.models.database.article import Article 
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer
+from local_newsifier.database.engine import with_session
 
 
 class TrendDetector:

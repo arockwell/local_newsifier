@@ -4,7 +4,7 @@ from typing import Dict, List, Set
 import spacy
 from spacy.language import Language
 
-from ..models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 
 class NERAnalyzerTool:

@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Any, Tuple, Union
 
 from sqlmodel import Session, select
 
-from ..database.engine import with_session
-from ..models.sentiment import SentimentVisualizationData
+from local_newsifier.database.engine import with_session
+from local_newsifier.models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)
 
