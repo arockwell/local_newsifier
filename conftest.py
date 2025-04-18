@@ -7,6 +7,7 @@ This module handles:
 """
 
 import os
+from datetime import datetime, timezone
 from typing import Generator
 import uuid
 
@@ -60,13 +61,15 @@ def test_engine():
     
     # Verify tables were created by trying to insert and select
     with Session(engine) as session:
-        # Create a test article
+        # Create a test article with all required fields
         test_article = Article(
             title="Test Article",
             content="Test Content",
             url="https://example.com/test",
             source="test_source",
             status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
         )
         session.add(test_article)
         session.commit()
