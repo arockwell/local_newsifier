@@ -5,11 +5,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
+from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
                                                          ReportFormat,
                                                          TrendAnalysisState)
-from src.local_newsifier.models.state import AnalysisStatus
-from src.local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
+from local_newsifier.models.state import AnalysisStatus
+from local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
                                             TrendAnalysisConfig, TrendStatus,
                                             TrendType)
 

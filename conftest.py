@@ -41,6 +41,11 @@ from local_newsifier.models.sentiment import (
 # State models
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
+# Trend models
+from local_newsifier.models.trend import (
+    TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
+)
+
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a test database engine using SQLite in-memory.

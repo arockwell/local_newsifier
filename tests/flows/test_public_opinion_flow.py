@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from src.local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-from src.local_newsifier.models.sentiment import SentimentVisualizationData
+from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+from local_newsifier.models.sentiment import SentimentVisualizationData
 
 
 class TestPublicOpinionFlow:

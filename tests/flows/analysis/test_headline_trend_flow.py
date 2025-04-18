@@ -8,7 +8,6 @@ import pytest
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
 from local_newsifier.models.database.article import Article
 
-
 @pytest.fixture
 def mock_session():
     """Create a mock database session."""
