@@ -1,130 +1,187 @@
-"""Test configuration and fixtures."""
+"""Test configuration and fixtures for all tests.
 
+This module provides common test fixtures like sample data.
+Database configuration is handled in the root conftest.py.
+"""
+
+from datetime import datetime, timezone
 import os
-import uuid
-from typing import Generator
-import time
+from typing import Dict, List, Generator
 
 import pytest
-import psycopg2
-from sqlmodel import Session, SQLModel, create_engine, text
+from sqlmodel import Session
 
-from local_newsifier.config.database import DatabaseSettings
-
-# Import all models to ensure they're registered with SQLModel.metadata
-# Database models
+# Import model classes only for type hints
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.database.analysis_result import AnalysisResult
-
-# Entity tracking models
 from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, EntityMention, EntityMentionContext, 
+    CanonicalEntity, EntityMention, EntityMentionContext,
     EntityProfile, EntityRelationship
 )
 
-# Sentiment models
-from local_newsifier.models.sentiment import (
-    SentimentAnalysis, OpinionTrend, SentimentShift
-)
+# Note: We don't need to register models here as it's done in root conftest.py
+
+# ==================== Sample Data Fixtures ====================
+
+@pytest.fixture(scope="function")
+def sample_article_data() -> Dict:
+    """Sample article data for testing."""
+    return {
+        "title": "Test Article",
+        "content": "This is a test article.",
+        "url": "https://example.com/test-article",
+        "source": "test_source",
+        "published_at": datetime.now(timezone.utc),
+        "status": "new",
+        "scraped_at": datetime.now(timezone.utc),
+    }
 
 
-def get_test_db_name() -> str:
-    """Get a unique test database name.
-    
-    Returns:
-        A unique test database name based on process ID and timestamp
-    """
-    pid = os.getpid()
-    timestamp = int(time.time())
-    return f"test_local_newsifier_{pid}_{timestamp}"
+@pytest.fixture(scope="function")
+def sample_entity_data() -> Dict:
+    """Sample entity data for testing."""
+    return {
+        "article_id": 1,
+        "text": "Test Entity",
+        "entity_type": "TEST",
+        "confidence": 0.95,
+        "sentence_context": "This is a test entity context.",
+    }
 
 
-@pytest.fixture(scope="session")
-def postgres_url():
-    """Get PostgreSQL URL for tests."""
-    settings = DatabaseSettings()
-    test_db_name = get_test_db_name()
-    base_url = settings.get_database_url()
-    return base_url.replace(settings.POSTGRES_DB, test_db_name)
+@pytest.fixture(scope="function")
+def sample_analysis_result_data() -> Dict:
+    """Sample analysis result data for testing."""
+    return {
+        "article_id": 1,
+        "analysis_type": "test_analysis",
+        "results": {"key": "value"},
+    }
 
 
-@pytest.fixture(scope="session")
-def test_engine(postgres_url):
-    """Create a test database engine.
-    
-    This version is compatible with both local development and CI environments.
-    """
-    test_db_name = postgres_url.rsplit('/', 1)[1]
-    
-    # Connect to default postgres database to create test db
-    try:
-        # Connect to default postgres database to create test db
-        admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
-        
-        # Create test database
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-            conn.execute(text(f"CREATE DATABASE {test_db_name}"))
-    except Exception as e:
-        print(f"Error creating test database: {e}")
-        # If we can't create the database, try connecting directly
-        # (it might already exist in CI)
-    
-    # Create engine for the test database
-    engine = create_engine(postgres_url)
-    
-    # Create all tables
-    SQLModel.metadata.drop_all(engine)
-    SQLModel.metadata.create_all(engine)
-    
-    yield engine
-    
-    # Cleanup after all tests
-    try:
-        # Connect to default postgres database to drop test db
-        admin_url = postgres_url.rsplit('/', 1)[0] + "/postgres"
-        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
-        
-        # Drop test database
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"""
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = '{test_db_name}'
-                AND pid <> pg_backend_pid();
-            """))
-            conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
-    except Exception as e:
-        print(f"Error dropping test database: {e}")
-        # In CI, we may not have permissions to drop databases
-    
-    engine.dispose()  # Close all connections
+@pytest.fixture(scope="function")
+def sample_canonical_entity_data() -> Dict:
+    """Sample canonical entity data for testing."""
+    return {
+        "name": "Test Canonical Entity",
+        "entity_type": "PERSON",
+        "description": "This is a test canonical entity.",
+        "entity_metadata": {"key": "value"},
+    }
 
 
-@pytest.fixture(autouse=True)
-def setup_test_db(test_engine) -> Generator[None, None, None]:
-    """Set up and tear down the test database for each test."""
-    # Clear all data but don't drop tables
-    with test_engine.connect() as conn:
-        # Clear all data from tables
-        conn.execute(text("""
-            DO $$ 
-            DECLARE
-                r RECORD;
-            BEGIN
-                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-                    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
-                END LOOP;
-            END $$;
-        """))
-        conn.commit()
-    yield
+@pytest.fixture(scope="function")
+def sample_entity_mention_context_data() -> Dict:
+    """Sample entity mention context data for testing."""
+    return {
+        "entity_id": 1,
+        "article_id": 1,
+        "context_text": "This is a test context for entity mentions.",
+        "context_type": "sentence",
+        "sentiment_score": 0.8,
+    }
 
 
-@pytest.fixture
-def db_session(test_engine) -> Generator[Session, None, None]:
-    """Create a test database session."""
-    with Session(test_engine) as session:
-        yield session
+@pytest.fixture(scope="function")
+def sample_entity_profile_data() -> Dict:
+    """Sample entity profile data for testing."""
+    return {
+        "canonical_entity_id": 1,
+        "profile_type": "summary",
+        "content": "This is a test profile content.",
+        "profile_metadata": {"key": "value"},
+    }
+
+
+@pytest.fixture(scope="function")
+def sample_entity_relationship_data() -> Dict:
+    """Sample entity relationship data for testing."""
+    return {
+        "source_entity_id": 1,
+        "target_entity_id": 2,
+        "relationship_type": "RELATED_TO",
+        "confidence": 0.9,
+        "evidence": "This is evidence for the relationship.",
+    }
+
+# ==================== Database Entity Creation Fixtures ====================
+
+@pytest.fixture(scope="function")
+def create_article(db_session) -> Article:
+    """Create a test article in the database."""
+    article = Article(
+        title="Test Article",
+        content="This is a test article.",
+        url="https://example.com/test-article",
+        source="test_source",
+        published_at=datetime.now(timezone.utc),
+        status="new",
+        scraped_at=datetime.now(timezone.utc),
+    )
+    db_session.add(article)
+    db_session.commit()
+    db_session.refresh(article)
+    return article
+
+
+@pytest.fixture(scope="function")
+def create_entity(db_session, create_article) -> Entity:
+    """Create a test entity in the database."""
+    entity = Entity(
+        article_id=create_article.id,
+        text="Test Entity",
+        entity_type="TEST",
+        confidence=0.95,
+        sentence_context="This is a test entity context.",
+    )
+    db_session.add(entity)
+    db_session.commit()
+    db_session.refresh(entity)
+    return entity
+
+
+@pytest.fixture(scope="function")
+def create_canonical_entity(db_session) -> CanonicalEntity:
+    """Create a test canonical entity in the database."""
+    entity = CanonicalEntity(
+        name="Test Canonical Entity",
+        entity_type="PERSON",
+        description="This is a test canonical entity.",
+        entity_metadata={"key": "value"},
+    )
+    db_session.add(entity)
+    db_session.commit()
+    db_session.refresh(entity)
+    return entity
+
+
+@pytest.fixture(scope="function")
+def create_canonical_entities(db_session) -> List[CanonicalEntity]:
+    """Create multiple test canonical entities in the database."""
+    entities = [
+        CanonicalEntity(
+            name="Test Entity 1",
+            entity_type="PERSON",
+            description="This is test entity 1",
+            entity_metadata={"id": 1},
+        ),
+        CanonicalEntity(
+            name="Test Entity 2",
+            entity_type="ORG",
+            description="This is test entity 2",
+            entity_metadata={"id": 2},
+        ),
+        CanonicalEntity(
+            name="Test Entity 3",
+            entity_type="PERSON",
+            description="This is test entity 3",
+            entity_metadata={"id": 3},
+        ),
+    ]
+    for entity in entities:
+        db_session.add(entity)
+    db_session.commit()
+    for entity in entities:
+        db_session.refresh(entity)
+    return entities
