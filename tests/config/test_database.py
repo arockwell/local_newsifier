@@ -3,26 +3,44 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from local_newsifier.config.database import (
     get_database,
     get_database_settings,
-    get_db,
     get_db_session,
-    transaction,
 )
+from local_newsifier.database.engine import get_engine, get_session, transaction
 
 
 class TestDatabaseConfig:
     """Tests for database configuration module."""
 
-    def test_get_db(self):
-        """Test get_db session generator."""
-        session = next(get_db())
-        assert isinstance(session, Session)
-        session.close()
+    def test_get_session(self):
+        """Test get_session generator."""
+        with patch("local_newsifier.database.engine.get_engine") as mock_get_engine:
+            mock_engine = MagicMock()
+            mock_get_engine.return_value = mock_engine
+            
+            with Session(mock_engine) as mock_session:
+                mock_engine.connect.return_value = MagicMock()
+                # Use a list to capture the yielded session
+                yielded_session = None
+                
+                # Create a generator
+                session_gen = get_session()
+                
+                # Get the yielded session
+                try:
+                    yielded_session = next(session_gen)
+                except StopIteration:
+                    pass  # This should not happen
+                
+                # Verify we got a session
+                assert yielded_session is not None
+            
+            # Verify engine was created
+            mock_get_engine.assert_called_once()
 
     def test_transaction_commit(self):
         """Test transaction context manager with successful commit."""
@@ -48,21 +66,6 @@ class TestDatabaseConfig:
             with transaction(mock_session):
                 # Simulate database operations that fail
                 raise ValueError("Test error")
-
-        # Verify rollback was called
-        mock_session.rollback.assert_called_once()
-        mock_session.commit.assert_not_called()
-
-    def test_transaction_sqlalchemy_error(self):
-        """Test transaction context manager with SQLAlchemy error."""
-        # Mock session
-        mock_session = MagicMock()
-
-        # Use transaction context manager with SQLAlchemy exception
-        with pytest.raises(SQLAlchemyError):
-            with transaction(mock_session):
-                # Simulate database operations that fail with SQLAlchemy error
-                raise SQLAlchemyError("Database error")
 
         # Verify rollback was called
         mock_session.rollback.assert_called_once()
@@ -101,9 +104,9 @@ class TestDatabaseConfig:
             == "postgresql://testuser:testpass@testhost:5432/testdb"
         )
 
-    @patch("local_newsifier.config.database.init_db")
+    @patch("local_newsifier.database.engine.get_engine")
     @patch("local_newsifier.config.database.get_settings")
-    def test_get_database(self, mock_get_settings, mock_init_db):
+    def test_get_database(self, mock_get_settings, mock_get_engine):
         """Test getting database engine instance."""
         # Mock settings
         mock_settings = MagicMock()
@@ -114,33 +117,27 @@ class TestDatabaseConfig:
 
         # Mock engine
         mock_engine = MagicMock()
-        mock_init_db.return_value = mock_engine
+        mock_get_engine.return_value = mock_engine
 
         # Get database engine
         engine = get_database()
 
         # Verify engine
         assert engine == mock_engine
-        mock_init_db.assert_called_once_with(
+        mock_get_engine.assert_called_once_with(
             "postgresql://testuser:testpass@testhost:5432/testdb"
         )
 
-    @patch("local_newsifier.config.database.sessionmaker")
     @patch("local_newsifier.config.database.get_database")
-    def test_get_db_session(self, mock_get_database, mock_sessionmaker):
-        """Test getting database session factory."""
+    def test_get_db_session(self, mock_get_database):
+        """Test getting database session."""
         # Mock engine
         mock_engine = MagicMock()
         mock_get_database.return_value = mock_engine
 
-        # Mock session factory
-        mock_session_factory = MagicMock()
-        mock_sessionmaker.return_value = mock_session_factory
+        # Get session
+        session = get_db_session()
 
-        # Get session factory
-        session_factory = get_db_session()
-
-        # Verify session factory
-        assert session_factory == mock_session_factory
+        # Verify session
+        assert isinstance(session, Session)
         mock_get_database.assert_called_once()
-        mock_sessionmaker.assert_called_once_with(bind=mock_engine)

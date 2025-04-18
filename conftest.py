@@ -19,10 +19,10 @@ from sqlmodel import SQLModel, Session, create_engine, text
 SQLModel.metadata.clear()
 
 # Import and register models in a specific order
-# Base models first
+# Base models 
 from local_newsifier.models.database.base import TableBase
 
-# Core models next
+# Core models
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.database.analysis_result import AnalysisResult
@@ -33,10 +33,13 @@ from local_newsifier.models.entity_tracking import (
     EntityProfile, EntityRelationship
 )
 
-# Sentiment models last
+# Sentiment models
 from local_newsifier.models.sentiment import (
     SentimentAnalysis, OpinionTrend, SentimentShift
 )
+
+# State models
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 @pytest.fixture(scope="session")
 def test_engine():

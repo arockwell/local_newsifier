@@ -33,8 +33,8 @@ class Entity(SQLModel, table=True):
     confidence: float = Field(default=1.0)
     sentence_context: Optional[str] = None
     
-    # Define relationship
-    article: Optional["Article"] = Relationship(back_populates="entities")
+    # Define relationship with fully qualified path
+    article: Optional["local_newsifier.models.database.article.Article"] = Relationship(back_populates="entities")
     
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {

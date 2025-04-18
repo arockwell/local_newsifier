@@ -36,9 +36,9 @@ class Article(SQLModel, table=True):
     status: str
     scraped_at: datetime
     
-    # Define relationships
-    entities: List["Entity"] = Relationship(back_populates="article")
-    analysis_results: List["AnalysisResult"] = Relationship(back_populates="article")
+    # Define relationships with fully qualified paths
+    entities: List["local_newsifier.models.database.entity.Entity"] = Relationship(back_populates="article")
+    analysis_results: List["local_newsifier.models.database.analysis_result.AnalysisResult"] = Relationship(back_populates="article")
     
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {
