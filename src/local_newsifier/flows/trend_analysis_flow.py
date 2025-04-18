@@ -84,7 +84,8 @@ class NewsTrendAnalysisFlow(Flow):
         super().__init__()
         self.config = config or TrendAnalysisConfig()
         self.data_aggregator = HistoricalDataAggregator()
-        self.topic_analyzer = TopicFrequencyAnalyzer(self.data_aggregator)
+        # Explicitly pass the data_aggregator instance rather than relying on default
+        self.topic_analyzer = TopicFrequencyAnalyzer(data_aggregator=self.data_aggregator)
         self.trend_detector = TrendDetector(self.topic_analyzer, self.data_aggregator)
         self.reporter = TrendReporter(output_dir=output_dir)
 

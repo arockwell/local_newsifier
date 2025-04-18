@@ -18,7 +18,7 @@ def mock_data_aggregator():
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Fixture to mock dependencies."""
-    with patch("src.local_newsifier.tools.topic_analyzer.HistoricalDataAggregator") as mock_agg:
+    with patch("local_newsifier.tools.topic_analyzer.HistoricalDataAggregator") as mock_agg:
         mock_agg.return_value = MagicMock()
         yield mock_agg
 
@@ -56,7 +56,7 @@ def sample_topic_frequencies():
 
 def test_init(mock_data_aggregator):
     """Test TopicFrequencyAnalyzer initialization."""
-    with patch("src.local_newsifier.tools.topic_analyzer.HistoricalDataAggregator") as mock_agg_cls:
+    with patch("local_newsifier.tools.topic_analyzer.HistoricalDataAggregator") as mock_agg_cls:
         mock_agg_instance = MagicMock()
         mock_agg_cls.return_value = mock_agg_instance
         
@@ -115,7 +115,7 @@ def test_calculate_statistical_significance():
                                 baseline.total_mentions / len(baseline.frequencies) * 1.5)
 
 
-@patch("src.local_newsifier.tools.topic_analyzer.TopicFrequencyAnalyzer.calculate_statistical_significance")
+@patch("local_newsifier.tools.topic_analyzer.TopicFrequencyAnalyzer.calculate_statistical_significance")
 def test_identify_significant_changes(mock_calc_significance, mock_data_aggregator, sample_topic_frequencies):
     """Test identification of significant changes in topics."""
     # Setup

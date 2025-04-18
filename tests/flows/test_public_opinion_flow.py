@@ -22,9 +22,9 @@ class TestPublicOpinionFlow:
     @pytest.fixture
     def flow(self, mock_session):
         """Create a public opinion flow instance with mocked components."""
-        with patch('src.local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool') as mock_analyzer, \
-             patch('src.local_newsifier.flows.public_opinion_flow.SentimentTracker') as mock_tracker, \
-             patch('src.local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool') as mock_visualizer:
+        with patch('local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool') as mock_analyzer, \
+             patch('local_newsifier.flows.public_opinion_flow.SentimentTracker') as mock_tracker, \
+             patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool') as mock_visualizer:
             
             flow = PublicOpinionFlow(session=mock_session)
             
@@ -37,10 +37,10 @@ class TestPublicOpinionFlow:
 
     def test_init_without_session(self):
         """Test initialization without a database session."""
-        with patch('src.local_newsifier.database.engine.get_session') as mock_get_session, \
-             patch('src.local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool'), \
-             patch('src.local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
-             patch('src.local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'):
+        with patch('local_newsifier.database.engine.get_session') as mock_get_session, \
+             patch('local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool'), \
+             patch('local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
+             patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'):
             
             # Mock session
             mock_session = MagicMock()
@@ -65,8 +65,8 @@ class TestPublicOpinionFlow:
         flow.sentiment_analyzer.analyze_article.side_effect = analyze_with_session
         
         # Create proper mock articles to satisfy validation
-        with patch('src.local_newsifier.crud.article.article.get_by_status'), \
-             patch('src.local_newsifier.crud.article.article.update_status'):
+        with patch('local_newsifier.crud.article.article.get_by_status'), \
+             patch('local_newsifier.crud.article.article.update_status'):
              
             # Create a mock session that doesn't actually commit anything
             mock_sess = MagicMock()
@@ -106,7 +106,7 @@ class TestPublicOpinionFlow:
         mock_article2.status = "analyzed"
         
         # Use patch to inject our mock articles
-        with patch('src.local_newsifier.crud.article.article.get_by_status', 
+        with patch('local_newsifier.crud.article.article.get_by_status', 
                   return_value=[mock_article1, mock_article2]):
             
             # Mock sentiment analyzer to handle session parameter
@@ -119,7 +119,7 @@ class TestPublicOpinionFlow:
             flow.sentiment_analyzer.analyze_article.side_effect = analyze_with_session
             
             # Mock update_article_status to do nothing
-            with patch('src.local_newsifier.crud.article.article.update_status'):
+            with patch('local_newsifier.crud.article.article.update_status'):
                 # Create a mock session that doesn't actually commit anything
                 mock_sess = MagicMock()
                 flow.session = mock_sess
@@ -138,7 +138,7 @@ class TestPublicOpinionFlow:
         # Create a controlled test environment with patched functions
         
         # Mock update_article_status to do nothing
-        with patch('src.local_newsifier.crud.article.article.update_status'):
+        with patch('local_newsifier.crud.article.article.update_status'):
             # Mock sentiment analyzer with an error that handles session param
             def analyze_with_session_and_error(article_id, session=None):
                 if article_id == 1:

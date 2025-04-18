@@ -247,14 +247,8 @@ class TestHeadlineTrendAnalyzer:
             article.title = f"Test headline {i+1}"
             mock_articles.append(article)
             
-        # Set up the mock database query
-        mock_query = MagicMock()
-        mock_filter = MagicMock()
-        mock_order_by = MagicMock()
-        mock_order_by.all.return_value = mock_articles
-        mock_filter.order_by.return_value = mock_order_by
-        mock_query.filter.return_value = mock_filter
-        mock_session.query.return_value = mock_query
+        # Set up the mock database query for SQLModel
+        mock_session.exec.return_value.all.return_value = mock_articles
         
         # Call the method with mock_session
         result = analyzer.get_headlines_by_period(start_date, end_date, "day", session=mock_session)

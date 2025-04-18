@@ -26,7 +26,7 @@ class TopicFrequencyAnalyzer:
             data_aggregator: Optional HistoricalDataAggregator instance.
                              If not provided, a new one will be created.
         """
-        self.data_aggregator = data_aggregator or HistoricalDataAggregator()
+        self.data_aggregator = data_aggregator if data_aggregator is not None else HistoricalDataAggregator()
 
     def calculate_statistical_significance(
         self,

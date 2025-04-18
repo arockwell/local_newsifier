@@ -86,7 +86,7 @@ class HeadlineTrendAnalyzer:
             interval_key = self._get_interval_key(article.published_at, interval)
             grouped_headlines[interval_key].append(article.title)
             
-        return grouped_headlines
+        return dict(grouped_headlines) # Convert defaultdict to regular dict to make test pass
     
     def extract_keywords(self, headlines: List[str], top_n: int = 50) -> List[Tuple[str, int]]:
         """

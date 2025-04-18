@@ -340,7 +340,7 @@ class SentimentTracker:
                 AnalysisResult.article_id == article_id,
                 AnalysisResult.analysis_type == "sentiment"
             )
-            results = session.execute(statement).all()
+            results = session.exec(statement).all()
             
             for result in results:
                 if result.analysis_type == "sentiment":

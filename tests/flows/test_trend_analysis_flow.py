@@ -33,10 +33,10 @@ def mock_tools():
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Fixture to mock dependencies."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter:
         mock_agg.return_value = MagicMock()
         mock_analyzer.return_value = MagicMock()
         mock_detector.return_value = MagicMock()
@@ -110,10 +110,10 @@ def test_trend_analysis_state_methods():
 
 def test_news_trend_analysis_flow_init(mock_tools):
     """Test NewsTrendAnalysisFlow initialization."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
         
         mock_agg_cls.return_value = mock_tools["data_aggregator"]
         mock_analyzer_cls.return_value = mock_tools["topic_analyzer"]
@@ -140,10 +140,10 @@ def test_news_trend_analysis_flow_init(mock_tools):
 
 def test_aggregate_historical_data(mock_tools):
     """Test historical data aggregation in the flow."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
         
         mock_agg_cls.return_value = mock_tools["data_aggregator"]
         mock_analyzer_cls.return_value = mock_tools["topic_analyzer"]
@@ -179,10 +179,10 @@ def test_aggregate_historical_data(mock_tools):
 
 def test_detect_trends(mock_tools, sample_trends):
     """Test trend detection in the flow."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
         
         mock_agg_cls.return_value = mock_tools["data_aggregator"]
         mock_analyzer_cls.return_value = mock_tools["topic_analyzer"]
@@ -216,10 +216,10 @@ def test_detect_trends(mock_tools, sample_trends):
 
 def test_generate_report(mock_tools, sample_trends):
     """Test report generation in the flow."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls:
         
         mock_agg_cls.return_value = mock_tools["data_aggregator"]
         mock_analyzer_cls.return_value = mock_tools["topic_analyzer"]
@@ -262,13 +262,13 @@ def test_generate_report(mock_tools, sample_trends):
 
 def test_run_analysis(mock_tools, sample_trends):
     """Test running the complete analysis flow."""
-    with patch("src.local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data") as mock_aggregate, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.detect_trends") as mock_detect, \
-         patch("src.local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.generate_report") as mock_generate:
+    with patch("local_newsifier.flows.trend_analysis_flow.HistoricalDataAggregator") as mock_agg_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TopicFrequencyAnalyzer") as mock_analyzer_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendDetector") as mock_detector_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.TrendReporter") as mock_reporter_cls, \
+         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data") as mock_aggregate, \
+         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.detect_trends") as mock_detect, \
+         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.generate_report") as mock_generate:
         
         mock_agg_cls.return_value = mock_tools["data_aggregator"]
         mock_analyzer_cls.return_value = mock_tools["topic_analyzer"]
