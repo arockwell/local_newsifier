@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 from sqlmodel import SQLModel, create_engine, Session
 
+# Import models
 from local_newsifier.models.database.base import TableBase
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
@@ -16,7 +17,7 @@ class EngineProtocol(Protocol):
     def connect(self) -> Any: ...
     def dispose(self) -> None: ...
 
-# Re-export all models
+# Export models and functions
 __all__ = [
     "SQLModel",
     "TableBase",
