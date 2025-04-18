@@ -12,7 +12,7 @@ F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_engine(url: str = None):
+def get_engine(url: Optional[str] = None):
     """Get SQLModel engine.
 
     Args:
@@ -38,32 +38,15 @@ def get_engine(url: str = None):
     )
 
 
-def create_session_factory(engine=None):
-    """Create a session factory.
-
-    Args:
-        engine: SQLModel engine (if None, creates one)
-
-    Returns:
-        Session factory
-    """
-    if engine is None:
-        engine = get_engine()
-    return lambda: Session(engine)
-
-
 def get_session() -> Generator[Session, None, None]:
     """Get a database session.
 
     Yields:
         Database session
     """
-    SessionLocal = create_session_factory()
-    session = SessionLocal()
-    try:
+    engine = get_engine()
+    with Session(engine) as session:
         yield session
-    finally:
-        session.close()
 
 
 @contextmanager
@@ -101,10 +84,7 @@ def create_db_and_tables(engine=None):
 
 
 class SessionManager:
-    """Session manager for database operations.
-
-    This class provides a context manager for database sessions.
-    """
+    """Session manager for database operations."""
 
     def __init__(self):
         """Initialize the session manager."""
@@ -116,8 +96,8 @@ class SessionManager:
         Returns:
             Session: Database session
         """
-        self.session_generator = get_session()
-        self.session = next(self.session_generator)
+        engine = get_engine()
+        self.session = Session(engine)
         return self.session
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -128,10 +108,12 @@ class SessionManager:
             exc_val: Exception value
             exc_tb: Exception traceback
         """
-        try:
-            next(self.session_generator, None)
-        except StopIteration:
-            pass
+        if self.session:
+            if exc_type:
+                self.session.rollback()
+            else:
+                self.session.commit()
+            self.session.close()
 
 
 def with_session(func: F) -> F:
@@ -148,7 +130,6 @@ def with_session(func: F) -> F:
     Returns:
         Decorated function
     """
-
     def wrapper(*args, session: Optional[Session] = None, **kwargs):
         """Execute function with session management.
 

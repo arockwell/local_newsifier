@@ -34,7 +34,7 @@ class HeadlineTrendFlow(Flow):
         Initialize the headline trend analysis flow.
 
         Args:
-            session: Optional SQLAlchemy session to use
+            session: Optional SQLModel session to use
         """
         super().__init__()
 

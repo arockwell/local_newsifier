@@ -1,20 +1,14 @@
 """Database configuration and connection management."""
 
-from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
-from sqlmodel import Session, create_engine
+from sqlmodel import Session
 
 from local_newsifier.config.settings import get_settings
-from local_newsifier.models.database import init_db
 
 
 class DatabaseSettings:
-    """Database configuration settings (compatibility wrapper).
-
-    This class exists for backward compatibility. It wraps the main Settings
-    class to provide the same interface as before.
-    """
+    """Database configuration settings."""
 
     def __init__(self):
         """Initialize the database settings wrapper."""
@@ -51,7 +45,7 @@ class DatabaseSettings:
         return str(self._settings.DATABASE_URL)
 
     def get_database_url(self) -> str:
-        """Get the database URL (legacy method).
+        """Get the database URL.
 
         Returns:
             str: The database URL
@@ -65,57 +59,11 @@ def get_database() -> Any:
     Returns:
         SQLModel engine instance
     """
+    # Import here to avoid circular imports
+    from local_newsifier.database.engine import get_engine
+    
     settings = get_settings()
-    return init_db(str(settings.DATABASE_URL))
-
-
-def create_session_factory(engine=None):
-    """Create a session factory.
-
-    Args:
-        engine: SQLModel engine (if None, creates one)
-
-    Returns:
-        Session factory
-    """
-    if engine is None:
-        engine = get_database()
-    return Session
-
-
-def get_db() -> Generator[Session, None, None]:
-    """Get database session.
-
-    Yields:
-        Session: Database session
-    """
-    engine = get_database()
-    session = Session(engine)
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-@contextmanager
-def transaction(db: Session):
-    """Transaction context manager.
-
-    Args:
-        db: Database session
-
-    Yields:
-        None
-
-    Raises:
-        Exception: Any exception that occurs during the transaction
-    """
-    try:
-        yield
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
+    return get_engine(str(settings.DATABASE_URL))
 
 
 def get_database_settings() -> DatabaseSettings:
@@ -129,8 +77,6 @@ def get_database_settings() -> DatabaseSettings:
 
 def get_db_session() -> Session:
     """Get a new database session.
-    
-    This is a convenience wrapper around get_db() for non-generator contexts.
     
     Returns:
         Session: Database session
