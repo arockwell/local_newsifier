@@ -1,23 +1,13 @@
 """Integration tests for database models."""
 
-import pytest
-from sqlmodel import inspect
-from sqlmodel import Session
 import datetime
 
-from local_newsifier.models.database.base import TableBase
+import pytest
+from sqlmodel import Session, inspect
+
 from local_newsifier.models.database.article import Article
 from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.state import AnalysisStatus
-
-
-@pytest.fixture
-def db_session(test_engine):
-    """Create a test database session."""
-    TestSession = sessionmaker(bind=test_engine)
-    session = TestSession()
-    yield session
-    session.close()
 
 
 def test_schema_generation(test_engine):
@@ -56,7 +46,7 @@ def test_full_article_entity_workflow(db_session):
     now = datetime.datetime.now(datetime.timezone.utc)
     # Create an article
     article = Article(
-        url="https://example.com/news/1",
+        url="https://example.com/news/integration-test",
         title="Test Article",
         source="Example News",
         content="This is a test article about Gainesville.",
@@ -70,6 +60,7 @@ def test_full_article_entity_workflow(db_session):
     # Create entities
     entities = [
         Entity(
+            article_id=article.id,
             text="Gainesville",
             entity_type="GPE",
             sentence_context=(
@@ -77,6 +68,7 @@ def test_full_article_entity_workflow(db_session):
             )
         ),
         Entity(
+            article_id=article.id,
             text="University of Florida",
             entity_type="ORG",
             sentence_context=(
@@ -84,6 +76,7 @@ def test_full_article_entity_workflow(db_session):
             )
         ),
         Entity(
+            article_id=article.id,
             text="John Smith",
             entity_type="PERSON",
             sentence_context=(
@@ -93,9 +86,10 @@ def test_full_article_entity_workflow(db_session):
     ]
 
     for entity in entities:
-        article.entities.append(entity)
+        db_session.add(entity)
 
     db_session.commit()
+    db_session.refresh(article)
 
     # Verify relationships
     assert len(article.entities) == 3

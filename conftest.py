@@ -12,7 +12,7 @@ from typing import Generator
 import uuid
 
 import pytest
-from sqlmodel import SQLModel, Session, create_engine, text
+from sqlmodel import SQLModel, Session, create_engine, text, select
 
 # First, reset and register all models in a controlled order
 # This must run before any database operations
@@ -62,10 +62,7 @@ def test_engine():
     )
     
     # Create all tables
-    try:
-        SQLModel.metadata.create_all(engine)
-    except Exception as e:
-        pytest.fail(f"Failed to create tables: {e}")
+    SQLModel.metadata.create_all(engine)
     
     # Verify tables were created by trying to insert and select
     with Session(engine) as session:
@@ -83,7 +80,6 @@ def test_engine():
         session.commit()
         
         # Query to verify it exists
-        from sqlmodel import select
         statement = select(Article).where(Article.title == "Test Article")
         result = session.exec(statement).first()
         
