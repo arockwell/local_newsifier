@@ -11,9 +11,8 @@ from local_newsifier.tools.entity_tracker import EntityTracker as OldEntityTrack
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow as OldEntityTrackingFlow
 
 # New imports
-from local_newsifier.core.factory import ToolFactory, ServiceFactory
+from local_newsifier.core.factory import ServiceFactory
 from local_newsifier.database.session_manager import get_session_manager
-from local_newsifier.tools.entity_tracker_v2 import EntityTracker as NewEntityTracker
 from local_newsifier.flows.entity_tracking_flow_v2 import EntityTrackingFlow as NewEntityTrackingFlow
 
 
@@ -49,16 +48,10 @@ def demonstrate_new_approach():
         session_manager=session_manager
     )
     
-    # Create tools using factories
-    entity_tracker = ToolFactory.create_entity_tracker(
-        session_manager=session_manager,
-        entity_service=entity_service
-    )
-    
-    # Create flows using the tools
+    # Create flows using services directly
     entity_tracking_flow = NewEntityTrackingFlow(
         session_manager=session_manager,
-        entity_tracker=entity_tracker
+        entity_service=entity_service
     )
     
     # Use the new flow with explicit context manager
@@ -98,13 +91,9 @@ def demonstrate_gradual_migration():
     entity_service = ServiceFactory.create_entity_service(
         session_manager=session_manager
     )
-    entity_tracker = ToolFactory.create_entity_tracker(
-        session_manager=session_manager,
-        entity_service=entity_service
-    )
     entity_flow = NewEntityTrackingFlow(
         session_manager=session_manager,
-        entity_tracker=entity_tracker
+        entity_service=entity_service
     )
     
     # New architecture handles sessions internally
@@ -153,15 +142,17 @@ HOW TO MIGRATE CODE FROM OLD TO NEW ARCHITECTURE
        # Use session...
        # No need for explicit commit/rollback/close
 
-3. FROM direct tool instantiation:
+3. FROM tools to services:
    
    # Old approach:
    tracker = EntityTracker(session=session)
+   tracker.process_article(article_id, content, title, published_at)
    
    # New approach:
-   tracker = ToolFactory.create_entity_tracker(
+   service = ServiceFactory.create_entity_service(
        session_manager=session_manager
    )
+   service.process_article(article_id, content, title, published_at)
 
 4. FROM direct flow instantiation:
    
@@ -171,7 +162,7 @@ HOW TO MIGRATE CODE FROM OLD TO NEW ARCHITECTURE
    # New approach:
    flow = EntityTrackingFlow(
        session_manager=session_manager,
-       entity_tracker=tracker  # Pass explicit dependencies
+       entity_service=service  # Pass services directly
    )
 """)
 

@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Union, Any
 
 from crewai import Flow
 
-from local_newsifier.core.factory import ToolFactory, ServiceFactory
+from local_newsifier.core.factory import ServiceFactory
 from local_newsifier.database.session_manager import get_session_manager
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
@@ -19,16 +19,16 @@ from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 class EntityTrackingFlow(Flow):
     """Flow for tracking person entities across news articles."""
 
-    def __init__(self, session_manager=None, entity_tracker=None):
+    def __init__(self, session_manager=None, entity_service=None):
         """Initialize the entity tracking flow with dependencies.
         
         Args:
             session_manager: Session manager for database access (optional)
-            entity_tracker: EntityTracker instance (optional)
+            entity_service: EntityService instance (optional)
         """
         super().__init__()
         self.session_manager = session_manager or get_session_manager()
-        self.entity_tracker = entity_tracker or ToolFactory.create_entity_tracker(
+        self.entity_service = entity_service or ServiceFactory.create_entity_service(
             session_manager=self.session_manager
         )
 
@@ -79,8 +79,8 @@ class EntityTrackingFlow(Flow):
             if not article:
                 raise ValueError(f"Article with ID {article_id} not found")
 
-            # Process article content
-            processed_entities = self.entity_tracker.process_article(
+            # Process article content using the service directly
+            processed_entities = self.entity_service.process_article(
                 article_id=article.id,
                 content=article.content,
                 title=article.title,
@@ -181,8 +181,8 @@ class EntityTrackingFlow(Flow):
                     if article_entity.text == entity.name:
                         continue
 
-                    # Resolve to canonical entity - using the service directly through the tracker
-                    canonical_entity_dict = self.entity_tracker.entity_service.resolve_entity(
+                    # Resolve to canonical entity - using the service directly
+                    canonical_entity_dict = self.entity_service.resolve_entity(
                         article_entity.text, article_entity.entity_type
                     )
                     canonical_entity_id = canonical_entity_dict["id"]

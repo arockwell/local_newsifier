@@ -10,21 +10,32 @@ from local_newsifier.models.entity_tracking import CanonicalEntity
 
 
 class TestEntityService:
-    """Test cases for the EntityService."""
+    """Test cases for EntityService."""
     
     def test_init(self):
         """Test EntityService initialization."""
         # Test with a provided session manager
         session_manager = SessionManager()
-        service = EntityService(session_manager=session_manager)
-        assert service.session_manager == session_manager
+        
+        with patch('local_newsifier.services.entity_service.spacy.load') as mock_load:
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+            
+            service = EntityService(session_manager=session_manager)
+            assert service.session_manager == session_manager
+            assert service.nlp == mock_nlp
         
         # Test with default session manager
         with patch('local_newsifier.services.entity_service.get_session_manager') as mock_get_sm:
-            mock_session_manager = MagicMock()
-            mock_get_sm.return_value = mock_session_manager
-            service = EntityService()
-            assert service.session_manager == mock_session_manager
+            with patch('local_newsifier.services.entity_service.spacy.load') as mock_load:
+                mock_session_manager = MagicMock()
+                mock_get_sm.return_value = mock_session_manager
+                mock_nlp = MagicMock()
+                mock_load.return_value = mock_nlp
+                
+                service = EntityService()
+                assert service.session_manager == mock_session_manager
+                assert service.nlp == mock_nlp
     
     def test_resolve_entity_existing(self):
         """Test entity resolution with an existing entity."""
@@ -348,3 +359,92 @@ class TestEntityService:
         assert profile_metadata.get('sentiment_scores', {}).get('average') == 0.225
         assert profile_metadata.get('framing_categories', {}).get('latest') == 'political'
         assert 'political' in profile_metadata.get('framing_categories', {}).get('history', [])
+        
+    def test_process_article(self):
+        """Test processing an article to extract and track entities."""
+        # Arrange
+        mock_session_manager = MagicMock()
+        
+        # Create mock service with mocked NLP
+        with patch('local_newsifier.services.entity_service.spacy.load') as mock_load:
+            # Mock spaCy functionality
+            mock_nlp = MagicMock()
+            mock_doc = MagicMock()
+            mock_ent1 = MagicMock()
+            mock_ent2 = MagicMock()
+            mock_sent1 = MagicMock()
+            mock_sent2 = MagicMock()
+            
+            # Setup first entity
+            mock_ent1.label_ = "PERSON"
+            mock_ent1.text = "Joe Biden"
+            mock_ent1.sent = mock_sent1
+            mock_sent1.text = "President Joe Biden spoke today."
+            
+            # Setup second entity
+            mock_ent2.label_ = "PERSON"
+            mock_ent2.text = "Kamala Harris"
+            mock_ent2.sent = mock_sent2
+            mock_sent2.text = "Vice President Kamala Harris attended the meeting."
+            
+            # Set up the document with entities
+            mock_doc.ents = [mock_ent1, mock_ent2]
+            mock_nlp.return_value = mock_doc
+            mock_nlp.meta = {"name": "en_core_web_lg"}
+            mock_load.return_value = mock_nlp
+            
+            # Create service and mock internal methods
+            service = EntityService(session_manager=mock_session_manager)
+            service.track_entity = MagicMock(side_effect=[
+                # Result for Biden
+                {
+                    "entity_id": 1,
+                    "canonical_entity_id": 101,
+                    "original_text": "Joe Biden",
+                    "canonical_name": "Joe Biden",
+                    "context": "President Joe Biden spoke today."
+                },
+                # Result for Harris
+                {
+                    "entity_id": 2,
+                    "canonical_entity_id": 102,
+                    "original_text": "Kamala Harris",
+                    "canonical_name": "Kamala Harris",
+                    "context": "Vice President Kamala Harris attended the meeting."
+                }
+            ])
+            
+            # Mock context analyzer
+            with patch('local_newsifier.tools.context_analyzer.ContextAnalyzer') as mock_ctx:
+                mock_analyzer = MagicMock()
+                mock_analyzer.analyze_context.side_effect = [
+                    # Result for Biden
+                    {
+                        "sentiment": {"score": 0.5},
+                        "framing": {"category": "leadership"}
+                    },
+                    # Result for Harris
+                    {
+                        "sentiment": {"score": 0.3},
+                        "framing": {"category": "political"}
+                    }
+                ]
+                mock_ctx.return_value = mock_analyzer
+                
+                # Act
+                result = service.process_article(
+                    article_id=1,
+                    content="President Joe Biden spoke today. Vice President Kamala Harris attended the meeting.",
+                    title="White House Meeting",
+                    published_at=datetime.now(timezone.utc)
+                )
+        
+        # Assert
+        assert len(result) == 2
+        assert result[0]["canonical_name"] == "Joe Biden"
+        assert result[0]["sentiment_score"] == 0.5
+        assert result[0]["framing_category"] == "leadership"
+        assert result[1]["canonical_name"] == "Kamala Harris"
+        assert result[1]["sentiment_score"] == 0.3
+        assert result[1]["framing_category"] == "political"
+        assert service.track_entity.call_count == 2

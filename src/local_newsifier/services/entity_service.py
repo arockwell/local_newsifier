@@ -3,6 +3,9 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
+import spacy
+from spacy.language import Language
+
 from sqlmodel import Session
 
 from local_newsifier.database.session_manager import get_session_manager
@@ -19,13 +22,22 @@ from local_newsifier.models.entity_tracking import (
 class EntityService:
     """Service for entity-related business logic."""
 
-    def __init__(self, session_manager=None):
+    def __init__(self, session_manager=None, model_name="en_core_web_lg"):
         """Initialize the entity service.
 
         Args:
             session_manager: Session manager for database access (optional)
+            model_name: Name of the spaCy model to use (default: en_core_web_lg)
         """
         self.session_manager = session_manager or get_session_manager()
+        
+        try:
+            self.nlp: Language = spacy.load(model_name)
+        except OSError:
+            raise RuntimeError(
+                f"spaCy model '{model_name}' not found. "
+                f"Please install it using: python -m spacy download {model_name}"
+            )
 
     def resolve_entity(self, name: str, entity_type: str, similarity_threshold: float = 0.85) -> Dict[str, Any]:
         """Resolve an entity name to its canonical form.
@@ -257,3 +269,75 @@ class EntityService:
             return entity_mention_context_crud.get_sentiment_trend(
                 session, entity_id=entity_id, start_date=start_date, end_date=end_date
             )
+            
+    def process_article(
+        self, 
+        article_id: int,
+        content: str,
+        title: str,
+        published_at: datetime,
+        entity_types: List[str] = None
+    ) -> List[Dict]:
+        """Process an article to track entity mentions.
+        
+        Args:
+            article_id: ID of the article being processed
+            content: Article content
+            title: Article title
+            published_at: Article publication date
+            entity_types: List of entity types to extract (default: ["PERSON"])
+            
+        Returns:
+            List of processed entity mentions
+        """
+        # Default to person entities if not specified
+        if entity_types is None:
+            entity_types = ["PERSON"]
+            
+        # Extract entities
+        doc = self.nlp(content)
+        extracted_entities = [ent for ent in doc.ents if ent.label_ in entity_types]
+        
+        # Process and deduplicate entities
+        processed_entities = []
+        unique_canonical_ids = set()
+        
+        from local_newsifier.tools.context_analyzer import ContextAnalyzer
+        context_analyzer = ContextAnalyzer(model_name=self.nlp.meta["name"])
+        
+        for entity in extracted_entities:
+            # Extract context for the entity
+            context_text = entity.sent.text
+            
+            # Analyze context for sentiment and framing
+            context_analysis = context_analyzer.analyze_context(context_text)
+            
+            # Track entity
+            entity_result = self.track_entity(
+                article_id=article_id,
+                entity_text=entity.text,
+                entity_type=entity.label_,
+                context_text=context_text,
+                sentiment_score=context_analysis["sentiment"]["score"],
+                framing_category=context_analysis["framing"]["category"],
+                published_at=published_at
+            )
+            
+            # Skip if we've already processed this canonical entity for this article
+            canonical_id = entity_result["canonical_entity_id"]
+            if canonical_id in unique_canonical_ids:
+                continue
+            
+            unique_canonical_ids.add(canonical_id)
+            
+            # Add to results
+            processed_entities.append({
+                "original_text": entity.text,
+                "canonical_name": entity_result["canonical_name"],
+                "canonical_id": canonical_id,
+                "context": context_text,
+                "sentiment_score": context_analysis["sentiment"]["score"],
+                "framing_category": context_analysis["framing"]["category"]
+            })
+        
+        return processed_entities
