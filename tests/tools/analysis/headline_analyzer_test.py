@@ -14,6 +14,22 @@ from local_newsifier.models.database.article import Article
 
 logger = logging.getLogger(__name__)
 
+# Replace actual spaCy loading with mock for this module
+@pytest.fixture(autouse=True)
+def mock_spacy_load(monkeypatch):
+    """Mock spaCy.load for all tests in this module."""
+    def mock_load(model_name):
+        # Return a mock model
+        mock_model = MagicMock()
+        # Configure the mock to handle the __call__ method
+        mock_model.side_effect = lambda text: MagicMock(
+            noun_chunks=[],
+            ents=[]
+        )
+        return mock_model
+    
+    monkeypatch.setattr("spacy.load", mock_load)
+
 @pytest.fixture(scope="function")
 def test_session(test_engine):
     """Create a test database session."""

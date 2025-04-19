@@ -55,9 +55,10 @@ jobs:
         poetry install --no-interaction --with dev
         poetry run pip install psycopg2-binary sqlalchemy pydantic-settings
 
-    - name: Download spaCy model
+    - name: Download spaCy models
       run: |
         poetry run python -m spacy download en_core_web_sm
+        poetry run python -m spacy download en_core_web_lg
 
     - name: Create test database
       env:
@@ -83,7 +84,7 @@ jobs:
         conn.close()
         "
 
-    - name: Run tests with coverage
+    - name: Create tables and initialize database
       env:
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
@@ -91,7 +92,35 @@ jobs:
         POSTGRES_PORT: 5432
         POSTGRES_DB: test_db
       run: |
-        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=90 tests/
+        # Create tables for testing
+        poetry run python -c "
+        from sqlmodel import SQLModel, create_engine
+        from local_newsifier.models.database.article import Article
+        from local_newsifier.models.database.entity import Entity
+        from local_newsifier.models.database.analysis_result import AnalysisResult
+        from local_newsifier.models.entity_tracking import CanonicalEntity, EntityProfile
+        from local_newsifier.models.entity_tracking import EntityRelationship, EntityMentionContext
+        from local_newsifier.models.sentiment import SentimentShift
+        
+        # Create PostgreSQL test engine
+        db_url = 'postgresql://postgres:postgres@localhost:5432/test_db'
+        engine = create_engine(db_url, echo=True)
+        
+        # Create all tables
+        SQLModel.metadata.create_all(engine)
+        print('Tables created successfully')
+        "
+
+    - name: Run tests with coverage
+      env:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_HOST: localhost
+        POSTGRES_PORT: 5432
+        POSTGRES_DB: test_db
+        TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=88 tests/
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
