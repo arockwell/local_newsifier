@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from ..models.trend import TimeFrame, TrendAnalysis, TrendType
+from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
 
 
 class ReportFormat(str, Enum):

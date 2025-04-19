@@ -18,10 +18,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from ...database.engine import get_session, with_session
-from ...tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.database.engine import get_session, with_session
+from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class HeadlineTrendFlow(Flow):
         Initialize the headline trend analysis flow.
 
         Args:
-            session: Optional SQLAlchemy session to use
+            session: Optional SQLModel session to use
         """
         super().__init__()
 

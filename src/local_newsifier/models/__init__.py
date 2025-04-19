@@ -1,49 +1,44 @@
 """Model imports and initialization."""
 
-# Import Base first
-from local_newsifier.models.database.base import Base
+# Re-export base SQLModel class
+from sqlmodel import SQLModel
 
-# Import database models
-from local_newsifier.models.database import (
-    ArticleDB,
-    EntityDB,
-    AnalysisResultDB,
-)
+# Export table base
+from local_newsifier.models.database.base import TableBase
 
-# Import Pydantic models
-from local_newsifier.models.pydantic_models import (
-    Article,
-    Entity,
-    AnalysisResult,
-    ArticleCreate,
-    EntityCreate,
-    AnalysisResultCreate,
-)
-
-# Import entity tracking models
+# Import all models from their original locations but don't re-export
+# This prevents duplicate class registrations
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.database.analysis_result import AnalysisResult
 from local_newsifier.models.entity_tracking import (
-    CanonicalEntityDB,
-    EntityMentionContextDB,
-    EntityProfileDB,
-    entity_mentions,
-    entity_relationships,
+    CanonicalEntity,
+    EntityMention,
+    EntityMentionContext,
+    EntityProfile,
+    EntityRelationship,
+)
+from local_newsifier.models.sentiment import (
+    SentimentAnalysis,
+    OpinionTrend,
+    SentimentShift,
 )
 
-# Export all models
+# Export only the class names, not the actual classes
 __all__ = [
-    "Base",
-    "ArticleDB",
-    "EntityDB",
-    "AnalysisResultDB",
+    "SQLModel",
+    "TableBase",
     "Article",
     "Entity",
     "AnalysisResult",
-    "ArticleCreate",
-    "EntityCreate",
-    "AnalysisResultCreate",
-    "CanonicalEntityDB",
-    "EntityMentionContextDB",
-    "EntityProfileDB",
-    "entity_mentions",
-    "entity_relationships",
+    # Entity tracking models
+    "CanonicalEntity",
+    "EntityMention",
+    "EntityMentionContext",
+    "EntityProfile",
+    "EntityRelationship",
+    # Sentiment models
+    "SentimentAnalysis",
+    "OpinionTrend",
+    "SentimentShift",
 ]

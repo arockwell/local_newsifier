@@ -2,10 +2,10 @@ from typing import Optional
 
 from crewai import Flow
 
-from ..models.state import AnalysisStatus, NewsAnalysisState
-from ..tools.file_writer import FileWriterTool
-from ..tools.ner_analyzer import NERAnalyzerTool
-from ..tools.web_scraper import WebScraperTool
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.tools.file_writer import FileWriterTool
+from local_newsifier.tools.ner_analyzer import NERAnalyzerTool
+from local_newsifier.tools.web_scraper import WebScraperTool
 
 
 class NewsPipelineFlow(Flow):

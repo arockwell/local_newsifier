@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = Field(default_factory=get_cursor_db_name)
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
+    DB_ECHO: bool = False
 
     # Directory settings
     OUTPUT_DIR: Path = Field(default_factory=lambda: Path("output"))

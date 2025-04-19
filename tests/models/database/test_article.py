@@ -4,11 +4,11 @@ import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from local_newsifier.models.database import ArticleDB
+from local_newsifier.models.database.article import Article
 from local_newsifier.models.state import AnalysisStatus
-from local_newsifier.models.database.entity import EntityDB
+from local_newsifier.models.database.entity import Entity
 
 
 def test_article_creation():
@@ -18,7 +18,7 @@ def test_article_creation():
     
     # Create article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/news/1",
         title="Test Article",
         source="Example News",
@@ -51,7 +51,7 @@ def test_article_entity_relationship():
     
     # Create an article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
-    article = ArticleDB(
+    article = Article(
         url="https://example.com/test",
         title="Test Article",
         source="Example News",
@@ -64,7 +64,7 @@ def test_article_entity_relationship():
     mock_session.add(article)
     
     # Create an entity and associate it with the article
-    entity = EntityDB(
+    entity = Entity(
         text="Gainesville",
         entity_type="GPE",
         sentence_context=("This is a test article about Gainesville."),
@@ -88,7 +88,7 @@ def test_article_unique_url_constraint():
     
     # Create first article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
-    article1 = ArticleDB(
+    article1 = Article(
         url="https://example.com/news/1",
         title="Test Article 1",
         source="Example News",
@@ -99,7 +99,7 @@ def test_article_unique_url_constraint():
     mock_session.add(article1)
     
     # Create second article with same URL
-    article2 = ArticleDB(
+    article2 = Article(
         url="https://example.com/news/1",  # Same URL as article1
         title="Test Article 2",
         source="Example News",

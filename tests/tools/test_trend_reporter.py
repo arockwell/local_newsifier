@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from src.local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
+from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,
                                             TrendType)
-from src.local_newsifier.tools.trend_reporter import (ReportFormat,
+from local_newsifier.tools.trend_reporter import (ReportFormat,
                                                      TrendReporter)
 
 
@@ -218,13 +218,13 @@ def test_generate_json_summary(sample_trends):
 @patch("builtins.open", new_callable=mock_open)
 def test_save_report(mock_file, sample_trends):
     """Test saving reports to file."""
-    with patch("src.local_newsifier.tools.trend_reporter.TrendReporter.generate_trend_summary") as mock_generate:
+    with patch("local_newsifier.tools.trend_reporter.TrendReporter.generate_trend_summary") as mock_generate:
         mock_generate.return_value = "Test report content"
         
         reporter = TrendReporter(output_dir="test_output")
         
         # Test saving with auto-generated filename
-        with patch("src.local_newsifier.tools.trend_reporter.datetime") as mock_dt:
+        with patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
             mock_date = MagicMock()
             mock_date.strftime.return_value = "20230115_120000"
             mock_dt.now.return_value = mock_date

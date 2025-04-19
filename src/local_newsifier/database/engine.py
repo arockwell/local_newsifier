@@ -1,52 +1,41 @@
-"""Database engine and session management."""
+"""Database engine and session management using SQLModel."""
 
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlmodel import create_engine, Session, SQLModel
 
 from local_newsifier.config.settings import get_settings
-from local_newsifier.models.database.base import Base
 
 # Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_engine(url: str = None):
-    """Get SQLAlchemy engine.
+def get_engine(url: Optional[str] = None):
+    """Get SQLModel engine.
 
     Args:
         url: Database URL (if None, uses settings)
 
     Returns:
-        SQLAlchemy engine
+        SQLModel engine
     """
     settings = get_settings()
     url = url or str(settings.DATABASE_URL)
 
+    # Only add application_name for PostgreSQL
+    connect_args = {}
+    if url.startswith("postgresql:"):
+        connect_args = {"application_name": "local_newsifier"}
+        
     return create_engine(
         url,
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
-        # Connect args for handling disconnects
-        connect_args={"application_name": "local_newsifier"},
+        connect_args=connect_args,
+        echo=settings.DB_ECHO,
     )
-
-
-def create_session_factory(engine=None):
-    """Create a session factory.
-
-    Args:
-        engine: SQLAlchemy engine (if None, creates one)
-
-    Returns:
-        Session factory
-    """
-    if engine is None:
-        engine = get_engine()
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -55,12 +44,9 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Database session
     """
-    SessionLocal = create_session_factory()
-    session = SessionLocal()
-    try:
+    engine = get_engine()
+    with Session(engine) as session:
         yield session
-    finally:
-        session.close()
 
 
 @contextmanager
@@ -88,19 +74,17 @@ def create_db_and_tables(engine=None):
     """Create all tables in the database.
 
     Args:
-        engine: SQLAlchemy engine (if None, creates one)
+        engine: SQLModel engine (if None, creates one)
     """
     if engine is None:
         engine = get_engine()
 
-    Base.metadata.create_all(engine)
+    # Using SQLModel's metadata to create tables
+    SQLModel.metadata.create_all(engine)
 
 
 class SessionManager:
-    """Session manager for database operations.
-
-    This class provides a context manager for database sessions.
-    """
+    """Session manager for database operations."""
 
     def __init__(self):
         """Initialize the session manager."""
@@ -112,8 +96,8 @@ class SessionManager:
         Returns:
             Session: Database session
         """
-        self.session_generator = get_session()
-        self.session = next(self.session_generator)
+        engine = get_engine()
+        self.session = Session(engine)
         return self.session
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -124,10 +108,12 @@ class SessionManager:
             exc_val: Exception value
             exc_tb: Exception traceback
         """
-        try:
-            next(self.session_generator, None)
-        except StopIteration:
-            pass
+        if self.session:
+            if exc_type:
+                self.session.rollback()
+            else:
+                self.session.commit()
+            self.session.close()
 
 
 def with_session(func: F) -> F:
@@ -144,12 +130,11 @@ def with_session(func: F) -> F:
     Returns:
         Decorated function
     """
-
     def wrapper(*args, session: Optional[Session] = None, **kwargs):
         """Execute function with session management.
 
         Args:
-            session: SQLAlchemy session
+            session: SQLModel session
             *args: Positional arguments
             **kwargs: Keyword arguments
 

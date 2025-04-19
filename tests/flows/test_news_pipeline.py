@@ -8,7 +8,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from src.local_newsifier.tools.web_scraper import WebScraperTool
+from local_newsifier.tools.web_scraper import WebScraperTool
 
 
 @pytest.fixture(scope="session")

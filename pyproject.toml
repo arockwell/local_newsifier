@@ -33,8 +33,13 @@ isort = "^5.13.2"
 flake8 = "^7.0.0"
 flake8-docstrings = "^1.7.0"
 
-# Add pytest warning filters for known deprecation warnings from dependencies
+# Add pytest warning filters and configuration
 [tool.pytest.ini_options]
+# Don't collect scripts directory or loose test files at project root
+testpaths = ["tests"]
+norecursedirs = ["scripts"]
+python_files = ["test_*.py", "*_test.py"]
+
 filterwarnings = [
     # Pydantic V2 deprecation warning about class-based config
     "ignore::pydantic.warnings.PydanticDeprecatedSince20:",

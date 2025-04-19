@@ -1,31 +1,60 @@
-"""Article models for the news analysis system."""
+"""Article model for the news analysis system."""
 
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.database.base import Base
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
+# Handle circular imports
+if TYPE_CHECKING:
+    from local_newsifier.models.database.entity import Entity
+    from local_newsifier.models.database.analysis_result import AnalysisResult
 
-class ArticleDB(Base):
-    """Database model for articles."""
+
+class Article(SQLModel, table=True):
+    """SQLModel for articles - serves as both ORM model and Pydantic schema."""
 
     __tablename__ = "articles"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=False)
-    url = Column(String(512), nullable=False, unique=True)
-    source = Column(String(255), nullable=False)
-    published_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(String(50), nullable=False)
-    scraped_at = Column(DateTime, nullable=False)
-
-    # Define relationships
-    entities = relationship("EntityDB", back_populates="article")
-    analysis_results = relationship("AnalysisResultDB", back_populates="article")
+    
+    # Handle multiple imports during test collection
+    __table_args__ = {"extend_existing": True}
+    
+    # Primary key and timestamps
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
+    )
+    
+    # Article fields
+    title: str
+    content: str
+    url: str = Field(unique=True)
+    source: str
+    published_at: datetime
+    status: str
+    scraped_at: datetime
+    
+    # Define relationships with fully qualified paths
+    entities: List["local_newsifier.models.database.entity.Entity"] = Relationship(back_populates="article")
+    analysis_results: List["local_newsifier.models.database.analysis_result.AnalysisResult"] = Relationship(back_populates="article")
+    
+    # Model configuration for both SQLModel and Pydantic functionality
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "title": "Sample Article",
+                    "content": "This is a sample article content.",
+                    "url": "https://example.com/sample",
+                    "source": "Example News",
+                    "published_at": "2023-01-01T00:00:00Z",
+                    "status": "new",
+                    "scraped_at": "2023-01-01T01:00:00Z",
+                }
+            ]
+        }
+    }

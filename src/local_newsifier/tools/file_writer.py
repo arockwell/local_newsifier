@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
-from ..models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 
 class FileWriterTool:

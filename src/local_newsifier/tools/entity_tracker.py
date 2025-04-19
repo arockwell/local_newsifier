@@ -6,19 +6,19 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from ..database.engine import with_session
-from ..crud.entity import entity as entity_crud
-from ..crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from ..crud.entity_profile import entity_profile as entity_profile_crud
-from ..crud.canonical_entity import canonical_entity as canonical_entity_crud
-from ..models.pydantic_models import ArticleCreate, EntityCreate, Entity
-from ..models.entity_tracking import (
-    CanonicalEntityCreate, EntityMentionContextCreate, EntityProfileCreate
+from local_newsifier.database.engine import with_session
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity_tracking import (
+    CanonicalEntity, EntityMentionContext, EntityProfile
 )
-from .entity_resolver import EntityResolver
-from .context_analyzer import ContextAnalyzer
+from local_newsifier.tools.entity_resolver import EntityResolver
+from local_newsifier.tools.context_analyzer import ContextAnalyzer
 
 
 class EntityTracker:
@@ -166,8 +166,8 @@ class EntityTracker:
         if session is None and self.session is not None:
             session = self.session
             
-        # Store entity
-        entity_data = EntityCreate(
+        # Store entity using SQLModel
+        entity_data = Entity(
             article_id=article_id,
             text=entity_text,
             entity_type="PERSON",
@@ -176,8 +176,8 @@ class EntityTracker:
         
         entity = entity_crud.create(session, obj_in=entity_data)
         
-        # Store entity mention context
-        context_data = EntityMentionContextCreate(
+        # Store entity mention context using SQLModel
+        context_data = EntityMentionContext(
             entity_id=entity.id,
             article_id=article_id,
             context_text=context_text,
@@ -236,8 +236,8 @@ class EntityTracker:
             if len(contexts) < 10:  # Limit to 10 sample contexts
                 contexts.append(context_text)
 
-            # Update profile
-            profile_data = EntityProfileCreate(
+            # Update profile using SQLModel
+            profile_data = EntityProfile(
                 canonical_entity_id=canonical_entity_id,
                 profile_type="summary",
                 content=f"Entity {entity_text} has been mentioned {mention_count} times.",
@@ -266,8 +266,8 @@ class EntityTracker:
             
             entity_profile_crud.update_or_create(session, obj_in=profile_data)
         else:
-            # Create new profile
-            profile_data = EntityProfileCreate(
+            # Create new profile using SQLModel
+            profile_data = EntityProfile(
                 canonical_entity_id=canonical_entity_id,
                 profile_type="summary",
                 content=f"Entity {entity_text} has been mentioned once.",

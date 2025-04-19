@@ -2,17 +2,13 @@
 
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.pydantic_models import (AnalysisResult,
-                                                    AnalysisResultCreate)
+from local_newsifier.models.database.analysis_result import AnalysisResult
 
 
-class CRUDAnalysisResult(
-    CRUDBase[AnalysisResultDB, AnalysisResultCreate, AnalysisResult]
-):
+class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
     """CRUD operations for analysis results."""
 
     def get_by_article(
@@ -27,12 +23,9 @@ class CRUDAnalysisResult(
         Returns:
             List of analysis results for the article
         """
-        db_results = (
-            db.query(AnalysisResultDB)
-            .filter(AnalysisResultDB.article_id == article_id)
-            .all()
-        )
-        return [AnalysisResult.model_validate(result) for result in db_results]
+        statement = select(AnalysisResult).where(AnalysisResult.article_id == article_id)
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_by_article_and_type(
         self, db: Session, *, article_id: int, analysis_type: str
@@ -47,15 +40,13 @@ class CRUDAnalysisResult(
         Returns:
             Analysis result if found, None otherwise
         """
-        db_result = (
-            db.query(AnalysisResultDB)
-            .filter(
-                AnalysisResultDB.article_id == article_id,
-                AnalysisResultDB.analysis_type == analysis_type,
-            )
-            .first()
+        statement = select(AnalysisResult).where(
+            AnalysisResult.article_id == article_id,
+            AnalysisResult.analysis_type == analysis_type
         )
-        return AnalysisResult.model_validate(db_result) if db_result else None
+        results = db.execute(statement)
+        result = results.first()
+        return result[0] if result else None
 
 
-analysis_result = CRUDAnalysisResult(AnalysisResultDB, AnalysisResult)
+analysis_result = CRUDAnalysisResult(AnalysisResult)

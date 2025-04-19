@@ -4,10 +4,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
-from ..database.engine import with_session
-from ..models.sentiment import SentimentVisualizationData
+from local_newsifier.database.engine import with_session
+from local_newsifier.models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class OpinionVisualizerTool:
         Initialize the opinion visualizer.
 
         Args:
-            session: Optional SQLAlchemy session
+            session: Optional SQLModel session
         """
         self.session = session
 
@@ -50,19 +50,18 @@ class OpinionVisualizerTool:
         session = session or self.session
 
         # Import necessary classes here to avoid circular imports
-        from ..models.database import AnalysisResultDB, ArticleDB
+        from ..models.database.analysis_result import AnalysisResult
+        from ..models.database.article import Article
         
-        # Get analysis results for the topic
-        analysis_results = (
-            session.query(AnalysisResultDB)
-            .filter(
-                AnalysisResultDB.analysis_type == "SENTIMENT",
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
-            .join(ArticleDB)
-            .all()
-        )
+        # Get analysis results for the topic using SQLModel syntax
+        statement = select(AnalysisResult).where(
+            AnalysisResult.analysis_type == "SENTIMENT",
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).join(Article)
+        
+        results = session.execute(statement)
+        analysis_results = results.all()
 
         # Process results into time periods
         time_periods = []

@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
-from src.local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-from src.local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 @pytest.fixture
 def mock_session():

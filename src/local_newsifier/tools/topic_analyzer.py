@@ -6,12 +6,13 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from ..models.database import AnalysisResultDB, ArticleDB
-from ..models.trend import TimeFrame, TopicFrequency
-from .historical_aggregator import HistoricalDataAggregator
-from ..database.engine import with_session
+from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.database.engine import with_session
 
 
 class TopicFrequencyAnalyzer:
@@ -25,7 +26,7 @@ class TopicFrequencyAnalyzer:
             data_aggregator: Optional HistoricalDataAggregator instance.
                              If not provided, a new one will be created.
         """
-        self.data_aggregator = data_aggregator or HistoricalDataAggregator()
+        self.data_aggregator = data_aggregator if data_aggregator is not None else HistoricalDataAggregator()
 
     def calculate_statistical_significance(
         self,

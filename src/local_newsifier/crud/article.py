@@ -1,16 +1,15 @@
 """CRUD operations for articles."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.pydantic_models import Article, ArticleCreate
+from local_newsifier.models.database.article import Article
 
 
-class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
+class CRUDArticle(CRUDBase[Article]):
     """CRUD operations for articles."""
 
     def get_by_url(self, db: Session, *, url: str) -> Optional[Article]:
@@ -23,10 +22,13 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Article if found, None otherwise
         """
-        db_article = db.query(ArticleDB).filter(ArticleDB.url == url).first()
-        return Article.model_validate(db_article) if db_article else None
+        statement = select(Article).where(Article.url == url)
+        results = db.exec(statement)
+        return results.first()
 
-    def create(self, db: Session, *, obj_in: ArticleCreate) -> Article:
+    def create(
+        self, db: Session, *, obj_in: Union[Dict[str, Any], Article]
+    ) -> Article:
         """Create a new article.
 
         Args:
@@ -36,18 +38,21 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Created article
         """
-        article_data = obj_in.model_dump()
-        if (
-            "scraped_at" not in article_data
-            or article_data["scraped_at"] is None
-        ):
+        # Handle dict or model instance
+        if isinstance(obj_in, dict):
+            article_data = obj_in
+        else:
+            article_data = obj_in.model_dump(exclude_unset=True)
+            
+        # Add scraped_at if not provided
+        if "scraped_at" not in article_data or article_data["scraped_at"] is None:
             article_data["scraped_at"] = datetime.now(timezone.utc)
 
-        db_article = ArticleDB(**article_data)
+        db_article = Article(**article_data)
         db.add(db_article)
         db.commit()
         db.refresh(db_article)
-        return Article.model_validate(db_article)
+        return db_article
 
     def update_status(
         self, db: Session, *, article_id: int, status: str
@@ -62,14 +67,15 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             Updated article if found, None otherwise
         """
-        db_article = (
-            db.query(ArticleDB).filter(ArticleDB.id == article_id).first()
-        )
+        statement = select(Article).where(Article.id == article_id)
+        db_article = db.exec(statement).first()
+        
         if db_article:
             db_article.status = status
+            db.add(db_article)
             db.commit()
             db.refresh(db_article)
-            return Article.model_validate(db_article)
+            return db_article
         return None
 
     def get_by_status(self, db: Session, *, status: str) -> List[Article]:
@@ -82,10 +88,8 @@ class CRUDArticle(CRUDBase[ArticleDB, ArticleCreate, Article]):
         Returns:
             List of articles with the specified status
         """
-        db_articles = (
-            db.query(ArticleDB).filter(ArticleDB.status == status).all()
-        )
-        return [Article.model_validate(article) for article in db_articles]
+        statement = select(Article).where(Article.status == status)
+        return db.exec(statement).all()
 
 
-article = CRUDArticle(ArticleDB, Article)
+article = CRUDArticle(Article)

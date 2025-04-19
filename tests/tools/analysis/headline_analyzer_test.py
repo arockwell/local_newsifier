@@ -7,22 +7,34 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 import logging
-from sqlalchemy.orm import sessionmaker, Session
+from sqlmodel import Session
 
-from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
-from src.local_newsifier.models.database import ArticleDB, Base
+from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.models.database.article import Article
 
 logger = logging.getLogger(__name__)
+
+# Replace actual spaCy loading with mock for this module
+@pytest.fixture(autouse=True)
+def mock_spacy_load(monkeypatch):
+    """Mock spaCy.load for all tests in this module."""
+    def mock_load(model_name):
+        # Return a mock model
+        mock_model = MagicMock()
+        # Configure the mock to handle the __call__ method
+        mock_model.side_effect = lambda text: MagicMock(
+            noun_chunks=[],
+            ents=[]
+        )
+        return mock_model
+    
+    monkeypatch.setattr("spacy.load", mock_load)
 
 @pytest.fixture(scope="function")
 def test_session(test_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=test_engine)
-    session = Session()
-    
-    yield session
-    
-    session.close()
+    with Session(test_engine) as session:
+        yield session
 
 @pytest.fixture
 def mock_nlp():
@@ -59,7 +71,7 @@ def test_headline_analyzer_with_real_db(test_session, mock_nlp):
         # Create test articles
         now = datetime.now()
         articles = [
-            ArticleDB(
+            Article(
                 url=f"https://example.com/article{i}",
                 title=f"Test Article {i}",
                 content=f"Content {i}",
@@ -115,7 +127,7 @@ def test_headline_analyzer_with_real_db_and_trends(test_session, mock_nlp, caplo
             num_articles = i + 1  # 1 on day 1, 2 on day 2, 3 on day 3
             for j in range(num_articles):
                 articles.append(
-                    ArticleDB(
+                    Article(
                         url=f"https://example.com/article{i}_{j}",
                         title=f"Trending Topic Test",  # Use exact same term to ensure trend
                         content=f"Content {i}_{j}",
@@ -163,7 +175,7 @@ def test_headline_analyzer_with_real_db_and_noise(test_session, mock_nlp):
         # Add some articles with noisy terms (appearing only once or twice)
         for i in range(2):
             articles.append(
-                ArticleDB(
+                Article(
                     url=f"https://example.com/noise{i}",
                     title=f"Noisy Term {i}",
                     content=f"Content {i}",
@@ -251,14 +263,8 @@ class TestHeadlineTrendAnalyzer:
             article.title = f"Test headline {i+1}"
             mock_articles.append(article)
             
-        # Set up the mock database query
-        mock_query = MagicMock()
-        mock_filter = MagicMock()
-        mock_order_by = MagicMock()
-        mock_order_by.all.return_value = mock_articles
-        mock_filter.order_by.return_value = mock_order_by
-        mock_query.filter.return_value = mock_filter
-        mock_session.query.return_value = mock_query
+        # Set up the mock database query for SQLModel
+        mock_session.exec.return_value.all.return_value = mock_articles
         
         # Call the method with mock_session
         result = analyzer.get_headlines_by_period(start_date, end_date, "day", session=mock_session)

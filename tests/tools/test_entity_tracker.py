@@ -3,14 +3,37 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from local_newsifier.models.pydantic_models import Entity, EntityCreate
+from local_newsifier.models.database.entity import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
-                                                  EntityMentionContextCreate,
-                                                  EntityProfile,
-                                                  EntityProfileCreate)
+                                                  EntityMentionContext,
+                                                  EntityProfile)
 from local_newsifier.tools.entity_tracker import EntityTracker
+
+
+# Create mock spaCy models that can be used without installing the real models
+class MockSpacyModel:
+    """Mock spaCy model for testing."""
+    
+    def __init__(self):
+        """Initialize with needed components."""
+        self.vocab = Mock()
+        self.pipeline = []
+        self.ner = Mock()
+        self.ner.return_value = []
+    
+    def __call__(self, text):
+        """Process text and return a mock Doc."""
+        return Mock(ents=[])
+
+
+# Replace actual spaCy loading with mock
+@pytest.fixture(autouse=True)
+def mock_spacy(monkeypatch):
+    """Automatically mock spaCy for all tests in this module."""
+    mock_model = MockSpacyModel()
+    monkeypatch.setattr("spacy.load", lambda model_name: mock_model)
 
 
 @patch("spacy.load")

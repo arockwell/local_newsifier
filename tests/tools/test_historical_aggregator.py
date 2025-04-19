@@ -5,9 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.models.database import ArticleDB, EntityDB
-from src.local_newsifier.models.trend import TimeFrame, TopicFrequency
-from src.local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.trend import TimeFrame, TopicFrequency
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def mock_session():
 @pytest.fixture
 def mock_database_engine():
     """Fixture to mock database engine."""
-    with patch("src.local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
         mock_session_context = MagicMock()
         mock_session = MagicMock()
         mock_session_context.__enter__.return_value = mock_session
@@ -31,7 +32,7 @@ def sample_articles():
     """Fixture providing sample article data."""
     now = datetime.now(timezone.utc)
     return [
-        ArticleDB(
+        Article(
             id=1,
             url="https://example.com/news/article1",
             title="Mayor Johnson announces new development",
@@ -40,7 +41,7 @@ def sample_articles():
             content="Article content about Mayor Johnson...",
             status="analyzed",
         ),
-        ArticleDB(
+        Article(
             id=2,
             url="https://example.com/news/article2",
             title="City Council approves downtown project",
@@ -49,7 +50,7 @@ def sample_articles():
             content="Article content about City Council...",
             status="analyzed",
         ),
-        ArticleDB(
+        Article(
             id=3,
             url="https://example.com/news/article3",
             title="Local businesses react to new development",
@@ -65,19 +66,19 @@ def sample_articles():
 def sample_entities():
     """Fixture providing sample entity data."""
     return [
-        EntityDB(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
-        EntityDB(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
-        EntityDB(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
-        EntityDB(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
+        Entity(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
+        Entity(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
+        Entity(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
+        Entity(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        Entity(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        Entity(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
     ]
 
 
 def test_init(mock_session):
     """Test HistoricalDataAggregator initialization."""
     # Test with default initialization (inject mock session as context manager)
-    with patch("src.local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
         session_context = MagicMock()
         session_context.__enter__.return_value = mock_session
         mock_get_session.return_value = session_context
@@ -142,8 +143,8 @@ def test_get_entity_frequencies(mock_session, sample_articles, sample_entities):
     assert aggregator._cache == {}
 
 
-@patch("src.local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.get_entity_frequencies")
-@patch("src.local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.calculate_date_range")
+@patch("local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.get_entity_frequencies")
+@patch("local_newsifier.tools.historical_aggregator.HistoricalDataAggregator.calculate_date_range")
 def test_get_baseline_frequencies(mock_calculate_date_range, mock_get_entity_frequencies, mock_session):
     """Test getting baseline frequencies for comparison."""
     # Setup

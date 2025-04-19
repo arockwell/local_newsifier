@@ -4,10 +4,19 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from local_newsifier.models.entity_tracking import CanonicalEntity, CanonicalEntityCreate
+from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.tools.entity_resolver import EntityResolver
+
+
+# Replace actual spaCy loading with mock
+@pytest.fixture(autouse=True)
+def mock_spacy(monkeypatch):
+    """Automatically mock spaCy for all tests in this module."""
+    mock_model = Mock()
+    mock_model.side_effect = lambda text: Mock(ents=[])
+    monkeypatch.setattr("spacy.load", lambda model_name: mock_model)
 
 
 def test_entity_resolver_normalize_name():
@@ -146,7 +155,8 @@ def test_entity_resolver_different_entity_types():
 
 
 @patch("local_newsifier.crud.canonical_entity.canonical_entity.get_by_name")
-def test_entity_resolver_find_matching_entity(mock_get_by_name):
+@patch("sqlmodel.select")
+def test_entity_resolver_find_matching_entity(mock_select, mock_get_by_name):
     """Test finding a matching entity."""
     # Setup mock to return an entity
     entity = CanonicalEntity(
@@ -159,6 +169,10 @@ def test_entity_resolver_find_matching_entity(mock_get_by_name):
         last_seen=datetime.now(timezone.utc)
     )
     mock_get_by_name.return_value = entity
+    
+    # Set up mock_select to return itself for method chaining
+    mock_select.return_value = mock_select
+    mock_select.where.return_value = mock_select
     
     # Create resolver and test
     resolver = EntityResolver()

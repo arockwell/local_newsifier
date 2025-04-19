@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 
 # We need pytest for fixtures but don't explicitly use it
 from pydantic import BaseModel
+from sqlmodel import select, SQLModel
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.pydantic_models import Article
+from local_newsifier.models.database.article import Article
 
 
 class TestCRUDBase:
@@ -15,7 +15,7 @@ class TestCRUDBase:
 
     def test_get(self, db_session, create_article):
         """Test getting a single item by ID."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.get(db_session, id=create_article.id)
 
         assert article is not None
@@ -25,7 +25,7 @@ class TestCRUDBase:
 
     def test_get_not_found(self, db_session):
         """Test getting a non-existent item by ID."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.get(db_session, id=999)
 
         assert article is None
@@ -34,7 +34,7 @@ class TestCRUDBase:
         """Test getting multiple items with pagination."""
         # Create multiple articles
         for i in range(5):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -46,7 +46,7 @@ class TestCRUDBase:
             db_session.add(article)
         db_session.commit()
 
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Test default pagination
         articles = crud.get_multi(db_session)
@@ -67,7 +67,7 @@ class TestCRUDBase:
 
     def test_create_from_dict(self, db_session, sample_article_data):
         """Test creating a new item from dictionary data."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
         article = crud.create(db_session, obj_in=sample_article_data)
 
         assert article is not None
@@ -76,45 +76,30 @@ class TestCRUDBase:
         assert article.url == sample_article_data["url"]
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article is not None
         assert db_article.title == sample_article_data["title"]
 
     def test_create_from_model(self, db_session, sample_article_data):
-        """Test creating a new item from Pydantic model data."""
-
-        class ArticleCreate(BaseModel):
-            title: str
-            content: str
-            url: str
-            source: str
-            published_at: datetime
-            status: str
-            scraped_at: datetime
-
-        obj_in = ArticleCreate(**sample_article_data)
-        crud = CRUDBase(ArticleDB, Article)
-        article = crud.create(db_session, obj_in=obj_in)
+        """Test creating a new item from SQLModel instance."""
+        # Create a SQLModel instance directly
+        article_model = Article(**sample_article_data)
+        crud = CRUDBase(Article)
+        article = crud.create(db_session, obj_in=article_model)
 
         assert article is not None
         assert article.id is not None
-        assert article.title == obj_in.title
-        assert article.url == obj_in.url
+        assert article.title == article_model.title
+        assert article.url == article_model.url
 
     def test_update(self, db_session, create_article):
         """Test updating an existing item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Get the article from the database
-        db_obj = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_obj = db_session.exec(statement).first()
 
         # Update with a dictionary
         update_data = {"title": "Updated Title", "content": "Updated content."}
@@ -129,33 +114,24 @@ class TestCRUDBase:
         assert updated_article.url == create_article.url  # Unchanged field
 
         # Verify it was saved to the database
-        db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article.title == "Updated Title"
         assert db_article.content == "Updated content."
 
     def test_update_with_model(self, db_session, create_article):
-        """Test updating an existing item with a Pydantic model."""
-
-        class ArticleUpdate(BaseModel):
-            title: str
-
-        update_data = ArticleUpdate(title="Updated with Model")
-        crud = CRUDBase(ArticleDB, Article)
+        """Test updating an existing item with a SQLModel instance."""
+        # Create an updated model
+        updated_model = Article(title="Updated with Model")
+        crud = CRUDBase(Article)
 
         # Get the article from the database
-        db_obj = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_obj = db_session.exec(statement).first()
 
-        # Update with a Pydantic model
+        # Update with a SQLModel instance
         updated_article = crud.update(
-            db_session, db_obj=db_obj, obj_in=update_data
+            db_session, db_obj=db_obj, obj_in=updated_model
         )
 
         assert updated_article is not None
@@ -167,7 +143,7 @@ class TestCRUDBase:
 
     def test_remove(self, db_session, create_article):
         """Test removing an item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Remove the article
         removed_article = crud.remove(db_session, id=create_article.id)
@@ -177,16 +153,13 @@ class TestCRUDBase:
         assert removed_article.title == create_article.title
 
         # Verify it was removed from the database
-        db_article = (
-            db_session.query(ArticleDB)
-            .filter(ArticleDB.id == create_article.id)
-            .first()
-        )
+        statement = select(Article).where(Article.id == create_article.id)
+        db_article = db_session.exec(statement).first()
         assert db_article is None
 
     def test_remove_not_found(self, db_session):
         """Test removing a non-existent item."""
-        crud = CRUDBase(ArticleDB, Article)
+        crud = CRUDBase(Article)
 
         # Try to remove a non-existent article
         removed_article = crud.remove(db_session, id=999)

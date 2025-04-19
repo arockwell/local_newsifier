@@ -1,59 +1,54 @@
 """Entity models for the news analysis system."""
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, TYPE_CHECKING
 
-from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
-from local_newsifier.models.database.base import Base
+# Handle circular imports
+if TYPE_CHECKING:
+    from local_newsifier.models.database.article import Article
 
 
-class EntityDB(Base):
-    """Database model for entities."""
+class Entity(SQLModel, table=True):
+    """SQLModel for entities extracted from articles."""
 
     __tablename__ = "entities"
-    __table_args__ = {'extend_existing': True}
+    
+    # Handle multiple imports during test collection
+    __table_args__ = {"extend_existing": True}
+    
+    # Primary key and timestamps
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
+    )
 
-    id = Column(Integer, primary_key=True)
-    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
-    text = Column(String, nullable=False)
-    entity_type = Column(String, nullable=False)
-    confidence = Column(Float, default=1.0)
-    sentence_context = Column(String)
-    created_at = Column(DateTime, default=lambda: datetime.now())
-
-    # Relationships
-    article = relationship("ArticleDB", back_populates="entities")
-
-
-class EntityBase(BaseModel):
-    """Base Pydantic model for entities."""
-
+    # Entity fields
+    article_id: int = Field(foreign_key="articles.id")
     text: str
     entity_type: str
-    confidence: float
+    confidence: float = Field(default=1.0)
     sentence_context: Optional[str] = None
-
-
-class EntityCreate(EntityBase):
-    """Pydantic model for creating entities."""
-
-    article_id: int
-
-
-class Entity(EntityBase):
-    """Pydantic model for entities with relationships."""
-
-    id: int
-    article_id: int
-
-    class Config:
-        """Pydantic config."""
-
-        from_attributes = True
-
-
-# Update forward references
-Entity.model_rebuild()
+    
+    # Define relationship with fully qualified path
+    article: Optional["local_newsifier.models.database.article.Article"] = Relationship(back_populates="entities")
+    
+    # Model configuration for both SQLModel and Pydantic functionality
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "article_id": 1,
+                    "text": "John Smith",
+                    "entity_type": "PERSON",
+                    "confidence": 0.95,
+                    "sentence_context": "John Smith announced the new policy today."
+                }
+            ]
+        }
+    }

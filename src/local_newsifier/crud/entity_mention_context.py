@@ -3,24 +3,14 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select, func
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import ArticleDB
-from local_newsifier.models.entity_tracking import (EntityMentionContext,
-                                                    EntityMentionContextCreate,
-                                                    EntityMentionContextDB,
-                                                    entity_mentions)
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.entity_tracking import EntityMentionContext, EntityMention
 
 
-class CRUDEntityMentionContext(
-    CRUDBase[
-        EntityMentionContextDB,
-        EntityMentionContextCreate,
-        EntityMentionContext,
-    ]
-):
+class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
     """CRUD operations for entity mention contexts."""
 
     def get_by_entity_and_article(
@@ -36,19 +26,13 @@ class CRUDEntityMentionContext(
         Returns:
             Entity mention context if found, None otherwise
         """
-        db_context = (
-            db.query(EntityMentionContextDB)
-            .filter(
-                EntityMentionContextDB.entity_id == entity_id,
-                EntityMentionContextDB.article_id == article_id,
-            )
-            .first()
+        statement = select(EntityMentionContext).where(
+            EntityMentionContext.entity_id == entity_id,
+            EntityMentionContext.article_id == article_id
         )
-        return (
-            EntityMentionContext.model_validate(db_context)
-            if db_context
-            else None
-        )
+        results = db.execute(statement)
+        result = results.first()
+        return result[0] if result else None
 
     def get_by_entity(
         self, db: Session, *, entity_id: int
@@ -62,15 +46,11 @@ class CRUDEntityMentionContext(
         Returns:
             List of entity mention contexts
         """
-        db_contexts = (
-            db.query(EntityMentionContextDB)
-            .filter(EntityMentionContextDB.entity_id == entity_id)
-            .all()
+        statement = select(EntityMentionContext).where(
+            EntityMentionContext.entity_id == entity_id
         )
-        return [
-            EntityMentionContext.model_validate(context)
-            for context in db_contexts
-        ]
+        results = db.execute(statement).all()
+        return [row[0] for row in results]
 
     def get_sentiment_trend(
         self,
@@ -91,42 +71,33 @@ class CRUDEntityMentionContext(
         Returns:
             List of sentiment trend entries
         """
-        results = (
-            db.query(
-                ArticleDB.published_at,
-                func.avg(EntityMentionContextDB.sentiment_score).label(
-                    "avg_sentiment"
-                ),
-            )
-            .join(
-                entity_mentions, ArticleDB.id == entity_mentions.c.article_id
-            )
-            .join(
-                EntityMentionContextDB,
-                EntityMentionContextDB.entity_id
-                == entity_mentions.c.entity_id,
-            )
-            .filter(
-                entity_mentions.c.canonical_entity_id == entity_id,
-                ArticleDB.published_at >= start_date,
-                ArticleDB.published_at <= end_date,
-            )
-            .group_by(ArticleDB.published_at)
-            .order_by(ArticleDB.published_at)
-            .all()
+        statement = select(
+            Article.published_at,
+            func.avg(EntityMentionContext.sentiment_score).label("avg_sentiment")
+        ).join(
+            EntityMention, Article.id == EntityMention.article_id
+        ).join(
+            EntityMentionContext,
+            EntityMentionContext.entity_id == EntityMention.entity_id
+        ).where(
+            EntityMention.canonical_entity_id == entity_id,
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).group_by(
+            Article.published_at
+        ).order_by(
+            Article.published_at
         )
-
+        
+        results = db.execute(statement)
+        
         return [
             {
                 "date": date,
-                "avg_sentiment": (
-                    float(sentiment) if sentiment is not None else None
-                ),
+                "avg_sentiment": float(sentiment) if sentiment is not None else None,
             }
             for date, sentiment in results
         ]
 
 
-entity_mention_context = CRUDEntityMentionContext(
-    EntityMentionContextDB, EntityMentionContext
-)
+entity_mention_context = CRUDEntityMentionContext(EntityMentionContext)

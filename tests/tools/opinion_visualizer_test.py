@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from src.local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-from src.local_newsifier.models.sentiment import SentimentVisualizationData
+from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+from local_newsifier.models.sentiment import SentimentVisualizationData
 
 
 class TestOpinionVisualizerTool:

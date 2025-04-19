@@ -1,11 +1,11 @@
 """Tests for the entity CRUD module."""
 
 # We need pytest for fixtures but don't explicitly use it
+from sqlmodel import select
 
 from local_newsifier.crud.entity import CRUDEntity
 from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.models.database.entity import EntityDB
-from local_newsifier.models.pydantic_models import Entity, EntityCreate
+from local_newsifier.models.database.entity import Entity
 
 
 class TestEntityCRUD:
@@ -13,22 +13,20 @@ class TestEntityCRUD:
 
     def test_create(self, db_session, create_article, sample_entity_data):
         """Test creating a new entity."""
-        obj_in = EntityCreate(**sample_entity_data)
-        entity = entity_crud.create(db_session, obj_in=obj_in)
+        entity = entity_crud.create(db_session, obj_in=sample_entity_data)
 
         assert entity is not None
         assert entity.id is not None
-        assert entity.text == obj_in.text
-        assert entity.entity_type == obj_in.entity_type
-        assert entity.confidence == obj_in.confidence
-        assert entity.article_id == obj_in.article_id
+        assert entity.text == sample_entity_data["text"]
+        assert entity.entity_type == sample_entity_data["entity_type"]
+        assert entity.confidence == sample_entity_data["confidence"]
+        assert entity.article_id == sample_entity_data["article_id"]
 
         # Verify it was saved to the database
-        db_entity = (
-            db_session.query(EntityDB).filter(EntityDB.id == entity.id).first()
-        )
+        statement = select(Entity).where(Entity.id == entity.id)
+        db_entity = db_session.exec(statement).first()
         assert db_entity is not None
-        assert db_entity.text == obj_in.text
+        assert db_entity.text == sample_entity_data["text"]
 
     def test_get(self, db_session, create_entity):
         """Test getting an entity by ID."""
@@ -68,7 +66,7 @@ class TestEntityCRUD:
         ]
 
         for entity_data in entities_data:
-            db_entity = EntityDB(**entity_data)
+            db_entity = Entity(**entity_data)
             db_session.add(db_entity)
         db_session.commit()
 
@@ -101,7 +99,7 @@ class TestEntityCRUD:
             "confidence": 0.9,
             "sentence_context": "Context for specific entity.",
         }
-        db_entity = EntityDB(**entity_data)
+        db_entity = Entity(**entity_data)
         db_session.add(db_entity)
         db_session.commit()
 
@@ -127,5 +125,4 @@ class TestEntityCRUD:
     def test_singleton_instance(self):
         """Test that the entity_crud is a singleton instance of CRUDEntity."""
         assert isinstance(entity_crud, CRUDEntity)
-        assert entity_crud.model == EntityDB
-        assert entity_crud.schema == Entity
+        assert entity_crud.model == Entity

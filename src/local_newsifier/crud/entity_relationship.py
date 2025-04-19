@@ -1,13 +1,11 @@
 """CRUD operations for entity relationships."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select, delete
 
-from local_newsifier.models.entity_tracking import (EntityRelationship,
-                                                    EntityRelationshipCreate,
-                                                    entity_relationships)
+from local_newsifier.models.entity_tracking import EntityRelationship
 
 
 class CRUDEntityRelationship:
@@ -32,28 +30,12 @@ class CRUDEntityRelationship:
         Returns:
             Entity relationship if found, None otherwise
         """
-        result = (
-            db.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id == source_entity_id,
-                entity_relationships.c.target_entity_id == target_entity_id,
-                entity_relationships.c.relationship_type == relationship_type,
-            )
-            .first()
+        statement = select(EntityRelationship).where(
+            EntityRelationship.source_entity_id == source_entity_id,
+            EntityRelationship.target_entity_id == target_entity_id,
+            EntityRelationship.relationship_type == relationship_type
         )
-
-        if result:
-            return EntityRelationship(
-                id=result.id,  # type: ignore
-                source_entity_id=result.source_entity_id,
-                target_entity_id=result.target_entity_id,
-                relationship_type=result.relationship_type,
-                confidence=result.confidence,
-                evidence=result.evidence,
-                created_at=result.created_at,  # type: ignore
-                updated_at=result.updated_at,  # type: ignore
-            )
-        return None
+        return db.exec(statement).first()
 
     def get_by_source_entity(
         self, db: Session, *, source_entity_id: int
@@ -67,141 +49,80 @@ class CRUDEntityRelationship:
         Returns:
             List of entity relationships
         """
-        results = (
-            db.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id == source_entity_id
-            )
-            .all()
+        statement = select(EntityRelationship).where(
+            EntityRelationship.source_entity_id == source_entity_id
         )
-
-        return [
-            EntityRelationship(
-                id=result.id,  # type: ignore
-                source_entity_id=result.source_entity_id,
-                target_entity_id=result.target_entity_id,
-                relationship_type=result.relationship_type,
-                confidence=result.confidence,
-                evidence=result.evidence,
-                created_at=result.created_at,  # type: ignore
-                updated_at=result.updated_at,  # type: ignore
-            )
-            for result in results
-        ]
+        return db.exec(statement).all()
 
     def create_or_update(
-        self, db: Session, *, obj_in: EntityRelationshipCreate
+        self, db: Session, *, obj_in: Union[EntityRelationship, Dict[str, Any]]
     ) -> EntityRelationship:
         """Create or update an entity relationship.
 
         Args:
             db: Database session
-            obj_in: Relationship data to create or update
+            obj_in: Relationship data to create or update (as model or dict)
 
         Returns:
             Created or updated relationship
         """
+        # Extract data from input (handle both model and dict inputs)
+        if isinstance(obj_in, dict):
+            source_entity_id = obj_in["source_entity_id"]
+            target_entity_id = obj_in["target_entity_id"]
+            relationship_type = obj_in["relationship_type"]
+            confidence = obj_in.get("confidence", 1.0)
+            evidence = obj_in.get("evidence")
+        else:
+            source_entity_id = obj_in.source_entity_id
+            target_entity_id = obj_in.target_entity_id
+            relationship_type = obj_in.relationship_type
+            confidence = obj_in.confidence
+            evidence = obj_in.evidence
+            
         # Check if relationship already exists
-        existing = (
-            db.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id
-                == obj_in.source_entity_id,
-                entity_relationships.c.target_entity_id
-                == obj_in.target_entity_id,
-                entity_relationships.c.relationship_type
-                == obj_in.relationship_type,
-            )
-            .first()
+        statement = select(EntityRelationship).where(
+            EntityRelationship.source_entity_id == source_entity_id,
+            EntityRelationship.target_entity_id == target_entity_id,
+            EntityRelationship.relationship_type == relationship_type
         )
+        existing = db.exec(statement).first()
 
         if existing:
-            # Update existing relationship
-            db.execute(
-                entity_relationships.update()
-                .where(
-                    entity_relationships.c.source_entity_id
-                    == obj_in.source_entity_id,
-                    entity_relationships.c.target_entity_id
-                    == obj_in.target_entity_id,
-                    entity_relationships.c.relationship_type
-                    == obj_in.relationship_type,
-                )
-                .values(
-                    confidence=obj_in.confidence,
-                    evidence=obj_in.evidence,
-                    updated_at=datetime.now(timezone.utc),
-                )
-            )
+            # Update fields of existing relationship
+            existing.confidence = confidence
+            existing.evidence = evidence
+            existing.updated_at = datetime.now(timezone.utc)
+            
+            db.add(existing)
             db.commit()
-
-            # Get the updated relationship
-            updated = (
-                db.query(entity_relationships)
-                .filter(
-                    entity_relationships.c.source_entity_id
-                    == obj_in.source_entity_id,
-                    entity_relationships.c.target_entity_id
-                    == obj_in.target_entity_id,
-                    entity_relationships.c.relationship_type
-                    == obj_in.relationship_type,
-                )
-                .first()
-            )
-
-            if updated:
-                return EntityRelationship(
-                    id=updated.id,  # type: ignore
-                    source_entity_id=updated.source_entity_id,
-                    target_entity_id=updated.target_entity_id,
-                    relationship_type=updated.relationship_type,
-                    confidence=updated.confidence,
-                    evidence=updated.evidence,
-                    created_at=updated.created_at,  # type: ignore
-                    updated_at=updated.updated_at,  # type: ignore
-                )
-
+            db.refresh(existing)
+            return existing
+        
         # Create new relationship
-        _ = db.execute(
-            entity_relationships.insert().values(
-                source_entity_id=obj_in.source_entity_id,
-                target_entity_id=obj_in.target_entity_id,
-                relationship_type=obj_in.relationship_type,
-                confidence=obj_in.confidence,
-                evidence=obj_in.evidence,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-            )
+        db_obj = EntityRelationship(
+            source_entity_id=source_entity_id,
+            target_entity_id=target_entity_id,
+            relationship_type=relationship_type,
+            confidence=confidence,
+            evidence=evidence
         )
+        
+        db.add(db_obj)
         db.commit()
-
-        # Get the created relationship
-        created = (
-            db.query(entity_relationships)
-            .filter(
-                entity_relationships.c.source_entity_id
-                == obj_in.source_entity_id,
-                entity_relationships.c.target_entity_id
-                == obj_in.target_entity_id,
-                entity_relationships.c.relationship_type
-                == obj_in.relationship_type,
-            )
-            .first()
+        db.refresh(db_obj)
+        
+        result = self.get(
+            db,
+            source_entity_id=source_entity_id,
+            target_entity_id=target_entity_id,
+            relationship_type=relationship_type,
         )
-
-        if created:
-            return EntityRelationship(
-                id=created.id,  # type: ignore
-                source_entity_id=created.source_entity_id,
-                target_entity_id=created.target_entity_id,
-                relationship_type=created.relationship_type,
-                confidence=created.confidence,
-                evidence=created.evidence,
-                created_at=created.created_at,  # type: ignore
-                updated_at=created.updated_at,  # type: ignore
-            )
-
-        raise ValueError("Failed to create entity relationship")
+        
+        if not result:
+            raise ValueError("Failed to create entity relationship")
+            
+        return result
 
     def remove(
         self,
@@ -222,15 +143,19 @@ class CRUDEntityRelationship:
         Returns:
             True if the relationship was removed, False otherwise
         """
-        result = db.execute(
-            entity_relationships.delete().where(
-                entity_relationships.c.source_entity_id == source_entity_id,
-                entity_relationships.c.target_entity_id == target_entity_id,
-                entity_relationships.c.relationship_type == relationship_type,
-            )
+        statement = select(EntityRelationship).where(
+            EntityRelationship.source_entity_id == source_entity_id,
+            EntityRelationship.target_entity_id == target_entity_id,
+            EntityRelationship.relationship_type == relationship_type
         )
-        db.commit()
-        return result.rowcount > 0
+        entity_to_delete = db.exec(statement).first()
+        
+        if entity_to_delete:
+            db.delete(entity_to_delete)
+            db.commit()
+            return True
+        
+        return False
 
 
 entity_relationship = CRUDEntityRelationship()

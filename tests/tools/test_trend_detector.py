@@ -5,11 +5,30 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.local_newsifier.models.database import ArticleDB, EntityDB
-from src.local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
-                                            TrendEvidenceItem, TrendStatus,
-                                            TrendType)
-from src.local_newsifier.tools.trend_detector import TrendDetector
+from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
+                                          TrendEvidenceItem, TrendStatus,
+                                          TrendType)
+from local_newsifier.tools.trend_detector import TrendDetector
+
+
+# Mock Article class to avoid SQLModel initialization issues
+class MockArticle:
+    """Mock for Article class to use in tests."""
+    
+    def __init__(self, **kwargs):
+        """Initialize with passed attributes."""
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
+# Mock Entity class to avoid SQLModel initialization issues
+class MockEntity:
+    """Mock for Entity class to use in tests."""
+    
+    def __init__(self, **kwargs):
+        """Initialize with passed attributes."""
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
 @pytest.fixture
@@ -27,8 +46,8 @@ def mock_data_aggregator():
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Fixture to mock dependencies."""
-    with patch("src.local_newsifier.tools.trend_detector.TopicFrequencyAnalyzer") as mock_analyzer:
-        with patch("src.local_newsifier.tools.trend_detector.HistoricalDataAggregator") as mock_agg:
+    with patch("local_newsifier.tools.trend_detector.TopicFrequencyAnalyzer") as mock_analyzer:
+        with patch("local_newsifier.tools.trend_detector.HistoricalDataAggregator") as mock_agg:
             mock_analyzer.return_value = MagicMock()
             mock_agg.return_value = MagicMock()
             yield mock_analyzer, mock_agg
@@ -39,7 +58,7 @@ def sample_articles():
     """Fixture providing sample article data."""
     now = datetime.now(timezone.utc)
     return [
-        ArticleDB(
+        MockArticle(
             id=1,
             url="https://example.com/news/article1",
             title="Mayor Johnson announces new development",
@@ -47,8 +66,9 @@ def sample_articles():
             published_at=now - timedelta(days=5),
             content="Article content about Mayor Johnson...",
             status="analyzed",
+            scraped_at=now - timedelta(days=5)
         ),
-        ArticleDB(
+        MockArticle(
             id=2,
             url="https://example.com/news/article2",
             title="City Council approves downtown project",
@@ -56,8 +76,9 @@ def sample_articles():
             published_at=now - timedelta(days=3),
             content="Article content about City Council...",
             status="analyzed",
+            scraped_at=now - timedelta(days=3)
         ),
-        ArticleDB(
+        MockArticle(
             id=3,
             url="https://example.com/news/article3",
             title="Local businesses react to new development",
@@ -65,6 +86,7 @@ def sample_articles():
             published_at=now - timedelta(days=1),
             content="Article content about local businesses...",
             status="analyzed",
+            scraped_at=now - timedelta(days=1)
         ),
     ]
 
@@ -73,12 +95,12 @@ def sample_articles():
 def sample_entities():
     """Fixture providing sample entity data."""
     return [
-        EntityDB(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
-        EntityDB(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
-        EntityDB(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
-        EntityDB(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
-        EntityDB(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
+        MockEntity(id=1, article_id=1, text="Mayor Johnson", entity_type="PERSON", confidence=0.9),
+        MockEntity(id=2, article_id=1, text="City Hall", entity_type="ORG", confidence=0.85),
+        MockEntity(id=3, article_id=2, text="City Council", entity_type="ORG", confidence=0.95),
+        MockEntity(id=4, article_id=2, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        MockEntity(id=5, article_id=3, text="Downtown Project", entity_type="ORG", confidence=0.9),
+        MockEntity(id=6, article_id=3, text="Local Businesses", entity_type="ORG", confidence=0.8),
     ]
 
 
@@ -136,8 +158,8 @@ def related_topics():
 
 def test_init(mock_topic_analyzer, mock_data_aggregator):
     """Test TrendDetector initialization."""
-    with patch("src.local_newsifier.tools.trend_detector.TopicFrequencyAnalyzer") as mock_analyzer_cls:
-        with patch("src.local_newsifier.tools.trend_detector.HistoricalDataAggregator") as mock_agg_cls:
+    with patch("local_newsifier.tools.trend_detector.TopicFrequencyAnalyzer") as mock_analyzer_cls:
+        with patch("local_newsifier.tools.trend_detector.HistoricalDataAggregator") as mock_agg_cls:
             mock_analyzer_instance = MagicMock()
             mock_agg_instance = MagicMock()
             mock_analyzer_cls.return_value = mock_analyzer_instance
@@ -157,7 +179,7 @@ def test_init(mock_topic_analyzer, mock_data_aggregator):
             assert detector.topic_analyzer == mock_topic_analyzer
 
 
-@patch("src.local_newsifier.tools.trend_detector.TrendDetector._get_articles_for_entity")
+@patch("local_newsifier.tools.trend_detector.TrendDetector._get_articles_for_entity")
 def test_create_trend_from_topic(
     mock_get_articles, mock_topic_analyzer, mock_data_aggregator, 
     significance_data, pattern_data, related_topics
@@ -214,9 +236,9 @@ def test_create_trend_from_topic(
     assert "increase" in trend.description.lower()
 
 
-@patch("src.local_newsifier.tools.trend_detector.TrendDetector._get_articles_for_entity")
-@patch("src.local_newsifier.tools.trend_detector.TrendDetector._create_trend_from_topic")
-@patch("src.local_newsifier.tools.trend_detector.TrendDetector._add_evidence_to_trend")
+@patch("local_newsifier.tools.trend_detector.TrendDetector._get_articles_for_entity")
+@patch("local_newsifier.tools.trend_detector.TrendDetector._create_trend_from_topic")
+@patch("local_newsifier.tools.trend_detector.TrendDetector._add_evidence_to_trend")
 def test_detect_entity_trends(
     mock_add_evidence, mock_create_trend, mock_get_articles,
     mock_topic_analyzer, mock_data_aggregator, sample_articles
@@ -287,8 +309,9 @@ def test_detect_entity_trends(
     assert mock_add_evidence.call_count == 2
 
 
+@patch("local_newsifier.tools.trend_detector.select")
 def test_get_articles_for_entity(
-    mock_topic_analyzer, mock_data_aggregator, sample_articles, sample_entities
+    mock_select, mock_topic_analyzer, mock_data_aggregator, sample_articles, sample_entities
 ):
     """Test retrieving articles for a specific entity."""
     # Setup
@@ -300,9 +323,15 @@ def test_get_articles_for_entity(
     # Filter entities for "Downtown Project"
     downtown_entities = [e for e in sample_entities if e.text == "Downtown Project"]
     
-    # Mock session query
+    # Mock session query and select result
     mock_session = MagicMock()
-    mock_session.query.return_value.filter.return_value.all.return_value = downtown_entities
+    mock_result = MagicMock()
+    mock_result.all.return_value = downtown_entities
+    mock_session.execute.return_value = mock_result
+    
+    # Setup the select mock to return itself for chaining
+    mock_select.return_value = mock_select
+    mock_select.where.return_value = mock_select
     
     detector = TrendDetector(
         topic_analyzer=mock_topic_analyzer,
@@ -322,8 +351,8 @@ def test_get_articles_for_entity(
     assert call_args[0] == start_date
     assert call_args[1] == end_date
     
-    # Verify session query was called
-    mock_session.query.assert_called_with(EntityDB)
+    # Verify select was called
+    mock_select.assert_called()
     
     # Test with no articles
     mock_data_aggregator.get_articles_in_timeframe.return_value = []

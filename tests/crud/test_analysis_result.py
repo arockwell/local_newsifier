@@ -1,14 +1,12 @@
 """Tests for the analysis result CRUD module."""
 
+from sqlmodel import select
+
 from local_newsifier.crud.analysis_result import CRUDAnalysisResult
 from local_newsifier.crud.analysis_result import (
     analysis_result as analysis_result_crud,
 )
-from local_newsifier.models.database.analysis_result import AnalysisResultDB
-from local_newsifier.models.pydantic_models import (
-    AnalysisResult,
-    AnalysisResultCreate,
-)
+from local_newsifier.models.database.analysis_result import AnalysisResult
 
 
 class TestAnalysisResultCRUD:
@@ -18,30 +16,26 @@ class TestAnalysisResultCRUD:
         self, db_session, create_article, sample_analysis_result_data
     ):
         """Test creating a new analysis result."""
-        obj_in = AnalysisResultCreate(**sample_analysis_result_data)
-        result = analysis_result_crud.create(db_session, obj_in=obj_in)
+        result = analysis_result_crud.create(db_session, obj_in=sample_analysis_result_data)
 
         assert result is not None
         assert result.id is not None
-        assert result.article_id == obj_in.article_id
-        assert result.analysis_type == obj_in.analysis_type
-        assert result.results == obj_in.results
+        assert result.article_id == sample_analysis_result_data["article_id"]
+        assert result.analysis_type == sample_analysis_result_data["analysis_type"]
+        assert result.results == sample_analysis_result_data["results"]
 
         # Verify it was saved to the database
-        db_result = (
-            db_session.query(AnalysisResultDB)
-            .filter(AnalysisResultDB.id == result.id)
-            .first()
-        )
+        statement = select(AnalysisResult).where(AnalysisResult.id == result.id)
+        db_result = db_session.exec(statement).first()
         assert db_result is not None
-        assert db_result.analysis_type == obj_in.analysis_type
+        assert db_result.analysis_type == sample_analysis_result_data["analysis_type"]
 
     def test_get(
         self, db_session, create_article, sample_analysis_result_data
     ):
         """Test getting an analysis result by ID."""
         # Create an analysis result
-        db_result = AnalysisResultDB(**sample_analysis_result_data)
+        db_result = AnalysisResult(**sample_analysis_result_data)
         db_session.add(db_result)
         db_session.commit()
 
@@ -76,7 +70,7 @@ class TestAnalysisResultCRUD:
         ]
 
         for result_data in results_data:
-            db_result = AnalysisResultDB(**result_data)
+            db_result = AnalysisResult(**result_data)
             db_session.add(db_result)
         db_session.commit()
 
@@ -121,7 +115,7 @@ class TestAnalysisResultCRUD:
         ]
 
         for result_data in results_data:
-            db_result = AnalysisResultDB(**result_data)
+            db_result = AnalysisResult(**result_data)
             db_session.add(db_result)
         db_session.commit()
 
@@ -150,5 +144,4 @@ class TestAnalysisResultCRUD:
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
         assert isinstance(analysis_result_crud, CRUDAnalysisResult)
-        assert analysis_result_crud.model == AnalysisResultDB
-        assert analysis_result_crud.schema == AnalysisResult
+        assert analysis_result_crud.model == AnalysisResult

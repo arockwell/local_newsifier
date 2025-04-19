@@ -3,12 +3,13 @@
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
-from sqlalchemy.orm import Session
-from ..models.database import ArticleDB, EntityDB
-from ..models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
-from .historical_aggregator import HistoricalDataAggregator
-from .topic_analyzer import TopicFrequencyAnalyzer
-from ..database.engine import with_session
+from sqlmodel import Session, select
+from local_newsifier.models.database.article import Article 
+from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
+from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
+from local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer
+from local_newsifier.database.engine import with_session
 
 
 class TrendDetector:
@@ -40,7 +41,7 @@ class TrendDetector:
         end_date: datetime,
         *,
         session: Optional[Session] = None
-    ) -> List[ArticleDB]:
+    ) -> List[Article]:
         """
         Get articles that mention a specific entity.
 
@@ -66,17 +67,15 @@ class TrendDetector:
         # Create article lookup
         article_lookup = {article.id: article for article in articles}
         
-        # Get entities matching our criteria
+        # Get entities matching our criteria using SQLModel
         matched_articles = []
-        entities = (
-            session.query(EntityDB)
-            .filter(
-                EntityDB.article_id.in_(article_ids),
-                EntityDB.entity_type == entity_type,
-                EntityDB.text == entity_text,
-            )
-            .all()
+        statement = select(Entity).where(
+            Entity.article_id.in_(article_ids),
+            Entity.entity_type == entity_type,
+            Entity.text == entity_text
         )
+        results = session.execute(statement)
+        entities = results.all()
         
         # Get unique articles
         for entity in entities:
@@ -189,7 +188,7 @@ class TrendDetector:
         return f"Unusual pattern in mentions of {entity_type.lower()} '{topic}' in local news"
 
     def _add_evidence_to_trend(
-        self, trend: TrendAnalysis, articles: List[ArticleDB]
+        self, trend: TrendAnalysis, articles: List[Article]
     ) -> TrendAnalysis:
         """
         Add evidence from articles to a trend.

@@ -1,32 +1,25 @@
-"""Base CRUD module with generic CRUD operations."""
+"""Base CRUD module with generic CRUD operations for SQLModel."""
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, Session, select
 
-from local_newsifier.models.database.base import Base
-
-ModelType = TypeVar("ModelType", bound=Base)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
-SchemaType = TypeVar("SchemaType", bound=BaseModel)
+# Type for the model class - doesn't need to be bound to TableBase anymore
+ModelType = TypeVar("ModelType", bound=SQLModel)
 
 
-class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
+class CRUDBase(Generic[ModelType]):
     """Base class for CRUD operations."""
 
-    def __init__(self, model: Type[ModelType], schema: Type[SchemaType]):
-        """Initialize with model class and schema class.
+    def __init__(self, model: Type[ModelType]):
+        """Initialize with model class.
 
         Args:
-            model: SQLAlchemy model class
-            schema: Pydantic schema class for returning data
+            model: SQLModel model class
         """
         self.model = model
-        self.schema = schema
 
-    def get(self, db: Session, id: int) -> Optional[SchemaType]:
+    def get(self, db: Session, id: int) -> Optional[ModelType]:
         """Get an item by id.
 
         Args:
@@ -36,12 +29,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         Returns:
             The item if found, None otherwise
         """
-        db_obj = db.query(self.model).filter(self.model.id == id).first()
-        return self.schema.model_validate(db_obj) if db_obj else None
+        statement = select(self.model).where(self.model.id == id)
+        results = db.exec(statement)
+        return results.first()
 
     def get_multi(
         self, db: Session, *, skip: int = 0, limit: int = 100
-    ) -> List[SchemaType]:
+    ) -> List[ModelType]:
         """Get multiple items with pagination.
 
         Args:
@@ -52,17 +46,17 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         Returns:
             List of items
         """
-        db_objs = db.query(self.model).offset(skip).limit(limit).all()
-        return [self.schema.model_validate(obj) for obj in db_objs]
+        statement = select(self.model).offset(skip).limit(limit)
+        return db.exec(statement).all()
 
     def create(
-        self, db: Session, *, obj_in: Union[CreateSchemaType, Dict[str, Any]]
-    ) -> SchemaType:
+        self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]
+    ) -> ModelType:
         """Create a new item.
 
         Args:
             db: Database session
-            obj_in: Item create data
+            obj_in: Item data as dict or model instance
 
         Returns:
             Created item
@@ -70,48 +64,48 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         if isinstance(obj_in, dict):
             obj_data = obj_in
         else:
+            # Use only SQLModel's model_dump method
             obj_data = obj_in.model_dump()
 
         db_obj = self.model(**obj_data)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        return self.schema.model_validate(db_obj)
+        return db_obj
 
     def update(
         self,
         db: Session,
         *,
         db_obj: ModelType,
-        obj_in: Union[UpdateSchemaType, Dict[str, Any]]
-    ) -> SchemaType:
+        obj_in: Union[Dict[str, Any], ModelType]
+    ) -> ModelType:
         """Update an item.
 
         Args:
             db: Database session
             db_obj: Database object to update
-            obj_in: Update data
+            obj_in: Update data as dict or model instance
 
         Returns:
             Updated item
         """
-        obj_data = db_obj.model_dump()
-
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
+            # Use only SQLModel's model_dump method
             update_data = obj_in.model_dump(exclude_unset=True)
 
-        for field in obj_data:
-            if field in update_data:
+        for field in update_data:
+            if hasattr(db_obj, field):
                 setattr(db_obj, field, update_data[field])
 
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        return self.schema.model_validate(db_obj)
+        return db_obj
 
-    def remove(self, db: Session, *, id: int) -> Optional[SchemaType]:
+    def remove(self, db: Session, *, id: int) -> Optional[ModelType]:
         """Remove an item.
 
         Args:
@@ -121,9 +115,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, SchemaType]):
         Returns:
             Removed item if found, None otherwise
         """
-        db_obj = db.query(self.model).filter(self.model.id == id).first()
+        statement = select(self.model).where(self.model.id == id)
+        db_obj = db.exec(statement).first()
         if db_obj:
             db.delete(db_obj)
             db.commit()
-            return self.schema.model_validate(db_obj)
+            return db_obj
         return None

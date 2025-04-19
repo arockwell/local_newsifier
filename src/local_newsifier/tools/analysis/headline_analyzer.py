@@ -20,11 +20,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 
 import spacy
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ...database.engine import with_session
-from ...models.database import ArticleDB
-from ...models.pydantic_models import Article
+from ...models.database.article import Article
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +70,12 @@ class HeadlineTrendAnalyzer:
         # Use provided session, instance session, or create new session
         session = session or self.session
         
-        # Query all articles in the date range
-        articles = session.query(ArticleDB).filter(
-            ArticleDB.published_at.between(start_date, end_date)
-        ).order_by(ArticleDB.published_at).all()
+        # Query all articles in the date range using SQLModel syntax
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        ).order_by(Article.published_at)
+        articles = session.exec(statement).all()
         
         # Group by time interval
         grouped_headlines = defaultdict(list)
@@ -85,7 +86,7 @@ class HeadlineTrendAnalyzer:
             interval_key = self._get_interval_key(article.published_at, interval)
             grouped_headlines[interval_key].append(article.title)
             
-        return grouped_headlines
+        return dict(grouped_headlines) # Convert defaultdict to regular dict to make test pass
     
     def extract_keywords(self, headlines: List[str], top_n: int = 50) -> List[Tuple[str, int]]:
         """

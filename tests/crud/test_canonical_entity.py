@@ -3,17 +3,16 @@
 from datetime import datetime, timedelta, timezone
 
 # We need pytest for fixtures but don't explicitly use it
+from sqlmodel import select
 
 from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
 from local_newsifier.crud.canonical_entity import (
     canonical_entity as canonical_entity_crud,
 )
-from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.database.article import Article
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
-    CanonicalEntityCreate,
-    CanonicalEntityDB,
-    entity_mentions,
+    EntityMention,
 )
 
 
@@ -22,26 +21,23 @@ class TestCanonicalEntityCRUD:
 
     def test_create(self, db_session, sample_canonical_entity_data):
         """Test creating a new canonical entity."""
-        obj_in = CanonicalEntityCreate(**sample_canonical_entity_data)
+        obj_in = sample_canonical_entity_data
         entity = canonical_entity_crud.create(db_session, obj_in=obj_in)
 
         assert entity is not None
         assert entity.id is not None
-        assert entity.name == obj_in.name
-        assert entity.entity_type == obj_in.entity_type
-        assert entity.description == obj_in.description
-        assert entity.entity_metadata == obj_in.entity_metadata
+        assert entity.name == obj_in["name"]
+        assert entity.entity_type == obj_in["entity_type"]
+        assert entity.description == obj_in["description"]
+        assert entity.entity_metadata == obj_in["entity_metadata"]
         assert entity.first_seen is not None
         assert entity.last_seen is not None
 
         # Verify it was saved to the database
-        db_entity = (
-            db_session.query(CanonicalEntityDB)
-            .filter(CanonicalEntityDB.id == entity.id)
-            .first()
-        )
+        statement = select(CanonicalEntity).where(CanonicalEntity.id == entity.id)
+        db_entity = db_session.exec(statement).first()
         assert db_entity is not None
-        assert db_entity.name == obj_in.name
+        assert db_entity.name == obj_in["name"]
 
     def test_get(self, db_session, create_canonical_entity):
         """Test getting a canonical entity by ID."""
@@ -122,14 +118,13 @@ class TestCanonicalEntityCRUD:
     ):
         """Test getting the count of mentions for an entity."""
         # Add an entity mention
-        db_session.execute(
-            entity_mentions.insert().values(
-                canonical_entity_id=create_canonical_entity.id,
-                entity_id=create_entity.id,
-                article_id=create_entity.article_id,
-                confidence=0.9,
-            )
+        entity_mention = EntityMention(
+            canonical_entity_id=create_canonical_entity.id,
+            entity_id=create_entity.id,
+            article_id=create_entity.article_id,
+            confidence=0.9,
         )
+        db_session.add(entity_mention)
         db_session.commit()
 
         # Test getting the mentions count
@@ -140,14 +135,13 @@ class TestCanonicalEntityCRUD:
         assert count == 1
 
         # Add another entity mention
-        db_session.execute(
-            entity_mentions.insert().values(
-                canonical_entity_id=create_canonical_entity.id,
-                entity_id=create_entity.id + 1,  # Using a different entity ID
-                article_id=create_entity.article_id,
-                confidence=0.85,
-            )
+        entity_mention2 = EntityMention(
+            canonical_entity_id=create_canonical_entity.id,
+            entity_id=create_entity.id + 1,  # Using a different entity ID
+            article_id=create_entity.article_id,
+            confidence=0.85,
         )
+        db_session.add(entity_mention2)
         db_session.commit()
 
         # Test getting the updated mentions count
@@ -165,7 +159,7 @@ class TestCanonicalEntityCRUD:
         articles = []
         base_date = datetime.now(timezone.utc)
         for i in range(5):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -182,24 +176,22 @@ class TestCanonicalEntityCRUD:
         # Create entity mentions for different articles
         for i, article in enumerate(articles):
             # Add entity mention for different articles
-            db_session.execute(
-                entity_mentions.insert().values(
-                    canonical_entity_id=create_canonical_entity.id,
-                    entity_id=i + 100,  # Using different entity IDs
-                    article_id=article.id,
-                    confidence=0.9,
-                )
+            entity_mention = EntityMention(
+                canonical_entity_id=create_canonical_entity.id,
+                entity_id=i + 100,  # Using different entity IDs
+                article_id=article.id,
+                confidence=0.9,
             )
+            db_session.add(entity_mention)
 
         # Add multiple mentions for one of the articles
-        db_session.execute(
-            entity_mentions.insert().values(
-                canonical_entity_id=create_canonical_entity.id,
-                entity_id=200,
-                article_id=articles[0].id,
-                confidence=0.85,
-            )
+        additional_mention = EntityMention(
+            canonical_entity_id=create_canonical_entity.id,
+            entity_id=200,
+            article_id=articles[0].id,
+            confidence=0.85,
         )
+        db_session.add(additional_mention)
         db_session.commit()
 
         # Test getting the entity timeline
@@ -235,7 +227,7 @@ class TestCanonicalEntityCRUD:
         articles = []
         base_date = datetime.now(timezone.utc)
         for i in range(5):
-            article = ArticleDB(
+            article = Article(
                 title=f"Test Article {i}",
                 content=f"This is test article {i}.",
                 url=f"https://example.com/test-article-{i}",
@@ -253,14 +245,13 @@ class TestCanonicalEntityCRUD:
         for i in range(
             0, 3
         ):  # Only mention the entity in the first 3 articles
-            db_session.execute(
-                entity_mentions.insert().values(
-                    canonical_entity_id=create_canonical_entity.id,
-                    entity_id=i + 100,
-                    article_id=articles[i].id,
-                    confidence=0.9,
-                )
+            entity_mention = EntityMention(
+                canonical_entity_id=create_canonical_entity.id,
+                entity_id=i + 100,
+                article_id=articles[i].id,
+                confidence=0.9,
             )
+            db_session.add(entity_mention)
         db_session.commit()
 
         # Test getting articles mentioning the entity
@@ -281,5 +272,4 @@ class TestCanonicalEntityCRUD:
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
         assert isinstance(canonical_entity_crud, CRUDCanonicalEntity)
-        assert canonical_entity_crud.model == CanonicalEntityDB
-        assert canonical_entity_crud.schema == CanonicalEntity
+        assert canonical_entity_crud.model == CanonicalEntity

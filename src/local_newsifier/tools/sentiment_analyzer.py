@@ -6,22 +6,19 @@ from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, Type
 
 import spacy
 from spacy.language import Language
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from ..database.engine import with_session
-from ..crud.article import article as article_crud
-from ..crud.analysis_result import analysis_result as analysis_result_crud
-from ..models.database import ArticleDB
-from ..models.pydantic_models import Article, AnalysisResult, AnalysisResultCreate
-from ..models.sentiment import (
-    SentimentAnalysis,
-    SentimentAnalysisCreate,
-    SentimentAnalysisResult,
-    SentimentAnalysisResultCreate
+from local_newsifier.database.engine import with_session
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.models.database.article import Article
+from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.sentiment import (
+    SentimentAnalysis
 )
-from ..models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 logger = logging.getLogger(__name__)
 
@@ -256,8 +253,8 @@ class SentimentAnalysisTool:
         # Analyze sentiment
         sentiment_results = self.analyze_article(article_id, session=session)
 
-        # Create analysis result
-        analysis_result = AnalysisResultCreate(
+        # Create analysis result using SQLModel
+        analysis_result = AnalysisResult(
             article_id=article_id,
             analysis_type="sentiment",
             results=sentiment_results
