@@ -101,4 +101,4 @@ class SentimentVisualizationData(SQLModel):
     sentiment_values: List[float]
     confidence_intervals: Optional[List[Dict[str, float]]] = None
     article_counts: List[int]
-    meta_data: Optional[Dict[str, Any]] = None  # Renamed from metadata to avoid conflict
+    metadata: Optional[Dict[str, Any]] = None
