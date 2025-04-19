@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from src.local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
-from src.local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
+from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
 
 
 class TestHeadlineTrendFlow:
@@ -27,7 +27,7 @@ class TestHeadlineTrendFlow:
     @pytest.fixture
     def flow(self, mock_session: MagicMock, mock_headline_analyzer: MagicMock) -> HeadlineTrendFlow:
         """Create a flow with mocked components."""
-        with patch('src.local_newsifier.tools.analysis.headline_analyzer.HeadlineTrendAnalyzer', autospec=True) as mock_analyzer_class:
+        with patch('local_newsifier.tools.analysis.headline_analyzer.HeadlineTrendAnalyzer', autospec=True) as mock_analyzer_class:
             mock_analyzer_class.return_value = mock_headline_analyzer
             flow = HeadlineTrendFlow(session=mock_session)
             flow.headline_analyzer = mock_headline_analyzer
@@ -242,7 +242,8 @@ class TestHeadlineTrendFlow:
         mock_session_generator = MagicMock()
         mock_session_generator.__next__.return_value = mock_session
         
-        with patch('src.local_newsifier.flows.analysis.headline_trend_flow.get_session', return_value=mock_session_generator):
+        # Use the correct import path for patching
+        with patch('local_newsifier.flows.analysis.headline_trend_flow.get_session', return_value=mock_session_generator):
             
             # Create flow without providing a session
             flow = HeadlineTrendFlow()
