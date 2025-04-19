@@ -155,7 +155,7 @@ def test_entity_resolver_different_entity_types():
 
 
 @patch("local_newsifier.crud.canonical_entity.canonical_entity.get_by_name")
-@patch("local_newsifier.tools.entity_resolver.select")
+@patch("sqlmodel.select")
 def test_entity_resolver_find_matching_entity(mock_select, mock_get_by_name):
     """Test finding a matching entity."""
     # Setup mock to return an entity
