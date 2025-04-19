@@ -21,16 +21,10 @@ def main():
         session_manager=session_manager
     )
     
-    # Create tools using factories
-    entity_tracker = ToolFactory.create_entity_tracker(
-        session_manager=session_manager,
-        entity_service=entity_service
-    )
-    
-    # Create flows using the tools
+    # Create flows using services directly
     entity_tracking_flow = EntityTrackingFlow(
         session_manager=session_manager,
-        entity_tracker=entity_tracker
+        entity_service=entity_service
     )
     
     # Process any new articles
@@ -63,6 +57,24 @@ def main():
         print(f"Resolved 'Joe Biden' to canonical entity: {entity['name']} (ID: {entity['id']})")
     except Exception as e:
         print(f"Error resolving entity: {e}")
+    
+    # Process an article directly with the service
+    print("\nDemonstrating direct service usage:")
+    try:
+        article_id = 1  # Assuming article ID 1 exists
+        processed = entity_service.process_article(
+            article_id=article_id,
+            content="President Joe Biden met with Vice President Kamala Harris today.",
+            title="Biden and Harris Meet",
+            published_at=datetime.datetime.now(datetime.timezone.utc)
+        )
+        print(f"Processed article directly with service, found {len(processed)} entities")
+        if processed:
+            print("\nEntities found:")
+            for entity in processed:
+                print(f"- {entity['canonical_name']} (sentiment: {entity['sentiment_score']:.2f})")
+    except Exception as e:
+        print(f"Error with direct service usage: {e}")
     
     print("\nRefactored architecture demo complete.")
 

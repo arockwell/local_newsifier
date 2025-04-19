@@ -1,4 +1,8 @@
-"""Database engine and session management using SQLModel."""
+"""Database engine and session management using SQLModel.
+
+This module provides both the old-style session management (direct sessions)
+and integration with the new SessionManager approach for backward compatibility.
+"""
 
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
@@ -6,6 +10,7 @@ from typing import Generator, Optional, Callable, TypeVar, Any
 from sqlmodel import create_engine, Session, SQLModel
 
 from local_newsifier.config.settings import get_settings
+from local_newsifier.database.session_manager import get_session_manager
 
 # Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])
@@ -15,43 +20,43 @@ T = TypeVar('T')
 def get_engine(url: Optional[str] = None):
     """Get SQLModel engine.
 
+    DEPRECATED: Use SessionManager.engine instead.
+
     Args:
         url: Database URL (if None, uses settings)
 
     Returns:
         SQLModel engine
     """
-    settings = get_settings()
-    url = url or str(settings.DATABASE_URL)
-
-    # Only add application_name for PostgreSQL
-    connect_args = {}
-    if url.startswith("postgresql:"):
-        connect_args = {"application_name": "local_newsifier"}
+    # Delegate to the SessionManager for engine creation
+    session_manager = get_session_manager()
+    
+    # If a custom URL is requested, we need to create a new session manager
+    if url is not None:
+        from local_newsifier.database.session_manager import SessionManager
+        session_manager = SessionManager(url=url)
         
-    return create_engine(
-        url,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        connect_args=connect_args,
-        echo=settings.DB_ECHO,
-    )
+    return session_manager.engine
 
 
 def get_session() -> Generator[Session, None, None]:
     """Get a database session.
 
+    DEPRECATED: Use SessionManager.session() context manager instead.
+
     Yields:
         Database session
     """
-    engine = get_engine()
-    with Session(engine) as session:
+    # Delegate to the SessionManager for session creation
+    with get_session_manager().session() as session:
         yield session
 
 
 @contextmanager
 def transaction(session: Session):
     """Transaction context manager.
+
+    DEPRECATED: SessionManager.session() context manager handles transactions.
 
     Args:
         session: Database session
@@ -73,14 +78,13 @@ def transaction(session: Session):
 def create_db_and_tables(engine=None):
     """Create all tables in the database.
 
+    DEPRECATED: Use SessionManager.create_db_and_tables() instead.
+
     Args:
         engine: SQLModel engine (if None, creates one)
     """
-    if engine is None:
-        engine = get_engine()
-
-    # Using SQLModel's metadata to create tables
-    SQLModel.metadata.create_all(engine)
+    # Delegate to SessionManager
+    get_session_manager().create_db_and_tables()
 
 
 class SessionManager:
