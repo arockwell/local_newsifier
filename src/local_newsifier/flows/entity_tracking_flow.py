@@ -14,7 +14,7 @@ from local_newsifier.crud.entity_mention_context import entity_mention_context a
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from local_newsifier.tools.entity_tracker import EntityTracker
+from local_newsifier.tools.entity_tracker_service import EntityTracker
 
 
 class EntityTrackingFlow(Flow):
@@ -207,10 +207,16 @@ class EntityTrackingFlow(Flow):
                 if article_entity.text == entity.name:
                     continue
 
-                # Resolve to canonical entity
-                canonical_entity = self.entity_tracker.entity_resolver.resolve_entity(
-                    article_entity.text, session=session
+                # Get canonical entity
+                canonical_entity = canonical_entity_crud.get_by_name(
+                    session, 
+                    name=article_entity.text, 
+                    entity_type=article_entity.entity_type
                 )
+                
+                # Skip if no canonical entity found
+                if not canonical_entity:
+                    continue
 
                 # Skip if this is still the same entity
                 if canonical_entity.id == entity_id:
