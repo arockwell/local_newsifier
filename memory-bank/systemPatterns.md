@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-Local Newsifier is evolving toward a hybrid architecture that combines the strengths of its current layered approach with improved tool APIs, a dedicated repository layer, and a service layer for business logic. The system architecture includes:
+Local Newsifier is evolving toward a hybrid architecture that combines the strengths of its current layered approach with improved tool APIs, enhanced CRUD modules, and a service layer for business logic. The system architecture includes:
 
 ### 1. Hybrid Layered Architecture
 
@@ -25,7 +25,7 @@ The system is transitioning to a hybrid layered architecture that separates conc
 └───────────┬─────────────┘
             │
 ┌───────────▼─────────────┐
-│      Repository Layer   │
+│      CRUD Layer         │
 │  (Data Access Logic)    │
 └───────────┬─────────────┘
             │
@@ -68,9 +68,9 @@ Tools are being refactored to follow the Single Responsibility Principle:
 - Tools have clear input/output contracts
 - Tools can be composed and reused flexibly
 
-### 5. Repository Pattern
+### 5. CRUD Module Pattern
 
-The repository layer abstracts database operations and provides a clean interface for data access. Each entity type has its own repository that handles:
+The CRUD layer abstracts database operations and provides a clean interface for data access. Each entity type has its own CRUD module that handles:
 
 - Creating new records
 - Retrieving existing records
@@ -131,31 +131,33 @@ class EntityService:
         self.entity_resolver = entity_resolver
 ```
 
-### 3. Repository Pattern
+### 3. CRUD Module Pattern
 
-The repository pattern provides a clean abstraction for data access:
-- Each entity type has its own repository
-- Repositories handle all database operations
-- Repositories manage transactions
-- Repositories provide specialized query methods
+The CRUD module pattern provides a clean abstraction for data access:
+- Each entity type has its own CRUD module
+- CRUD modules handle all database operations
+- CRUD modules manage transactions
+- CRUD modules provide specialized query methods
 
 Example:
 ```python
-class EntityRepository:
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
+class EntityCRUD:
+    def get_by_article(self, session, article_id):
+        statement = select(Entity).where(Entity.article_id == article_id)
+        return session.exec(statement).all()
     
-    def get_by_article(self, article_id):
-        with self.session_factory() as session:
-            statement = select(Entity).where(Entity.article_id == article_id)
-            return session.exec(statement).all()
+    def create(self, session, **data):
+        entity = Entity(**data)
+        session.add(entity)
+        session.flush()
+        return entity
 ```
 
 ### 4. Service Layer Pattern
 
 The service layer pattern coordinates business operations:
 - Services encapsulate business logic
-- Services coordinate between multiple tools and repositories
+- Services coordinate between multiple tools and CRUD modules
 - Services manage transaction boundaries
 - Services provide a clean API for flows
 
@@ -303,7 +305,7 @@ Flows orchestrate the overall processing and contain high-level orchestration lo
 
 ### 2. Service Components
 
-Services encapsulate business logic and coordinate between tools and repositories:
+Services encapsulate business logic and coordinate between tools and CRUD modules:
 
 - `ArticleService`: Manages article fetching, processing, and storage
 - `EntityService`: Manages entity extraction, resolution, and tracking
@@ -319,14 +321,14 @@ Tools implement specific processing logic:
 - `HeadlineKeywordExtractor`: Extracts keywords from headlines
 - `TrendDetector`: Detects trends in time-series data
 
-### 4. Repository Components
+### 4. CRUD Components
 
-Repositories handle database operations for specific entity types:
+CRUD modules handle database operations for specific entity types:
 
-- `ArticleRepository`: Operations for Article entities
-- `EntityRepository`: Operations for Entity entities
-- `CanonicalEntityRepository`: Operations for CanonicalEntity entities
-- `AnalysisResultRepository`: Operations for AnalysisResult entities
+- `ArticleCRUD`: Operations for Article entities
+- `EntityCRUD`: Operations for Entity entities
+- `CanonicalEntityCRUD`: Operations for CanonicalEntity entities
+- `AnalysisResultCRUD`: Operations for AnalysisResult entities
 
 ### 5. Model Components
 
@@ -341,7 +343,7 @@ Models represent the data structures used throughout the system:
 ### 1. News Article Processing Path
 
 ```
-URL Input → Flow → ArticleService → WebScraperTool → EntityExtractor → ArticleRepository → Database
+URL Input → Flow → ArticleService → WebScraperTool → EntityExtractor → ArticleCRUD → Database
 ```
 
 This path handles the core functionality of fetching and analyzing news articles.
