@@ -20,12 +20,12 @@ SQLModel.metadata.clear()
 
 # Import and register models in a specific order
 # Base models 
-from local_newsifier.models.database.base import TableBase
+from local_newsifier.models.base import TableBase
 
 # Core models
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.analysis_result import AnalysisResult
 
 # Entity tracking models
 from local_newsifier.models.entity_tracking import (
