@@ -1,76 +1,127 @@
-# Active Context
+# Active Development Context
 
 ## Current Focus
 
-We're refactoring the application to implement a hybrid architecture with improved tool APIs, CRUD modules, and a service layer. Our current focus is on consolidating analysis tools to eliminate redundancy and improve maintainability.
+We're refactoring the project to follow a hybrid architecture that improves the separation of concerns between layers:
+
+1. **Tools**: Focus only on specific processing tasks without direct database access
+2. **CRUD Modules**: Handle all database operations with consistent patterns
+3. **Services**: Coordinate between tools and CRUD modules
+4. **Flows**: Orchestrate end-to-end processes using services
+
+The goal is to have a cleaner architecture with better testability and reduced code duplication.
 
 ## Recent Changes
 
-### Consolidated Analysis Architecture
+### Consolidation of Analysis Tools
 
-We've implemented a consolidated analysis architecture that addresses several issues with our previous approach:
+- Created a new `TrendAnalyzer` tool that consolidates functionality from multiple overlapping tools
+- Implemented `AnalysisService` to coordinate between CRUD operations and analysis tools
+- Removed redundant analysis tools:
+  - HeadlineTrendAnalyzer
+  - TrendDetector
+  - TopicFrequencyAnalyzer
+  - HistoricalDataAggregator
+- Updated flow components to use the new AnalysisService instead of directly using tools
 
-1. **Created AnalysisService**:
-   - Centralized business logic for trend analysis
-   - Coordinated CRUD operations and analysis tools
-   - Encapsulated transaction management
-   - Provided a clean API for flows
+### Flow Updates
 
-2. **Consolidated TrendAnalyzer**:
-   - Combined functionality from multiple tools into a single tool
-   - Eliminated duplicated code
-   - Provided consistent APIs for different types of analysis
-   - Removed direct database access from analysis logic
+- Updated `HeadlineTrendFlow` to use AnalysisService
+- Updated `NewsTrendAnalysisFlow` to use AnalysisService
+- Both flows now delegate database operations to the service layer
 
-3. **Enhanced CRUD Operations**:
-   - Added date-based entity and article retrieval methods
-   - Implemented proper joins for cross-entity queries
-   - Ensured consistent return type handling
+### Code Cleanup
+
+- Removed ~2,700 lines of duplicated or overlapping code
+- Improved code organization with better separation of concerns
+- Simplified dependencies between components
+
+## Next Steps
+
+1. **Continue Refactoring Remaining Tools**
+   - Move direct database access from entity_tracker to the service layer
+   - Update more flows to use the service layer
+
+2. **Improve Service Layer**
+   - Add proper error handling and logging
+   - Standardize transaction management
+   - Add missing features to services
+
+3. **Update Tests**
+   - Add more unit tests for services
+   - Expand test coverage for recently modified components
+   - Ensure all tests are passing with the new architecture
 
 ## Active Decisions
 
-1. **Service Layer Implementation**:
-   - Services coordinate between CRUD operations and tools
-   - Services manage transactions and session handling
-   - Services provide a clean API for flows
+1. **Architecture Pattern**: We're using a hybrid architecture that combines repository, service layer, and pipeline processing patterns. This gives us flexibility while maintaining separation of concerns.
 
-2. **Tool API Design**:
-   - Tools no longer access the database directly
-   - Tools focus on specific data processing and analysis
-   - Tools receive needed data via parameters
-   - Tools return structured results
+2. **Transaction Management**: Session handling is now primarily managed by services using context managers for proper transaction control.
 
-3. **Database Session Management**:
-   - Using SessionManager as a context manager for proper session handling
+3. **Tool Design**: Tools only accept data as parameters and return results, without direct database access. This improves testability and follows the single responsibility principle.
 
-## Key Architectural Patterns
+4. **Flow Structure**: Flows orchestrate services but don't directly interact with CRUD operations or tools. This keeps them focused on process coordination.
 
-1. **Service Layer Pattern**: 
-   - Services coordinate business logic
-   - Services depend on CRUD operations and tools
-   - Services handle transaction management
+## Important Patterns
 
-2. **Repository Pattern** (via CRUD modules):
-   - CRUD modules encapsulate database operations
-   - CRUD modules provide a consistent interface for data access
-   - CRUD modules hide SQL implementation details
+1. **Service Initialization with Dependency Injection**
+   ```python
+   class AnalysisService:
+       def __init__(
+           self,
+           analysis_result_crud=None,
+           article_crud=None,
+           entity_crud=None,
+           session_factory=None
+       ):
+           self.analysis_result_crud = analysis_result_crud or analysis_result
+           self.article_crud = article_crud or article
+           self.entity_crud = entity_crud or entity
+           self.session_factory = session_factory or SessionManager
+   ```
 
-3. **Dependency Injection**:
-   - Services accept CRUD and tool dependencies
-   - Default implementations are provided for convenience
-   - Enables easy mocking for testing
+2. **Session Management with Context Managers**
+   ```python
+   with self.session_factory() as session:
+       # Database operations
+       # If an exception occurs, session will be rolled back
+       # Otherwise, session will be committed
+   ```
 
-## Technical Implementation Notes
+3. **Service Methods Coordinating Between CRUD and Tools**
+   ```python
+   def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
+       with self.session_factory() as session:
+           # Use CRUD to get data
+           articles = self.article_crud.get_by_date_range(
+               session, start_date, end_date
+           )
+           
+           # Use tool to analyze
+           result = self.trend_analyzer.analyze_headlines(
+               [a.title for a in articles],
+               time_interval=time_interval
+           )
+           
+           # Save results using CRUD
+           self.analysis_result_crud.create(
+               session, AnalysisResultCreate(
+                   result_type="HEADLINE_TREND",
+                   result_data=result,
+                   start_date=start_date,
+                   end_date=end_date
+               )
+           )
+           
+           return result
+   ```
 
-1. **Session Management**:
-   - `SessionManager` used for context-manager-based session handling
-   - Services use context managers for transaction management
-   - CRUD operations expect an active session to be provided
+## Learnings and Insights
 
-2. **Date-Based Queries**:
-   - Entity retrieval by date range requires joining with Article
-   - Article retrieval by date range uses published_at field
+1. **Code Duplication**: We discovered significant code duplication in our analysis tools, with similar functionality implemented in slightly different ways. Consolidating these into a single component with a clear API has improved maintainability.
 
-3. **Error Handling**:
-   - Services handle database errors and provide clean error messages
-   - Tools handle processing errors gracefully
+2. **Database Access**: Direct database access from tools made testing difficult and created tight coupling. Moving this to CRUD modules and services has simplified our architecture.
+
+3. **Session Management**: Inconsistent session handling caused issues with transactions. Standardizing on context managers has improved reliability.
+
+4. **Dependency Injection**: Using dependency injection for components makes testing much easier and allows for more flexible configurations.
