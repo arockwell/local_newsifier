@@ -8,7 +8,7 @@ from sqlmodel import Session
 from local_newsifier.crud.analysis_result import analysis_result
 from local_newsifier.crud.article import article
 from local_newsifier.crud.entity import entity
-from local_newsifier.database.engine import SessionManager
+from local_newsifier.database.engine import SessionManager, get_session
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
@@ -34,7 +34,7 @@ class AnalysisService:
         self.analysis_result_crud = analysis_result_crud or analysis_result
         self.article_crud = article_crud or article
         self.entity_crud = entity_crud or entity
-        self.session_factory = session_factory or SessionManager().get_session
+        self.session_factory = session_factory or get_session
 
     def analyze_headline_trends(
         self,

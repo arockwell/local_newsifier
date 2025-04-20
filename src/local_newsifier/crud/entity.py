@@ -1,4 +1,4 @@
- """CRUD operations for entities."""
+"""CRUD operations for entities."""
 
 from datetime import datetime
 from typing import List, Optional

@@ -99,7 +99,7 @@ class TestAnalysisService:
             ),
         ]
 
-    @patch("local_newsifier.services.analysis_service.TrendAnalyzer")
+    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_analyze_headline_trends(
         self, MockTrendAnalyzer, service, mock_session, mock_article_crud, sample_articles
     ):
@@ -136,7 +136,7 @@ class TestAnalysisService:
         mock_trend_analyzer.extract_keywords.assert_called()
         mock_trend_analyzer.detect_keyword_trends.assert_called_once()
 
-    @patch("local_newsifier.services.analysis_service.TrendAnalyzer")
+    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_analyze_headline_trends_empty(
         self, MockTrendAnalyzer, service, mock_session, mock_article_crud
     ):
@@ -153,7 +153,7 @@ class TestAnalysisService:
         assert "error" in result
         assert result["error"] == "No headlines found in the specified period"
 
-    @patch("local_newsifier.services.analysis_service.TrendAnalyzer")
+    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_detect_entity_trends(
         self,
         MockTrendAnalyzer,
@@ -175,6 +175,7 @@ class TestAnalysisService:
             name="Mayor (PERSON)",
             description="Significant increase in mentions of person 'Mayor'",
             confidence_score=0.8,
+            start_date=datetime.now(timezone.utc),
         )
         mock_trend_analyzer.detect_entity_trends.return_value = [sample_trend]
         
