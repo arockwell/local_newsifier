@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import select, SQLModel
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 
 
 class TestCRUDBase:
