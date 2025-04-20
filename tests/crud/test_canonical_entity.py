@@ -9,7 +9,7 @@ from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
 from local_newsifier.crud.canonical_entity import (
     canonical_entity as canonical_entity_crud,
 )
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
     EntityMention,

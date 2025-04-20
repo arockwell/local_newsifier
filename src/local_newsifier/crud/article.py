@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any, Union
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 
 
 class CRUDArticle(CRUDBase[Article]):

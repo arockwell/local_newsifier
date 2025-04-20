@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TimeFrame, TopicFrequency
 from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 

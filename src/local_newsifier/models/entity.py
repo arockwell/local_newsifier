@@ -7,7 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.database.article import Article
+    from local_newsifier.models.article import Article
 
 
 class Entity(SQLModel, table=True):
@@ -34,7 +34,7 @@ class Entity(SQLModel, table=True):
     sentence_context: Optional[str] = None
     
     # Define relationship with fully qualified path
-    article: Optional["local_newsifier.models.database.article.Article"] = Relationship(back_populates="entities")
+    article: Optional["local_newsifier.models.article.Article"] = Relationship(back_populates="entities")
     
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {

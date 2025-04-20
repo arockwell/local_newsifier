@@ -6,7 +6,7 @@ import psycopg2
 from pathlib import Path
 from local_newsifier.config.settings import get_cursor_db_name
 from local_newsifier.config.database import DatabaseSettings
-from local_newsifier.models.database import Base
+from local_newsifier.models.base import Base
 from sqlalchemy import create_engine
 
 # Set up logging
@@ -60,4 +60,4 @@ def init_cursor_db():
 
 if __name__ == "__main__":
     db_name = init_cursor_db()
-    logger.info(f"Successfully initialized database {db_name}") 
+    logger.info(f"Successfully initialized database {db_name}")

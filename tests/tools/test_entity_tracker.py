@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlmodel import Session
 
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity,
                                                   EntityMentionContext,
                                                   EntityProfile)

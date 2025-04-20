@@ -2,9 +2,9 @@
 
 from datetime import datetime
 
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.analysis_result import AnalysisResult
 
 
 def test_article_entity_relationship():
@@ -55,4 +55,4 @@ def test_article_analysis_result_relationship():
     
     # Verify relationships
     assert analysis_result.article == article
-    assert article.analysis_results == [analysis_result] 
+    assert article.analysis_results == [analysis_result]

@@ -10,7 +10,7 @@ import logging
 from sqlmodel import Session
 
 from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 
 logger = logging.getLogger(__name__)
 

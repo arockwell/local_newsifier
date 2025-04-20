@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.crud.article import article as article_crud
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 
 
 class TestArticleCRUD:

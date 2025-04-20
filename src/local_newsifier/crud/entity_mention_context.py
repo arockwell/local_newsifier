@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlmodel import Session, select, func
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 from local_newsifier.models.entity_tracking import EntityMentionContext, EntityMention
 
 

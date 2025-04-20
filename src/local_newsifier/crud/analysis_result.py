@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.analysis_result import AnalysisResult
 
 
 class CRUDAnalysisResult(CRUDBase[AnalysisResult]):

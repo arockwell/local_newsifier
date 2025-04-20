@@ -11,8 +11,8 @@ from local_newsifier.crud.entity_mention_context import (
 from local_newsifier.crud.entity_mention_context import (
     entity_mention_context as entity_mention_context_crud,
 )
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import (
     EntityMentionContext,
     EntityMention,

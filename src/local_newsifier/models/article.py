@@ -7,8 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.database.entity import Entity
-    from local_newsifier.models.database.analysis_result import AnalysisResult
+    from local_newsifier.models.entity import Entity
+    from local_newsifier.models.analysis_result import AnalysisResult
 
 
 class Article(SQLModel, table=True):
@@ -37,8 +37,8 @@ class Article(SQLModel, table=True):
     scraped_at: datetime
     
     # Define relationships with fully qualified paths
-    entities: List["local_newsifier.models.database.entity.Entity"] = Relationship(back_populates="article")
-    analysis_results: List["local_newsifier.models.database.analysis_result.AnalysisResult"] = Relationship(back_populates="article")
+    entities: List["local_newsifier.models.entity.Entity"] = Relationship(back_populates="article")
+    analysis_results: List["local_newsifier.models.analysis_result.AnalysisResult"] = Relationship(back_populates="article")
     
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {
