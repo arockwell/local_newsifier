@@ -68,8 +68,8 @@
 
 4. **Service Layer**
    - ✅ Entity service
-   - ⬜ Article service
-   - ⬜ Analysis service
+   - ✅ Article service
+   - ✅ News pipeline service
    - 🟡 Business logic coordination - Partial
    - 🟡 Error handling - Partial
 
@@ -117,18 +117,23 @@
 
 ### Project Phase
 
-The project is currently in the **Architecture Implementation** phase. We have successfully implemented a vertical slice of the hybrid architecture, including:
+The project is currently in the **Architecture Implementation** phase. We have successfully implemented a vertical slice of the hybrid architecture and integrated it with the existing code, including:
 
 1. **EntityService** for coordinating entity processing
-2. **Refactored EntityTracker** that uses the service
-3. **Updated EntityTrackingFlow** that uses the new tracker
-4. **Integration tests** for the complete flow
+2. **ArticleService** for article processing
+3. **NewsPipelineService** for coordinating the entire pipeline
+4. **Refactored EntityTracker** that uses the service
+5. **Updated EntityTrackingFlow** that uses the new tracker
+6. **Updated NewsPipelineFlow** that uses the service layer
+7. **Integration tests** for the complete flow
+8. **Demo script** to showcase the new service layer
 
 This vertical slice implementation validates the hybrid architecture approach and provides a pattern for implementing the rest of the architecture. The benefits we've already seen include:
 - Improved separation of concerns
 - Enhanced testability
 - Clearer business logic boundaries
 - More maintainable code organization
+- Better error handling
 
 ### Implementation Progress
 
@@ -138,6 +143,7 @@ We have made significant progress on the hybrid architecture implementation:
    - ✅ Analyzed entity processing tools to identify core responsibilities
    - ✅ Designed standardized interfaces for entity processing
    - ✅ Refactored EntityTracker to use the service layer
+   - ✅ Updated WebScraperTool to work with the service layer
    - ✅ Removed database operations from entity processing tools
    - ✅ Updated tests for refactored tools
    - 🟡 Remaining: Refactor other tool categories
@@ -151,20 +157,25 @@ We have made significant progress on the hybrid architecture implementation:
 3. **Phase 3: Service Layer Implementation**
    - ✅ Defined EntityService interface
    - ✅ Implemented EntityService
+   - ✅ Created ArticleService for article processing
+   - ✅ Created NewsPipelineService for coordinating the entire pipeline
    - ✅ Moved entity processing business logic to service
    - ✅ Implemented proper transaction boundaries
-   - ✅ Wrote tests for EntityService
+   - ✅ Wrote tests for services
    - 🟡 Remaining: Implement other services
 
 4. **Phase 4: Flow Refactoring**
    - ✅ Updated EntityTrackingFlow to use EntityService
+   - ✅ Updated NewsPipelineFlow to use the service layer
    - ✅ Simplified flow logic for entity tracking
    - ✅ Implemented consistent error handling for entity tracking
-   - ✅ Updated tests for EntityTrackingFlow
+   - ✅ Updated tests for flows
    - 🟡 Remaining: Update other flows
 
 5. **Phase 5: Documentation and Integration**
    - ✅ Created integration tests for entity processing flow
+   - ✅ Created integration tests for news pipeline flow
+   - ✅ Created demo script to showcase the new service layer
    - 🟡 Remaining: Update API documentation, create usage examples, ensure backward compatibility
 
 ### Key Metrics
@@ -176,7 +187,7 @@ We have made significant progress on the hybrid architecture implementation:
    - Flows: 85% complete
    - CRUD: 95% complete
    - Tests: 85% complete
-   - Service Layer: 20% complete
+   - Service Layer: 40% complete
 
 3. **Documentation Status**:
    - Code documentation: 85% complete
@@ -188,6 +199,7 @@ We have made significant progress on the hybrid architecture implementation:
 
 1. **Architectural Refactoring**:
    - ✅ Fixed failing tests related to set_error method in NewsAnalysisState
+   - ✅ Integrated the vertical slice with the existing code
    - Ensuring backward compatibility during refactoring
    - Maintaining test coverage during refactoring
    - Coordinating changes across multiple layers
@@ -197,12 +209,14 @@ We have made significant progress on the hybrid architecture implementation:
    - Ensuring proper transaction management
    - Handling dependencies between services
    - Balancing flexibility with simplicity
+   - Dealing with database schema issues
 
 3. **Migration Strategy**:
    - Implementing changes incrementally
    - Maintaining backward compatibility
    - Ensuring consistent patterns across the codebase
    - Managing technical debt during transition
+   - Handling database schema changes
 
 ## Evolution of Project Decisions
 
@@ -221,6 +235,8 @@ The architecture has evolved to include:
 - CRUD modules for database access
 - Comprehensive error handling and state management
 - Sophisticated entity tracking and analysis
+- Service layer for business logic and coordination
+- Improved flow orchestration
 
 ### Planned Hybrid Architecture
 
@@ -246,24 +262,29 @@ The project is moving toward:
 
 1. **Service Layer Implementation**:
    - Created EntityService to coordinate entity processing
+   - Created ArticleService for article processing
+   - Created NewsPipelineService for coordinating the entire pipeline
    - Implemented TDD approach with comprehensive tests
    - Integrated with existing CRUD operations
    - Designed for dependency injection
 
 2. **Tool Refactoring**:
    - Refactored EntityTracker to use the service layer
+   - Updated WebScraperTool to work with the service layer
    - Implemented single responsibility principle
    - Removed direct database operations from tools
    - Enhanced testability with dependency injection
 
 3. **Flow Updates**:
    - Created EntityTrackingFlow service that uses the new tracker
+   - Updated NewsPipelineFlow to use the service layer
    - Simplified flow logic to focus on orchestration
    - Improved state management with EntityTrackingState
    - Enhanced error handling
 
 4. **Integration Testing**:
    - Added integration tests for the complete entity processing flow
+   - Added integration tests for the news pipeline flow
    - Verified correct interaction between all components
    - Ensured database operations work correctly
    - Validated entity extraction, resolution, and context analysis
@@ -273,3 +294,11 @@ The project is moving toward:
    - Implemented error handling in state objects
    - Added set_error method for consistent error tracking
    - Improved audit logging for debugging
+   - Updated NewsAnalysisState to match EntityTrackingState
+
+6. **Demo Script**:
+   - Created a demo script to showcase the new service layer
+   - Implemented error handling for database schema issues
+   - Added support for processing articles from files
+   - Added support for viewing entity dashboard
+   - Demonstrated the integration of the service layer with the existing code
