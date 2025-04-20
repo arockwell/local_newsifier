@@ -1,6 +1,6 @@
 import time
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Dict, Optional, Any
 
 import requests
 from bs4 import BeautifulSoup
@@ -254,6 +254,40 @@ class WebScraperTool:
         print(f"Found {len(text_blocks)} text blocks")
         return "\n\n".join(text_blocks)
 
+    def scrape_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """
+        Scrape article content from a URL.
+        
+        Args:
+            url: URL to scrape
+            
+        Returns:
+            Dictionary with scraped content or None if scraping failed
+        """
+        try:
+            print(f"Starting scrape of URL: {url}")
+            
+            html_content = self._fetch_url(url)
+            article_text = self.extract_article_text(html_content)
+            
+            # Extract title from HTML
+            soup = BeautifulSoup(html_content, "html.parser")
+            title = soup.title.string if soup.title else "Untitled Article"
+            
+            # Clean up title
+            title = title.replace(" | Latest News", "").replace(" - Breaking News", "")
+            
+            return {
+                "title": title,
+                "content": article_text,
+                "published_at": datetime.now(UTC),
+                "url": url
+            }
+            
+        except Exception as e:
+            print(f"Error scraping URL {url}: {str(e)}")
+            return None
+    
     def scrape(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """
         Scrape article content and update state.

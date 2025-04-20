@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
+from local_newsifier.database.engine import SessionManager
 
 class EntityService:
     """Service for entity-related operations using the new refactored tools."""
@@ -64,7 +65,7 @@ class EntityService:
         
         processed_entities = []
         
-        with self.session_factory() as session:
+        with SessionManager() as session:
             # Get existing canonical entities for resolution
             existing_entities = [
                 {
