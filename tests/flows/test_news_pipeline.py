@@ -26,17 +26,24 @@ def mock_scraper():
 
 
 @pytest.fixture(scope="session")
-def mock_analyzer():
-    """Create a mock analyzer that returns successful results."""
-
-    def successful_analyze(state):
-        state.analysis_results = {"entities": {"PERSON": ["John Doe"]}}
-        state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-        return state
-
-    analyzer = Mock()
-    analyzer.analyze = Mock(side_effect=successful_analyze)
-    return analyzer
+def mock_article_service():
+    """Create a mock article service that returns successful results."""
+    
+    article_service = Mock()
+    article_service.process_article = Mock(return_value={
+        "article_id": 1,
+        "title": "Test Article",
+        "url": "https://example.com/test",
+        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+        "analysis_result": {
+            "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+            "statistics": {
+                "entity_counts": {"PERSON": 1},
+                "total_entities": 1
+            }
+        }
+    })
+    return article_service
 
 
 @pytest.fixture(scope="session")
@@ -54,14 +61,27 @@ def mock_file_writer():
 
 
 @pytest.fixture(scope="session")
-def pipeline(mock_scraper, mock_analyzer, mock_file_writer):
+def pipeline(mock_scraper, mock_article_service, mock_file_writer):
     """Create a pipeline instance with mocked components."""
-    with patch("local_newsifier.flows.news_pipeline.NERAnalyzerTool") as mock_ner:
-        mock_ner.return_value = mock_analyzer
-        pipeline = NewsPipelineFlow(output_dir="test_output")
-        pipeline.scraper = mock_scraper
-        pipeline.writer = mock_file_writer
-        return pipeline
+    pipeline = NewsPipelineFlow(output_dir="test_output")
+    pipeline.scraper = mock_scraper
+    pipeline.writer = mock_file_writer
+    pipeline.article_service = mock_article_service
+    pipeline.pipeline_service = Mock()
+    pipeline.pipeline_service.process_url = Mock(return_value={
+        "article_id": 1,
+        "title": "Test Article",
+        "url": "https://example.com/test",
+        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+        "analysis_result": {
+            "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+            "statistics": {
+                "entity_counts": {"PERSON": 1},
+                "total_entities": 1
+            }
+        }
+    })
+    return pipeline
 
 
 @pytest.fixture(autouse=True)
@@ -69,22 +89,22 @@ def reset_mocks(pipeline):
     """Reset all mocks before each test."""
     # Store original side effects
     scraper_effect = getattr(pipeline.scraper.scrape, "side_effect", None)
-    analyzer_effect = getattr(pipeline.analyzer.analyze, "side_effect", None)
+    article_service_effect = getattr(pipeline.article_service.process_article, "side_effect", None)
     writer_effect = getattr(pipeline.writer.save, "side_effect", None)
 
     # Reset mocks if they are Mock objects
     if isinstance(pipeline.scraper, Mock):
         pipeline.scraper.reset_mock()
-    if isinstance(pipeline.analyzer, Mock):
-        pipeline.analyzer.reset_mock()
+    if isinstance(pipeline.article_service, Mock):
+        pipeline.article_service.reset_mock()
     if isinstance(pipeline.writer, Mock):
         pipeline.writer.reset_mock()
 
     # Restore original side effects if they exist
     if scraper_effect is not None and isinstance(pipeline.scraper.scrape, Mock):
         pipeline.scraper.scrape.side_effect = scraper_effect
-    if analyzer_effect is not None and isinstance(pipeline.analyzer.analyze, Mock):
-        pipeline.analyzer.analyze.side_effect = analyzer_effect
+    if article_service_effect is not None and isinstance(pipeline.article_service.process_article, Mock):
+        pipeline.article_service.process_article.side_effect = article_service_effect
     if writer_effect is not None and isinstance(pipeline.writer.save, Mock):
         pipeline.writer.save.side_effect = writer_effect
 
@@ -108,7 +128,7 @@ def test_pipeline_flow_success(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_called_once()
+    pipeline.article_service.process_article.assert_called_once()
     pipeline.writer.save.assert_called_once()
 
 
@@ -129,7 +149,7 @@ def test_pipeline_resume_from_scrape_failed(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_called_once()
+    pipeline.article_service.process_article.assert_called_once()
     pipeline.writer.save.assert_called_once()
 
 
@@ -150,7 +170,7 @@ def test_pipeline_resume_from_analysis_failed(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_not_called()  # Should skip scrape
-    pipeline.analyzer.analyze.assert_called_once()
+    pipeline.article_service.process_article.assert_called_once()
     pipeline.writer.save.assert_called_once()
 
 
@@ -171,7 +191,7 @@ def test_pipeline_resume_from_save_failed(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_not_called()  # Should skip scrape
-    pipeline.analyzer.analyze.assert_not_called()  # Should skip analysis
+    pipeline.article_service.process_article.assert_not_called()  # Should skip analysis
     pipeline.writer.save.assert_called_once()
 
 
@@ -218,7 +238,7 @@ def test_pipeline_scrape_failure(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_not_called()  # Should not call analyzer after scrape failure
+    pipeline.article_service.process_article.assert_not_called()  # Should not call article service after scrape failure
     pipeline.writer.save.assert_not_called()  # Should not call writer after scrape failure
 
 
@@ -233,13 +253,11 @@ def test_pipeline_analysis_failure(pipeline):
 
     pipeline.scraper.scrape = Mock(side_effect=successful_scrape)
 
-    # Mock analyzer to fail
-    def analysis_failure(state):
-        state.status = AnalysisStatus.ANALYSIS_FAILED
-        state.set_error("analysis", Exception("Analysis error"))
-        return state
-
-    pipeline.analyzer.analyze = Mock(side_effect=analysis_failure)
+    # Mock article service to fail
+    def process_article_failure(*args, **kwargs):
+        raise Exception("Analysis error")
+        
+    pipeline.article_service.process_article = Mock(side_effect=process_article_failure)
 
     # Start pipeline
     state = pipeline.start_pipeline("https://example.com/error")
@@ -253,7 +271,7 @@ def test_pipeline_analysis_failure(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_called_once()
+    pipeline.article_service.process_article.assert_called_once()
     pipeline.writer.save.assert_not_called()  # Should not call writer after analysis failure
 
 
@@ -268,13 +286,20 @@ def test_pipeline_save_failure(pipeline):
 
     pipeline.scraper.scrape = Mock(side_effect=successful_scrape)
 
-    # Mock analyzer to succeed
-    def successful_analyze(state):
-        state.analysis_results = {"entities": {"PERSON": ["John Doe"]}}
-        state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-        return state
-
-    pipeline.analyzer.analyze = Mock(side_effect=successful_analyze)
+    # Mock article service to succeed
+    pipeline.article_service.process_article = Mock(return_value={
+        "article_id": 1,
+        "title": "Test Article",
+        "url": "https://example.com/test",
+        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+        "analysis_result": {
+            "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+            "statistics": {
+                "entity_counts": {"PERSON": 1},
+                "total_entities": 1
+            }
+        }
+    })
 
     # Mock writer to fail
     def save_failure(state):
@@ -296,7 +321,7 @@ def test_pipeline_save_failure(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_called_once()
+    pipeline.article_service.process_article.assert_called_once()
     pipeline.writer.save.assert_called_once()
 
 
@@ -325,13 +350,20 @@ def test_pipeline_retry_attempts(pipeline):
     mock_scraper = MockScraper()
     pipeline.scraper = mock_scraper
 
-    # Mock analyzer to succeed
-    def successful_analyze(state):
-        state.analysis_results = {"entities": {"PERSON": ["John Doe"]}}
-        state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-        return state
-
-    pipeline.analyzer.analyze = Mock(side_effect=successful_analyze)
+    # Mock article service to succeed
+    pipeline.article_service.process_article = Mock(return_value={
+        "article_id": 1,
+        "title": "Test Article",
+        "url": "https://example.com/test",
+        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+        "analysis_result": {
+            "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+            "statistics": {
+                "entity_counts": {"PERSON": 1},
+                "total_entities": 1
+            }
+        }
+    })
 
     # Mock writer to succeed
     def successful_save(state):
@@ -371,5 +403,5 @@ def test_pipeline_invalid_url(pipeline):
 
     # Verify component calls
     pipeline.scraper.scrape.assert_called_once()
-    pipeline.analyzer.analyze.assert_not_called()
+    pipeline.article_service.process_article.assert_not_called()
     pipeline.writer.save.assert_not_called()

@@ -93,7 +93,7 @@ class NewsPipelineFlow(Flow):
             state.status = AnalysisStatus.ANALYSIS_FAILED
             state.set_error("analysis", e)
             state.add_log(f"Error during article processing: {str(e)}")
-            raise
+            # Don't re-raise the exception, just return the state with error
 
         return state
 
