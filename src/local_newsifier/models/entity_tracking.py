@@ -5,12 +5,12 @@ from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
 from sqlmodel import SQLModel, Field, Relationship, JSON, UniqueConstraint
 
-from local_newsifier.models.database.base import TableBase
+from local_newsifier.models.base import TableBase
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.database.entity import Entity
-    from local_newsifier.models.database.article import Article
+    from local_newsifier.models.entity import Entity
+    from local_newsifier.models.article import Article
 
 
 class EntityMention(SQLModel, table=True):

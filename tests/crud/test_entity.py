@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from local_newsifier.crud.entity import CRUDEntity
 from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity import Entity
 
 
 class TestEntityCRUD:

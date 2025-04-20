@@ -6,7 +6,7 @@ from local_newsifier.crud.analysis_result import CRUDAnalysisResult
 from local_newsifier.crud.analysis_result import (
     analysis_result as analysis_result_crud,
 )
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.analysis_result import AnalysisResult
 
 
 class TestAnalysisResultCRUD:

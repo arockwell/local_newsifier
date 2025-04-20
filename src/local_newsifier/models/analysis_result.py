@@ -4,11 +4,11 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, JSON
 
-from local_newsifier.models.database.base import TableBase
+from local_newsifier.models.base import TableBase
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.database.article import Article
+    from local_newsifier.models.article import Article
 
 
 class AnalysisResult(TableBase, table=True):
@@ -24,4 +24,4 @@ class AnalysisResult(TableBase, table=True):
     results: Dict[str, Any] = Field(sa_type=JSON)
     
     # Define relationship with fully qualified path
-    article: Optional["local_newsifier.models.database.article.Article"] = Relationship(back_populates="analysis_results")
+    article: Optional["local_newsifier.models.article.Article"] = Relationship(back_populates="analysis_results")

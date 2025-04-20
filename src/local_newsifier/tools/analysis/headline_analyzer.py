@@ -23,7 +23,7 @@ import spacy
 from sqlmodel import Session, select
 
 from ...database.engine import with_session
-from ...models.database.article import Article
+from ...models.article import Article
 
 logger = logging.getLogger(__name__)
 

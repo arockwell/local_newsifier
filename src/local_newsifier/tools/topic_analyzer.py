@@ -8,8 +8,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from sqlmodel import Session
 
-from local_newsifier.models.database.analysis_result import AnalysisResult
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
 from local_newsifier.models.trend import TimeFrame, TopicFrequency
 from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 from local_newsifier.database.engine import with_session

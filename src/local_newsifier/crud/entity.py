@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity import Entity
 
 
 class CRUDEntity(CRUDBase[Entity]):

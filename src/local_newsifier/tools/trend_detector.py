@@ -4,8 +4,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 
 from sqlmodel import Session, select
-from local_newsifier.models.database.article import Article 
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.article import Article 
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 from local_newsifier.tools.historical_aggregator import HistoricalDataAggregator
 from local_newsifier.tools.topic_analyzer import TopicFrequencyAnalyzer

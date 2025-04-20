@@ -11,7 +11,7 @@ from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from local_newsifier.models.database.article import Article
+from local_newsifier.models.article import Article
 from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.entity_tracker import EntityTracker

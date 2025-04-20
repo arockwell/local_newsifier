@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Tuple, Union
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TimeFrame, TopicFrequency
 
 

@@ -13,9 +13,9 @@ from local_newsifier.database.adapter import (
     create_article, get_canonical_entities_by_type
 )
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.article import Article as ArticleDB
 from local_newsifier.models.pydantic_models import ArticleCreate
-from local_newsifier.models.database.entity import EntityCreate
+from local_newsifier.models.entity import EntityCreate
 
 # Set up logging
 logging.basicConfig(
@@ -156,4 +156,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
