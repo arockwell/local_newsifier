@@ -107,31 +107,54 @@ def process_content(content, title, url, article_service):
 
 def get_entity_dashboard(entity_service):
     """Get a dashboard of all tracked entities."""
-    with SessionManager() as session:
-        entities = canonical_entity_crud.get_all(session)
-        
-        print("\nEntity Dashboard:")
-        print(f"Total entities tracked: {len(entities)}")
-        
-        for entity in entities:
-            # Get mention count
-            mention_count = canonical_entity_crud.get_mentions_count(session, entity_id=entity.id)
+    print("\nEntity Dashboard:")
+    
+    # Get entity count
+    try:
+        with SessionManager() as session:
+            entities = canonical_entity_crud.get_all(session)
+            entity_count = len(entities)
+            print(f"Total entities tracked: {entity_count}")
             
-            print(f"\n- {entity.name} ({entity.entity_type})")
-            print(f"  Mentions: {mention_count}")
-            print(f"  First seen: {entity.first_seen}")
-            print(f"  Last seen: {entity.last_seen}")
-            
-            # Get entity profile
-            profile = entity_profile_crud.get_by_entity(session, entity_id=entity.id)
-            if profile and profile.profile_metadata:
-                metadata = profile.profile_metadata
-                if "sentiment_scores" in metadata:
-                    print(f"  Average sentiment: {metadata['sentiment_scores'].get('average', 0):.2f}")
-                if "framing_categories" in metadata and "history" in metadata["framing_categories"]:
-                    categories = metadata["framing_categories"]["history"]
-                    if categories:
-                        print(f"  Common framing: {max(set(categories), key=categories.count)}")
+            # Get entity IDs
+            entity_ids = [entity.id for entity in entities]
+    except Exception as e:
+        print(f"Error retrieving entity count: {str(e)}")
+        return
+    
+    # Process each entity by ID in a separate session
+    for entity_id in entity_ids:
+        try:
+            with SessionManager() as session:
+                # Get entity by ID
+                entity = canonical_entity_crud.get(session, id=entity_id)
+                if not entity:
+                    continue
+                    
+                # Get mention count
+                mention_count = canonical_entity_crud.get_mentions_count(session, entity_id=entity_id)
+                
+                print(f"\n- {entity.name} ({entity.entity_type})")
+                print(f"  Mentions: {mention_count}")
+                print(f"  First seen: {entity.first_seen}")
+                print(f"  Last seen: {entity.last_seen}")
+                
+                # Try to get profile
+                try:
+                    profile = entity_profile_crud.get_by_entity(session, entity_id=entity_id)
+                    if profile and profile.profile_metadata:
+                        metadata = profile.profile_metadata
+                        if "sentiment_scores" in metadata:
+                            print(f"  Average sentiment: {metadata['sentiment_scores'].get('average', 0):.2f}")
+                        if "framing_categories" in metadata and "history" in metadata["framing_categories"]:
+                            categories = metadata["framing_categories"]["history"]
+                            if categories:
+                                print(f"  Common framing: {max(set(categories), key=categories.count)}")
+                except Exception as e:
+                    print(f"  Note: Could not retrieve profile data: {str(e).split('[SQL:')[0]}")
+        except Exception as e:
+            print(f"\n- Entity ID {entity_id}")
+            print(f"  Error retrieving entity details: {str(e)}")
 
 
 def main():
@@ -162,7 +185,9 @@ def main():
             
             # Use filename as title if not provided
             title = file_path.stem.replace("_", " ").title()
-            url = f"file://{file_path.absolute()}"
+            # Add timestamp to URL to make it unique
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            url = f"file://{file_path.absolute()}?t={timestamp}"
             
             process_content(content, title, url, article_service)
         

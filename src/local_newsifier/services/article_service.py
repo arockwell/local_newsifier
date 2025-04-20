@@ -86,8 +86,8 @@ class ArticleService:
             
             analysis_result_obj = AnalysisResult(
                 article_id=article.id,
-                result_type="entity_analysis",
-                result_data=analysis_result_data
+                analysis_type="entity_analysis",
+                results=analysis_result_data  # Use the correct field name
             )
             
             analysis_result = self.analysis_result_crud.create(
@@ -134,5 +134,5 @@ class ArticleService:
                 "content": article.content,
                 "published_at": article.published_at,
                 "status": article.status,
-                "analysis_results": [result.result_data for result in analysis_results]
+                "analysis_results": [result.results for result in analysis_results]
             }

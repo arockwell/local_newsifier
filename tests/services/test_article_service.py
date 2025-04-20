@@ -91,8 +91,8 @@ def test_get_article(mock_session_manager):
         MagicMock(
             id=1,
             article_id=1,
-            result_type="entity_analysis",
-            result_data={
+                analysis_type="entity_analysis",
+                results={
                 "entities": [
                     {
                         "original_text": "John Doe",
