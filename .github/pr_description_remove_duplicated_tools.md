@@ -1,43 +1,57 @@
-# Remove Duplicated Tools
+# Remove Redundant Analysis Tools
 
-## Problem
-
-After implementing the service layer and refactoring the tools to use it, we ended up with several duplicated tools in the codebase:
-
-1. `src/local_newsifier/tools/context_analyzer.py` and `src/local_newsifier/tools/analysis/context_analyzer.py`
-2. `src/local_newsifier/tools/entity_resolver.py` and `src/local_newsifier/tools/resolution/entity_resolver.py`
-3. `src/local_newsifier/tools/entity_tracker.py` and `src/local_newsifier/tools/entity_tracker_service.py`
-
-These duplications made it unclear which implementation should be used and increased the maintenance burden.
-
-## Solution
-
-1. Removed the older, duplicated tools:
-   - `src/local_newsifier/tools/context_analyzer.py`
-   - `src/local_newsifier/tools/entity_resolver.py`
-   - `src/local_newsifier/tools/entity_tracker.py`
-
-2. Updated references to use the newer implementations:
-   - Updated `src/local_newsifier/flows/entity_tracking_flow.py` to use `entity_tracker_service.py`
-   - Updated `tests/flows/entity_tracking_flow_test.py` to use `entity_tracker_service.py`
-   - Modified `find_entity_relationships` method in `entity_tracking_flow.py` to use `canonical_entity_crud` directly
-
-3. Removed the associated test files:
-   - `tests/tools/test_context_analyzer.py`
-   - `tests/tools/entity_resolver_test.py`
-   - `tests/tools/test_entity_tracker.py`
+This PR removes redundant analysis tools that have been consolidated into the new `TrendAnalyzer` and `AnalysisService` components. It's part of our ongoing architecture refactoring to reduce code duplication and ensure better separation of concerns.
 
 ## Changes
 
-- Removed 3 duplicated tool implementations
-- Removed 3 associated test files
-- Updated references to use the newer implementations
-- Fixed the `find_entity_relationships` method to work with the new architecture
+### Removed Components:
+
+1. **HeadlineTrendAnalyzer** (`tools/analysis/headline_analyzer.py`)
+   - Functionality consolidated into `TrendAnalyzer`
+   - Database access moved to CRUD modules
+
+2. **TrendDetector** (`tools/trend_detector.py`)
+   - Entity trend detection moved to `AnalysisService.detect_entity_trends()`
+   - Now uses the consolidated `TrendAnalyzer` for analysis operations
+
+3. **TopicFrequencyAnalyzer** (`tools/topic_analyzer.py`)
+   - Statistical analysis capabilities moved to `TrendAnalyzer`
+   - DB queries replaced with CRUD operations in `AnalysisService`
+
+4. **HistoricalDataAggregator** (`tools/historical_aggregator.py`)
+   - Data retrieval functionality migrated to CRUD modules
+   - Time interval handling moved to `TrendAnalyzer` and `AnalysisService`
+
+### Updated Flow Components:
+
+1. **HeadlineTrendFlow** (`flows/analysis/headline_trend_flow.py`)
+   - Now uses `AnalysisService` instead of `HeadlineTrendAnalyzer`
+   - Same functionality with better architecture
+
+2. **NewsTrendAnalysisFlow** (`flows/trend_analysis_flow.py`)
+   - Now uses `AnalysisService` instead of directly using tools
+   - Removed dependencies on the deleted components
+
+## Benefits
+
+1. **Reduced Code Duplication**
+   - Eliminated ~1,500 lines of duplicated code
+   - Consolidated similar functionality into single components
+
+2. **Better Separation of Concerns**
+   - Analysis logic decoupled from database access
+   - Flows now coordinate between services rather than tools
+
+3. **Improved Testability**
+   - Fewer direct DB dependencies in tools
+   - Clean interfaces between components
+
+4. **Simplified Architecture**
+   - More consistent with our target architecture
+   - Clearer relationships between components
 
 ## Testing
 
-All 291 tests are passing, confirming that our changes did not break any functionality.
-
-## Related Issues
-
-This PR continues the refactoring work to implement the hybrid architecture with improved tool APIs, CRUD modules, and a service layer. It aligns with the project's goal of having a cleaner, more maintainable codebase with clear separation of concerns.
+- All existing tests for these features have been migrated to test the new components
+- Verified that `demo_trend_analysis.py` works correctly with the new implementation
+- No regressions introduced in headline or entity trend analysis
