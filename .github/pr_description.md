@@ -20,6 +20,9 @@ We had successfully implemented a vertical slice of the refactored architecture 
 - Updated `NewsPipelineFlow` to use the service layer
 - Added integration tests for the updated components
 - Created a demo script to showcase the new service layer
+- Fixed database integration issues with proper field names in models
+- Improved error handling in the demo script for database schema issues
+- Added support for processing articles from files with unique URLs
 
 ## Testing
 
