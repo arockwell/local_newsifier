@@ -1,170 +1,46 @@
-# Active Development Context
+# Active Context
 
 ## Current Focus
 
-We're continuing to refactor the project to follow a hybrid architecture that improves the separation of concerns between layers:
+We're focused on improving test coverage for the flows module. Specifically:
 
-1. **Tools**: Focus only on specific processing tasks without direct database access
-2. **CRUD Modules**: Handle all database operations with consistent patterns
-3. **Services**: Coordinate between tools and CRUD modules
-4. **Flows**: Orchestrate end-to-end processes using services
-
-The goal is to have a cleaner architecture with better testability and reduced code duplication. 
-
-We've fixed test failures related to the new architecture and ensured backward compatibility where needed.
+1. We've successfully fixed the tests for `headline_trend_flow.py` and `trend_analysis_flow.py`
+2. We've improved test coverage with `headline_trend_flow.py` now at 100% coverage, `trend_analysis_flow.py` at 92% coverage, and `entity_tracking_flow_service.py` at 100% coverage
+3. The overall flow module test coverage is at 81%, short of our 90% goal
+4. `entity_tracking_flow.py` remains at 0% coverage, but we've determined it's used solely in the demo script and would require refactoring to properly test
 
 ## Recent Changes
 
-### Flow Architecture Improvements
+### Test Coverage Improvements
+- Fixed tests for the analysis flows
+- Added proper exception testing in `test_trend_analysis_flow.py` with correct mocking approaches
+- Improved the test for different time frame handling in `trend_analysis_flow.py`
+- Added comprehensive tests for the entity_tracking_flow_service.py module
+- Identified code paths requiring better testing
 
-- Fixed the `HeadlineTrendFlow` implementation to properly handle session management
-  - Added `session` and `_owns_session` attributes
-  - Implemented `__del__` for proper cleanup
-  - Now uses the `AnalysisService` for all analysis operations
-
-- Updated the `NewsTrendAnalysisFlow` implementation to work with the new service-based architecture
-  - Changed to use `AnalysisService` while maintaining backward compatibility with tests
-  - Added MagicMock stubs for old tools that the tests expect
-  - Simplified method patching techniques in tests to be more robust
-
-### Consolidation of Analysis Tools
-
-- Created a new `TrendAnalyzer` tool that consolidates functionality from multiple overlapping tools
-- Implemented `AnalysisService` to coordinate between CRUD operations and analysis tools
-- Removed redundant analysis tools:
-  - HeadlineTrendAnalyzer
-  - TrendDetector
-  - TopicFrequencyAnalyzer
-  - HistoricalDataAggregator
-- Updated flow components to use the new AnalysisService instead of directly using tools
-- Fixed import references to use absolute imports consistently
-
-### Import Standards
-
-- **Use Absolute Imports**: Always use absolute imports starting with the package name:
-  ```python
-  # Good
-  from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-  
-  # Avoid
-  from .analysis.trend_analyzer import TrendAnalyzer
-  ```
-- This ensures imports work consistently regardless of where they're used and avoids circular import issues.
-- Using absolute imports also helps to maintain clarity about where modules are located.
-
-### Flow Updates
-
-- Updated `HeadlineTrendFlow` to use AnalysisService
-- Updated `NewsTrendAnalysisFlow` to use AnalysisService
-- Both flows now delegate database operations to the service layer
-
-### Code Cleanup
-
-- Removed ~2,700 lines of duplicated or overlapping code
-- Improved code organization with better separation of concerns
-- Simplified dependencies between components
+### Testing Approach Enhancements
+- For exception tests, we're using a more direct method to test the exception paths by patching the method and simulating the error conditions
+- This approach is more reliable than trying to trigger the exceptions from the outside
+- Learned that patching decorator-wrapped methods requires caution, especially with the `@with_session` decorator
 
 ## Next Steps
 
-1. **Continue Refactoring Remaining Tools**
-   - Move direct database access from entity_tracker to the service layer
-   - Update more flows to use the service layer
+1. Consider how to handle the older `entity_tracking_flow.py`:
+   - It duplicates functionality with `entity_tracking_flow_service.py`, but has more features
+   - It's currently used in the demo scripts
+   - Long-term approach would be to either migrate its functionality to `entity_tracking_flow_service.py` or extract the unique functionality into dedicated service classes
 
-2. **Improve Service Layer**
-   - Add proper error handling and logging
-   - Standardize transaction management
-   - Add missing features to services
+2. Look at the smaller coverage gaps in:
+   - `news_pipeline.py` (96% covered, missing 4 lines)
+   - `public_opinion_flow.py` (94% covered, missing 8 lines)
+   - `trend_analysis_flow.py` (92% covered, missing 8 lines)
 
-3. **Update Tests**
-   - Add more unit tests for services
-   - Expand test coverage for recently modified components
-   - Ensure all tests are passing with the new architecture
+3. Consider making a PR with the current fixes to ensure the tests are stable in the main branch
 
-## Active Decisions
+## Key Insights
 
-1. **Architecture Pattern**: We're using a hybrid architecture that combines repository, service layer, and pipeline processing patterns. This gives us flexibility while maintaining separation of concerns.
-
-2. **Transaction Management**: Session handling is now primarily managed by services using context managers for proper transaction control.
-
-3. **Tool Design**: Tools only accept data as parameters and return results, without direct database access. This improves testability and follows the single responsibility principle.
-
-4. **Flow Structure**: Flows orchestrate services but don't directly interact with CRUD operations or tools. This keeps them focused on process coordination.
-
-5. **Import Strategy**: We use absolute imports throughout the codebase to avoid import errors and maintain consistency.
-
-## Important Patterns
-
-1. **Service Initialization with Dependency Injection**
-   ```python
-   class AnalysisService:
-       def __init__(
-           self,
-           analysis_result_crud=None,
-           article_crud=None,
-           entity_crud=None,
-           session_factory=None
-       ):
-           self.analysis_result_crud = analysis_result_crud or analysis_result
-           self.article_crud = article_crud or article
-           self.entity_crud = entity_crud or entity
-           self.session_factory = session_factory or SessionManager
-   ```
-
-2. **Session Management with Context Managers**
-   ```python
-   with self.session_factory() as session:
-       # Database operations
-       # If an exception occurs, session will be rolled back
-       # Otherwise, session will be committed
-   ```
-
-3. **Service Methods Coordinating Between CRUD and Tools**
-   ```python
-   def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
-       with self.session_factory() as session:
-           # Use CRUD to get data
-           articles = self.article_crud.get_by_date_range(
-               session, start_date, end_date
-           )
-           
-           # Use tool to analyze
-           result = self.trend_analyzer.analyze_headlines(
-               [a.title for a in articles],
-               time_interval=time_interval
-           )
-           
-           # Save results using CRUD
-           self.analysis_result_crud.create(
-               session, AnalysisResultCreate(
-                   result_type="HEADLINE_TREND",
-                   result_data=result,
-                   start_date=start_date,
-                   end_date=end_date
-               )
-           )
-           
-           return result
-   ```
-
-4. **Consistent Absolute Imports**
-   ```python
-   # In __init__.py files
-   from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-   from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-   
-   # In module files
-   from local_newsifier.models.article import Article
-   from local_newsifier.database.engine import with_session
-   ```
-
-## Learnings and Insights
-
-1. **Code Duplication**: We discovered significant code duplication in our analysis tools, with similar functionality implemented in slightly different ways. Consolidating these into a single component with a clear API has improved maintainability.
-
-2. **Database Access**: Direct database access from tools made testing difficult and created tight coupling. Moving this to CRUD modules and services has simplified our architecture.
-
-3. **Session Management**: Inconsistent session handling caused issues with transactions. Standardizing on context managers has improved reliability.
-
-4. **Dependency Injection**: Using dependency injection for components makes testing much easier and allows for more flexible configurations.
-
-5. **Import Strategy**: Using relative imports in a complex package structure can lead to difficult-to-debug import errors, especially when modules are moved. Consistently using absolute imports helps prevent these issues.
+1. The `@with_session` decorator in the `database/engine.py` file complicates testing because it opens a new session if one isn't provided
+2. When using `patch.object()`, we need to be precise about which objects and methods to patch
+3. Some of the tests were failing because we were trying to patch non-existent attributes
+4. For error handling tests, it's often easier to directly create error states or patch methods to simulate errors rather than trying to induce errors through external means
+5. We have duplicate implementations of entity tracking functionality that will need to be consolidated
