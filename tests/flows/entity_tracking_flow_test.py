@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-from local_newsifier.tools.entity_tracker import EntityTracker
+from local_newsifier.tools.entity_tracker_service import EntityTracker
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
