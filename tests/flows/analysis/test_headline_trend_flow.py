@@ -15,17 +15,20 @@ def mock_session():
 
 
 @pytest.fixture
-def mock_headline_analyzer():
-    """Create a mock headline analyzer."""
-    return MagicMock()
+def mock_analysis_service():
+    """Create a mock analysis service."""
+    mock_service = MagicMock()
+    return mock_service
 
 
 @pytest.fixture
-def flow_with_mocks(mock_session, mock_headline_analyzer):
+def flow_with_mocks(mock_session, mock_analysis_service):
     """Create a HeadlineTrendFlow with mocked dependencies."""
-    with patch("local_newsifier.flows.analysis.headline_trend_flow.HeadlineTrendAnalyzer", return_value=mock_headline_analyzer):
+    with patch("local_newsifier.services.analysis_service.AnalysisService", return_value=mock_analysis_service):
         flow = HeadlineTrendFlow(session=mock_session)
-        return flow, mock_session, mock_headline_analyzer
+        # Override the flow's analysis_service with our mock
+        flow.analysis_service = mock_analysis_service
+        return flow, mock_session, mock_analysis_service
 
 
 def test_init_with_session(mock_session):
@@ -49,7 +52,7 @@ def test_init_without_session():
 
 def test_analyze_recent_trends(flow_with_mocks):
     """Test analyzing recent trends."""
-    flow, _, mock_analyzer = flow_with_mocks
+    flow, _, mock_service = flow_with_mocks
     
     # Mock return value
     expected_results = {
@@ -57,15 +60,15 @@ def test_analyze_recent_trends(flow_with_mocks):
         "overall_top_terms": [("test", 10)],
         "period_counts": {"2024-03-01": 5}
     }
-    mock_analyzer.analyze_trends.return_value = expected_results
+    mock_service.analyze_headline_trends.return_value = expected_results
     
     # Call the method
     results = flow.analyze_recent_trends(days_back=7, interval="day", top_n=10)
     
     # Verify the results
     assert results == expected_results
-    mock_analyzer.analyze_trends.assert_called_once()
-    call_args = mock_analyzer.analyze_trends.call_args[1]
+    mock_service.analyze_headline_trends.assert_called_once()
+    call_args = mock_service.analyze_headline_trends.call_args[1]
     assert call_args["time_interval"] == "day"
     assert call_args["top_n"] == 10
     assert isinstance(call_args["start_date"], datetime)
@@ -74,7 +77,7 @@ def test_analyze_recent_trends(flow_with_mocks):
 
 def test_analyze_date_range(flow_with_mocks):
     """Test analyzing a specific date range."""
-    flow, mock_session, mock_analyzer = flow_with_mocks
+    flow, _, mock_service = flow_with_mocks
     
     # Set up test dates
     start_date = datetime(2024, 1, 1)
@@ -86,20 +89,18 @@ def test_analyze_date_range(flow_with_mocks):
         "overall_top_terms": [("test", 10)],
         "period_counts": {"2024-01-01": 5}
     }
-    mock_analyzer.analyze_trends.return_value = expected_results
+    mock_service.analyze_headline_trends.return_value = expected_results
     
     # Call the method
     results = flow.analyze_date_range(start_date, end_date, interval="week", top_n=15)
     
     # Verify the results
     assert results == expected_results
-    # We expect the session parameter to be included now
-    mock_analyzer.analyze_trends.assert_called_once_with(
+    mock_service.analyze_headline_trends.assert_called_once_with(
         start_date=start_date,
         end_date=end_date,
         time_interval="week",
-        top_n=15,
-        session=mock_session
+        top_n=15
     )
 
 

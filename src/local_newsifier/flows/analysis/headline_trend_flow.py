@@ -36,9 +36,24 @@ class HeadlineTrendFlow(Flow):
             session: Optional SQLModel session to use
         """
         super().__init__()
+        
+        # Store session
+        self.session = session
+        self._owns_session = False
+        
+        if session is None:
+            self._owns_session = True
+            self.session = get_session().__next__()
 
         # Initialize analysis service
-        self.analysis_service = AnalysisService(session_factory=lambda: session)
+        self.analysis_service = AnalysisService(session_factory=lambda: self.session)
+
+    def __del__(self):
+        """Clean up resources when the object is deleted."""
+        if hasattr(self, '_owns_session') and self._owns_session and hasattr(self, 'session'):
+            # Only close the session if we created it
+            if self.session:
+                self.session.close()
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20

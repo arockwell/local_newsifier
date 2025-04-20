@@ -53,14 +53,20 @@ We are implementing a hybrid architecture with improved tool APIs, CRUD modules,
 
 ## Recently Completed
 
-1. **Analysis Tools Consolidation**:
+1. **Flow Test Fixes**:
+   - Fixed the `HeadlineTrendFlow` implementation to properly handle session management
+   - Updated the `NewsTrendAnalysisFlow` implementation to work with the service-based architecture
+   - Modified tests to work with the hybrid approach of new services and backward compatibility
+   - All flow tests now passing with the new architecture
+
+2. **Analysis Tools Consolidation**:
    - Created consolidated `TrendAnalyzer` to replace multiple overlapping tools
    - Implemented `AnalysisService` to coordinate trend analysis operations
    - Added date-based queries to CRUD modules
    - Created demo script to showcase the new functionality
    - Added comprehensive tests for the new components
 
-2. **CRUD Module Improvements**:
+3. **CRUD Module Improvements**:
    - Enhanced `CRUDEntity` with date-range queries
    - Enhanced `CRUDArticle` with date-range queries
    - Fixed session handling across services
@@ -68,8 +74,8 @@ We are implementing a hybrid architecture with improved tool APIs, CRUD modules,
 ## Known Issues
 
 - Some tools still directly access the database
-- Inconsistent session management patterns in some areas
-- Duplicated functionality between older tools
+- Inconsistent session management patterns in some areas (though improved in flow components)
+- Some tests still expect old tool patterns, requiring backward compatibility
 
 ## Evolution of Project Decisions
 

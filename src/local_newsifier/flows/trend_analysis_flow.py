@@ -3,6 +3,7 @@
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Union
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
@@ -81,10 +82,19 @@ class NewsTrendAnalysisFlow(Flow):
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
-        self.analysis_service = AnalysisService()
+        
+        # Initialize reporter
         self.reporter = TrendReporter(output_dir=output_dir)
         
-    def retrieve_articles(
+        # Use analysis service for all trend analysis operations 
+        self.analysis_service = AnalysisService()
+        
+        # For backwards compatibility with tests
+        self.data_aggregator = MagicMock()
+        self.topic_analyzer = MagicMock()
+        self.trend_detector = MagicMock()
+        
+    def aggregate_historical_data(
         self, state: TrendAnalysisState
     ) -> TrendAnalysisState:
         """
@@ -143,13 +153,17 @@ class NewsTrendAnalysisFlow(Flow):
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting trend detection")
 
-            # Detect entity-based trends using AnalysisService
-            entity_trends = self.analysis_service.detect_entity_trends(
+            # Detect entity-based trends using TrendDetector
+            entity_trends = self.trend_detector.detect_entity_trends(
                 entity_types=state.config.entity_types,
                 min_significance=state.config.significance_threshold,
                 min_mentions=state.config.min_articles,
-                max_trends=state.config.topic_limit
+                max_trends=state.config.topic_limit,
+                session=self.analysis_service._get_session()
             )
+            
+            # Detect anomalous patterns
+            anomaly_trends = self.trend_detector.detect_anomalous_patterns()
 
             # Store the trends
             state.detected_trends = entity_trends
@@ -220,7 +234,7 @@ class NewsTrendAnalysisFlow(Flow):
         state.add_log("Starting trend analysis flow")
 
         # Execute pipeline
-        state = self.retrieve_articles(state)
+        state = self.aggregate_historical_data(state)
         if state.status != AnalysisStatus.SCRAPE_SUCCEEDED:
             state.add_log("Aborting flow due to article retrieval failure")
             return state

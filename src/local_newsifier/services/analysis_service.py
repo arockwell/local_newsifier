@@ -35,6 +35,17 @@ class AnalysisService:
         self.article_crud = article_crud or article
         self.entity_crud = entity_crud or entity
         self.session_factory = session_factory or SessionManager
+        self._session = None
+        
+    def _get_session(self):
+        """Get a database session.
+        
+        Returns:
+            Active database session
+        """
+        if not self._session:
+            self._session = get_session().__next__()
+        return self._session
 
     def analyze_headline_trends(
         self,
