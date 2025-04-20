@@ -13,7 +13,7 @@ from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.models.database.entity import Entity
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity, EntityMentionContext, EntityProfile
 )
