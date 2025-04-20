@@ -200,6 +200,8 @@ We have made significant progress on the hybrid architecture implementation:
 1. **Architectural Refactoring**:
    - ✅ Fixed failing tests related to set_error method in NewsAnalysisState
    - ✅ Integrated the vertical slice with the existing code
+   - ✅ Fixed error handling in NewsPipelineFlow to properly handle exceptions
+   - ✅ Fixed session management in EntityService to use the provided session_factory
    - Ensuring backward compatibility during refactoring
    - Maintaining test coverage during refactoring
    - Coordinating changes across multiple layers

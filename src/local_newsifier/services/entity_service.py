@@ -65,7 +65,8 @@ class EntityService:
         
         processed_entities = []
         
-        with SessionManager() as session:
+        # Use the provided session_factory instead of creating a new SessionManager
+        with self.session_factory() as session:
             # Get existing canonical entities for resolution
             existing_entities = [
                 {

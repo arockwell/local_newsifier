@@ -113,6 +113,8 @@ Having successfully implemented a vertical slice of the hybrid architecture and 
    - ✅ Address the set_error method issue in NewsAnalysisState
    - ✅ Update tests to use the new architecture
    - ✅ Ensure backward compatibility
+   - ✅ Fixed error handling in NewsPipelineFlow to properly handle exceptions without re-raising
+   - ✅ Fixed session management in EntityService to use the provided session_factory
 
 ## Active Decisions and Considerations
 
