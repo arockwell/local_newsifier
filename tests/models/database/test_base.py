@@ -4,7 +4,7 @@ import datetime
 import pytest
 from sqlmodel import Session, Field, SQLModel
 
-from local_newsifier.models.database.base import TableBase
+from local_newsifier.models.base import TableBase
 from typing import Optional
 
 
