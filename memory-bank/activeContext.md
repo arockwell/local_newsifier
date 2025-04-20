@@ -23,6 +23,20 @@ The goal is to have a cleaner architecture with better testability and reduced c
   - TopicFrequencyAnalyzer
   - HistoricalDataAggregator
 - Updated flow components to use the new AnalysisService instead of directly using tools
+- Fixed import references to use absolute imports consistently
+
+### Import Standards
+
+- **Use Absolute Imports**: Always use absolute imports starting with the package name:
+  ```python
+  # Good
+  from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+  
+  # Avoid
+  from .analysis.trend_analyzer import TrendAnalyzer
+  ```
+- This ensures imports work consistently regardless of where they're used and avoids circular import issues.
+- Using absolute imports also helps to maintain clarity about where modules are located.
 
 ### Flow Updates
 
@@ -61,6 +75,8 @@ The goal is to have a cleaner architecture with better testability and reduced c
 3. **Tool Design**: Tools only accept data as parameters and return results, without direct database access. This improves testability and follows the single responsibility principle.
 
 4. **Flow Structure**: Flows orchestrate services but don't directly interact with CRUD operations or tools. This keeps them focused on process coordination.
+
+5. **Import Strategy**: We use absolute imports throughout the codebase to avoid import errors and maintain consistency.
 
 ## Important Patterns
 
@@ -116,6 +132,17 @@ The goal is to have a cleaner architecture with better testability and reduced c
            return result
    ```
 
+4. **Consistent Absolute Imports**
+   ```python
+   # In __init__.py files
+   from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+   from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+   
+   # In module files
+   from local_newsifier.models.article import Article
+   from local_newsifier.database.engine import with_session
+   ```
+
 ## Learnings and Insights
 
 1. **Code Duplication**: We discovered significant code duplication in our analysis tools, with similar functionality implemented in slightly different ways. Consolidating these into a single component with a clear API has improved maintainability.
@@ -125,3 +152,5 @@ The goal is to have a cleaner architecture with better testability and reduced c
 3. **Session Management**: Inconsistent session handling caused issues with transactions. Standardizing on context managers has improved reliability.
 
 4. **Dependency Injection**: Using dependency injection for components makes testing much easier and allows for more flexible configurations.
+
+5. **Import Strategy**: Using relative imports in a complex package structure can lead to difficult-to-debug import errors, especially when modules are moved. Consistently using absolute imports helps prevent these issues.
