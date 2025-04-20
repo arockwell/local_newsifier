@@ -64,7 +64,7 @@ The implementation includes comprehensive test coverage with real PostgreSQL tes
 ## How to Use
 ```python
 from sqlalchemy.orm import Session
-from local_newsifier.models.database import ArticleDB, EntityDB, AnalysisResultDB
+from local_newsifier.models import Article as ArticleDB, Entity as EntityDB, AnalysisResult as AnalysisResultDB
 from local_newsifier.models.state import AnalysisStatus
 
 # Create a new article

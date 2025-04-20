@@ -10,7 +10,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.local_newsifier.config.database import DatabaseSettings
-from src.local_newsifier.models.database import Base
+from src.local_newsifier.models.base import Base
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -46,4 +46,4 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    print("Database initialized successfully!") 
+    print("Database initialized successfully!")

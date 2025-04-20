@@ -7,7 +7,7 @@ from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.article import Article as ArticleDB
 from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate, AnalysisResultCreate
 
 # Set up logging

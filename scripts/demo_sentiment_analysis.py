@@ -22,7 +22,7 @@ from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-from local_newsifier.models.database.article import ArticleDB
+from local_newsifier.models.article import Article as ArticleDB
 from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
