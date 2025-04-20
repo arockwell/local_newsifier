@@ -34,7 +34,7 @@ class AnalysisService:
         self.analysis_result_crud = analysis_result_crud or analysis_result
         self.article_crud = article_crud or article
         self.entity_crud = entity_crud or entity
-        self.session_factory = session_factory or get_session
+        self.session_factory = session_factory or SessionManager
 
     def analyze_headline_trends(
         self,
