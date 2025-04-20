@@ -10,8 +10,8 @@ from sqlmodel import Session, select
 # Use direct imports from the original model locations
 from local_newsifier.database.engine import with_session
 from local_newsifier.models.sentiment import SentimentAnalysis, OpinionTrend, SentimentShift
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 
 logger = logging.getLogger(__name__)

@@ -13,8 +13,8 @@ from textblob.blob import BaseBlob, Blobber
 from local_newsifier.database.engine import with_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.models.database.article import Article
-from local_newsifier.models.database.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.sentiment import (
     SentimentAnalysis
 )
