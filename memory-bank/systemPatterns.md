@@ -2,11 +2,11 @@
 
 ## System Architecture
 
-Local Newsifier follows a modular, layered architecture that separates concerns and enables independent development and testing of components. The system is built around the following key architectural patterns:
+Local Newsifier is evolving toward a hybrid architecture that combines the strengths of its current layered approach with improved tool APIs, a dedicated repository layer, and a service layer for business logic. The system architecture includes:
 
-### 1. Flow-Based Processing
+### 1. Hybrid Layered Architecture
 
-The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Each Flow represents a complete workflow (like news processing or entity tracking) and manages the execution of individual tasks within that workflow.
+The system is transitioning to a hybrid layered architecture that separates concerns more effectively:
 
 ```
 ┌─────────────────────────┐
@@ -15,8 +15,18 @@ The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Ea
 └───────────┬─────────────┘
             │
 ┌───────────▼─────────────┐
+│      Service Layer      │
+│  (Business Logic)       │
+└───────────┬─────────────┘
+            │
+┌───────────▼─────────────┐
 │      Tool Layer         │
 │  (Processing Logic)     │
+└───────────┬─────────────┘
+            │
+┌───────────▼─────────────┐
+│      Repository Layer   │
+│  (Data Access Logic)    │
 └───────────┬─────────────┘
             │
 ┌───────────▼─────────────┐
@@ -25,17 +35,45 @@ The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Ea
 └───────────┬─────────────┘
             │
 ┌───────────▼─────────────┐
-│      CRUD Layer         │
-│  (Data Access Logic)    │
-└───────────┬─────────────┘
-            │
-┌───────────▼─────────────┐
 │    Database Layer       │
 │  (Data Persistence)     │
 └─────────────────────────┘
 ```
 
-### 2. State-Based Processing
+### 2. Flow-Based Processing
+
+The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Each Flow represents a complete workflow (like news processing or entity tracking) and manages the execution of individual tasks within that workflow. In the hybrid architecture, flows are simplified to focus on orchestration, delegating business logic to services.
+
+### 3. Service Layer
+
+The service layer is a new addition that:
+- Encapsulates business logic
+- Coordinates between multiple tools
+- Manages transactions
+- Provides a clean API for flows
+
+Services act as the primary interface for flows, abstracting away the details of tool coordination and data access.
+
+### 4. Single-Responsibility Tools
+
+Tools are being refactored to follow the Single Responsibility Principle:
+- Each tool performs one specific function
+- Tools focus on processing logic, not data access
+- Tools have clear input/output contracts
+- Tools can be composed and reused flexibly
+
+### 5. Repository Pattern
+
+The repository layer abstracts database operations and provides a clean interface for data access. Each entity type has its own repository that handles:
+
+- Creating new records
+- Retrieving existing records
+- Updating record data
+- Deleting records
+- Specialized queries
+- Transaction management
+
+### 6. State-Based Processing
 
 Each Flow operates on a State object that encapsulates the current status of processing, input data, intermediate results, and error information. This enables:
 
@@ -44,19 +82,29 @@ Each Flow operates on a State object that encapsulates the current status of pro
 - Comprehensive error handling
 - Audit trails of processing steps
 
-### 3. Repository Pattern
-
-The CRUD layer implements the Repository pattern to abstract database operations and provide a clean interface for data access. Each entity type has its own repository that handles:
-
-- Creating new records
-- Retrieving existing records
-- Updating record data
-- Deleting records
-- Specialized queries
-
 ## Key Design Patterns
 
-### 1. Dependency Injection
+### 1. Interface-Based Design
+
+The hybrid architecture emphasizes interface-based design:
+- Components define interfaces separate from implementations
+- Dependencies are declared as interfaces, not concrete classes
+- This enables loose coupling and easier testing
+
+Example:
+```python
+class EntityResolver(ABC):
+    @abstractmethod
+    def resolve_entity(self, entity_text, entity_type):
+        pass
+
+class SpacyEntityResolver(EntityResolver):
+    def resolve_entity(self, entity_text, entity_type):
+        # Implementation using spaCy
+        pass
+```
+
+### 2. Dependency Injection
 
 Components receive their dependencies through constructor parameters, enabling:
 - Easier testing through mock injection
@@ -65,13 +113,62 @@ Components receive their dependencies through constructor parameters, enabling:
 
 Example:
 ```python
-class EntityTracker:
-    def __init__(self, session: Optional[Session] = None, model_name: str = "en_core_web_lg"):
-        self.session = session
-        self.nlp = spacy.load(model_name)
+class EntityService:
+    def __init__(
+        self, 
+        entity_repository: EntityRepository,
+        entity_extractor: EntityExtractor,
+        entity_resolver: EntityResolver
+    ):
+        self.entity_repository = entity_repository
+        self.entity_extractor = entity_extractor
+        self.entity_resolver = entity_resolver
 ```
 
-### 2. Decorator Pattern
+### 3. Repository Pattern
+
+The repository pattern provides a clean abstraction for data access:
+- Each entity type has its own repository
+- Repositories handle all database operations
+- Repositories manage transactions
+- Repositories provide specialized query methods
+
+Example:
+```python
+class EntityRepository:
+    def __init__(self, session_factory):
+        self.session_factory = session_factory
+    
+    def get_by_article(self, article_id):
+        with self.session_factory() as session:
+            statement = select(Entity).where(Entity.article_id == article_id)
+            return session.exec(statement).all()
+```
+
+### 4. Service Layer Pattern
+
+The service layer pattern coordinates business operations:
+- Services encapsulate business logic
+- Services coordinate between multiple tools and repositories
+- Services manage transaction boundaries
+- Services provide a clean API for flows
+
+Example:
+```python
+class EntityService:
+    def process_article(self, article_id):
+        # Coordinate between tools and repositories
+        article = self.article_repository.get(article_id)
+        entities = self.entity_extractor.extract_entities(article.content)
+        
+        for entity in entities:
+            canonical_entity = self.entity_resolver.resolve_entity(entity.text, entity.type)
+            self.entity_repository.store_entity(article_id, entity, canonical_entity)
+            
+        return entities
+```
+
+### 5. Decorator Pattern
 
 The system uses decorators to add cross-cutting concerns like session management:
 
@@ -82,18 +179,23 @@ def process_article(self, article_id: int, *, session: Session = None) -> List[D
     # ...
 ```
 
-### 3. Factory Pattern
+### 6. Factory Pattern
 
-Factory methods are used to create complex objects, particularly for database connections:
+Factory methods are used to create complex objects, particularly for database connections and service instances:
 
 ```python
 def get_session():
     # Logic to create and configure a database session
     # ...
     yield session
+
+def get_entity_service():
+    # Logic to create and configure an entity service
+    # ...
+    return EntityService(...)
 ```
 
-### 4. Strategy Pattern
+### 7. Strategy Pattern
 
 Different analysis strategies can be plugged into the system, allowing for flexible processing approaches:
 
@@ -102,7 +204,7 @@ Different analysis strategies can be plugged into the system, allowing for flexi
 self.analyzer = NERAnalyzerTool()  # Could be swapped with another analyzer
 ```
 
-### 5. Observer Pattern
+### 8. Observer Pattern
 
 The system implements a form of the Observer pattern through its logging and state tracking, where processing steps update state and logs that can be observed externally.
 
@@ -110,22 +212,40 @@ The system implements a form of the Observer pattern through its logging and sta
 
 ### 1. Flow Components
 
-Flows orchestrate the overall processing and contain the high-level business logic:
+Flows orchestrate the overall processing and contain high-level orchestration logic:
 
 - `NewsPipelineFlow`: Manages the end-to-end process of fetching, analyzing, and storing news articles
 - `EntityTrackingFlow`: Handles the identification and tracking of entities across articles
 - `HeadlineTrendFlow`: Analyzes trends in headlines over time
 
-### 2. Tool Components
+### 2. Service Components
 
-Tools implement specific processing logic and are used by Flows:
+Services encapsulate business logic and coordinate between tools and repositories:
 
-- `WebScraperTool`: Fetches article content from URLs
-- `NERAnalyzerTool`: Performs Named Entity Recognition on article content
-- `EntityTracker`: Tracks entities across multiple articles
-- `HeadlineTrendAnalyzer`: Analyzes trends in headlines
+- `ArticleService`: Manages article fetching, processing, and storage
+- `EntityService`: Manages entity extraction, resolution, and tracking
+- `AnalysisService`: Manages trend analysis and reporting
 
-### 3. Model Components
+### 3. Tool Components
+
+Tools implement specific processing logic:
+
+- `EntityExtractor`: Extracts entities from text content
+- `EntityResolver`: Resolves entities to canonical forms
+- `ContextAnalyzer`: Analyzes the context of entity mentions
+- `HeadlineKeywordExtractor`: Extracts keywords from headlines
+- `TrendDetector`: Detects trends in time-series data
+
+### 4. Repository Components
+
+Repositories handle database operations for specific entity types:
+
+- `ArticleRepository`: Operations for Article entities
+- `EntityRepository`: Operations for Entity entities
+- `CanonicalEntityRepository`: Operations for CanonicalEntity entities
+- `AnalysisResultRepository`: Operations for AnalysisResult entities
+
+### 5. Model Components
 
 Models represent the data structures used throughout the system:
 
@@ -133,20 +253,12 @@ Models represent the data structures used throughout the system:
 - State Models: Pydantic models for representing processing state
 - Pydantic Models: Data validation and serialization models
 
-### 4. CRUD Components
-
-CRUD modules handle database operations for specific entity types:
-
-- `article.py`: Operations for Article entities
-- `entity.py`: Operations for Entity entities
-- `analysis_result.py`: Operations for AnalysisResult entities
-
 ## Critical Implementation Paths
 
 ### 1. News Article Processing Path
 
 ```
-URL Input → WebScraperTool → NERAnalyzerTool → FileWriterTool → Database
+URL Input → Flow → ArticleService → WebScraperTool → EntityExtractor → ArticleRepository → Database
 ```
 
 This path handles the core functionality of fetching and analyzing news articles.
@@ -154,7 +266,7 @@ This path handles the core functionality of fetching and analyzing news articles
 ### 2. Entity Tracking Path
 
 ```
-Article Data → EntityTracker → EntityResolver → ContextAnalyzer → Database
+Article Data → Flow → EntityService → EntityExtractor → EntityResolver → ContextAnalyzer → EntityRepository → Database
 ```
 
 This path manages the identification and tracking of entities across articles.
@@ -162,17 +274,19 @@ This path manages the identification and tracking of entities across articles.
 ### 3. Headline Trend Analysis Path
 
 ```
-Date Range → HeadlineTrendAnalyzer → Keyword Extraction → Trend Detection → Report Generation
+Date Range → Flow → AnalysisService → HeadlineKeywordExtractor → TrendDetector → Report Generation
 ```
 
 This path analyzes trends in headlines over specified time periods.
 
 ## Error Handling Patterns
 
-1. **State-Based Error Tracking**: Errors are captured in the state object with detailed information
-2. **Typed Error States**: Different error types (network, parsing, etc.) have specific state values
-3. **Retry Logic**: Flows implement retry logic for recoverable errors
-4. **Graceful Degradation**: System can continue partial processing when some components fail
+1. **Consistent Exception Hierarchy**: A structured hierarchy of exceptions for different error types
+2. **Transaction Management**: Proper transaction boundaries with rollback on errors
+3. **State-Based Error Tracking**: Errors are captured in the state object with detailed information
+4. **Typed Error States**: Different error types (network, parsing, etc.) have specific state values
+5. **Retry Logic**: Flows implement retry logic for recoverable errors
+6. **Graceful Degradation**: System can continue partial processing when some components fail
 
 ## Data Flow Patterns
 
