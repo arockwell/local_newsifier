@@ -1,158 +1,126 @@
-# Local Newsifier Architecture and Design
+# Local Newsifier Development Guide
 
-## Overview
-Local Newsifier is a Python-based application designed to analyze and process local news articles. It uses a combination of web scraping, natural language processing (NLP), and database persistence to provide insights into local news content.
+## Project Overview
+- News article analysis system using SQLModel, PostgreSQL, and crewai Flows
+- Focuses on entity tracking, sentiment analysis, and headline trend detection
+- Uses NLP for entity recognition and relationship mapping
+- Supports multiple cursor instances with isolated databases
+
+## Common Commands
+- `poetry run python scripts/run_pipeline.py --url <URL>`: Process a single article
+- `poetry run python scripts/demo_headline_trends.py --days 30 --interval day`: Analyze recent headlines
+- `poetry run python scripts/demo_entity_tracking.py`: View entity tracking dashboard
+- `poetry run python scripts/demo_sentiment_analysis.py`: Run sentiment analysis demo
+- `poetry run pytest`: Run all tests
+- `poetry run pytest --cov=src/local_newsifier`: Run tests with coverage
+- `poetry run python -m spacy download en_core_web_lg`: Download required spaCy model
 
 ## Architecture
 
-### Core Components
+### Database
+- Uses SQLModel (combines SQLAlchemy ORM and Pydantic validation)
+- PostgreSQL backend with cursor-specific database instances
+- Key models: Article, Entity, AnalysisResult, CanonicalEntity
+- Database sessions should be managed with the `with_session` decorator
 
-1. **Database Layer**
-   - PostgreSQL database for persistent storage
-   - SQLAlchemy ORM for database operations
-   - Pydantic models for data validation
-   - Key entities:
-     - Articles
-     - Entities (Named Entities from NER)
-     - Analysis Results
-
-2. **Configuration Layer**
-   - Environment-based configuration
-   - Database settings
-   - API keys and secrets
-   - Test configuration
-
-3. **Models Layer**
-   - Database models (SQLAlchemy)
-   - Pydantic models for data validation
-   - State management models
-
-4. **Tools Layer**
-   - Web Scraper
-   - NER Analyzer
-   - File Writer
-
-5. **Flows Layer**
-   - News Pipeline Flow
-   - State management
-   - Error handling
-   - Retry logic
-
-### Data Flow
-
-1. **Article Processing Pipeline**
-   ```
-   URL → Web Scraper → NER Analyzer → Database Storage → File Output
-   ```
-
-2. **State Management**
-   - Each article goes through states:
-     - Initialized
-     - Scraped
-     - Analyzed
-     - Saved
-   - Error states are tracked and can be retried
-
-3. **Database Operations**
-   - CRUD operations for articles
-   - Entity extraction storage
-   - Analysis result storage
-   - Status tracking
-
-## Key Features
-
-1. **Web Scraping**
-   - URL-based article extraction
-   - Content parsing
-   - Error handling for network issues
-
-2. **NER Analysis**
-   - Entity extraction
-   - Confidence scoring
-   - Entity categorization
-
-3. **Database Persistence**
-   - Article storage
-   - Entity storage
-   - Analysis result storage
-   - Status tracking
-
-4. **Error Handling**
-   - Network error recovery
-   - Parsing error handling
-   - Database error handling
-   - Retry mechanisms
-
-## Development Setup
-
-1. **Environment**
-   - Python 3.12+
-   - PostgreSQL
-   - Poetry for dependency management
-
-2. **Configuration**
-   - `.env` for production
-   - `.env.test` for testing
-   - Environment variables for secrets
-
-3. **Testing**
-   - pytest for unit tests
-   - Coverage reporting
-   - Database testing with test containers
-
-## CI/CD Pipeline
-
-1. **GitHub Actions**
-   - Test execution
-   - Coverage reporting
-   - Database testing
-   - Artifact generation
-
-2. **Quality Gates**
-   - 90% code coverage requirement
-   - Test success requirement
-   - Database integration tests
-
-## Project Structure
-
+### Project Structure
 ```
-local_newsifier/
-├── src/
-│   ├── local_newsifier/
-│   │   ├── config/
-│   │   ├── database/
-│   │   ├── flows/
-│   │   ├── models/
-│   │   └── tools/
-├── tests/
-│   ├── config/
-│   ├── database/
-│   ├── flows/
-│   ├── models/
-│   └── tools/
-├── scripts/
-├── .github/
-└── docs/
+src/
+├── local_newsifier/
+│   ├── tools/          # Tool implementations
+│   │   ├── analysis/   # Analysis tools (headline trends, etc.)
+│   │   └── ...         # Other tools (web scraper, NER, etc.)
+│   ├── models/         # Models directory
+│   │   ├── database/   # SQLModel database models
+│   │   └── ...         # Other model types (state, etc.)
+│   ├── flows/          # crewai Flow definitions
+│   │   ├── analysis/   # Analysis workflows
+│   │   └── ...         # Other flows (news pipeline, etc.)
+│   ├── crud/           # Database CRUD operations
+│   └── config/         # Configuration
 ```
 
-## Future Enhancements
+## Code Style & Patterns
 
-1. **Scalability**
-   - Distributed processing
-   - Queue-based processing
-   - Batch processing
+### Database Models
+- Use SQLModel for all database models (not separate SQLAlchemy/Pydantic)
+- Models are in `src/local_newsifier/models/database/`
+- Example model definition:
+```python
+class Article(SQLModel, table=True):
+    __tablename__ = "articles"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    content: str
+    url: str = Field(unique=True)
+    # ...
+    
+    entities: List["Entity"] = Relationship(back_populates="article")
+```
 
-2. **Enhanced Analysis**
-   - Sentiment analysis
-   - Topic modeling
-   - Trend analysis
+### CRUD Operations
+- CRUD operations are in `src/local_newsifier/crud/`
+- Use the CRUDBase class for common operations
+- Extend with model-specific operations
+- Use the `with_session` decorator for session management
 
-3. **Monitoring**
-   - Performance metrics
-   - Error tracking
-   - Usage statistics
+### Flows
+- Flows are defined using crewai Flow classes
+- Handle complex workflows like entity tracking and trend analysis
+- Example flow usage:
+```python
+flow = EntityTrackingFlow()
+results = flow.process_new_articles()
+```
 
-4. **API**
-   - REST API for integration
-   - Web interface
-   - Real-time updates 
+## Testing Guidelines
+- Tests are organized by component type (flows, tools, models)
+- Use session-scoped fixtures for expensive objects
+- Mock external dependencies
+- Reset mutable fixture state between tests
+- Aim for >90% test coverage
+- Example test structure:
+```python
+def test_component_success(mock_component):
+    # Setup
+    input_data = "test_input"
+    # Execute
+    result = mock_component.process(input_data)
+    # Verify
+    assert result == "result"
+```
+
+## Common Workflows
+
+### Entity Tracking
+1. Extract entities from article content using NER
+2. Resolve entities to canonical representations
+3. Track entity mentions across articles
+4. Analyze entity relationships and co-occurrences
+
+### Headline Analysis
+1. Extract keywords from headlines
+2. Track keyword frequency over time
+3. Detect trends and generate reports
+4. Output in various formats (markdown, JSON)
+
+### Sentiment Analysis
+1. Identify entity mentions in context
+2. Score sentiment of surrounding text
+3. Aggregate sentiment scores over time
+4. Track sentiment trends for entities
+
+## Database Configuration
+
+### Multiple Cursor Support
+- Each cursor instance gets a unique database
+- Database name based on cursor ID in `CURSOR_DB_ID` environment variable
+- Initialize with `scripts/init_cursor_db.py`
+- Test databases are named `test_local_newsifier_<cursor_id>`
+
+## Known Issues & Gotchas
+- Environment variables must be properly managed in tests
+- Database connections should be properly closed to avoid connection pool issues
+- Type hints may need `TYPE_CHECKING` imports to avoid circular references
+- SQLModel combines SQLAlchemy and Pydantic - use model_dump() not dict()
