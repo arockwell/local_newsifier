@@ -46,11 +46,17 @@ The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Ea
 
 ### 3. Service Layer
 
-The service layer is a new addition that:
-- Encapsulates business logic
-- Coordinates between multiple tools
-- Manages transactions
-- Provides a clean API for flows
+The service layer is being implemented to:
+- Encapsulate business logic
+- Coordinate between multiple tools
+- Manage transactions
+- Provide a clean API for flows
+
+We have successfully implemented the EntityService, which:
+- Coordinates entity extraction, resolution, and context analysis
+- Manages database operations through CRUD modules
+- Handles transaction boundaries
+- Provides a clean API for the EntityTrackingFlow
 
 Services act as the primary interface for flows, abstracting away the details of tool coordination and data access.
 
@@ -153,19 +159,96 @@ The service layer pattern coordinates business operations:
 - Services manage transaction boundaries
 - Services provide a clean API for flows
 
-Example:
+Our implemented EntityService follows this pattern:
 ```python
 class EntityService:
-    def process_article(self, article_id):
-        # Coordinate between tools and repositories
-        article = self.article_repository.get(article_id)
-        entities = self.entity_extractor.extract_entities(article.content)
+    def __init__(
+        self,
+        entity_crud,
+        canonical_entity_crud,
+        entity_mention_context_crud,
+        entity_profile_crud,
+        entity_extractor,
+        context_analyzer,
+        entity_resolver,
+        session_factory
+    ):
+        self.entity_crud = entity_crud
+        self.canonical_entity_crud = canonical_entity_crud
+        self.entity_mention_context_crud = entity_mention_context_crud
+        self.entity_profile_crud = entity_profile_crud
+        self.entity_extractor = entity_extractor
+        self.context_analyzer = context_analyzer
+        self.entity_resolver = entity_resolver
+        self.session_factory = session_factory
+    
+    def process_article_entities(
+        self, 
+        article_id: int,
+        content: str,
+        title: str,
+        published_at: datetime
+    ) -> List[Dict[str, Any]]:
+        """Process entities in an article.
         
-        for entity in entities:
-            canonical_entity = self.entity_resolver.resolve_entity(entity.text, entity.type)
-            self.entity_repository.store_entity(article_id, entity, canonical_entity)
+        This method:
+        1. Extracts entities from the article content
+        2. Resolves entities to canonical forms
+        3. Analyzes the context of entity mentions
+        4. Stores entities and their context in the database
+        5. Returns processed entity data
+        """
+        with self.session_factory() as session:
+            # Extract entities
+            extracted_entities = self.entity_extractor.extract_entities(content)
             
-        return entities
+            # Process each entity
+            processed_entities = []
+            for entity in extracted_entities:
+                # Resolve entity to canonical form
+                canonical_entity = self.entity_resolver.resolve_entity(
+                    entity.text, entity.entity_type, session=session
+                )
+                
+                # Analyze context
+                context_data = self.context_analyzer.analyze_context(
+                    entity.text, entity.sentence_context
+                )
+                
+                # Store entity mention
+                entity_obj = self.entity_crud.create(
+                    session,
+                    article_id=article_id,
+                    text=entity.text,
+                    entity_type=entity.entity_type,
+                    sentence_context=entity.sentence_context,
+                    canonical_entity_id=canonical_entity.id
+                )
+                
+                # Store context data
+                self.entity_mention_context_crud.create(
+                    session,
+                    entity_id=entity_obj.id,
+                    article_id=article_id,
+                    context_text=entity.sentence_context,
+                    sentiment_score=context_data.sentiment_score,
+                    framing_category=context_data.framing_category
+                )
+                
+                # Add to processed entities
+                processed_entities.append({
+                    "original_text": entity.text,
+                    "canonical_name": canonical_entity.name,
+                    "canonical_id": canonical_entity.id,
+                    "context": entity.sentence_context,
+                    "sentiment_score": context_data.sentiment_score,
+                    "framing_category": context_data.framing_category
+                })
+            
+            # Commit the transaction
+            session.commit()
+            
+            return processed_entities
 ```
 
 ### 5. Decorator Pattern
@@ -266,10 +349,10 @@ This path handles the core functionality of fetching and analyzing news articles
 ### 2. Entity Tracking Path
 
 ```
-Article Data → Flow → EntityService → EntityExtractor → EntityResolver → ContextAnalyzer → EntityRepository → Database
+Article Data → EntityTrackingFlow → EntityTracker → EntityService → EntityExtractor → EntityResolver → ContextAnalyzer → CRUD Operations → Database
 ```
 
-This path manages the identification and tracking of entities across articles.
+This path manages the identification and tracking of entities across articles. We have implemented this complete path with our vertical slice approach.
 
 ### 3. Headline Trend Analysis Path
 
