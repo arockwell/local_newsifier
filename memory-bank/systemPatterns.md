@@ -367,6 +367,10 @@ This path analyzes trends in headlines over specified time periods.
 1. **Consistent Exception Hierarchy**: A structured hierarchy of exceptions for different error types
 2. **Transaction Management**: Proper transaction boundaries with rollback on errors
 3. **State-Based Error Tracking**: Errors are captured in the state object with detailed information
+   - State objects have a `set_error` method that records error details
+   - Error details include task name, error type, message, and traceback
+   - Status management is handled by the caller, not the `set_error` method
+   - This allows for specific error statuses to be preserved
 4. **Typed Error States**: Different error types (network, parsing, etc.) have specific state values
 5. **Retry Logic**: Flows implement retry logic for recoverable errors
 6. **Graceful Degradation**: System can continue partial processing when some components fail

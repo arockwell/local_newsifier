@@ -95,8 +95,8 @@ Having successfully implemented a vertical slice of the hybrid architecture, the
    - Ensure consistent error handling
    - Update tests for flows
 
-5. **Fix Failing Tests**:
-   - Address the set_error method issue in NewsAnalysisState
+5. **✅ Fix Failing Tests**:
+   - ✅ Address the set_error method issue in NewsAnalysisState
    - Update tests to use the new architecture
    - Ensure backward compatibility
 

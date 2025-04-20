@@ -84,6 +84,17 @@ class NewsAnalysisState(BaseModel):
         timestamp = datetime.now(timezone.utc).isoformat()
         self.run_logs.append(f"[{timestamp}] {message}")
         self.touch()
+    
+    def set_error(self, task: str, error: Exception) -> None:
+        """Set error details and update status."""
+        self.error_details = ErrorDetails(
+            task=task,
+            type=error.__class__.__name__,
+            message=str(error),
+            traceback_snippet=str(error.__traceback__),
+        )
+        # Don't change the status - the caller is responsible for setting the appropriate status
+        self.touch()
 
 
 class EntityTrackingState(BaseModel):
