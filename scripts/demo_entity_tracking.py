@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import SessionManager
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
@@ -140,7 +140,7 @@ def main():
     args = parser.parse_args()
 
     # Use context manager for session
-    with get_session() as session:
+    with SessionManager() as session:
         # Add sample articles
         add_sample_articles(session)
 
