@@ -70,7 +70,17 @@ class Settings(BaseSettings):
 
     @computed_field
     def DATABASE_URL(self) -> str:
-        """Get the database URL based on environment."""
+        """Get the database URL based on environment.
+        
+        Checks for DATABASE_URL environment variable first (commonly used by Railway and other platforms)
+        and falls back to constructing one from individual components if not present.
+        """
+        # Check if DATABASE_URL is provided directly (common in Railway and other cloud platforms)
+        env_db_url = os.environ.get("DATABASE_URL")
+        if env_db_url:
+            return env_db_url
+            
+        # Otherwise construct from individual components
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
@@ -78,10 +88,7 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""
-        return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        return str(self.DATABASE_URL)
 
     def create_directories(self) -> None:
         """Create necessary directories if they don't exist."""

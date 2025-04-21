@@ -36,6 +36,12 @@ Local Newsifier exists to transform unstructured local news content into structu
 
 **Solution:** By tracking co-occurrences of entities across articles, the system can identify relationships and connections that might not be immediately obvious.
 
+### 6. Data Accessibility
+
+**Problem:** Accessing and visualizing database information typically requires specialized knowledge or custom tools.
+
+**Solution:** Local Newsifier provides a user-friendly web interface to visualize and explore the database structure and content, along with RESTful API endpoints for programmatic access.
+
 ## User Experience Goals
 
 ### 1. Researchers and Analysts

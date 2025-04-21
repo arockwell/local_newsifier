@@ -246,6 +246,75 @@ except Exception as e:
     raise
 ```
 
+## Web API Patterns
+
+### FastAPI Application Structure
+
+The web API follows a structured approach to organization:
+
+```
+src/local_newsifier/api/
+├── __init__.py          # Package initialization
+├── dependencies.py      # Dependency injection
+├── main.py              # App initialization and configuration
+├── routers/             # Route definitions by feature
+│   ├── __init__.py
+│   └── system.py        # System-related endpoints
+└── templates/           # Jinja2 templates for HTML responses
+    ├── base.html        # Base template with common elements
+    ├── index.html       # Landing page
+    ├── tables.html      # Database tables list
+    ├── table_details.html # Table details view
+    └── 404.html         # Error page
+```
+
+### Dependency Injection
+
+FastAPI's dependency injection system is used for database sessions:
+
+```python
+def get_session() -> Generator[Session, None, None]:
+    """Get a database session.
+    This dependency provides a database session to route handlers.
+    The session is automatically closed when the request is complete.
+    """
+    with get_db_session() as session:
+        yield session
+```
+
+Route handlers use this dependency:
+
+```python
+@router.get("/tables")
+async def get_tables(request: Request, session: Session = Depends(get_session)):
+    # Use session for database operations
+    # ...
+```
+
+### Hybrid Response Model
+
+The API supports both UI (HTML) and API (JSON) responses:
+
+1. **HTML Responses** - For human interaction:
+   ```python
+   @router.get("/tables", response_class=HTMLResponse)
+   async def get_tables(request: Request, session: Session = Depends(get_session)):
+       tables_info = get_tables_info(session)
+       return templates.TemplateResponse(
+           "tables.html",
+           {"request": request, "tables_info": tables_info}
+       )
+   ```
+
+2. **JSON Responses** - For programmatic access:
+   ```python
+   @router.get("/tables/api", response_model=List[Dict])
+   async def get_tables_api(session: Session = Depends(get_session)):
+       return get_tables_info(session)
+   ```
+
+This approach provides both a user-friendly web interface and a machine-readable API.
+
 ## Testing Patterns
 
 ### Unit Testing with Mocks

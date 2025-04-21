@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Local Newsifier - Home{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Welcome to Local Newsifier</h2>
+    <p>Local Newsifier is a tool for fetching, analyzing, and storing local news articles. This system helps track entities, analyze trends, and provide insights into local news coverage.</p>
+    
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Article scraping and extraction</li>
+        <li>Entity recognition and tracking</li>
+        <li>Sentiment analysis</li>
+        <li>Trend detection and reporting</li>
+        <li>Relationship mapping between entities</li>
+    </ul>
+    
+    <div style="margin-top: 2rem;">
+        <a href="/system/tables" class="button">View Database</a>
+        <a href="/docs" class="button button-secondary">API Documentation</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">System Status</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Database Connection</td>
+                <td>✅ Connected</td>
+            </tr>
+            <tr>
+                <td>API Endpoints</td>
+                <td>✅ Available</td>
+            </tr>
+            <tr>
+                <td>Web Interface</td>
+                <td>✅ Running</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
