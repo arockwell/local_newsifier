@@ -4,8 +4,8 @@ import logging
 from datetime import datetime, timedelta, UTC
 
 from local_newsifier.database.engine import get_session
-from local_newsifier.database.adapter import create_article
-from local_newsifier.models.pydantic_models import ArticleCreate
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.models.article import Article
 
 # Set up logging
 logging.basicConfig(
@@ -73,13 +73,16 @@ def main():
         try:
             # Add each headline to the database
             for headline in TEST_HEADLINES:
-                article = ArticleCreate(
+                article = Article(
                     title=headline["title"],
                     url=headline["url"],
                     published_at=headline["published_at"],
-                    status="analyzed"
+                    status="analyzed",
+                    content="Sample content",  # Required field
+                    source="Test Source",      # Required field
+                    scraped_at=datetime.now(UTC)
                 )
-                create_article(article, session=session)
+                article_crud.create(session, obj_in=article)
                 logger.info(f"Added headline: {headline['title']}")
                 
             logger.info("Successfully added all test headlines to the database")
@@ -88,4 +91,4 @@ def main():
             logger.error(f"Error adding test headlines: {e}")
 
 if __name__ == "__main__":
-    main() 
+    main()

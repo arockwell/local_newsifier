@@ -22,8 +22,8 @@ from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-from local_newsifier.models.article import Article as ArticleDB
-from local_newsifier.models.pydantic_models import ArticleCreate, AnalysisResultCreate
+from local_newsifier.models.article import Article
+from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
@@ -57,7 +57,8 @@ def add_sample_articles(session: Session):
                 "Several customers praised the cafe's atmosphere and quality service."
             ),
             "published_at": datetime.now(timezone.utc),
-            "status": "new"
+            "status": "new",
+            "scraped_at": datetime.now(timezone.utc)
         },
         {
             "url": f"https://example.com/development-controversy-{timestamp}",
@@ -71,7 +72,8 @@ def add_sample_articles(session: Session):
                 "persistent criticism throughout the session."
             ),
             "published_at": datetime.now(timezone.utc),
-            "status": "new"
+            "status": "new",
+            "scraped_at": datetime.now(timezone.utc)
         },
         {
             "url": f"https://example.com/city-policy-{timestamp}",
@@ -84,13 +86,14 @@ def add_sample_articles(session: Session):
                 "'a step in the right direction,' despite mixed public opinion."
             ),
             "published_at": datetime.now(timezone.utc),
-            "status": "new"
+            "status": "new",
+            "scraped_at": datetime.now(timezone.utc)
         }
     ]
 
     for article_data in articles:
         try:
-            article = ArticleCreate(**article_data)
+            article = Article(**article_data)
             created_article = article_crud.create(session, obj_in=article)
             logger.info(f"Added article: {created_article.title}")
         except Exception as e:
@@ -123,7 +126,7 @@ def analyze_articles(session: Session, article_ids: List[int]):
             sentiment_data = state.analysis_results["sentiment"]
             
             # Store analysis results
-            analysis_result = AnalysisResultCreate(
+            analysis_result = AnalysisResult(
                 article_id=article.id,
                 analysis_type="sentiment",
                 results={
@@ -410,7 +413,7 @@ def main():
         add_sample_articles(session)
 
         # Get all articles and their IDs
-        articles = session.query(ArticleDB).all()
+        articles = session.query(Article).all()
         article_ids = [int(article.id) for article in articles]  # Explicitly convert to int
 
         # Analyze articles

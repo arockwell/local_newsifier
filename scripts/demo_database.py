@@ -7,8 +7,9 @@ from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.models.article import Article as ArticleDB
-from local_newsifier.models.pydantic_models import ArticleCreate, EntityCreate, AnalysisResultCreate
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.analysis_result import AnalysisResult
 
 # Set up logging
 logging.basicConfig(
@@ -22,7 +23,7 @@ def show_database_state(session):
     logger.info("\n=== Current Database State ===")
 
     # Get all articles
-    articles = session.query(ArticleDB).all()
+    articles = session.query(Article).all()
     logger.info(f"\nFound {len(articles)} articles in database:")
 
     for article in articles:
@@ -56,19 +57,22 @@ def main():
 
         # Create a new article with unique URL
         logger.info("\nCreating new article...")
-        article = ArticleCreate(
-            url=f"https://example.com/demo-{datetime.now(UTC).timestamp()}",
+        timestamp = datetime.now(UTC).timestamp()
+        article = Article(
+            url=f"https://example.com/demo-{timestamp}",
             title="New Demo Article",
             content="This is a new demo article for testing the database functionality.",
             published_at=datetime.now(UTC),
             status="new",
+            source="Demo Source",
+            scraped_at=datetime.now(UTC)
         )
         created_article = article_crud.create(session, obj_in=article)
         logger.info(f"Created article with ID: {created_article.id}")
 
         # Add an entity
         logger.info("Adding entity to article...")
-        entity = EntityCreate(
+        entity = Entity(
             article_id=created_article.id,
             text="New Demo Entity",
             entity_type="PERSON",
@@ -81,7 +85,7 @@ def main():
 
         # Add analysis result
         logger.info("Adding analysis result...")
-        result = AnalysisResultCreate(
+        result = AnalysisResult(
             article_id=created_article.id,
             analysis_type="NER",
             results={"entities": ["New Demo Entity"]},
