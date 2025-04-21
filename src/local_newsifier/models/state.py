@@ -146,3 +146,163 @@ class EntityTrackingState(BaseModel):
         )
         self.status = TrackingStatus.FAILED
         self.touch()
+
+
+class EntityBatchTrackingState(BaseModel):
+    """State model for batch entity tracking process."""
+    
+    run_id: UUID = Field(default_factory=uuid4)
+    status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
+    status_filter: str = Field(default="analyzed")
+    processed_articles: List[Dict[str, Any]] = Field(default_factory=list)
+    total_articles: int = 0
+    processed_count: int = 0
+    error_count: int = 0
+    error_details: Optional[ErrorDetails] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    run_logs: List[str] = Field(default_factory=list)
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "run_id": "123e4567-e89b-12d3-a456-426614174000",
+                "status": "INITIALIZED",
+                "status_filter": "analyzed",
+                "processed_articles": [],
+                "total_articles": 0,
+                "processed_count": 0,
+                "error_count": 0,
+                "run_logs": [],
+            }
+        }
+    )
+    
+    def touch(self) -> None:
+        """Update the last_updated timestamp."""
+        self.last_updated = datetime.now(timezone.utc)
+    
+    def add_log(self, message: str) -> None:
+        """Add a log message with timestamp."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        self.run_logs.append(f"[{timestamp}] {message}")
+        self.touch()
+    
+    def set_error(self, task: str, error: Exception) -> None:
+        """Set error details and update status."""
+        self.error_details = ErrorDetails(
+            task=task,
+            type=error.__class__.__name__,
+            message=str(error),
+            traceback_snippet=str(error.__traceback__),
+        )
+        self.status = TrackingStatus.FAILED
+        self.touch()
+    
+    def add_processed_article(self, article_data: Dict[str, Any], success: bool = True) -> None:
+        """Add a processed article to the state."""
+        self.processed_articles.append(article_data)
+        self.processed_count += 1
+        if not success:
+            self.error_count += 1
+        self.touch()
+
+
+class EntityDashboardState(BaseModel):
+    """State model for entity dashboard generation."""
+    
+    run_id: UUID = Field(default_factory=uuid4)
+    status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
+    days: int = Field(default=30)
+    entity_type: str = Field(default="PERSON")
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    dashboard_data: Dict[str, Any] = Field(default_factory=dict)
+    error_details: Optional[ErrorDetails] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    run_logs: List[str] = Field(default_factory=list)
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "run_id": "123e4567-e89b-12d3-a456-426614174000",
+                "status": "INITIALIZED",
+                "days": 30,
+                "entity_type": "PERSON",
+                "dashboard_data": {},
+                "run_logs": [],
+            }
+        }
+    )
+    
+    def touch(self) -> None:
+        """Update the last_updated timestamp."""
+        self.last_updated = datetime.now(timezone.utc)
+    
+    def add_log(self, message: str) -> None:
+        """Add a log message with timestamp."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        self.run_logs.append(f"[{timestamp}] {message}")
+        self.touch()
+    
+    def set_error(self, task: str, error: Exception) -> None:
+        """Set error details and update status."""
+        self.error_details = ErrorDetails(
+            task=task,
+            type=error.__class__.__name__,
+            message=str(error),
+            traceback_snippet=str(error.__traceback__),
+        )
+        self.status = TrackingStatus.FAILED
+        self.touch()
+
+
+class EntityRelationshipState(BaseModel):
+    """State model for entity relationship analysis."""
+    
+    run_id: UUID = Field(default_factory=uuid4)
+    status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
+    entity_id: int
+    days: int = Field(default=30)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    relationship_data: Dict[str, Any] = Field(default_factory=dict)
+    error_details: Optional[ErrorDetails] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    run_logs: List[str] = Field(default_factory=list)
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "run_id": "123e4567-e89b-12d3-a456-426614174000",
+                "status": "INITIALIZED",
+                "entity_id": 1,
+                "days": 30,
+                "relationship_data": {},
+                "run_logs": [],
+            }
+        }
+    )
+    
+    def touch(self) -> None:
+        """Update the last_updated timestamp."""
+        self.last_updated = datetime.now(timezone.utc)
+    
+    def add_log(self, message: str) -> None:
+        """Add a log message with timestamp."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        self.run_logs.append(f"[{timestamp}] {message}")
+        self.touch()
+    
+    def set_error(self, task: str, error: Exception) -> None:
+        """Set error details and update status."""
+        self.error_details = ErrorDetails(
+            task=task,
+            type=error.__class__.__name__,
+            message=str(error),
+            traceback_snippet=str(error.__traceback__),
+        )
+        self.status = TrackingStatus.FAILED
+        self.touch()

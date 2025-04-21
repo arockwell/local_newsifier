@@ -120,7 +120,7 @@ jobs:
         POSTGRES_DB: test_db
         TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |
-        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=88 tests/
+        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=87 tests/
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4

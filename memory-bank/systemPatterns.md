@@ -21,6 +21,11 @@ We use a hybrid architecture that combines elements of several architectural pat
    - Sequential processing of data through multiple stages
    - Allows for flexibility in adding or modifying processing steps
 
+4. **State-Based Pattern**
+   - Introduced for tracking system state and handling complex workflows
+   - Uses specialized state objects to encapsulate operation parameters and results
+   - Provides better separation of concerns between components
+
 ### Component Relationships
 
 ```mermaid
@@ -30,12 +35,15 @@ graph TD
     B --> D[Tools]
     C --> E[Database]
     D -.-> B
+    F[State Objects] <-.-> A
+    F <-.-> B
 ```
 
 - **Flows** orchestrate end-to-end processes using services
 - **Services** coordinate between CRUD modules and tools
 - **CRUD Modules** handle database operations
 - **Tools** perform specific processing or analysis tasks
+- **State Objects** carry operation parameters and results between components
 - Tools return results to services, which may save them via CRUD modules
 
 ## Design Patterns
@@ -79,6 +87,42 @@ class AnalysisService:
             # Use CRUD to get data
             # Use tools to analyze
             # Save results using CRUD
+```
+
+### State-Based Pattern
+
+We use state objects to encapsulate the input parameters and results of complex operations:
+
+```python
+class EntityTrackingState(BaseModel):
+    run_id: UUID = Field(default_factory=uuid4)
+    article_id: int
+    content: str
+    title: str
+    published_at: datetime
+    entities: List[Dict[str, Any]] = Field(default_factory=list)
+    status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
+    error_details: Optional[ErrorDetails] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    run_logs: List[str] = Field(default_factory=list)
+    
+    def add_log(self, message: str): ...
+    def set_error(self, task: str, error: Exception): ...
+```
+
+Services and flows then operate on these state objects:
+
+```python
+class EntityService:
+    def process_article_with_state(self, state: EntityTrackingState) -> EntityTrackingState:
+        try:
+            # Process the article
+            # Update state with results
+            state.status = TrackingStatus.SUCCESS
+        except Exception as e:
+            state.set_error("processing", e)
+        return state
 ```
 
 ### Dependency Injection
@@ -222,6 +266,41 @@ def test_analyze_headline_trends(self, MockTrendAnalyzer, service, mock_session,
     # Verify the result and mock interactions
     assert "trending_terms" in result
     mock_article_crud.get_by_date_range.assert_called_once_with(...)
+```
+
+### State-Based Testing
+
+For state-based components, we test by verifying the state transformation:
+
+```python
+def test_process_method():
+    # Setup mocks
+    mock_entity_service = Mock(spec=EntityService)
+    mock_state = Mock(spec=EntityTrackingState)
+    mock_result_state = Mock(spec=EntityTrackingState)
+    mock_entity_service.process_article_with_state.return_value = mock_result_state
+    
+    # Initialize flow
+    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    
+    # Call process method
+    result = flow.process(mock_state)
+    
+    # Verify method was called with correct state
+    mock_entity_service.process_article_with_state.assert_called_once_with(mock_state)
+    assert result is mock_result_state
+```
+
+### Context Manager Mocking
+
+Properly mocking context managers for session handling:
+
+```python
+# Setup session context manager mock properly
+mock_context_manager = MagicMock()
+mock_context_manager.__enter__.return_value = mock_session
+mock_context_manager.__exit__.return_value = None
+mock_entity_service.session_factory.return_value = mock_context_manager
 ```
 
 ### Fixtures for Common Objects

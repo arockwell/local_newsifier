@@ -8,14 +8,13 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from local_newsifier.database.engine import get_session
-from local_newsifier.database.adapter import (
-    create_article, get_canonical_entities_by_type
-)
+from local_newsifier.database.engine import SessionManager
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.models.article import Article as ArticleDB
-from local_newsifier.models.pydantic_models import ArticleCreate
-from local_newsifier.models.entity import EntityCreate
+from local_newsifier.models.entity_tracking import CanonicalEntity
+from local_newsifier.models.article import Article
 
 # Set up logging
 logging.basicConfig(
@@ -66,8 +65,10 @@ def add_sample_articles(session: Session):
 
     for article_data in articles:
         try:
-            article = ArticleCreate(**article_data)
-            created_article = create_article(article, session=session)
+            article = Article(**article_data)
+            created_article = article_crud.create(session, obj_in=article)
+            # Update status to analyzed so entity tracking can process it
+            article_crud.update_status(session, article_id=created_article.id, status="analyzed")
             logger.info(f"Added article: {created_article.title}")
         except Exception as e:
             logger.error(f"Error adding article: {e}")
@@ -81,8 +82,8 @@ def process_articles(session: Session):
     results = flow.process_new_articles()
     
     # Display results
-    logger.info(f"\nProcessed {len(results)} articles:")
-    for result in results:
+    logger.info(f"\nProcessed {len(results.processed_articles)} articles:")
+    for result in results.processed_articles:
         logger.info(f"\nArticle: {result['title']}")
         logger.info(f"Found {result['entity_count']} entities:")
         for entity in result['entities']:
@@ -139,7 +140,7 @@ def main():
     args = parser.parse_args()
 
     # Use context manager for session
-    with get_session() as session:
+    with SessionManager() as session:
         # Add sample articles
         add_sample_articles(session)
 
@@ -150,9 +151,9 @@ def main():
         show_entity_dashboard(session, days=args.days)
 
         # Get first entity ID for relationship demo
-        first_entity = get_canonical_entities_by_type("PERSON", session=session)[0]
-        if first_entity:
-            show_entity_relationships(session, first_entity.id, days=args.days)
+        first_entity = canonical_entity_crud.get_by_type(session, entity_type="PERSON")
+        if first_entity and len(first_entity) > 0:
+            show_entity_relationships(session, first_entity[0].id, days=args.days)
 
 
 if __name__ == "__main__":
