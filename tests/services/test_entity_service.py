@@ -45,6 +45,7 @@ def test_process_article_entities():
     
     mock_entity_mention_context_crud = MagicMock()
     mock_entity_profile_crud = MagicMock()
+    mock_article_crud = MagicMock()  # Added mock for article_crud
     
     # Mock session factory
     mock_session = MagicMock()
@@ -57,6 +58,7 @@ def test_process_article_entities():
         canonical_entity_crud=mock_canonical_entity_crud,
         entity_mention_context_crud=mock_entity_mention_context_crud,
         entity_profile_crud=mock_entity_profile_crud,
+        article_crud=mock_article_crud,  # Added article_crud parameter
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,

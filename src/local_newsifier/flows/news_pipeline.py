@@ -37,6 +37,7 @@ class NewsPipelineFlow(Flow):
             canonical_entity_crud=canonical_entity_crud,
             entity_mention_context_crud=entity_mention_context_crud,
             entity_profile_crud=entity_profile_crud,
+            article_crud=article_crud,  # Added missing article_crud parameter
             entity_extractor=EntityExtractor(),
             context_analyzer=ContextAnalyzer(),
             entity_resolver=EntityResolver(),
