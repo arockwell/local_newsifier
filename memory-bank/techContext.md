@@ -8,7 +8,8 @@
 2. **crew.ai**: Framework for orchestrating workflows and managing state
 3. **SQLModel**: ORM for database operations, combining SQLAlchemy and Pydantic
 4. **spaCy**: NLP library for entity recognition and text analysis
-5. **Poetry**: Dependency management and packaging
+5. **FastAPI**: Web framework for API and UI interface
+6. **Poetry**: Dependency management and packaging
 
 ### Database
 
@@ -203,13 +204,77 @@ entities = [ent for ent in doc.ents if ent.label_ == "PERSON"]
 context = entity.sent.text
 ```
 
+## Web Application
+
+### FastAPI Integration
+
+1. **FastAPI Setup**:
+   ```python
+   # Create FastAPI application
+   app = FastAPI(
+       title="Local Newsifier API",
+       description="API for Local Newsifier",
+       version="0.1.0",
+   )
+   
+   # Include routers
+   app.include_router(system.router)
+   ```
+
+2. **Running the Web Interface**:
+   ```bash
+   # Development mode with auto-reload
+   poetry run uvicorn src.local_newsifier.api.main:app --reload
+   
+   # Production mode
+   poetry run uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port 8000
+   ```
+
+3. **Available Endpoints**:
+   - `/` - Home page
+   - `/system/tables` - Database tables overview
+   - `/system/tables/{table_name}` - Table details
+   - `/health` - Health check
+   - `/config` - System configuration
+   - `/docs` - API documentation (Swagger UI)
+
+### Templating with Jinja2
+
+```python
+# Initialize templates
+templates = Jinja2Templates(directory="src/local_newsifier/api/templates")
+
+# Render template response
+return templates.TemplateResponse(
+    "index.html",
+    {
+        "request": request,
+        "title": "Local Newsifier",
+    },
+)
+```
+
 ## Deployment Considerations
 
-While not explicitly documented, the system appears designed for:
+The system now supports several deployment options:
 
-1. **Local Development**: Primary use case with SQLite database
-2. **Potential Production Deployment**: Would likely require:
-   - Migration to a more robust database (PostgreSQL, MySQL)
-   - Containerization (Docker)
-   - Scheduled execution for regular updates
-   - API layer for accessing analysis results
+1. **Local Development**:
+   - SQLite database
+   - FastAPI development server with auto-reload
+   - Access via localhost
+
+2. **Railway Deployment**:
+   - Configured with `railway.json` and `Procfile`
+   - PostgreSQL database (via Railway's managed database)
+   - Automatic database URL detection
+   - Zero-configuration deployment
+
+3. **Other Cloud Platforms**:
+   - Supports standard Procfile-based deployments (Heroku, Render, etc.)
+   - Environment variable configuration via `.env` files
+   - Adaptable database connection handling
+
+4. **Container Deployment**:
+   - Can be containerized with Docker
+   - Uses requirements.txt for dependency installation
+   - Configurable via environment variables
