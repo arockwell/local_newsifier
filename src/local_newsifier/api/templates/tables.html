@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Database Tables</h2>
+    <p>This page shows all tables in the Local Newsifier database along with basic statistics.</p>
+    
+    {% if tables_info %}
+    <table>
+        <thead>
+            <tr>
+                <th>Table Name</th>
+                <th>Columns</th>
+                <th>Rows</th>
+                <th>Size</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for table in tables_info %}
+            <tr>
+                <td>{{ table.name }}</td>
+                <td>{{ table.column_count }}</td>
+                <td>{{ table.row_count }}</td>
+                <td>{{ table.size_readable }}</td>
+                <td>
+                    <a href="/system/tables/{{ table.name }}" class="button">Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No tables found in the database.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2 class="card-title">API Endpoints</h2>
+    <p>The following API endpoints are available for accessing database information programmatically:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Endpoint</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>/system/tables/api</code></td>
+                <td>List all tables with statistics (JSON)</td>
+            </tr>
+            <tr>
+                <td><code>/system/tables/{table_name}/api</code></td>
+                <td>Get details for a specific table (JSON)</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

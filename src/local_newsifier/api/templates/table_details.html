@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Table: {{ table_name }}</h2>
+    <p>Detailed information about the <strong>{{ table_name }}</strong> table.</p>
+    
+    <h3>Structure</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Column Name</th>
+                <th>Data Type</th>
+                <th>Nullable</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for column in columns %}
+            <tr>
+                <td>{{ column[0] }}</td>
+                <td>{{ column[1] }}</td>
+                <td>{{ "Yes" if column[2] == "YES" else "No" }}</td>
+                <td>{{ column[3] if column[3] else "-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <h3>Statistics</h3>
+    <p>
+        <strong>Total rows:</strong> {{ row_count }}
+    </p>
+    
+    {% if sample_data %}
+    <h3>Sample Data (First 5 rows)</h3>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    {% for column in columns %}
+                    <th>{{ column[0] }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in sample_data %}
+                <tr>
+                    {% for value in row %}
+                    <td>{{ value if value is not none else "NULL" }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 2rem;">
+        <a href="/system/tables" class="button">Back to Tables</a>
+        <a href="/system/tables/{{ table_name }}/api" class="button button-secondary">View JSON</a>
+    </div>
+</div>
+
+{% if table_name == "article" %}
+<div class="card">
+    <h2 class="card-title">Related Tables</h2>
+    <p>Tables that have relationships with <strong>{{ table_name }}</strong>:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Related Table</th>
+                <th>Relationship Type</th>
+                <th>View</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>entity</td>
+                <td>One-to-Many (Article has many Entities)</td>
+                <td><a href="/system/tables/entity" class="button">View Table</a></td>
+            </tr>
+            <tr>
+                <td>analysis_result</td>
+                <td>One-to-Many (Article has many Analysis Results)</td>
+                <td><a href="/system/tables/analysis_result" class="button">View Table</a></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if table_name == "entity" %}
+<div class="card">
+    <h2 class="card-title">Related Tables</h2>
+    <p>Tables that have relationships with <strong>{{ table_name }}</strong>:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Related Table</th>
+                <th>Relationship Type</th>
+                <th>View</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>article</td>
+                <td>Many-to-One (Entity belongs to an Article)</td>
+                <td><a href="/system/tables/article" class="button">View Table</a></td>
+            </tr>
+            <tr>
+                <td>entity_mention_context</td>
+                <td>One-to-Many (Entity has many Mention Contexts)</td>
+                <td><a href="/system/tables/entity_mention_context" class="button">View Table</a></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
