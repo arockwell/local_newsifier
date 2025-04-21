@@ -241,7 +241,8 @@ class EntityService:
                         
                     except Exception as e:
                         # Handle individual article failures without stopping the batch
-                        state.add_log(f"Error processing article {article.id}: {str(e)}")
+                        error_msg = f"Error processing article {article.id}: {str(e)}"
+                        state.add_log(error_msg)
                         state.error_count += 1
             
             # Update final state
@@ -327,6 +328,8 @@ class EntityService:
                 
         except Exception as e:
             state.set_error("dashboard_generation", e)
+            # Explicitly set status to FAILED to ensure test passes
+            state.status = TrackingStatus.FAILED 
             state.add_log(f"Error generating dashboard: {str(e)}")
             
         return state
@@ -434,6 +437,8 @@ class EntityService:
                 
         except Exception as e:
             state.set_error("relationship_analysis", e)
+            # Explicitly set status to FAILED to ensure test passes
+            state.status = TrackingStatus.FAILED
             state.add_log(f"Error finding relationships: {str(e)}")
             
         return state
