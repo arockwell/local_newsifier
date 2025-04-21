@@ -5,7 +5,7 @@ from typing import Generator
 from fastapi import Depends
 from sqlmodel import Session
 
-from local_newsifier.database.engine import get_db_session
+from local_newsifier.database.engine import SessionManager
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -17,5 +17,5 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Session: SQLModel session
     """
-    with get_db_session() as session:
+    with SessionManager() as session:
         yield session

@@ -83,7 +83,9 @@ async def get_table_details(
             ordinal_position
         """
     )
-    columns = session.exec(column_query, {"table_name": table_name}).all()
+    # SQLModel exec() only takes one parameter (the query) with values bound to the query
+    column_query = column_query.bindparams(table_name=table_name)
+    columns = session.exec(column_query).all()
 
     # Get row count
     count_query = text(f"SELECT COUNT(*) FROM {table_name}")
@@ -138,7 +140,9 @@ async def get_table_details_api(
             ordinal_position
         """
     )
-    columns = session.exec(column_query, {"table_name": table_name}).all()
+    # SQLModel exec() only takes one parameter (the query) with values bound to the query
+    column_query = column_query.bindparams(table_name=table_name)
+    columns = session.exec(column_query).all()
 
     # Get row count
     count_query = text(f"SELECT COUNT(*) FROM {table_name}")

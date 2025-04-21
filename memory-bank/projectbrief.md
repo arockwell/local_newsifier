@@ -1,78 +1,33 @@
 # Project Brief: Local Newsifier
 
-## Project Overview
+## Overview
+Local Newsifier is a tool for fetching, analyzing, and storing local news articles. The system helps track entities, analyze trends, and provide insights into local news coverage.
 
-Local Newsifier is a robust system for fetching, analyzing, and storing local news articles from Gainesville, FL using crew.ai Flows. The system automatically fetches local news articles, performs Named Entity Recognition (NER) analysis, and stores the results with a focus on reliability and observability.
+## Core Objectives
+1. Scrape and extract news articles from local sources
+2. Identify and track entities mentioned in articles
+3. Analyze sentiment and trends
+4. Visualize data and insights
+5. Provide a web interface for exploring the data
 
-## Core Requirements
+## Key Components
+1. Web scraping and article extraction modules
+2. Entity recognition and tracking system
+3. Sentiment and trend analysis
+4. Database for storing articles, entities, and analysis results
+5. Web-based UI for data exploration
+6. API for programmatic access
 
-1. **Automated News Processing**
-   - Fetch news articles from specified sources
-   - Extract and analyze article content
-   - Store processed articles and analysis results
-   - Track entities mentioned across articles
+## Technical Requirements
+1. Python-based backend
+2. PostgreSQL database
+3. FastAPI for web interface and API
+4. Deployment on Railway platform
 
-2. **Entity Recognition and Tracking**
-   - Identify named entities in articles (people, organizations, locations)
-   - Track entities across multiple articles over time
-   - Analyze entity relationships and co-occurrences
-   - Generate entity profiles with contextual information
-
-3. **Trend Analysis**
-   - Analyze headline trends over time
-   - Detect trending terms and topics
-   - Track sentiment around specific entities
-   - Generate trend reports in various formats
-
-4. **Robust Error Handling**
-   - Implement retry mechanisms for network failures
-   - Handle parsing errors gracefully
-   - Maintain state for workflow resumption
-   - Log errors and exceptions comprehensively
-
-5. **Data Persistence**
-   - Store articles and analysis results in a database
-   - Maintain entity relationships and tracking data
-   - Support multiple database instances for development
-   - Ensure data integrity and consistency
-
-6. **Data Visualization & Access**
-   - Provide web interface for data exploration
-   - Expose RESTful API endpoints for programmatic access
-   - Enable database structure examination and querying
-   - Support both human and machine interaction models
-
-## Technical Goals
-
-1. **Modularity**
-   - Separate concerns into distinct components
-   - Enable independent testing of components
-   - Allow for easy extension and modification
-   - Support pluggable analysis tools
-
-2. **Reliability**
-   - Ensure consistent processing of articles
-   - Handle edge cases and unexpected inputs
-   - Recover from failures automatically
-   - Maintain data integrity
-
-3. **Observability**
-   - Comprehensive logging
-   - State tracking and monitoring
-   - Progress reporting
-   - Error diagnostics
-
-4. **Testability**
-   - High test coverage (>90%)
-   - Isolated component tests
-   - Integration tests for workflows
-   - Mocking of external dependencies
-
-## Success Criteria
-
-1. Successfully fetch and process news articles from multiple sources
-2. Accurately identify and track named entities across articles
-3. Generate meaningful trend analysis reports
-4. Maintain system reliability with proper error handling
-5. Achieve high test coverage and code quality
-6. Support multiple analysis types and report formats
+## Milestones
+1. ✅ Core data models and database schema
+2. ✅ Entity tracking system
+3. ✅ Analysis pipeline
+4. ✅ Web interface for database exploration
+5. ✅ Fix for SQLModel parameter binding issue
+6. 🔄 Railway deployment setup and configuration
