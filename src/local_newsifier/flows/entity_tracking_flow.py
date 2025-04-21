@@ -70,7 +70,14 @@ class EntityTrackingFlow(Flow):
         Returns:
             Updated state with processed entities
         """
-        return self.entity_service.process_article_with_state(state)
+        try:
+            return self.entity_service.process_article_with_state(state)
+        except Exception as e:
+            # Handle errors by updating the state
+            state.status = TrackingStatus.FAILED
+            state.set_error("entity_processing", e)
+            state.add_log(f"Error processing article: {str(e)}")
+            return state
 
     def process_new_articles(self, state: Optional[EntityBatchTrackingState] = None) -> EntityBatchTrackingState:
         """Process all new articles for entity tracking.
