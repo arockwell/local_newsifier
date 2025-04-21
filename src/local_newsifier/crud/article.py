@@ -90,6 +90,39 @@ class CRUDArticle(CRUDBase[Article]):
         """
         statement = select(Article).where(Article.status == status)
         return db.exec(statement).all()
+        
+    def get_by_date_range(
+        self, 
+        db: Session, 
+        *, 
+        start_date: datetime, 
+        end_date: datetime,
+        source: Optional[str] = None
+    ) -> List[Article]:
+        """Get articles within a date range.
+
+        Args:
+            db: Database session
+            start_date: Start date
+            end_date: End date
+            source: Optional source to filter by
+
+        Returns:
+            List of articles within the date range
+        """
+        statement = select(Article).where(
+            Article.published_at >= start_date,
+            Article.published_at <= end_date
+        )
+        
+        # Add source filter if provided
+        if source:
+            statement = statement.where(Article.source == source)
+            
+        # Order by published date
+        statement = statement.order_by(Article.published_at)
+        
+        return db.exec(statement).all()
 
 
 article = CRUDArticle(Article)

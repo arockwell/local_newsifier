@@ -1,131 +1,46 @@
-# Active Context: Local Newsifier
+# Active Context
 
-## Current Work Focus
+## Current Focus
 
-The project is currently focused on implementing a refactored architecture as indicated by the open VSCode tabs and visible files (`IMPLEMENT_REFACTORED_ARCHITECTURE.md` and `REFACTORED_ARCHITECTURE_GUIDE.md`). This refactoring appears to involve:
+We're focused on improving test coverage for the flows module. Specifically:
 
-1. **Model Restructuring**: Reorganizing the database models for better separation of concerns
-2. **CRUD Layer Enhancement**: Improving the data access layer with more robust operations
-3. **Entity Tracking Improvements**: Enhancing the entity tracking functionality
-4. **Testing Infrastructure**: Expanding test coverage for the refactored components
-
-The open tabs suggest particular focus on:
-- Database models (article, entity, analysis_result)
-- CRUD operations for these models
-- Entity tracking and analysis tools
-- Test cases for database models and relationships
+1. We've successfully fixed the tests for `headline_trend_flow.py` and `trend_analysis_flow.py`
+2. We've improved test coverage with `headline_trend_flow.py` now at 100% coverage, `trend_analysis_flow.py` at 92% coverage, and `entity_tracking_flow_service.py` at 100% coverage
+3. The overall flow module test coverage is at 81%, short of our 90% goal
+4. `entity_tracking_flow.py` remains at 0% coverage, but we've determined it's used solely in the demo script and would require refactoring to properly test
 
 ## Recent Changes
 
-Based on the file structure and open tabs, recent work appears to have included:
+### Test Coverage Improvements
+- Fixed tests for the analysis flows
+- Added proper exception testing in `test_trend_analysis_flow.py` with correct mocking approaches
+- Improved the test for different time frame handling in `trend_analysis_flow.py`
+- Added comprehensive tests for the entity_tracking_flow_service.py module
+- Identified code paths requiring better testing
 
-1. **Database Model Refactoring**: 
-   - Separation of database models into dedicated files
-   - Implementation of proper relationships between models
-   - Enhanced type annotations and documentation
-
-2. **Entity Tracking Enhancements**:
-   - Improved entity resolution across articles
-   - Context analysis for entity mentions
-   - Sentiment tracking for entities
-
-3. **Testing Infrastructure**:
-   - Integration tests for database relationships
-   - Unit tests for CRUD operations
-   - Test fixtures for database testing
-
-4. **Headline Analysis**:
-   - Implementation of trend detection in headlines
-   - Temporal analysis of keyword frequency
-   - Report generation in multiple formats
+### Testing Approach Enhancements
+- For exception tests, we're using a more direct method to test the exception paths by patching the method and simulating the error conditions
+- This approach is more reliable than trying to trigger the exceptions from the outside
+- Learned that patching decorator-wrapped methods requires caution, especially with the `@with_session` decorator
 
 ## Next Steps
 
-The immediate next steps appear to be:
+1. Consider how to handle the older `entity_tracking_flow.py`:
+   - It duplicates functionality with `entity_tracking_flow_service.py`, but has more features
+   - It's currently used in the demo scripts
+   - Long-term approach would be to either migrate its functionality to `entity_tracking_flow_service.py` or extract the unique functionality into dedicated service classes
 
-1. **Complete Refactored Architecture Implementation**:
-   - Finish migrating models to the new structure
-   - Update all references to use the new model paths
-   - Ensure backward compatibility where needed
+2. Look at the smaller coverage gaps in:
+   - `news_pipeline.py` (96% covered, missing 4 lines)
+   - `public_opinion_flow.py` (94% covered, missing 8 lines)
+   - `trend_analysis_flow.py` (92% covered, missing 8 lines)
 
-2. **Enhance Entity Tracking**:
-   - Improve entity resolution accuracy
-   - Expand context analysis capabilities
-   - Implement more sophisticated relationship detection
+3. Consider making a PR with the current fixes to ensure the tests are stable in the main branch
 
-3. **Expand Test Coverage**:
-   - Add tests for edge cases in entity tracking
-   - Implement integration tests for full workflows
-   - Ensure database tests cover all relationship scenarios
+## Key Insights
 
-4. **Documentation Updates**:
-   - Update API documentation to reflect architectural changes
-   - Document new entity tracking capabilities
-   - Create usage examples for headline trend analysis
-
-## Active Decisions and Considerations
-
-1. **Database Model Structure**:
-   - Whether to use SQLModel for all models or maintain some separation
-   - How to handle circular imports between related models
-   - Balancing normalization with query performance
-
-2. **Entity Resolution Strategy**:
-   - Threshold for entity name similarity matching
-   - Handling of ambiguous entity references
-   - Strategies for entity disambiguation
-
-3. **Testing Approach**:
-   - Use of mocks vs. actual database for testing
-   - Isolation of test databases between test runs
-   - Handling of environment variables in tests
-
-4. **Performance Optimization**:
-   - Balancing NLP processing depth with performance
-   - Strategies for handling large article volumes
-   - Indexing approaches for entity queries
-
-## Important Patterns and Preferences
-
-1. **Code Organization**:
-   - Clear separation between models, tools, flows, and CRUD operations
-   - Consistent file naming and module structure
-   - Type annotations throughout the codebase
-
-2. **Database Access**:
-   - Use of the `with_session` decorator for session management
-   - Repository pattern for database operations
-   - Explicit relationship definitions in models
-
-3. **Error Handling**:
-   - State-based error tracking
-   - Typed error states for different failure modes
-   - Comprehensive logging of error conditions
-
-4. **Testing Patterns**:
-   - One test file per component
-   - Clear, descriptive test names
-   - Use of fixtures for test setup
-   - Verification of both state and behavior
-
-## Learnings and Project Insights
-
-1. **Entity Tracking Challenges**:
-   - Entity resolution requires sophisticated matching strategies
-   - Context extraction is critical for meaningful entity analysis
-   - Relationship detection benefits from co-occurrence analysis
-
-2. **Database Design Considerations**:
-   - SQLModel provides a good balance of ORM and validation
-   - Circular imports require careful handling with TYPE_CHECKING
-   - Session management is critical for proper transaction handling
-
-3. **NLP Processing Insights**:
-   - spaCy provides good entity recognition but requires tuning
-   - Large models improve accuracy but increase resource requirements
-   - Context analysis benefits from sentence-level processing
-
-4. **Architecture Evolution**:
-   - Flow-based processing provides good separation of concerns
-   - State-based processing enables robust error handling
-   - Repository pattern simplifies database access
+1. The `@with_session` decorator in the `database/engine.py` file complicates testing because it opens a new session if one isn't provided
+2. When using `patch.object()`, we need to be precise about which objects and methods to patch
+3. Some of the tests were failing because we were trying to patch non-existent attributes
+4. For error handling tests, it's often easier to directly create error states or patch methods to simulate errors rather than trying to induce errors through external means
+5. We have duplicate implementations of entity tracking functionality that will need to be consolidated

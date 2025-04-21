@@ -18,10 +18,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
-from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session, with_session
-from local_newsifier.tools.analysis.headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.database.engine import get_session
+from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session=None):
         """
         Initialize the headline trend analysis flow.
 
@@ -37,27 +36,24 @@ class HeadlineTrendFlow(Flow):
             session: Optional SQLModel session to use
         """
         super().__init__()
-
-        # Set up database connection if not provided
+        
+        # Store session
+        self.session = session
+        self._owns_session = False
+        
         if session is None:
-            self.session_generator = get_session()
-            self.session = next(self.session_generator)
             self._owns_session = True
-        else:
-            self.session = session
-            self._owns_session = False
+            self.session = get_session().__next__()
 
-        # Initialize tools
-        self.headline_analyzer = HeadlineTrendAnalyzer(self.session)
+        # Initialize analysis service
+        self.analysis_service = AnalysisService(session_factory=lambda: self.session)
 
     def __del__(self):
-        """Clean up resources when the flow is deleted."""
-        if hasattr(self, "_owns_session") and self._owns_session:
-            if hasattr(self, "session") and self.session is not None:
-                try:
-                    next(self.session_generator, None)
-                except StopIteration:
-                    pass
+        """Clean up resources when the object is deleted."""
+        if hasattr(self, '_owns_session') and self._owns_session and hasattr(self, 'session'):
+            # Only close the session if we created it
+            if self.session:
+                self.session.close()
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20
@@ -78,12 +74,11 @@ class HeadlineTrendFlow(Flow):
 
         logger.info(f"Analyzing headline trends from {start_date} to {end_date}")
 
-        results = self.headline_analyzer.analyze_trends(
+        results = self.analysis_service.analyze_headline_trends(
             start_date=start_date,
             end_date=end_date,
             time_interval=interval,
-            top_n=top_n,
-            session=self.session
+            top_n=top_n
         )
 
         return results
@@ -109,12 +104,11 @@ class HeadlineTrendFlow(Flow):
         """
         logger.info(f"Analyzing headline trends from {start_date} to {end_date}")
 
-        results = self.headline_analyzer.analyze_trends(
+        results = self.analysis_service.analyze_headline_trends(
             start_date=start_date,
             end_date=end_date,
             time_interval=interval,
-            top_n=top_n,
-            session=self.session
+            top_n=top_n
         )
 
         return results

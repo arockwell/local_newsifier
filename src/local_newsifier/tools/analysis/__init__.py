@@ -1,5 +1,6 @@
 """Analysis tools for news content."""
 
-from .headline_analyzer import HeadlineTrendAnalyzer
+from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 
-__all__ = ["HeadlineTrendAnalyzer"]
+__all__ = ["TrendAnalyzer", "ContextAnalyzer"]

@@ -1,7 +1,6 @@
 """Context analyzer tool for analyzing entity mention contexts."""
 
-import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Any
 
 import spacy
 from spacy.language import Language
@@ -9,23 +8,19 @@ from spacy.tokens import Doc, Span
 
 
 class ContextAnalyzer:
-    """Tool for analyzing entity mention contexts."""
-
+    """Tool for analyzing the context of entity mentions."""
+    
     def __init__(self, model_name: str = "en_core_web_lg"):
-        """
-        Initialize the context analyzer.
-
+        """Initialize with spaCy model.
+        
         Args:
             model_name: Name of the spaCy model to use
         """
         try:
             self.nlp: Language = spacy.load(model_name)
         except OSError:
-            raise RuntimeError(
-                f"spaCy model '{model_name}' not found. "
-                f"Please install it using: python -m spacy download {model_name}"
-            )
-        
+            self.nlp = None
+            
         # Initialize sentiment lexicon
         self.sentiment_words = {
             "positive": [
@@ -68,41 +63,7 @@ class ContextAnalyzer:
             ]
         }
     
-    def extract_context(self, text: str, entity_text: str, window: int = 2) -> str:
-        """
-        Extract the context around an entity mention.
-        
-        Args:
-            text: Full article text
-            entity_text: The entity text to find
-            window: Number of sentences before and after to include
-            
-        Returns:
-            Context text around entity mention
-        """
-        doc = self.nlp(text)
-        
-        # Find all mentions of the entity
-        mentions = []
-        for sent_idx, sent in enumerate(doc.sents):
-            if entity_text.lower() in sent.text.lower():
-                mentions.append(sent_idx)
-        
-        # If no mentions found, return empty string
-        if not mentions:
-            return ""
-        
-        # Use the first mention for context (could be modified to include all mentions)
-        mention_idx = mentions[0]
-        
-        # Get sentences around the mention
-        context_sents = []
-        for i in range(max(0, mention_idx - window), min(len(list(doc.sents)), mention_idx + window + 1)):
-            context_sents.append(list(doc.sents)[i].text)
-        
-        return " ".join(context_sents)
-    
-    def analyze_sentiment(self, context: str) -> Dict[str, float]:
+    def analyze_sentiment(self, context: str) -> Dict[str, Any]:
         """
         Analyze sentiment in entity mention context.
         
@@ -112,6 +73,15 @@ class ContextAnalyzer:
         Returns:
             Sentiment analysis results with score
         """
+        if not self.nlp:
+            return {
+                "score": 0.0,
+                "category": "neutral",
+                "positive_count": 0,
+                "negative_count": 0,
+                "total_count": 0
+            }
+            
         doc = self.nlp(context.lower())
         
         # Count sentiment words
@@ -122,17 +92,25 @@ class ContextAnalyzer:
         total_count = positive_count + negative_count
         if total_count == 0:
             sentiment_score = 0.0
+            sentiment_category = "neutral"
         else:
             sentiment_score = (positive_count - negative_count) / total_count
+            if sentiment_score > 0.2:
+                sentiment_category = "positive"
+            elif sentiment_score < -0.2:
+                sentiment_category = "negative"
+            else:
+                sentiment_category = "neutral"
         
         return {
             "score": sentiment_score,
+            "category": sentiment_category,
             "positive_count": positive_count,
             "negative_count": negative_count,
             "total_count": total_count
         }
     
-    def analyze_framing(self, context: str) -> Dict[str, float]:
+    def analyze_framing(self, context: str) -> Dict[str, Any]:
         """
         Analyze framing of entity in mention context.
         
@@ -142,6 +120,14 @@ class ContextAnalyzer:
         Returns:
             Framing analysis results with category scores
         """
+        if not self.nlp:
+            return {
+                "category": "neutral",
+                "scores": {},
+                "counts": {},
+                "total_count": 0
+            }
+            
         doc = self.nlp(context.lower())
         
         # Count framing-related words for each category
@@ -169,7 +155,7 @@ class ContextAnalyzer:
             "total_count": total_count
         }
     
-    def analyze_context(self, context: str) -> Dict[str, Dict]:
+    def analyze_context(self, context: str) -> Dict[str, Any]:
         """
         Perform comprehensive analysis of entity mention context.
         
@@ -188,3 +174,50 @@ class ContextAnalyzer:
             "length": len(context),
             "word_count": len(context.split())
         }
+    
+    def analyze_entity_contexts(
+        self, 
+        entities: List[Dict]
+    ) -> List[Dict]:
+        """
+        Analyze contexts for multiple entities.
+        
+        Args:
+            entities: List of entity dictionaries with 'context' field
+            
+        Returns:
+            Entities with added context analysis
+        """
+        analyzed_entities = []
+        
+        for entity in entities:
+            if "context" in entity:
+                context_analysis = self.analyze_context(entity["context"])
+                
+                # Create a new entity dict with analysis added
+                analyzed_entity = entity.copy()
+                analyzed_entity["context_analysis"] = context_analysis
+                
+                analyzed_entities.append(analyzed_entity)
+            else:
+                # If no context, just pass through the entity
+                analyzed_entities.append(entity)
+                
+        return analyzed_entities
+    
+    def get_sentiment_category(self, sentiment_score: float) -> str:
+        """
+        Get sentiment category from score.
+        
+        Args:
+            sentiment_score: Sentiment score (-1.0 to 1.0)
+            
+        Returns:
+            Sentiment category (positive, negative, neutral)
+        """
+        if sentiment_score > 0.2:
+            return "positive"
+        elif sentiment_score < -0.2:
+            return "negative"
+        else:
+            return "neutral"

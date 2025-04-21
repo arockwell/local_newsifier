@@ -1,182 +1,248 @@
-# System Patterns: Local Newsifier
+# System Patterns
 
-## System Architecture
+## Architectural Patterns
 
-Local Newsifier follows a modular, layered architecture that separates concerns and enables independent development and testing of components. The system is built around the following key architectural patterns:
+### Hybrid Architecture
 
-### 1. Flow-Based Processing
+We use a hybrid architecture that combines elements of several architectural patterns:
 
-The system uses crew.ai Flows to orchestrate multi-step processing pipelines. Each Flow represents a complete workflow (like news processing or entity tracking) and manages the execution of individual tasks within that workflow.
+1. **Repository Pattern** (via CRUD modules)
+   - Encapsulates database operations
+   - Provides a consistent interface for data access
+   - Hides implementation details of data storage
 
-```
-┌─────────────────────────┐
-│       Flow Layer        │
-│  (Orchestration Logic)  │
-└───────────┬─────────────┘
-            │
-┌───────────▼─────────────┐
-│      Tool Layer         │
-│  (Processing Logic)     │
-└───────────┬─────────────┘
-            │
-┌───────────▼─────────────┐
-│      Model Layer        │
-│  (Data Representation)  │
-└───────────┬─────────────┘
-            │
-┌───────────▼─────────────┐
-│      CRUD Layer         │
-│  (Data Access Logic)    │
-└───────────┬─────────────┘
-            │
-┌───────────▼─────────────┐
-│    Database Layer       │
-│  (Data Persistence)     │
-└─────────────────────────┘
+2. **Service Layer Pattern**
+   - Coordinates between CRUD operations and tools
+   - Implements business logic and transaction management
+   - Provides a clean API for higher-level components
+
+3. **Pipeline Processing**
+   - Used for article processing workflows
+   - Sequential processing of data through multiple stages
+   - Allows for flexibility in adding or modifying processing steps
+
+### Component Relationships
+
+```mermaid
+graph TD
+    A[Flows] --> B[Services]
+    B --> C[CRUD Modules]
+    B --> D[Tools]
+    C --> E[Database]
+    D -.-> B
 ```
 
-### 2. State-Based Processing
+- **Flows** orchestrate end-to-end processes using services
+- **Services** coordinate between CRUD modules and tools
+- **CRUD Modules** handle database operations
+- **Tools** perform specific processing or analysis tasks
+- Tools return results to services, which may save them via CRUD modules
 
-Each Flow operates on a State object that encapsulates the current status of processing, input data, intermediate results, and error information. This enables:
+## Design Patterns
 
-- Resumable processing after failures
-- Clear tracking of progress
-- Comprehensive error handling
-- Audit trails of processing steps
+### Repository Pattern (CRUD)
 
-### 3. Repository Pattern
+All database operations are encapsulated in CRUD classes that follow a consistent pattern:
 
-The CRUD layer implements the Repository pattern to abstract database operations and provide a clean interface for data access. Each entity type has its own repository that handles:
-
-- Creating new records
-- Retrieving existing records
-- Updating record data
-- Deleting records
-- Specialized queries
-
-## Key Design Patterns
-
-### 1. Dependency Injection
-
-Components receive their dependencies through constructor parameters, enabling:
-- Easier testing through mock injection
-- Flexible configuration
-- Reduced coupling between components
-
-Example:
 ```python
-class EntityTracker:
-    def __init__(self, session: Optional[Session] = None, model_name: str = "en_core_web_lg"):
+class CRUDBase[T]:
+    def get(self, db, id): ...
+    def get_multi(self, db, skip, limit): ...
+    def create(self, db, obj_in): ...
+    def update(self, db, db_obj, obj_in): ...
+    def delete(self, db, id): ...
+```
+
+Specialized CRUD classes extend this base class to add entity-specific operations:
+
+```python
+class CRUDEntity(CRUDBase[Entity]):
+    def get_by_article(self, db, article_id): ...
+    def get_by_text_and_article(self, db, text, article_id): ...
+    def get_by_date_range_and_types(self, db, start_date, end_date, entity_types): ...
+```
+
+### Service Layer
+
+Services coordinate higher-level operations between CRUD modules and tools:
+
+```python
+class AnalysisService:
+    def __init__(self, analysis_result_crud=None, article_crud=None, entity_crud=None, session_factory=None):
+        self.analysis_result_crud = analysis_result_crud or analysis_result
+        self.article_crud = article_crud or article
+        self.entity_crud = entity_crud or entity
+        self.session_factory = session_factory or SessionManager
+        
+    def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
+        with self.session_factory() as session:
+            # Use CRUD to get data
+            # Use tools to analyze
+            # Save results using CRUD
+```
+
+### Dependency Injection
+
+Components accept their dependencies as constructor parameters with sensible defaults:
+
+```python
+def __init__(
+    self,
+    analysis_result_crud=None,
+    article_crud=None,
+    entity_crud=None,
+    session_factory=None
+):
+    self.analysis_result_crud = analysis_result_crud or analysis_result
+    self.article_crud = article_crud or article
+    self.entity_crud = entity_crud or entity
+    self.session_factory = session_factory or SessionManager
+```
+
+This pattern facilitates:
+- Unit testing with mocks
+- Flexibility in component configuration
+- Clear dependency relationships
+
+### Pipeline Processing
+
+Article processing follows a pipeline pattern:
+
+```python
+class NewsPipeline:
+    def process_article(self, article):
+        article = self.fetch_content(article)
+        article = self.extract_entities(article)
+        article = self.analyze_sentiment(article)
+        article = self.detect_topics(article)
+        return article
+```
+
+### Context Managers for Sessions
+
+Database sessions are managed using context managers:
+
+```python
+class SessionManager:
+    def __enter__(self):
+        engine = get_engine()
+        self.session = Session(engine)
+        return self.session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            if exc_type:
+                self.session.rollback()
+            else:
+                self.session.commit()
+            self.session.close()
+```
+
+Services use this pattern for transaction management:
+
+```python
+with self.session_factory() as session:
+    # Database operations
+    # If an exception occurs, session will be rolled back
+    # Otherwise, session will be committed
+```
+
+## Core Implementation Patterns
+
+### Model Definitions
+
+SQLModel is used for model definitions, providing both ORM and Pydantic validation:
+
+```python
+class Entity(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    article_id: int = Field(foreign_key="article.id")
+    text: str
+    entity_type: str
+    sentence_context: Optional[str] = None
+    frequency: Optional[int] = None
+    confidence: Optional[float] = Field(default=1.0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+```
+
+### Tool Implementation
+
+Tools focus on specific processing or analysis tasks without direct database access:
+
+```python
+class TrendAnalyzer:
+    def __init__(self, session=None):
         self.session = session
-        self.nlp = spacy.load(model_name)
+        self._cache = {}
+        self.nlp = None
+        
+    def extract_keywords(self, headlines, top_n=20):
+        # Process headlines to extract keywords
+        # Return processed data
+        
+    def detect_keyword_trends(self, trend_data):
+        # Analyze trend data to identify patterns
+        # Return trend analysis results
 ```
 
-### 2. Decorator Pattern
+### Error Handling
 
-The system uses decorators to add cross-cutting concerns like session management:
+Structured error handling with appropriate error propagation:
 
 ```python
-@with_session
-def process_article(self, article_id: int, *, session: Session = None) -> List[Dict]:
-    # Session handling is abstracted away by the decorator
-    # ...
+try:
+    # Operation that might fail
+except SomeSpecificException as e:
+    # Handle specific exception
+    return {"error": str(e)}
+except Exception as e:
+    # Log unexpected errors
+    logger.exception(f"Unexpected error: {e}")
+    raise
 ```
 
-### 3. Factory Pattern
+## Testing Patterns
 
-Factory methods are used to create complex objects, particularly for database connections:
+### Unit Testing with Mocks
+
+Services and tools are tested using mock objects for dependencies:
 
 ```python
-def get_session():
-    # Logic to create and configure a database session
-    # ...
-    yield session
+@patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
+def test_analyze_headline_trends(self, MockTrendAnalyzer, service, mock_session, mock_article_crud):
+    # Setup mocks
+    mock_article_crud.get_by_date_range.return_value = sample_articles
+    mock_trend_analyzer = MockTrendAnalyzer.return_value
+    mock_trend_analyzer.extract_keywords.return_value = [("term", 2)]
+    
+    # Call the method
+    result = service.analyze_headline_trends(start_date, end_date)
+    
+    # Verify the result and mock interactions
+    assert "trending_terms" in result
+    mock_article_crud.get_by_date_range.assert_called_once_with(...)
 ```
 
-### 4. Strategy Pattern
+### Fixtures for Common Objects
 
-Different analysis strategies can be plugged into the system, allowing for flexible processing approaches:
+Test fixtures for database sessions, mock objects, and sample data:
 
 ```python
-# Different analyzer implementations can be used interchangeably
-self.analyzer = NERAnalyzerTool()  # Could be swapped with another analyzer
-```
+@pytest.fixture
+def mock_session():
+    session = MagicMock()
+    session.__enter__ = MagicMock(return_value=session)
+    session.__exit__ = MagicMock(return_value=None)
+    return session
 
-### 5. Observer Pattern
-
-The system implements a form of the Observer pattern through its logging and state tracking, where processing steps update state and logs that can be observed externally.
-
-## Component Relationships
-
-### 1. Flow Components
-
-Flows orchestrate the overall processing and contain the high-level business logic:
-
-- `NewsPipelineFlow`: Manages the end-to-end process of fetching, analyzing, and storing news articles
-- `EntityTrackingFlow`: Handles the identification and tracking of entities across articles
-- `HeadlineTrendFlow`: Analyzes trends in headlines over time
-
-### 2. Tool Components
-
-Tools implement specific processing logic and are used by Flows:
-
-- `WebScraperTool`: Fetches article content from URLs
-- `NERAnalyzerTool`: Performs Named Entity Recognition on article content
-- `EntityTracker`: Tracks entities across multiple articles
-- `HeadlineTrendAnalyzer`: Analyzes trends in headlines
-
-### 3. Model Components
-
-Models represent the data structures used throughout the system:
-
-- Database Models: SQLModel-based ORM models for database entities
-- State Models: Pydantic models for representing processing state
-- Pydantic Models: Data validation and serialization models
-
-### 4. CRUD Components
-
-CRUD modules handle database operations for specific entity types:
-
-- `article.py`: Operations for Article entities
-- `entity.py`: Operations for Entity entities
-- `analysis_result.py`: Operations for AnalysisResult entities
-
-## Critical Implementation Paths
-
-### 1. News Article Processing Path
-
-```
-URL Input → WebScraperTool → NERAnalyzerTool → FileWriterTool → Database
-```
-
-This path handles the core functionality of fetching and analyzing news articles.
-
-### 2. Entity Tracking Path
-
-```
-Article Data → EntityTracker → EntityResolver → ContextAnalyzer → Database
-```
-
-This path manages the identification and tracking of entities across articles.
-
-### 3. Headline Trend Analysis Path
-
-```
-Date Range → HeadlineTrendAnalyzer → Keyword Extraction → Trend Detection → Report Generation
-```
-
-This path analyzes trends in headlines over specified time periods.
-
-## Error Handling Patterns
-
-1. **State-Based Error Tracking**: Errors are captured in the state object with detailed information
-2. **Typed Error States**: Different error types (network, parsing, etc.) have specific state values
-3. **Retry Logic**: Flows implement retry logic for recoverable errors
-4. **Graceful Degradation**: System can continue partial processing when some components fail
-
-## Data Flow Patterns
-
-1. **Extract-Transform-Load (ETL)**: The system follows an ETL pattern for processing news articles
-2. **Incremental Processing**: New articles are processed incrementally as they are discovered
-3. **Batch Analysis**: Trend analysis is performed in batches over specified time periods
-4. **Event Sourcing**: Entity tracking maintains a history of entity mentions over time
+@pytest.fixture
+def sample_articles():
+    return [
+        Article(
+            id=1,
+            title="Test Article",
+            content="Test content",
+            published_at=datetime.now(timezone.utc)
+        )
+    ]
