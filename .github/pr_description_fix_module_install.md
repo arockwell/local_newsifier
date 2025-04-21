@@ -31,6 +31,32 @@ This ensures that the package is properly installed in the deployment environmen
    ```
 4. It avoids having to modify the application code to use different import paths
 
+## Additional Requirements for Railway
+
+To fully deploy the application on Railway, you must:
+
+1. **Add the PostgreSQL plugin** to your Railway project
+   - This automatically provisions a database and sets up the DATABASE_URL environment variable
+
+2. **Database Connection**
+   - The application is configured to use the DATABASE_URL environment variable when available
+   - This is handled automatically in src/local_newsifier/config/settings.py:
+     ```python
+     @computed_field
+     def DATABASE_URL(self) -> str:
+         """Get the database URL based on environment."""
+         # Check if DATABASE_URL is provided directly (common in Railway and other cloud platforms)
+         env_db_url = os.environ.get("DATABASE_URL")
+         if env_db_url:
+             return env_db_url
+             
+         # Otherwise construct from individual components
+         return (
+             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+         )
+     ```
+
 ## Testing
 
-This approach has been tested on Railway and resolves the module import error while maintaining the same functionality.
+This approach resolves the module import error, and with the PostgreSQL plugin properly set up, the application can connect to the database in the Railway environment.
