@@ -1,7 +1,7 @@
 """Tests for the Entity Tracking flow."""
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
@@ -10,8 +10,16 @@ from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackin
 from local_newsifier.services.entity_service import EntityService
 
 
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityService")
-def test_entity_tracking_flow_init(mock_entity_service_class):
+def test_entity_tracking_flow_init(
+    mock_entity_service_class, 
+    mock_resolver, 
+    mock_context_analyzer, 
+    mock_extractor
+):
     """Test initializing the entity tracking flow with defaults."""
     # Setup mock
     mock_entity_service = Mock(spec=EntityService)
@@ -84,7 +92,7 @@ def test_process_new_articles_method():
 def test_process_article_method(mock_article_crud):
     """Test the process_article method (legacy)."""
     # Setup mocks
-    mock_entity_service = Mock(spec=EntityService)
+    mock_entity_service = Mock()  # Don't use spec to avoid attribute constraints
     mock_session = Mock()
     mock_article = Mock()
     mock_article.id = 123
@@ -92,9 +100,11 @@ def test_process_article_method(mock_article_crud):
     mock_article.title = "Test title"
     mock_article.published_at = datetime.now(timezone.utc)
     
-    # Configure mock session context
-    mock_entity_service.session_factory.return_value.__enter__.return_value = mock_session
-    mock_entity_service.session_factory.return_value.__exit__.return_value = None
+    # Setup session context manager mock properly
+    mock_context_manager = MagicMock()
+    mock_context_manager.__enter__.return_value = mock_session
+    mock_context_manager.__exit__.return_value = None
+    mock_entity_service.session_factory.return_value = mock_context_manager
     
     # Configure article crud mock
     mock_article_crud.get.return_value = mock_article
