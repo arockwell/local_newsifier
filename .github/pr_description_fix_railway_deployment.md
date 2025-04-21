@@ -27,14 +27,16 @@ This fixes the "TypeError: Session.exec() takes 2 positional arguments but 3 wer
 
 ### 2. Railway Deployment Configuration
 
-- Updated import paths in Procfile and railway.json:
+- Updated startup commands in Procfile and railway.json to include package installation:
   ```
   # From
   uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
   
   # To
-  uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
+  pip install -e . && uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
   ```
+
+  This ensures the package is properly installed in the deployment environment before starting the application.
 
 - Added dynamic templates directory detection in main.py:
   ```python

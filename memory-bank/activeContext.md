@@ -11,7 +11,7 @@
   - Parameters must be bound to the query object before execution
 
 - Fixed Railway deployment issues
-  - Updated import paths in Procfile and railway.json from `src.local_newsifier` to `local_newsifier`
+  - Added package installation step to Procfile and railway.json to ensure proper module resolution
   - Modified templates directory path in main.py to work in both development and production
   - Implemented a path detection mechanism to handle different environments
 
@@ -30,7 +30,7 @@
       "builder": "NIXPACKS"
     },
     "deploy": {
-      "startCommand": "uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
+      "startCommand": "pip install -e . && uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
       "restartPolicyType": "ON_FAILURE",
       "restartPolicyMaxRetries": 3
     }
@@ -39,7 +39,7 @@
 
 - Procfile is set up for web process:
   ```
-  web: uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
+  web: pip install -e . && uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
   ```
 
 - Templates directory path is dynamically determined based on environment:
@@ -77,14 +77,18 @@ columns = session.exec(column_query).all()
 This change was made in the system.py router to fix the "Session.exec() takes 2 positional arguments but 3 were given" error.
 
 ### Deployment Path Correction
-When deploying to Railway, we encountered a "ModuleNotFoundError: No module named 'local_newsifier'" error. This was due to a mismatch between the package configuration in pyproject.toml and the import paths in the deployment configuration:
+When deploying to Railway, we encountered a "ModuleNotFoundError: No module named 'local_newsifier'" error. This was due to the package not being properly installed in the deployment environment.
 
-```toml
-# In pyproject.toml
-packages = [{include = "local_newsifier", from = "src"}]
+Our solution is to install the package in development mode as part of the startup command:
+
+```bash
+pip install -e . && uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
 ```
 
-The proper way to reference the module in Procfile and railway.json is `local_newsifier.api.main:app`, not `src.local_newsifier.api.main:app`.
+This approach:
+1. Ensures the package is properly installed before the application starts
+2. Uses the `-e` flag for development mode to match the local environment setup
+3. Maintains consistency with the package configuration in pyproject.toml
 
 ## Next Steps
 
