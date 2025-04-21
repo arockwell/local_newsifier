@@ -19,7 +19,18 @@ app = FastAPI(
 )
 
 # Mount templates directory
-templates = Jinja2Templates(directory="src/local_newsifier/api/templates")
+import os
+import pathlib
+
+# Get the templates directory path - works both in development and production
+if os.path.exists("src/local_newsifier/api/templates"):
+    # Development environment
+    templates_dir = "src/local_newsifier/api/templates"
+else:
+    # Production environment - use package-relative path
+    templates_dir = str(pathlib.Path(__file__).parent / "templates")
+
+templates = Jinja2Templates(directory=templates_dir)
 
 # Include routers
 app.include_router(system.router)
