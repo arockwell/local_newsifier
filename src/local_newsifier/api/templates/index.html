@@ -23,7 +23,6 @@
 
 <div class="card">
     <h2 class="card-title">System Status</h2>
-    <p>Currently running in minimal mode - database features are disabled for deployment testing.</p>
     <table>
         <thead>
             <tr>
@@ -40,7 +39,15 @@
                 <td>Web Interface</td>
                 <td>✅ Running</td>
             </tr>
+            <tr>
+                <td>Database</td>
+                <td>✅ Connected</td>
+            </tr>
         </tbody>
     </table>
+    
+    <div style="margin-top: 2rem;">
+        <a href="/system/tables" class="button">View Database Tables</a>
+    </div>
 </div>
 {% endblock %}
