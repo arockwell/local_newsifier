@@ -1,6 +1,7 @@
 """Main FastAPI application for Local Newsifier."""
 
 import os
+import logging
 from typing import Dict
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,16 @@ from local_newsifier.api.routers import system
 from local_newsifier.config.settings import get_settings
 from local_newsifier.database.engine import create_db_and_tables
 
+# Import models to ensure they're registered with SQLModel.metadata before creating tables
+import local_newsifier.models
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="Local Newsifier API",
     description="API for Local Newsifier",
@@ -19,7 +30,6 @@ app = FastAPI(
 )
 
 # Mount templates directory
-import os
 import pathlib
 
 # Get the templates directory path - works both in development and production
@@ -39,20 +49,28 @@ app.include_router(system.router)
 @app.on_event("startup")
 async def startup():
     """Run startup tasks."""
-    # Create database tables
-    create_db_and_tables()
+    logger.info("Application startup initiated")
+    
+    try:
+        # Initialize database tables
+        create_db_and_tables()
+        logger.info("Database initialization completed")
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+    
+    logger.info("Application startup complete")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Run shutdown tasks."""
+    logger.info("Application shutdown initiated")
+    logger.info("Application shutdown complete")
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """Root endpoint serving home page.
-
-    Args:
-        request: FastAPI request
-
-    Returns:
-        HTMLResponse: Home page
-    """
+    """Root endpoint serving home page."""
     return templates.TemplateResponse(
         "index.html",
         {
@@ -64,21 +82,13 @@ async def root(request: Request):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint.
-
-    Returns:
-        dict: Health status
-    """
-    return {"status": "healthy"}
+    """Health check endpoint."""
+    return {"status": "healthy", "message": "API is running"}
 
 
 @app.get("/config")
 async def get_config():
-    """Get application configuration.
-
-    Returns:
-        dict: Configuration
-    """
+    """Get application configuration."""
     settings = get_settings()
     # Only return safe configuration values
     return {
@@ -92,15 +102,7 @@ async def get_config():
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle 404 errors.
-
-    Args:
-        request: FastAPI request
-        exc: Exception
-
-    Returns:
-        JSONResponse: Error response
-    """
+    """Handle 404 errors."""
     if request.url.path.startswith("/api"):
         return JSONResponse(
             status_code=404,

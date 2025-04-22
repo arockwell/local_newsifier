@@ -1,52 +1,107 @@
 """Database engine and session management using SQLModel."""
 
+import logging
+import traceback
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
 from sqlmodel import create_engine, Session, SQLModel
+from sqlalchemy import text
 
 from local_newsifier.config.settings import get_settings
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_engine(url: Optional[str] = None):
-    """Get SQLModel engine.
+def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int = 2):
+    """Get SQLModel engine with enhanced logging and retry logic.
 
     Args:
         url: Database URL (if None, uses settings)
+        max_retries: Maximum number of connection retries
+        retry_delay: Seconds to wait between retries
 
     Returns:
-        SQLModel engine
+        SQLModel engine or None if connection fails after retries
     """
-    settings = get_settings()
-    url = url or str(settings.DATABASE_URL)
-
-    # Only add application_name for PostgreSQL
-    connect_args = {}
-    if url.startswith("postgresql:"):
-        connect_args = {"application_name": "local_newsifier"}
-        
-    return create_engine(
-        url,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        connect_args=connect_args,
-        echo=settings.DB_ECHO,
-    )
+    import time
+    
+    for attempt in range(max_retries + 1):
+        try:
+            settings = get_settings()
+            url = url or str(settings.DATABASE_URL)
+            
+            # Log database connection attempt (without password)
+            safe_url = url
+            if settings.POSTGRES_PASSWORD and settings.POSTGRES_PASSWORD in url:
+                safe_url = url.replace(settings.POSTGRES_PASSWORD, "********")
+            
+            if attempt > 0:
+                logger.info(f"Retry {attempt}/{max_retries} connecting to database: {safe_url}")
+            else:
+                logger.info(f"Connecting to database: {safe_url}")
+            
+            # Only add application_name for PostgreSQL
+            connect_args = {}
+            if url.startswith("postgresql:"):
+                connect_args = {
+                    "application_name": "local_newsifier",
+                    "connect_timeout": 10,  # Timeout after 10 seconds
+                }
+                
+            engine = create_engine(
+                url,
+                pool_size=settings.DB_POOL_SIZE,
+                max_overflow=settings.DB_MAX_OVERFLOW,
+                connect_args=connect_args,
+                echo=settings.DB_ECHO,
+                # Added for better connection stability
+                pool_pre_ping=True,
+                pool_recycle=300,  # Recycle connections after 5 minutes
+            )
+            
+            # Verify connection works with a simple query
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                
+            logger.info("Database engine created and verified successfully")
+            return engine
+        except Exception as e:
+            logger.error(f"Failed to create database engine (attempt {attempt+1}/{max_retries+1}): {str(e)}")
+            
+            if attempt < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"All connection attempts failed. Last error: {str(e)}")
+                logger.error(f"Exception details: {traceback.format_exc()}")
+                # Instead of raising, return None so the application can continue
+                return None
 
 
 def get_session() -> Generator[Session, None, None]:
     """Get a database session.
 
     Yields:
-        Database session
+        Database session or None if engine creation fails
     """
     engine = get_engine()
-    with Session(engine) as session:
-        yield session
+    if engine is None:
+        logger.warning("Cannot create session - database engine is None")
+        yield None
+    else:
+        try:
+            with Session(engine) as session:
+                yield session
+        except Exception as e:
+            logger.error(f"Error during session: {str(e)}")
+            logger.error(traceback.format_exc())
+            yield None
 
 
 @contextmanager
@@ -71,16 +126,36 @@ def transaction(session: Session):
 
 
 def create_db_and_tables(engine=None):
-    """Create all tables in the database.
+    """Create all tables in the database with detailed logging.
 
     Args:
         engine: SQLModel engine (if None, creates one)
     """
-    if engine is None:
-        engine = get_engine()
+    try:
+        logger.info("Starting database tables creation")
+        if engine is None:
+            logger.debug("No engine provided, creating new engine")
+            try:
+                engine = get_engine()
+            except Exception as e:
+                logger.error(f"Failed to create engine: {str(e)}")
+                logger.error(f"Exception details: {traceback.format_exc()}")
+                return False
 
-    # Using SQLModel's metadata to create tables
-    SQLModel.metadata.create_all(engine)
+        # Using SQLModel's metadata to create tables
+        logger.debug("Creating database tables using SQLModel metadata")
+        try:
+            SQLModel.metadata.create_all(engine)
+            logger.info("Successfully created all database tables")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create database tables: {str(e)}")
+            logger.error(f"Exception details: {traceback.format_exc()}")
+            return False
+    except Exception as e:
+        logger.error(f"Unexpected error in create_db_and_tables: {str(e)}")
+        logger.error(f"Exception details: {traceback.format_exc()}")
+        return False
 
 
 class SessionManager:
@@ -89,16 +164,26 @@ class SessionManager:
     def __init__(self):
         """Initialize the session manager."""
         self.session = None
+        self.engine = None
 
     def __enter__(self):
         """Enter the context manager.
 
         Returns:
-            Session: Database session
+            Session: Database session or None if engine creation fails
         """
-        engine = get_engine()
-        self.session = Session(engine)
-        return self.session
+        try:
+            self.engine = get_engine()
+            if self.engine is None:
+                logger.warning("SessionManager: Cannot create session - database engine is None")
+                return None
+
+            self.session = Session(self.engine)
+            return self.session
+        except Exception as e:
+            logger.error(f"SessionManager: Error creating session: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the context manager.
@@ -109,11 +194,21 @@ class SessionManager:
             exc_tb: Exception traceback
         """
         if self.session:
-            if exc_type:
-                self.session.rollback()
-            else:
-                self.session.commit()
-            self.session.close()
+            try:
+                if exc_type:
+                    logger.debug("SessionManager: Rolling back transaction due to exception")
+                    self.session.rollback()
+                else:
+                    logger.debug("SessionManager: Committing transaction")
+                    self.session.commit()
+            except Exception as e:
+                logger.error(f"SessionManager: Error during commit/rollback: {str(e)}")
+                logger.error(traceback.format_exc())
+            finally:
+                try:
+                    self.session.close()
+                except Exception as e:
+                    logger.error(f"SessionManager: Error closing session: {str(e)}")
 
 
 def with_session(func: F) -> F:
@@ -139,12 +234,25 @@ def with_session(func: F) -> F:
             **kwargs: Keyword arguments
 
         Returns:
-            Result of the decorated function
+            Result of the decorated function or None if session creation fails
         """
         if session is not None:
-            return func(*args, session=session, **kwargs)
+            try:
+                return func(*args, session=session, **kwargs)
+            except Exception as e:
+                logger.error(f"Error in with_session (provided session): {str(e)}")
+                logger.error(traceback.format_exc())
+                return None
 
-        with SessionManager() as new_session:
-            return func(*args, session=new_session, **kwargs)
+        try:
+            with SessionManager() as new_session:
+                if new_session is None:
+                    logger.warning("with_session: SessionManager returned None, cannot execute function")
+                    return None
+                return func(*args, session=new_session, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in with_session (new session): {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
 
     return wrapper
