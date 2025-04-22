@@ -1,25 +1,25 @@
 """Main FastAPI application for Local Newsifier."""
 
-import os
 import logging
+import os
 from typing import Dict
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-from local_newsifier.api.routers import system
-from local_newsifier.config.settings import get_settings
-from local_newsifier.database.engine import create_db_and_tables
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
+from local_newsifier.api.routers import auth, system
+from local_newsifier.config.settings import get_settings, settings
+from local_newsifier.database.engine import create_db_and_tables
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,11 @@ else:
 
 templates = Jinja2Templates(directory=templates_dir)
 
+# Add session middleware
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
 # Include routers
+app.include_router(auth.router)
 app.include_router(system.router)
 
 
@@ -50,14 +54,14 @@ app.include_router(system.router)
 async def startup():
     """Run startup tasks."""
     logger.info("Application startup initiated")
-    
+
     try:
         # Initialize database tables
         create_db_and_tables()
         logger.info("Database initialization completed")
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")
-    
+
     logger.info("Application startup complete")
 
 

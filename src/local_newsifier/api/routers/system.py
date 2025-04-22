@@ -1,7 +1,7 @@
 """System information router for database tables."""
 
-import os
 import logging
+import os
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
 
-from local_newsifier.api.dependencies import get_session
+from local_newsifier.api.dependencies import get_session, require_admin
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ if os.path.exists("src/local_newsifier/api/templates"):
 else:
     # Production environment - use package-relative path
     import pathlib
+
     templates_dir = str(pathlib.Path(__file__).parent.parent / "templates")
 
 templates = Jinja2Templates(directory=templates_dir)
@@ -36,7 +37,11 @@ MINIMAL_MODE = False  # Permanently disabled
 
 
 @router.get("/tables", response_class=HTMLResponse)
-async def get_tables(request: Request, session: Session = Depends(get_session)):
+async def get_tables(
+    request: Request,
+    _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
     """Get information about all tables in the database.
 
     Args:
@@ -55,10 +60,10 @@ async def get_tables(request: Request, session: Session = Depends(get_session)):
                 "tables_info": [],
                 "title": "Database Tables - Minimal Mode",
                 "minimal_mode": True,
-                "message": "Running in minimal mode - database features are disabled."
+                "message": "Running in minimal mode - database features are disabled.",
             },
         )
-    
+
     try:
         tables_info = get_tables_info(session)
         return templates.TemplateResponse(
@@ -79,13 +84,15 @@ async def get_tables(request: Request, session: Session = Depends(get_session)):
                 "tables_info": [],
                 "title": "Database Tables - Error",
                 "minimal_mode": True,
-                "message": f"Error connecting to database: {str(e)}"
+                "message": f"Error connecting to database: {str(e)}",
             },
         )
 
 
 @router.get("/tables/api", response_model=List[Dict])
-async def get_tables_api(session: Session = Depends(get_session)):
+async def get_tables_api(
+    _: bool = Depends(require_admin), session: Session = Depends(get_session)
+):
     """Get information about all tables in the database (API version).
 
     Args:
@@ -95,8 +102,13 @@ async def get_tables_api(session: Session = Depends(get_session)):
         JSON with table information
     """
     if MINIMAL_MODE or session is None:
-        return [{"name": "minimal_mode", "message": "Running in minimal mode - database features are disabled"}]
-    
+        return [
+            {
+                "name": "minimal_mode",
+                "message": "Running in minimal mode - database features are disabled",
+            }
+        ]
+
     try:
         return get_tables_info(session)
     except Exception as e:
@@ -106,7 +118,10 @@ async def get_tables_api(session: Session = Depends(get_session)):
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
 async def get_table_details(
-    request: Request, table_name: str, session: Session = Depends(get_session)
+    request: Request,
+    table_name: str,
+    _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
 ):
     """Get detailed information about a specific table.
 
@@ -130,24 +145,24 @@ async def get_table_details(
                 "sample_data": [],
                 "title": f"Table: {table_name} - Minimal Mode",
                 "minimal_mode": True,
-                "message": "Running in minimal mode - database features are disabled."
+                "message": "Running in minimal mode - database features are disabled.",
             },
         )
-    
+
     try:
         # Get table columns
         column_query = text(
             """
-            SELECT 
-                column_name, 
-                data_type, 
-                is_nullable, 
+            SELECT
+                column_name,
+                data_type,
+                is_nullable,
                 column_default
-            FROM 
+            FROM
                 information_schema.columns
-            WHERE 
+            WHERE
                 table_name = :table_name
-            ORDER BY 
+            ORDER BY
                 ordinal_position
             """
         )
@@ -190,14 +205,16 @@ async def get_table_details(
                 "sample_data": [],
                 "title": f"Table: {table_name} - Error",
                 "minimal_mode": True,
-                "message": f"Error accessing table: {str(e)}"
+                "message": f"Error accessing table: {str(e)}",
             },
         )
 
 
 @router.get("/tables/{table_name}/api")
 async def get_table_details_api(
-    table_name: str, session: Session = Depends(get_session)
+    table_name: str,
+    _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
 ):
     """Get detailed information about a specific table (API version).
 
@@ -211,23 +228,23 @@ async def get_table_details_api(
     if MINIMAL_MODE or session is None:
         return {
             "table_name": table_name,
-            "error": "Running in minimal mode - database features are disabled"
+            "error": "Running in minimal mode - database features are disabled",
         }
-    
+
     try:
         # Get table columns
         column_query = text(
             """
-            SELECT 
-                column_name, 
-                data_type, 
-                is_nullable, 
+            SELECT
+                column_name,
+                data_type,
+                is_nullable,
                 column_default
-            FROM 
+            FROM
                 information_schema.columns
-            WHERE 
+            WHERE
                 table_name = :table_name
-            ORDER BY 
+            ORDER BY
                 ordinal_position
             """
         )
@@ -246,10 +263,7 @@ async def get_table_details_api(
         }
     except Exception as e:
         logger.error(f"Error in table details API: {str(e)}")
-        return {
-            "table_name": table_name,
-            "error": str(e)
-        }
+        return {"table_name": table_name, "error": str(e)}
 
 
 def get_tables_info(session: Session) -> List[Dict]:
@@ -263,18 +277,18 @@ def get_tables_info(session: Session) -> List[Dict]:
     """
     query = text(
         """
-        SELECT 
+        SELECT
             t.table_name,
-            (SELECT COUNT(*) FROM information_schema.columns 
+            (SELECT COUNT(*) FROM information_schema.columns
              WHERE table_name=t.table_name) as column_count,
             (SELECT pg_total_relation_size(quote_ident(t.table_name))
              ) as table_size
-        FROM 
+        FROM
             information_schema.tables t
-        WHERE 
+        WHERE
             table_schema = 'public'
             AND table_type = 'BASE TABLE'
-        ORDER BY 
+        ORDER BY
             table_name
         """
     )
@@ -286,19 +300,21 @@ def get_tables_info(session: Session) -> List[Dict]:
         table_name = table[0]
         column_count = table[1]
         table_size = table[2]
-        
+
         # Get row count
         count_query = text(f"SELECT COUNT(*) FROM {table_name}")
         row_count = session.exec(count_query).one()
-        
-        tables_info.append({
-            "name": table_name,
-            "column_count": column_count,
-            "row_count": row_count,
-            "size_bytes": table_size,
-            "size_readable": format_size(table_size),
-        })
-    
+
+        tables_info.append(
+            {
+                "name": table_name,
+                "column_count": column_count,
+                "row_count": row_count,
+                "size_bytes": table_size,
+                "size_readable": format_size(table_size),
+            }
+        )
+
     return tables_info
 
 
