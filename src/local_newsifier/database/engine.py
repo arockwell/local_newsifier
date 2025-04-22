@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
 from sqlmodel import create_engine, Session, SQLModel
+from sqlalchemy import text
 
 from local_newsifier.config.settings import get_settings
 
@@ -66,7 +67,7 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
             
             # Verify connection works with a simple query
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
                 
             logger.info("Database engine created and verified successfully")
             return engine
