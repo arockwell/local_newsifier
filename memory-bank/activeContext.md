@@ -3,6 +3,7 @@
 ## Current Focus
 - Web interface functionality with correct database interaction
 - Deployment configuration for Railway
+- Database schema management with Alembic
 
 ## Recent Changes
 - Fixed SQLModel parameter binding issue in system.py
