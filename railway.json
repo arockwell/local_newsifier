@@ -1,6 +1,6 @@
 {
   "deploy": {
-    "startCommand": "python -m uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
+    "startCommand": "uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
