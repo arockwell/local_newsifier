@@ -50,8 +50,16 @@ async def startup():
     """Run startup tasks with detailed logging."""
     logger.info("Application startup initiated")
     
-    # Skip database initialization for minimal deployment
-    logger.info("Database initialization skipped - running in minimal mode")
+    try:
+        # Re-enable database initialization
+        create_db_and_tables()
+        logger.info("Database initialization completed successfully")
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+        logger.error(traceback.format_exc())
+        # Continue running even if database initialization fails
+        # This allows the app to at least serve static routes
+    
     logger.info("Application startup complete")
 
 
