@@ -1,21 +1,30 @@
-# Fix Railway Deployment Configuration
+# Fix Railway Deployment Configuration with PYTHONPATH
 
 ## Description
 
-This PR removes the redundant `pip install -e .` command from the Railway deployment configuration. This command is unnecessary because:
+This PR updates the Railway deployment configuration to use PYTHONPATH instead of explicitly installing the package with pip. The initial PR removed `pip install -e .` but led to `ModuleNotFoundError: No module named 'local_newsifier'` because of the project's src-layout structure.
 
-1. Nixpacks (the specified builder) already automatically installs dependencies from requirements.txt during the build phase
-2. The `-e` flag installs the package in "editable" mode, which is primarily intended for development, not production deployments
-3. Previous working configurations documented in our memory bank didn't include this command
+## Problem
 
-## Changes
+The project uses a src-layout structure (`packages = [{include = "local_newsifier", from = "src"}]` in pyproject.toml), which means:
+- Code lives in `src/local_newsifier/`
+- But Python expects to find it as just `local_newsifier/` somewhere in its search paths
+- Previously, `pip install -e .` resolved this by creating links in site-packages
 
-- Modified `railway.json` to remove the `pip install -e .` command from the start command
+## Solution
+
+Instead of relying on pip to install the package, we're using the PYTHONPATH environment variable to tell Python where to find the modules:
+
+```
+PYTHONPATH=$PYTHONPATH:src uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
+```
+
+This approach:
+1. Preserves the src-layout structure (which is a Python best practice)
+2. Avoids unnecessary package installation during deployment
+3. Explicitly declares the module location in the start command
+4. Works well with Nixpacks' build process
 
 ## Testing
 
-This change should simplify the deployment process and follow Railway's recommended practices.
-
-## Additional Notes
-
-The requirements.txt file already contains all necessary dependencies, and the pyproject.toml handles the package structure, so the explicit installation step is redundant.
+This change should fix the ModuleNotFoundError while maintaining clean separation between project layout and deployment requirements.
