@@ -1,6 +1,6 @@
 # Add Database Migrations with Alembic
 
-This PR adds Alembic for database migrations to Local Newsifier, providing a robust way to manage database schema changes over time.
+This PR adds Alembic for database migrations to Local Newsifier, providing a robust way to manage database schema changes over time. The implementation is minimal and focused on core functionality.
 
 ## Changes Made
 
@@ -8,8 +8,7 @@ This PR adds Alembic for database migrations to Local Newsifier, providing a rob
 - Initialized Alembic with project configuration
 - Configured Alembic to work with our SQLModel models and database settings
 - Created a baseline migration that captures the current database schema
-- Created a utility script (`scripts/db_migration.py`) to run common migration tasks
-- Added documentation on how to use Alembic for database migrations
+- Added Alembic documentation to the project's memory bank
 
 ## Benefits
 
@@ -21,25 +20,23 @@ This PR adds Alembic for database migrations to Local Newsifier, providing a rob
 
 ## How to Use
 
-### Using the Helper Script
-
-We've created a convenient script to run common migration tasks:
+Alembic provides a simple and powerful CLI that can be used directly:
 
 ```bash
-# Verify database connection
-python scripts/db_migration.py verify
-
 # Show current migration version
-python scripts/db_migration.py current
+alembic current
 
 # Show migration history
-python scripts/db_migration.py history
-
-# Upgrade database to latest version
-python scripts/db_migration.py upgrade
+alembic history
 
 # Create a new migration from model changes
-python scripts/db_migration.py create --message "Description of changes"
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Revert to a previous version
+alembic downgrade <revision>
 ```
 
 ### Migration Workflow
@@ -47,19 +44,19 @@ python scripts/db_migration.py create --message "Description of changes"
 When you make changes to the SQLModel models:
 
 1. Make your changes to the model definitions
-2. Run: `python scripts/db_migration.py create --message "Description of changes"`
+2. Run: `alembic revision --autogenerate -m "Description of changes"`
 3. Review the generated migration script in `alembic/versions/`
-4. Apply the migration: `python scripts/db_migration.py upgrade`
+4. Apply the migration: `alembic upgrade head`
 
 When pulling code that contains new migrations:
 
-1. Run: `python scripts/db_migration.py upgrade`
+1. Run: `alembic upgrade head`
 
 ## Testing Done
 
 - Verified that Alembic correctly identifies the existing database schema
 - Successfully generated a baseline migration
-- Tested the database connection and migration utilities
+- Tested database migrations with SQLModel
 
 ## What's Next
 
