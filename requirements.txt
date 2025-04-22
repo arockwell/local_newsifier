@@ -8,4 +8,5 @@ sqlalchemy>=2.0.27
 sqlmodel>=0.0.24
 psycopg2-binary>=2.9.9
 python-dateutil>=2.9.0
+psutil>=5.9.0
 -e .
