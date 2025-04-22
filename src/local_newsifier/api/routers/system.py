@@ -2,10 +2,10 @@
 
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
 
@@ -60,7 +60,9 @@ async def get_tables(
                 "tables_info": [],
                 "title": "Database Tables - Minimal Mode",
                 "minimal_mode": True,
-                "message": "Running in minimal mode - database features are disabled.",
+                "message": (
+                    "Running in minimal mode - database features are disabled."
+                ),
             },
         )
 
@@ -102,18 +104,22 @@ async def get_tables_api(
         JSON with table information
     """
     if MINIMAL_MODE or session is None:
-        return [
-            {
-                "name": "minimal_mode",
-                "message": "Running in minimal mode - database features are disabled",
-            }
-        ]
+        return JSONResponse(
+            content=[
+                {
+                    "name": "minimal_mode",
+                    "message": (
+                        "Running in minimal mode - database features are disabled"
+                    ),
+                }
+            ]
+        )
 
     try:
-        return get_tables_info(session)
+        return JSONResponse(content=get_tables_info(session))
     except Exception as e:
         logger.error(f"Error in tables API: {str(e)}")
-        return [{"error": str(e)}]
+        return JSONResponse(content=[{"error": str(e)}])
 
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
@@ -226,10 +232,12 @@ async def get_table_details_api(
         JSON with table details
     """
     if MINIMAL_MODE or session is None:
-        return {
-            "table_name": table_name,
-            "error": "Running in minimal mode - database features are disabled",
-        }
+        return JSONResponse(
+            content={
+                "table_name": table_name,
+                "error": "Running in minimal mode - database features are disabled",
+            }
+        )
 
     try:
         # Get table columns
@@ -256,14 +264,16 @@ async def get_table_details_api(
         count_query = text(f"SELECT COUNT(*) FROM {table_name}")
         row_count = session.exec(count_query).one()
 
-        return {
-            "table_name": table_name,
-            "columns": columns,
-            "row_count": row_count,
-        }
+        return JSONResponse(
+            content={
+                "table_name": table_name,
+                "columns": [list(col) for col in columns],
+                "row_count": row_count,
+            }
+        )
     except Exception as e:
         logger.error(f"Error in table details API: {str(e)}")
-        return {"table_name": table_name, "error": str(e)}
+        return JSONResponse(content={"table_name": table_name, "error": str(e)})
 
 
 def get_tables_info(session: Session) -> List[Dict]:
