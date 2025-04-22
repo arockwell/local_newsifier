@@ -1,6 +1,8 @@
 """Main FastAPI application for Local Newsifier."""
 
 import os
+import logging
+import traceback
 from typing import Dict
 
 from fastapi import FastAPI, Request
@@ -11,6 +13,13 @@ from fastapi.templating import Jinja2Templates
 from local_newsifier.api.routers import system
 from local_newsifier.config.settings import get_settings
 from local_newsifier.database.engine import create_db_and_tables
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Local Newsifier API",
@@ -38,9 +47,30 @@ app.include_router(system.router)
 
 @app.on_event("startup")
 async def startup():
-    """Run startup tasks."""
-    # Create database tables
-    create_db_and_tables()
+    """Run startup tasks with detailed logging."""
+    logger.info("Application startup initiated")
+    try:
+        # Create database tables
+        logger.info("Initializing database tables...")
+        create_db_and_tables()
+        logger.info("Database initialization complete")
+        logger.info("Application startup complete")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {str(e)}")
+        logger.error(f"Exception details: {traceback.format_exc()}")
+        # Re-raise to prevent app from starting with broken DB
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Run shutdown tasks with detailed logging."""
+    logger.info("Application shutdown initiated")
+    try:
+        # Add any cleanup code here
+        logger.info("Application shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -64,12 +94,19 @@ async def root(request: Request):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint.
+    """Health check endpoint with logging.
 
     Returns:
         dict: Health status
     """
-    return {"status": "healthy"}
+    logger.debug("Health check endpoint accessed")
+    try:
+        # Optional: Add more health checks here
+        logger.info("Health check passed")
+        return {"status": "healthy"}
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return {"status": "unhealthy", "error": str(e)}
 
 
 @app.get("/config")

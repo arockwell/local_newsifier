@@ -1,5 +1,7 @@
 """Database engine and session management using SQLModel."""
 
+import logging
+import traceback
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -7,13 +9,16 @@ from sqlmodel import create_engine, Session, SQLModel
 
 from local_newsifier.config.settings import get_settings
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 # Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
 def get_engine(url: Optional[str] = None):
-    """Get SQLModel engine.
+    """Get SQLModel engine with enhanced logging.
 
     Args:
         url: Database URL (if None, uses settings)
@@ -21,21 +26,34 @@ def get_engine(url: Optional[str] = None):
     Returns:
         SQLModel engine
     """
-    settings = get_settings()
-    url = url or str(settings.DATABASE_URL)
-
-    # Only add application_name for PostgreSQL
-    connect_args = {}
-    if url.startswith("postgresql:"):
-        connect_args = {"application_name": "local_newsifier"}
+    try:
+        settings = get_settings()
+        url = url or str(settings.DATABASE_URL)
         
-    return create_engine(
-        url,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        connect_args=connect_args,
-        echo=settings.DB_ECHO,
-    )
+        # Log database connection attempt (without password)
+        safe_url = url
+        if settings.POSTGRES_PASSWORD and settings.POSTGRES_PASSWORD in url:
+            safe_url = url.replace(settings.POSTGRES_PASSWORD, "********")
+        logger.info(f"Connecting to database: {safe_url}")
+        
+        # Only add application_name for PostgreSQL
+        connect_args = {}
+        if url.startswith("postgresql:"):
+            connect_args = {"application_name": "local_newsifier"}
+            
+        engine = create_engine(
+            url,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
+            connect_args=connect_args,
+            echo=settings.DB_ECHO,
+        )
+        logger.info("Database engine created successfully")
+        return engine
+    except Exception as e:
+        logger.error(f"Failed to create database engine: {str(e)}")
+        logger.error(f"Exception details: {traceback.format_exc()}")
+        raise
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -71,16 +89,25 @@ def transaction(session: Session):
 
 
 def create_db_and_tables(engine=None):
-    """Create all tables in the database.
+    """Create all tables in the database with detailed logging.
 
     Args:
         engine: SQLModel engine (if None, creates one)
     """
-    if engine is None:
-        engine = get_engine()
+    try:
+        logger.info("Starting database tables creation")
+        if engine is None:
+            logger.debug("No engine provided, creating new engine")
+            engine = get_engine()
 
-    # Using SQLModel's metadata to create tables
-    SQLModel.metadata.create_all(engine)
+        # Using SQLModel's metadata to create tables
+        logger.debug("Creating database tables using SQLModel metadata")
+        SQLModel.metadata.create_all(engine)
+        logger.info("Successfully created all database tables")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {str(e)}")
+        logger.error(f"Exception details: {traceback.format_exc()}")
+        raise
 
 
 class SessionManager:
