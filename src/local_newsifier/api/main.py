@@ -14,6 +14,9 @@ from local_newsifier.api.routers import system
 from local_newsifier.config.settings import get_settings
 from local_newsifier.database.engine import create_db_and_tables
 
+# Import models to ensure they're registered with SQLModel.metadata before creating tables
+import local_newsifier.models
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
