@@ -32,7 +32,7 @@ else:
 templates = Jinja2Templates(directory=templates_dir)
 
 # Flag to indicate if we're in minimal mode (no database)
-MINIMAL_MODE = True
+MINIMAL_MODE = False
 
 
 @router.get("/tables", response_class=HTMLResponse)
