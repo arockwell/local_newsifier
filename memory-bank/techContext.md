@@ -7,6 +7,7 @@
 - **FastAPI**: Web framework for the API and web interface
 - **SQLModel**: SQL ORM for database interaction
 - **PostgreSQL**: Database for persistent storage
+- **Alembic**: Database migration tool for schema versioning
 
 ### Frontend Technologies
 - **Jinja2 Templates**: Server-side rendering for web interface
