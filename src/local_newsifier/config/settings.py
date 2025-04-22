@@ -64,6 +64,34 @@ class Settings(BaseSettings):
     CELERY_TASK_TRACK_STARTED: bool = True
     CELERY_TASK_TIME_LIMIT: int = 30 * 60  # 30 minutes
     CELERY_WORKER_MAX_TASKS_PER_CHILD: int = 100  # Restart worker after 100 tasks
+    CELERY_WORKER_HIJACK_ROOT_LOGGER: bool = False
+    CELERY_WORKER_PREFETCH_MULTIPLIER: int = 1  # Prefetch one task at a time
+    
+    # Celery Beat settings
+    CELERY_BEAT_SCHEDULE: dict = {
+        "fetch_rss_feeds_hourly": {
+            "task": "local_newsifier.tasks.fetch_rss_feeds",
+            "schedule": 3600.0,  # Every hour
+            "args": (None,),
+            "options": {"expires": 3500},
+        },
+        "analyze_entity_trends_daily": {
+            "task": "local_newsifier.tasks.analyze_entity_trends",
+            "schedule": 86400.0,  # Every day
+            "kwargs": {"time_interval": "day", "days_back": 7},
+            "options": {"expires": 86000},
+        },
+    }
+    
+    # Task-specific settings
+    ARTICLE_PROCESSING_TIMEOUT: int = 600  # 10 minutes timeout for article processing
+    RSS_FEED_URLS: List[str] = Field(
+        default_factory=lambda: [
+            "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+            "https://feeds.washingtonpost.com/rss/national",
+            "https://www.theguardian.com/us/rss",
+        ]
+    )
 
     # Scraping settings
     USER_AGENT: str = "Local-Newsifier/1.0"

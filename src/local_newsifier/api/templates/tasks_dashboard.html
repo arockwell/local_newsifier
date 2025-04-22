@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>Task Management Dashboard</h1>
+            <p class="lead">Manage and monitor asynchronous tasks for the Local Newsifier project.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Process Article</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Process an article asynchronously to extract entities, analyze context, and track trends.</p>
+                    <form id="process-article-form">
+                        <div class="mb-3">
+                            <label for="article-id" class="form-label">Article ID</label>
+                            <input type="number" class="form-control" id="article-id" name="article-id" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Fetch RSS Feeds</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Fetch and process articles from RSS feeds asynchronously.</p>
+                    <form id="fetch-rss-form">
+                        <div class="mb-3">
+                            <label for="feed-urls" class="form-label">RSS Feed URLs (one per line, leave empty for defaults)</label>
+                            <textarea class="form-control" id="feed-urls" name="feed-urls" rows="3" placeholder="{% for url in rss_feed_urls %}{{ url }}
+{% endfor %}"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Submit Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Analyze Entity Trends</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Analyze entity trends over a specified time period.</p>
+                    <form id="analyze-trends-form">
+                        <div class="mb-3">
+                            <label for="time-interval" class="form-label">Time Interval</label>
+                            <select class="form-select" id="time-interval" name="time-interval">
+                                <option value="hour">Hour</option>
+                                <option value="day" selected>Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="days-back" class="form-label">Days Back</label>
+                            <input type="number" class="form-control" id="days-back" name="days-back" value="7" min="1" max="365">
+                        </div>
+                        <div class="mb-3">
+                            <label for="entity-ids" class="form-label">Entity IDs (comma-separated, leave empty for all)</label>
+                            <input type="text" class="form-control" id="entity-ids" name="entity-ids" placeholder="e.g., 1,5,10">
+                        </div>
+                        <button type="submit" class="btn btn-info">Submit Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">Task Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="task-id" class="form-label">Task ID</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="task-id" name="task-id" placeholder="Enter task ID to check status">
+                            <button class="btn btn-secondary" type="button" id="check-task-button">Check Status</button>
+                            <button class="btn btn-danger" type="button" id="cancel-task-button">Cancel Task</button>
+                        </div>
+                    </div>
+                    <div id="task-result" class="mt-3">
+                        <div class="alert alert-secondary">
+                            <p>Enter a task ID above to check its status.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">Recent Tasks</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Task ID</th>
+                                    <th>Type</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-tasks">
+                                <tr>
+                                    <td colspan="5" class="text-center">No recent tasks to display.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store recent tasks in localStorage
+const recentTasksKey = 'recent_tasks';
+let recentTasks = JSON.parse(localStorage.getItem(recentTasksKey) || '[]');
+
+// Process article form submission
+document.getElementById('process-article-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const articleId = document.getElementById('article-id').value;
+    
+    try {
+        const response = await fetch(`/tasks/process-article/${articleId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            addRecentTask(result.task_id, 'Process Article', result.article_title || `Article #${articleId}`, 'queued');
+            checkTaskStatus(result.task_id);
+        } else {
+            showError(result.detail || 'Failed to submit task');
+        }
+    } catch (error) {
+        showError('Error: ' + error.message);
+    }
+});
+
+// Fetch RSS feeds form submission
+document.getElementById('fetch-rss-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const feedUrlsText = document.getElementById('feed-urls').value;
+    
+    // Convert text area with URLs to array (one per line)
+    let feedUrls = [];
+    if (feedUrlsText.trim()) {
+        feedUrls = feedUrlsText.split('\n').map(url => url.trim()).filter(url => url);
+    }
+    
+    try {
+        // Construct URL with query parameters
+        let url = '/tasks/fetch-rss-feeds';
+        if (feedUrls.length > 0) {
+            url += '?' + feedUrls.map(feed => `feed_urls=${encodeURIComponent(feed)}`).join('&');
+        }
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            addRecentTask(result.task_id, 'Fetch RSS Feeds', `${result.feed_count} feeds`, 'queued');
+            checkTaskStatus(result.task_id);
+        } else {
+            showError(result.detail || 'Failed to submit task');
+        }
+    } catch (error) {
+        showError('Error: ' + error.message);
+    }
+});
+
+// Analyze entity trends form submission
+document.getElementById('analyze-trends-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const timeInterval = document.getElementById('time-interval').value;
+    const daysBack = document.getElementById('days-back').value;
+    const entityIdsText = document.getElementById('entity-ids').value;
+    
+    // Convert comma-separated entity IDs to array
+    let entityIds = [];
+    if (entityIdsText.trim()) {
+        entityIds = entityIdsText.split(',').map(id => id.trim()).filter(id => id);
+    }
+    
+    try {
+        // Construct URL with query parameters
+        let url = `/tasks/analyze-entity-trends?time_interval=${timeInterval}&days_back=${daysBack}`;
+        if (entityIds.length > 0) {
+            url += '&' + entityIds.map(id => `entity_ids=${id}`).join('&');
+        }
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            addRecentTask(result.task_id, 'Analyze Entity Trends', `${timeInterval}/${daysBack} days`, 'queued');
+            checkTaskStatus(result.task_id);
+        } else {
+            showError(result.detail || 'Failed to submit task');
+        }
+    } catch (error) {
+        showError('Error: ' + error.message);
+    }
+});
+
+// Check task status
+document.getElementById('check-task-button').addEventListener('click', function() {
+    const taskId = document.getElementById('task-id').value.trim();
+    if (taskId) {
+        checkTaskStatus(taskId);
+    } else {
+        showError('Please enter a task ID');
+    }
+});
+
+// Cancel task
+document.getElementById('cancel-task-button').addEventListener('click', async function() {
+    const taskId = document.getElementById('task-id').value.trim();
+    if (!taskId) {
+        showError('Please enter a task ID');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/tasks/cancel/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        showTaskResult(result);
+        
+        // Update the task in the recent tasks list
+        updateRecentTaskStatus(taskId, 'canceled');
+    } catch (error) {
+        showError('Error: ' + error.message);
+    }
+});
+
+// Check task status by ID
+async function checkTaskStatus(taskId) {
+    try {
+        document.getElementById('task-id').value = taskId;
+        
+        const response = await fetch(`/tasks/status/${taskId}`);
+        const result = await response.json();
+        
+        showTaskResult(result);
+        
+        // Update the task in the recent tasks list
+        updateRecentTaskStatus(taskId, result.status);
+        
+        // If task is still running, check again in 2 seconds
+        if (result.status === 'PENDING' || result.status === 'STARTED' || result.status === 'PROGRESS') {
+            setTimeout(() => checkTaskStatus(taskId), 2000);
+        }
+    } catch (error) {
+        showError('Error checking task status: ' + error.message);
+    }
+}
+
+// Display task result
+function showTaskResult(result) {
+    const taskResultDiv = document.getElementById('task-result');
+    let html = '';
+    
+    if (result.error) {
+        html = `<div class="alert alert-danger">
+            <h5>Task Failed</h5>
+            <p>Error: ${result.error}</p>
+        </div>`;
+    } else if (result.status === 'SUCCESS') {
+        html = `<div class="alert alert-success">
+            <h5>Task Completed Successfully</h5>
+            <pre class="mt-3">${JSON.stringify(result.result, null, 2)}</pre>
+        </div>`;
+    } else if (result.status === 'PROGRESS') {
+        html = `<div class="alert alert-info">
+            <h5>Task In Progress</h5>
+            <pre class="mt-3">${JSON.stringify(result.progress, null, 2)}</pre>
+        </div>`;
+    } else if (result.status === 'PENDING' || result.status === 'STARTED') {
+        html = `<div class="alert alert-warning">
+            <h5>Task Pending or Starting</h5>
+            <p>Task ID: ${result.task_id}</p>
+            <p>Status: ${result.status}</p>
+        </div>`;
+    } else if (result.message) {
+        html = `<div class="alert alert-info">
+            <p>${result.message}</p>
+        </div>`;
+    } else {
+        html = `<div class="alert alert-secondary">
+            <pre>${JSON.stringify(result, null, 2)}</pre>
+        </div>`;
+    }
+    
+    taskResultDiv.innerHTML = html;
+}
+
+// Show error message
+function showError(message) {
+    const taskResultDiv = document.getElementById('task-result');
+    taskResultDiv.innerHTML = `
+        <div class="alert alert-danger">
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+// Add task to recent tasks list
+function addRecentTask(taskId, type, description, status) {
+    // Add to beginning of array
+    recentTasks.unshift({
+        id: taskId,
+        type: type,
+        description: description,
+        status: status,
+        submitted: new Date().toISOString()
+    });
+    
+    // Keep only the most recent 10 tasks
+    if (recentTasks.length > 10) {
+        recentTasks.pop();
+    }
+    
+    // Save to localStorage
+    localStorage.setItem(recentTasksKey, JSON.stringify(recentTasks));
+    
+    // Update the display
+    updateRecentTasksDisplay();
+}
+
+// Update status of a task in the recent tasks list
+function updateRecentTaskStatus(taskId, status) {
+    const taskIndex = recentTasks.findIndex(task => task.id === taskId);
+    if (taskIndex !== -1) {
+        recentTasks[taskIndex].status = status;
+        localStorage.setItem(recentTasksKey, JSON.stringify(recentTasks));
+        updateRecentTasksDisplay();
+    }
+}
+
+// Update the recent tasks display
+function updateRecentTasksDisplay() {
+    const tbody = document.getElementById('recent-tasks');
+    
+    if (recentTasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center">No recent tasks to display.</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    recentTasks.forEach(task => {
+        // Format date
+        const date = new Date(task.submitted);
+        const formattedDate = date.toLocaleString();
+        
+        // Status badge
+        let statusBadge = '';
+        switch(task.status.toLowerCase()) {
+            case 'success':
+                statusBadge = '<span class="badge bg-success">Success</span>';
+                break;
+            case 'failure':
+            case 'failed':
+                statusBadge = '<span class="badge bg-danger">Failed</span>';
+                break;
+            case 'progress':
+                statusBadge = '<span class="badge bg-info">In Progress</span>';
+                break;
+            case 'pending':
+            case 'started':
+                statusBadge = '<span class="badge bg-warning">Pending</span>';
+                break;
+            case 'canceled':
+            case 'revoked':
+                statusBadge = '<span class="badge bg-secondary">Canceled</span>';
+                break;
+            default:
+                statusBadge = `<span class="badge bg-secondary">${task.status}</span>`;
+        }
+        
+        html += `
+        <tr>
+            <td>${task.id}</td>
+            <td>${task.type}</td>
+            <td>${formattedDate}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="checkTaskStatus('${task.id}')">Check</button>
+            </td>
+        </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Initialize recent tasks display
+updateRecentTasksDisplay();
+</script>
+{% endblock %}
