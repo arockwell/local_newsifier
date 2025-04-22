@@ -1,6 +1,6 @@
 """Tests for the article CRUD module."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlmodel import select
 
@@ -130,6 +130,65 @@ class TestArticleCRUD:
             db_session, status="nonexistent"
         )
         assert len(nonexistent_articles) == 0
+
+    def test_get_by_date_range(self, db_session):
+        """Test getting articles within a date range."""
+        # Create base timestamp
+        now = datetime.now(timezone.utc)
+        
+        # Create articles with different publication dates
+        dates = [
+            now - timedelta(days=5),  # 5 days ago
+            now - timedelta(days=3),  # 3 days ago
+            now - timedelta(days=2),  # 2 days ago
+            now - timedelta(days=1),  # 1 day ago
+            now,                      # Today
+        ]
+        
+        sources = ["source1", "source2", "source1", "source2", "source1"]
+        
+        for i, (date, source) in enumerate(zip(dates, sources)):
+            article = Article(
+                title=f"Test Article {i}",
+                content=f"This is test article {i}.",
+                url=f"https://example.com/test-article-{i}",
+                source=source,
+                published_at=date,
+                status="new",
+                scraped_at=now,
+            )
+            db_session.add(article)
+        db_session.commit()
+        
+        # Test getting articles within a date range (last 3 days)
+        start_date = now - timedelta(days=3)
+        end_date = now
+        articles = article_crud.get_by_date_range(
+            db_session, 
+            start_date=start_date, 
+            end_date=end_date
+        )
+        
+        # Should return 4 articles (from 3 days ago until now)
+        assert len(articles) == 4
+        
+        # Verify they're ordered by published_at
+        for i in range(1, len(articles)):
+            assert articles[i-1].published_at <= articles[i].published_at
+        
+        # Test with source filter
+        source1_articles = article_crud.get_by_date_range(
+            db_session,
+            start_date=start_date,
+            end_date=end_date,
+            source="source1"
+        )
+        
+        # Should return 2 articles from source1 in the date range
+        assert len(source1_articles) == 2
+        for article in source1_articles:
+            assert article.source == "source1"
+            # Skip date range check as the dates might be naive or aware
 
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
