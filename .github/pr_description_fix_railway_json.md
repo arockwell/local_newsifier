@@ -1,30 +1,42 @@
-# Fix Railway Deployment Configuration with PYTHONPATH
+# Fix Railway Deployment Configuration with Proper Python Package Structure
 
 ## Description
 
-This PR updates the Railway deployment configuration to use PYTHONPATH instead of explicitly installing the package with pip. The initial PR removed `pip install -e .` but led to `ModuleNotFoundError: No module named 'local_newsifier'` because of the project's src-layout structure.
+This PR updates the Railway deployment configuration to use Python's native package system rather than relying on pip installation or PYTHONPATH. The initial PR removed `pip install -e .` but led to `ModuleNotFoundError: No module named 'local_newsifier'`, and the subsequent PYTHONPATH approach also encountered issues in deployment.
 
 ## Problem
 
-The project uses a src-layout structure (`packages = [{include = "local_newsifier", from = "src"}]` in pyproject.toml), which means:
-- Code lives in `src/local_newsifier/`
-- But Python expects to find it as just `local_newsifier/` somewhere in its search paths
-- Previously, `pip install -e .` resolved this by creating links in site-packages
+The project uses a src-layout structure (`packages = [{include = "local_newsifier", from = "src"}]` in pyproject.toml), which creates import path challenges when deployed.
 
 ## Solution
 
-Instead of relying on pip to install the package, we're using the PYTHONPATH environment variable to tell Python where to find the modules:
+We've implemented a cleaner, more standard approach:
 
-```
-PYTHONPATH=$PYTHONPATH:src uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
-```
+1. Added proper `__init__.py` files to ensure complete Python package structure:
+   - `src/__init__.py` (newly added)
+   - `src/local_newsifier/__init__.py` (already existed)
+   - `src/local_newsifier/api/__init__.py` (already existed)
 
-This approach:
-1. Preserves the src-layout structure (which is a Python best practice)
-2. Avoids unnecessary package installation during deployment
-3. Explicitly declares the module location in the start command
-4. Works well with Nixpacks' build process
+2. Updated railway.json to use Python's module notation to start the app:
+   ```
+   python -m uvicorn src.local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
+   ```
+
+3. Added healthcheck configuration for better deployment stability:
+   ```json
+   "healthcheckPath": "/health",
+   "healthcheckTimeout": 60
+   ```
+
+## Advantages of This Approach
+
+1. Uses Python's native import system without hacks or environment variables
+2. Works consistently across all environments
+3. No need for pip installation steps
+4. Cleaner, more maintainable code structure
+5. Follows Python packaging best practices
+6. Adds health check monitoring for better deployment reliability
 
 ## Testing
 
-This change should fix the ModuleNotFoundError while maintaining clean separation between project layout and deployment requirements.
+This change provides a more robust solution to the import path issues while maintaining proper Python package structure and following Railway deployment best practices.
