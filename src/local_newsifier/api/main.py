@@ -49,18 +49,10 @@ app.include_router(system.router)
 async def startup():
     """Run startup tasks with detailed logging."""
     logger.info("Application startup initiated")
-    try:
-        # Create database tables
-        logger.info("Initializing database tables...")
-        create_db_and_tables()
-        logger.info("Database initialization complete")
-        logger.info("Application startup complete")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {str(e)}")
-        logger.error(f"Exception details: {traceback.format_exc()}")
-        # Don't re-raise the exception to allow the app to start even with DB issues
-        # Just log the error and continue
-        logger.warning("Application continuing despite database initialization failure")
+    
+    # Skip database initialization for minimal deployment
+    logger.info("Database initialization skipped - running in minimal mode")
+    logger.info("Application startup complete")
 
 
 @app.on_event("shutdown")

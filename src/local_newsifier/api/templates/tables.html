@@ -5,7 +5,16 @@
 {% block content %}
 <div class="card">
     <h2 class="card-title">Database Tables</h2>
+    
+    {% if minimal_mode %}
+    <div class="alert alert-info">
+        <strong>Minimal Mode Active</strong>
+        <p>{{ message|default("Database features are currently disabled.") }}</p>
+    </div>
+    <p>The application is running without database access. Only basic web interface features are available.</p>
+    {% else %}
     <p>This page shows all tables in the Local Newsifier database along with basic statistics.</p>
+    {% endif %}
     
     {% if tables_info %}
     <table>

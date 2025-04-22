@@ -1,5 +1,7 @@
 """System information router for database tables."""
 
+import os
+import logging
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -9,13 +11,28 @@ from sqlmodel import Session, text
 
 from local_newsifier.api.dependencies import get_session
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/system",
     tags=["system"],
     responses={404: {"description": "Not found"}},
 )
 
-templates = Jinja2Templates(directory="src/local_newsifier/api/templates")
+# Get templates directory path - works in both development and production
+if os.path.exists("src/local_newsifier/api/templates"):
+    # Development environment
+    templates_dir = "src/local_newsifier/api/templates"
+else:
+    # Production environment - use package-relative path
+    import pathlib
+    templates_dir = str(pathlib.Path(__file__).parent.parent / "templates")
+
+templates = Jinja2Templates(directory=templates_dir)
+
+# Flag to indicate if we're in minimal mode (no database)
+MINIMAL_MODE = True
 
 
 @router.get("/tables", response_class=HTMLResponse)
@@ -29,15 +46,42 @@ async def get_tables(request: Request, session: Session = Depends(get_session)):
     Returns:
         HTML response with table information
     """
-    tables_info = get_tables_info(session)
-    return templates.TemplateResponse(
-        "tables.html",
-        {
-            "request": request,
-            "tables_info": tables_info,
-            "title": "Database Tables",
-        },
-    )
+    if MINIMAL_MODE:
+        # Return a template with a message that we're in minimal mode
+        return templates.TemplateResponse(
+            "tables.html",
+            {
+                "request": request,
+                "tables_info": [],
+                "title": "Database Tables - Minimal Mode",
+                "minimal_mode": True,
+                "message": "Running in minimal mode - database features are disabled."
+            },
+        )
+    
+    try:
+        tables_info = get_tables_info(session)
+        return templates.TemplateResponse(
+            "tables.html",
+            {
+                "request": request,
+                "tables_info": tables_info,
+                "title": "Database Tables",
+                "minimal_mode": False,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error fetching tables: {str(e)}")
+        return templates.TemplateResponse(
+            "tables.html",
+            {
+                "request": request,
+                "tables_info": [],
+                "title": "Database Tables - Error",
+                "minimal_mode": True,
+                "message": f"Error connecting to database: {str(e)}"
+            },
+        )
 
 
 @router.get("/tables/api", response_model=List[Dict])
@@ -50,7 +94,14 @@ async def get_tables_api(session: Session = Depends(get_session)):
     Returns:
         JSON with table information
     """
-    return get_tables_info(session)
+    if MINIMAL_MODE or session is None:
+        return [{"name": "minimal_mode", "message": "Running in minimal mode - database features are disabled"}]
+    
+    try:
+        return get_tables_info(session)
+    except Exception as e:
+        logger.error(f"Error in tables API: {str(e)}")
+        return [{"error": str(e)}]
 
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
@@ -67,48 +118,81 @@ async def get_table_details(
     Returns:
         HTML response with table details
     """
-    # Get table columns
-    column_query = text(
-        """
-        SELECT 
-            column_name, 
-            data_type, 
-            is_nullable, 
-            column_default
-        FROM 
-            information_schema.columns
-        WHERE 
-            table_name = :table_name
-        ORDER BY 
-            ordinal_position
-        """
-    )
-    # SQLModel exec() only takes one parameter (the query) with values bound to the query
-    column_query = column_query.bindparams(table_name=table_name)
-    columns = session.exec(column_query).all()
-
-    # Get row count
-    count_query = text(f"SELECT COUNT(*) FROM {table_name}")
-    row_count = session.exec(count_query).one()
-
-    # Try to get sample data (first 5 rows)
+    if MINIMAL_MODE or session is None:
+        # Return a template with a message that we're in minimal mode
+        return templates.TemplateResponse(
+            "table_details.html",
+            {
+                "request": request,
+                "table_name": table_name,
+                "columns": [],
+                "row_count": 0,
+                "sample_data": [],
+                "title": f"Table: {table_name} - Minimal Mode",
+                "minimal_mode": True,
+                "message": "Running in minimal mode - database features are disabled."
+            },
+        )
+    
     try:
-        sample_query = text(f"SELECT * FROM {table_name} LIMIT 5")
-        sample_data = session.exec(sample_query).all()
-    except Exception:
-        sample_data = []
+        # Get table columns
+        column_query = text(
+            """
+            SELECT 
+                column_name, 
+                data_type, 
+                is_nullable, 
+                column_default
+            FROM 
+                information_schema.columns
+            WHERE 
+                table_name = :table_name
+            ORDER BY 
+                ordinal_position
+            """
+        )
+        # SQLModel exec() only takes one parameter (the query) with values bound to the query
+        column_query = column_query.bindparams(table_name=table_name)
+        columns = session.exec(column_query).all()
 
-    return templates.TemplateResponse(
-        "table_details.html",
-        {
-            "request": request,
-            "table_name": table_name,
-            "columns": columns,
-            "row_count": row_count,
-            "sample_data": sample_data,
-            "title": f"Table: {table_name}",
-        },
-    )
+        # Get row count
+        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        row_count = session.exec(count_query).one()
+
+        # Try to get sample data (first 5 rows)
+        try:
+            sample_query = text(f"SELECT * FROM {table_name} LIMIT 5")
+            sample_data = session.exec(sample_query).all()
+        except Exception:
+            sample_data = []
+
+        return templates.TemplateResponse(
+            "table_details.html",
+            {
+                "request": request,
+                "table_name": table_name,
+                "columns": columns,
+                "row_count": row_count,
+                "sample_data": sample_data,
+                "title": f"Table: {table_name}",
+                "minimal_mode": False,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error fetching table details: {str(e)}")
+        return templates.TemplateResponse(
+            "table_details.html",
+            {
+                "request": request,
+                "table_name": table_name,
+                "columns": [],
+                "row_count": 0,
+                "sample_data": [],
+                "title": f"Table: {table_name} - Error",
+                "minimal_mode": True,
+                "message": f"Error accessing table: {str(e)}"
+            },
+        )
 
 
 @router.get("/tables/{table_name}/api")
@@ -124,35 +208,48 @@ async def get_table_details_api(
     Returns:
         JSON with table details
     """
-    # Get table columns
-    column_query = text(
-        """
-        SELECT 
-            column_name, 
-            data_type, 
-            is_nullable, 
-            column_default
-        FROM 
-            information_schema.columns
-        WHERE 
-            table_name = :table_name
-        ORDER BY 
-            ordinal_position
-        """
-    )
-    # SQLModel exec() only takes one parameter (the query) with values bound to the query
-    column_query = column_query.bindparams(table_name=table_name)
-    columns = session.exec(column_query).all()
+    if MINIMAL_MODE or session is None:
+        return {
+            "table_name": table_name,
+            "error": "Running in minimal mode - database features are disabled"
+        }
+    
+    try:
+        # Get table columns
+        column_query = text(
+            """
+            SELECT 
+                column_name, 
+                data_type, 
+                is_nullable, 
+                column_default
+            FROM 
+                information_schema.columns
+            WHERE 
+                table_name = :table_name
+            ORDER BY 
+                ordinal_position
+            """
+        )
+        # SQLModel exec() only takes one parameter (the query) with values bound to the query
+        column_query = column_query.bindparams(table_name=table_name)
+        columns = session.exec(column_query).all()
 
-    # Get row count
-    count_query = text(f"SELECT COUNT(*) FROM {table_name}")
-    row_count = session.exec(count_query).one()
+        # Get row count
+        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        row_count = session.exec(count_query).one()
 
-    return {
-        "table_name": table_name,
-        "columns": columns,
-        "row_count": row_count,
-    }
+        return {
+            "table_name": table_name,
+            "columns": columns,
+            "row_count": row_count,
+        }
+    except Exception as e:
+        logger.error(f"Error in table details API: {str(e)}")
+        return {
+            "table_name": table_name,
+            "error": str(e)
+        }
 
 
 def get_tables_info(session: Session) -> List[Dict]:
