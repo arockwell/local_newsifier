@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_FILE: Optional[Path] = None
+    
+    # Celery settings
+    CELERY_TASK_SERIALIZER: str = "json"
+    CELERY_RESULT_SERIALIZER: str = "json"
+    CELERY_ACCEPT_CONTENT: List[str] = ["json"]
+    CELERY_TIMEZONE: str = "UTC"
+    CELERY_TASK_TRACK_STARTED: bool = True
+    CELERY_TASK_TIME_LIMIT: int = 30 * 60  # 30 minutes
+    CELERY_WORKER_MAX_TASKS_PER_CHILD: int = 100  # Restart worker after 100 tasks
 
     # Scraping settings
     USER_AGENT: str = "Local-Newsifier/1.0"
@@ -85,6 +94,37 @@ class Settings(BaseSettings):
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+    
+    @computed_field
+    def CELERY_BROKER_URL(self) -> str:
+        """Get the Celery broker URL based on environment.
+        Uses DATABASE_URL with specific query parameters for PostgreSQL broker.
+        """
+        # Use dedicated environment variable if available
+        broker_url = os.environ.get("CELERY_BROKER_URL")
+        if broker_url:
+            return broker_url
+            
+        # Otherwise construct from database URL
+        db_url = str(self.DATABASE_URL)
+        return f"{db_url}?prepared_statements=False"
+    
+    @computed_field
+    def CELERY_RESULT_BACKEND(self) -> str:
+        """Get the Celery result backend URL based on environment.
+        Uses DATABASE_URL with db+ prefix for SQLAlchemy backend.
+        """
+        # Use dedicated environment variable if available
+        result_backend = os.environ.get("CELERY_RESULT_BACKEND")
+        if result_backend:
+            return result_backend
+            
+        # Otherwise construct from database URL
+        db_url = str(self.DATABASE_URL)
+        # Convert to SQLAlchemy format by adding "db+" prefix
+        if db_url.startswith("postgresql://"):
+            return f"db+{db_url}"
+        return f"db+{db_url}"
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""
