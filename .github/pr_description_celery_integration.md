@@ -1,149 +1,58 @@
-# Celery Integration with PostgreSQL for Asynchronous Tasks
-
-This PR implements GitHub issue #59, adding Celery with PostgreSQL as both the message broker and result backend for handling asynchronous task processing in the Local Newsifier project.
+# Implement Celery Integration for Asynchronous Task Processing
 
 ## Overview
+This PR implements asynchronous task processing with Celery for the Local Newsifier project as specified in issue #59. This integration allows us to handle resource-intensive operations like article processing, entity extraction, and trend analysis without blocking the main application flow.
 
-The implementation provides a robust asynchronous task processing system that enables:
-- Processing resource-intensive operations in the background
-- Scheduled periodic tasks (via Celery Beat)
-- Task status tracking and result retrieval
-- A web interface for task submission and monitoring
+## Key Changes
 
-## Implementation Details
+### Core Celery Components
+- Added Celery application configuration using PostgreSQL as both broker and result backend
+- Created task definitions for common operations:
+  - Article processing
+  - RSS feed fetching (with periodic scheduling)
+  - Entity trend analysis (with periodic scheduling)
+- Implemented a base task class with common database session management
 
-### New Files
+### API Integration
+- Added new API router for task management with endpoints:
+  - POST `/tasks/process-article/{article_id}` - Process article asynchronously
+  - POST `/tasks/fetch-rss-feeds` - Fetch and process RSS feeds
+  - POST `/tasks/analyze-entity-trends` - Analyze entity trends
+  - GET `/tasks/status/{task_id}` - Check task status
+  - DELETE `/tasks/cancel/{task_id}` - Cancel a running task
+- Created an interactive task dashboard with real-time task status updates
+- Updated API dependencies and main application to support Celery integration
 
-- **Configuration**
-  - `src/local_newsifier/celery_app.py`: Celery application configuration
+### Deployment Configuration
+- Updated Procfile and railway.json for multi-process deployment (web, worker, beat)
+- Added init scripts for Celery worker and beat processes
+- Created Makefile with commands for running Celery components locally
 
-- **Task Definitions**
-  - `src/local_newsifier/tasks.py`: Core task implementations
+### Testing and Documentation
+- Added comprehensive unit tests for Celery tasks
+- Created a demo script for testing task submission and monitoring
+- Added detailed documentation on Celery integration
+- Updated memory bank with Celery technical context
 
-- **API Endpoints**
-  - `src/local_newsifier/api/routers/tasks.py`: API endpoints for task management
-  - `src/local_newsifier/api/templates/tasks_dashboard.html`: Task dashboard UI
+## Benefits
+- Better resource utilization
+- Improved scalability
+- Non-blocking user experience
+- Ability to schedule periodic tasks like RSS feed fetching and trend analysis
 
-- **Testing & Demo**
-  - `tests/tasks/test_tasks.py`: Unit tests for Celery tasks
-  - `scripts/demo_celery_tasks.py`: Demo script for testing task submission
+## Testing Instructions
+1. Install Redis or use the PostgreSQL broker (default configuration)
+2. Run Celery worker: `make run-worker`
+3. Run Celery Beat scheduler: `make run-beat`
+4. Run the FastAPI application: `make run-api`
+5. Visit the task dashboard at `/tasks/`
+6. Submit various tasks and monitor their progress
 
-- **Documentation**
-  - `docs/celery_integration.md`: Comprehensive documentation
+## Related Issues
+- Resolves #59: Implement Celery Integration for Asynchronous Task Processing
 
-### Modified Files
-
-- **Configuration Updates**
-  - `src/local_newsifier/config/settings.py`: Added Celery configuration settings
-  - `requirements.txt`: Added Celery dependencies
-
-- **API Integration**
-  - `src/local_newsifier/api/main.py`: Integrated tasks router
-  - `src/local_newsifier/api/dependencies.py`: Added templates support for tasks
-
-- **Deployment Configuration**
-  - `Procfile`: Added worker and beat processes
-  - `railway.json`: Updated for multi-process deployment
-
-## Key Features
-
-### 1. Asynchronous Article Processing
-
-Long-running article processing operations now run asynchronously:
-```python
-from local_newsifier.tasks import process_article
-task = process_article.delay(article_id)
-```
-
-### 2. Automated RSS Feed Fetching
-
-Periodic task for fetching new articles from RSS feeds:
-```python
-from local_newsifier.tasks import fetch_rss_feeds
-task = fetch_rss_feeds.delay(["https://example.com/feed1"])
-```
-
-### 3. Background Trend Analysis
-
-Resource-intensive trend analysis runs in the background:
-```python
-from local_newsifier.tasks import analyze_entity_trends
-task = analyze_entity_trends.delay(time_interval="day", days_back=7)
-```
-
-### 4. Task Status Tracking
-
-Easy task status checking:
-```python
-from celery.result import AsyncResult
-from local_newsifier.celery_app import app as celery_app
-result = AsyncResult(task_id, app=celery_app)
-```
-
-### 5. API Endpoints for Task Management
-
-- `POST /tasks/process-article/{article_id}`: Process an article
-- `POST /tasks/fetch-rss-feeds`: Fetch RSS feeds
-- `POST /tasks/analyze-entity-trends`: Analyze entity trends
-- `GET /tasks/status/{task_id}`: Check task status
-- `GET /tasks/`: Task dashboard UI
-
-## Architecture
-
-PostgreSQL serves as both the message broker and result backend for Celery:
-- Eliminates the need for Redis or RabbitMQ
-- Simplifies deployment with just one database service
-- Provides durable storage for task results
-- Works seamlessly with the existing database connection settings
-
-## Testing
-
-### Running Tests
-
-Run the unit tests with:
-```bash
-pytest tests/tasks/test_tasks.py
-```
-
-### Manual Testing
-
-1. Run a Celery worker:
-```bash
-celery -A local_newsifier.celery_app worker --loglevel=info
-```
-
-2. Use the demo script:
-```bash
-python scripts/demo_celery_tasks.py --wait
-```
-
-3. Test via the API:
-```bash
-curl -X POST "http://localhost:8000/tasks/process-article/1"
-```
-
-## Deployment
-
-The PR updates deployment configurations for Railway:
-- Added worker and beat processes to Procfile
-- Updated railway.json with multi-process configuration
-- Configured for shared database connection across processes
-
-## Documentation
-
-Comprehensive documentation is provided in `docs/celery_integration.md`, covering:
-- Architecture overview
-- Configuration details
-- Available tasks
-- Task creation guide
-- Testing instructions
-- Deployment notes
-- Troubleshooting tips
-
-## Future Improvements
-
-Potential future enhancements:
-- Add task result archiving for database size management
-- Implement more sophisticated monitoring with Flower
-- Add task prioritization
-- Support for task chaining and grouping
+## Additional Notes
+- Used PostgreSQL as both broker and result backend to simplify the architecture
+- All long-running operations now have asynchronous task alternatives
+- Added a browser-based task dashboard for easy task management
+- Tasks can be scheduled periodically using Celery Beat
