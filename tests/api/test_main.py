@@ -70,8 +70,12 @@ def test_lifespan_existence():
 
 def test_create_db_called_in_lifespan():
     """Test that create_db_and_tables is called during lifespan startup."""
-    from local_newsifier.api.main import lifespan
-    
-    # Check that the lifespan function includes the create_db_and_tables call
-    lifespan_source = lifespan.__code__.co_consts
-    assert "create_db_and_tables" in str(lifespan_source), "create_db_and_tables should be called in lifespan"
+    with patch("local_newsifier.database.engine.create_db_and_tables") as mock_create_db:
+        from local_newsifier.api.main import lifespan
+        import inspect
+        
+        # Get the source code of the lifespan function
+        source = inspect.getsource(lifespan)
+        
+        # Verify the function contains a call to create_db_and_tables
+        assert "create_db_and_tables" in source, "create_db_and_tables should be called in lifespan"
