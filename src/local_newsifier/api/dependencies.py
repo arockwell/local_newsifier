@@ -4,7 +4,7 @@ import os
 import pathlib
 from typing import Generator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
@@ -29,6 +29,29 @@ def get_templates() -> Jinja2Templates:
         Jinja2Templates: The templates object
     """
     return templates
+
+def require_admin(request: Request):
+    """Verify admin session for protected routes.
+
+    Args:
+        request: FastAPI request
+
+    Returns:
+        True if authenticated, otherwise raises an exception
+
+    Raises:
+        HTTPException: If not authenticated, redirects to login page
+    """
+    if not request.session.get("authenticated"):
+        # Store the requested URL to redirect back after login
+        next_url = request.url.path
+        login_url = f"/login?next={next_url}"
+        raise HTTPException(
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": login_url},
+        )
+    return True
+
 
 def get_session() -> Generator[Session, None, None]:
     """Get a database session.

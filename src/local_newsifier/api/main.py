@@ -1,25 +1,27 @@
 """Main FastAPI application for Local Newsifier."""
 
-import os
 import logging
+import os
+import pathlib
 from typing import Dict
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from local_newsifier.api.dependencies import get_templates
-from local_newsifier.api.routers import system, tasks
-from local_newsifier.celery_app import app as celery_app
-from local_newsifier.config.settings import get_settings
-from local_newsifier.database.engine import create_db_and_tables
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
+from local_newsifier.api.dependencies import get_templates
+from local_newsifier.api.routers import auth, system, tasks
+from local_newsifier.celery_app import app as celery_app
+from local_newsifier.config.settings import get_settings, settings
+from local_newsifier.database.engine import create_db_and_tables
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -29,10 +31,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Import pathlib for path operations
-import pathlib
+# Add session middleware
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(tasks.router)
 
@@ -41,14 +44,14 @@ app.include_router(tasks.router)
 async def startup():
     """Run startup tasks."""
     logger.info("Application startup initiated")
-    
+
     try:
         # Initialize database tables
         create_db_and_tables()
         logger.info("Database initialization completed")
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")
-    
+
     logger.info("Application startup complete")
 
 
