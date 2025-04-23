@@ -62,24 +62,16 @@ def test_not_found_handler_html(client):
     assert "Not Found" in response.text
 
 
-def test_startup_event():
-    """Test that the startup event handler exists."""
-    # Instead of calling the async handler directly, just verify it exists
-    startup_handlers = [h for h in app.router.on_startup if h.__name__ == "startup"]
-    assert len(startup_handlers) == 1, "Should have exactly one startup handler named 'startup'"
+def test_lifespan_existence():
+    """Test that the lifespan context manager is configured."""
+    from local_newsifier.api.main import lifespan
+    assert app.router.lifespan_context == lifespan, "App should have lifespan context manager configured"
 
 
-def test_create_db_called_on_startup():
-    """Test that create_db_and_tables is called during startup."""
-    with patch("local_newsifier.database.engine.create_db_and_tables") as mock_create:
-        # Just test the call to create_db_and_tables is made in the app.py file
-        # We're not attempting to call the async handler directly
-        assert app.router.on_startup, "App should have startup handlers"
-        mock_create.assert_not_called()  # Verify it hasn't been called yet
-
-
-def test_shutdown_event():
-    """Test that the shutdown event handler exists."""
-    # Instead of calling the async handler directly, just verify it exists
-    shutdown_handlers = [h for h in app.router.on_shutdown if h.__name__ == "shutdown"]
-    assert len(shutdown_handlers) == 1, "Should have exactly one shutdown handler named 'shutdown'"
+def test_create_db_called_in_lifespan():
+    """Test that create_db_and_tables is called during lifespan startup."""
+    from local_newsifier.api.main import lifespan
+    
+    # Check that the lifespan function includes the create_db_and_tables call
+    lifespan_source = lifespan.__code__.co_consts
+    assert "create_db_and_tables" in str(lifespan_source), "create_db_and_tables should be called in lifespan"
