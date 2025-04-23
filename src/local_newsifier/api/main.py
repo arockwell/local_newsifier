@@ -3,6 +3,7 @@
 import logging
 import os
 from typing import Dict
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -24,10 +25,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI application.
+    
+    Handles startup and shutdown events.
+    """
+    # Startup logic
+    logger.info("Application startup initiated")
+    try:
+        # Initialize database tables
+        create_db_and_tables()
+        logger.info("Database initialization completed")
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+    
+    logger.info("Application startup complete")
+    
+    yield  # This is where FastAPI serves requests
+    
+    # Shutdown logic
+    logger.info("Application shutdown initiated")
+    logger.info("Application shutdown complete")
+
+
 app = FastAPI(
     title="Local Newsifier API",
     description="API for Local Newsifier",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Mount templates directory
@@ -50,27 +77,6 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.include_router(auth.router)
 app.include_router(system.router)
 
-
-@app.on_event("startup")
-async def startup():
-    """Run startup tasks."""
-    logger.info("Application startup initiated")
-
-    try:
-        # Initialize database tables
-        create_db_and_tables()
-        logger.info("Database initialization completed")
-    except Exception as e:
-        logger.error(f"Database initialization error: {str(e)}")
-
-    logger.info("Application startup complete")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Run shutdown tasks."""
-    logger.info("Application shutdown initiated")
-    logger.info("Application shutdown complete")
 
 
 @app.get("/", response_class=HTMLResponse)
