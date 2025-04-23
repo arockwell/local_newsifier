@@ -23,8 +23,7 @@ class CRUDEntity(CRUDBase[Entity]):
         Returns:
             List of entities for the article
         """
-        statement = select(Entity).where(Entity.article_id == article_id)
-        results = db.execute(statement).all()
+        results = db.execute(select(Entity).where(Entity.article_id == article_id)).all()
         return [row[0] for row in results]
 
     def get_by_text_and_article(
@@ -40,11 +39,9 @@ class CRUDEntity(CRUDBase[Entity]):
         Returns:
             Entity if found, None otherwise
         """
-        statement = select(Entity).where(
+        result = db.execute(select(Entity).where(
             Entity.text == text, Entity.article_id == article_id
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
         
     def get_by_date_range_and_types(

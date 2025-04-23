@@ -67,8 +67,7 @@ class CRUDArticle(CRUDBase[Article]):
         Returns:
             Updated article if found, None otherwise
         """
-        statement = select(Article).where(Article.id == article_id)
-        db_article = db.exec(statement).first()
+        db_article = db.exec(select(Article).where(Article.id == article_id)).first()
         
         if db_article:
             db_article.status = status
@@ -88,8 +87,7 @@ class CRUDArticle(CRUDBase[Article]):
         Returns:
             List of articles with the specified status
         """
-        statement = select(Article).where(Article.status == status)
-        return db.exec(statement).all()
+        return db.exec(select(Article).where(Article.status == status)).all()
         
     def get_by_date_range(
         self, 
@@ -110,19 +108,19 @@ class CRUDArticle(CRUDBase[Article]):
         Returns:
             List of articles within the date range
         """
-        statement = select(Article).where(
+        query = select(Article).where(
             Article.published_at >= start_date,
             Article.published_at <= end_date
         )
         
         # Add source filter if provided
         if source:
-            statement = statement.where(Article.source == source)
+            query = query.where(Article.source == source)
             
         # Order by published date
-        statement = statement.order_by(Article.published_at)
+        query = query.order_by(Article.published_at)
         
-        return db.exec(statement).all()
+        return db.exec(query).all()
 
 
 article = CRUDArticle(Article)

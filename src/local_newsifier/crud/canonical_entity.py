@@ -26,12 +26,10 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             Canonical entity if found, None otherwise
         """
-        statement = select(CanonicalEntity).where(
+        result = db.execute(select(CanonicalEntity).where(
             CanonicalEntity.name == name,
             CanonicalEntity.entity_type == entity_type
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
 
     def get_by_type(
@@ -46,10 +44,9 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of canonical entities
         """
-        statement = select(CanonicalEntity).where(
+        results = db.execute(select(CanonicalEntity).where(
             CanonicalEntity.entity_type == entity_type
-        )
-        results = db.execute(statement).all()
+        )).all()
         return [row[0] for row in results]
 
     def get_all(
@@ -64,10 +61,10 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of canonical entities
         """
-        statement = select(CanonicalEntity)
+        query = select(CanonicalEntity)
         if entity_type:
-            statement = statement.where(CanonicalEntity.entity_type == entity_type)
-        results = db.execute(statement).all()
+            query = query.where(CanonicalEntity.entity_type == entity_type)
+        results = db.execute(query).all()
         return [row[0] for row in results]
 
     def get_mentions_count(self, db: Session, *, entity_id: int) -> int:
@@ -149,15 +146,13 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of articles mentioning the entity
         """
-        statement = select(Article).join(
+        results = db.execute(select(Article).join(
             EntityMention, Article.id == EntityMention.article_id
         ).where(
             EntityMention.canonical_entity_id == entity_id,
             Article.published_at >= start_date,
             Article.published_at <= end_date
-        )
-        
-        results = db.execute(statement).all()
+        )).all()
         return [row[0] for row in results]
 
 
