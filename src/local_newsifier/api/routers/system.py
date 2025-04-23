@@ -273,7 +273,15 @@ async def get_table_details_api(
         )
     except Exception as e:
         logger.error(f"Error in table details API: {str(e)}")
-        return JSONResponse(content={"table_name": table_name, "error": str(e)})
+        # Include row_count and other expected fields in error response
+        return JSONResponse(
+            content={
+                "table_name": table_name,
+                "error": str(e),
+                "row_count": 0,
+                "columns": []
+            }
+        )
 
 
 def get_tables_info(session: Session) -> List[Dict]:
@@ -314,6 +322,12 @@ def get_tables_info(session: Session) -> List[Dict]:
         # Get row count
         count_query = text(f"SELECT COUNT(*) FROM {table_name}")
         row_count = session.exec(count_query).one()
+        
+        # Convert row_count to int if it's a SQLAlchemy Row object
+        if hasattr(row_count, "__iter__"):
+            row_count = row_count[0]
+        elif not isinstance(row_count, (int, float)):
+            row_count = int(row_count)
 
         tables_info.append(
             {

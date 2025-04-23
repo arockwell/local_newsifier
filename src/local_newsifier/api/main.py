@@ -12,7 +12,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
-from local_newsifier.api.routers import auth, system
+from local_newsifier.api.routers import auth
+from local_newsifier.api.routers import system
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 
