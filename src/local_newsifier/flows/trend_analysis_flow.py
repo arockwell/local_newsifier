@@ -1,8 +1,9 @@
 """Flow for analyzing and detecting trends in local news articles."""
 
 from datetime import datetime, timezone, timedelta
+import logging
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
@@ -18,6 +19,74 @@ from local_newsifier.models.trend import (
 )
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+
+# Global logger
+logger = logging.getLogger(__name__)
+
+def analyze_trends(
+    time_interval: str = "day",
+    days_back: int = 7,
+    entity_ids: Optional[List[int]] = None
+) -> Dict[str, Any]:
+    """
+    Analyze entity trends over a specified time period.
+    
+    Args:
+        time_interval: Time interval for trend analysis ("hour", "day", "week", "month")
+        days_back: Number of days to look back for trend analysis
+        entity_ids: Optional list of entity IDs to analyze. If None, analyzes all entities.
+        
+    Returns:
+        Dict with entity trend data
+    """
+    logger.info(f"Analyzing trends with interval '{time_interval}', {days_back} days back")
+    
+    # Create and use the trend analysis flow
+    flow = NewsTrendAnalysisFlow()
+    
+    # Convert time_interval string to TimeFrame enum
+    time_frame = TimeFrame.DAY
+    if time_interval == "week":
+        time_frame = TimeFrame.WEEK
+    elif time_interval == "month":
+        time_frame = TimeFrame.MONTH
+    
+    # Create configuration
+    config = TrendAnalysisConfig(
+        time_frame=time_frame,
+        lookback_periods=days_back,
+        entity_ids=entity_ids
+    )
+    
+    # Run the analysis
+    try:
+        result = flow.run_analysis(config=config)
+        
+        # Convert detected trends to the expected format
+        entity_trends = []
+        for trend in result.detected_trends:
+            entity_trends.append({
+                "entity_id": getattr(trend, "entity_id", None),
+                "entity_name": getattr(trend, "entity_name", "Unknown"),
+                "entity_type": getattr(trend, "entity_type", "UNKNOWN"),
+                "trend_direction": getattr(trend, "direction", "neutral"),
+                "trend_score": getattr(trend, "significance", 0.0),
+                "mention_count": getattr(trend, "mention_count", 0),
+                "average_sentiment": getattr(trend, "average_sentiment", 0.0)
+            })
+        
+        return {
+            "entity_trends": entity_trends,
+            "status": "success" if result.status == AnalysisStatus.COMPLETED_SUCCESS else "partial",
+            "report_path": result.report_path
+        }
+    except Exception as e:
+        logger.error(f"Error in trend analysis: {str(e)}")
+        return {
+            "entity_trends": [],
+            "status": "error",
+            "error": str(e)
+        }
 
 
 class TrendAnalysisState:

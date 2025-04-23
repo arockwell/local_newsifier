@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from xml.etree import ElementTree
 
 import requests
@@ -187,3 +187,54 @@ class RSSParser:
             self._save_cache()
 
         return new_items
+
+
+# Global parser instance
+_parser = RSSParser()
+
+
+def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
+    """
+    Parse an RSS feed and return the content in a dictionary format.
+    
+    Args:
+        feed_url: URL of the RSS feed to parse
+        
+    Returns:
+        Dictionary containing feed title and entries
+    """
+    logger.info(f"Parsing RSS feed: {feed_url}")
+    
+    try:
+        # Use the parser to get items
+        items = _parser.parse_feed(feed_url)
+        
+        # Extract feed title (use first item's title as fallback for feed title)
+        feed_title = "Unknown Feed"
+        if items:
+            feed_title = f"Feed containing {items[0].title}"
+            
+        # Convert items to dictionary format expected by tasks
+        entries = []
+        for item in items:
+            entry = {
+                "title": item.title,
+                "link": item.url,
+                "description": item.description or "",
+                "published": item.published.isoformat() if item.published else None,
+            }
+            entries.append(entry)
+            
+        return {
+            "title": feed_title,
+            "feed_url": feed_url,
+            "entries": entries,
+        }
+    except Exception as e:
+        logger.error(f"Error parsing RSS feed {feed_url}: {str(e)}")
+        return {
+            "title": "Error parsing feed",
+            "feed_url": feed_url,
+            "entries": [],
+            "error": str(e)
+        }

@@ -13,8 +13,8 @@ from fastapi.templating import Jinja2Templates
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import settings
-from local_newsifier.crud.article import ArticleCRUD
-from local_newsifier.database.engine import get_db
+from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.database.engine import get_session
 from local_newsifier.tasks import (
     analyze_entity_trends,
     fetch_rss_feeds,
@@ -46,7 +46,7 @@ async def tasks_dashboard(
 @router.post("/process-article/{article_id}")
 async def process_article_endpoint(
     article_id: int = Path(..., title="Article ID", description="ID of the article to process"),
-    db=Depends(get_db),
+    db=Depends(get_session),
 ):
     """
     Submit a task to process an article asynchronously.
@@ -58,7 +58,7 @@ async def process_article_endpoint(
         Task information including task ID
     """
     # Verify article exists
-    article_crud = ArticleCRUD(db)
+    article_crud = CRUDArticle(db)
     article = article_crud.get(article_id)
     if not article:
         raise HTTPException(status_code=404, detail=f"Article with ID {article_id} not found")

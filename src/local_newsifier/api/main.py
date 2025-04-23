@@ -95,8 +95,10 @@ async def get_config():
 
 
 @app.exception_handler(404)
-async def not_found_handler(request: Request, exc: Exception, templates=Depends(get_templates)) -> JSONResponse:
+async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
+    templates = get_templates()  # Get the templates directly
+    
     if request.url.path.startswith("/api"):
         return JSONResponse(
             status_code=404,

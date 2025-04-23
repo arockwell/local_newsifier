@@ -12,11 +12,11 @@ from celery.signals import worker_ready
 
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
-from local_newsifier.crud.article import ArticleCRUD
-from local_newsifier.crud.entity import EntityCRUD
-from local_newsifier.database.engine import get_db
-from local_newsifier.flows.entity_tracking_flow import process_entities_in_article
-from local_newsifier.flows.news_pipeline import process_article as process_article_flow
+from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.crud.entity import CRUDEntity
+from local_newsifier.database.engine import get_session
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.flows.trend_analysis_flow import analyze_trends
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.tools.rss_parser import parse_rss_feed
@@ -36,7 +36,7 @@ class BaseTask(Task):
     def db(self):
         """Get database session."""
         if self._db is None:
-            self._db = next(get_db())
+            self._db = next(get_session())
         return self._db
 
     @property
@@ -50,14 +50,14 @@ class BaseTask(Task):
     def article_crud(self):
         """Get article CRUD."""
         if self._article_crud is None:
-            self._article_crud = ArticleCRUD(self.db)
+            self._article_crud = CRUDArticle(self.db)
         return self._article_crud
 
     @property
     def entity_crud(self):
         """Get entity CRUD."""
         if self._entity_crud is None:
-            self._entity_crud = EntityCRUD(self.db)
+            self._entity_crud = CRUDEntity(self.db)
         return self._entity_crud
 
 
@@ -88,16 +88,22 @@ def process_article(self, article_id: int) -> Dict:
             )
         
         # Process the article through the news pipeline
-        result = process_article_flow(article)
+        news_pipeline = NewsPipelineFlow()
+        if article.url:
+            result = news_pipeline.process_url_directly(article.url)
+        else:
+            # If no URL available, can't use pipeline directly
+            result = {"article_id": article.id, "processed": True}
         
         # Process entities in the article
-        entity_result = process_entities_in_article(article)
+        entity_tracking_flow = EntityTrackingFlow()
+        entity_result = entity_tracking_flow.process_article(article.id)
         
         return {
             "article_id": article_id,
             "status": "success",
             "processed": True,
-            "entities_found": len(entity_result.get("entities", [])),
+            "entities_found": len(entity_result),
             "article_title": article.title,
         }
     except Exception as e:
