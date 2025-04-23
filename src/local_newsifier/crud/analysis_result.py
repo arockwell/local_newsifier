@@ -23,8 +23,9 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
         Returns:
             List of analysis results for the article
         """
-        statement = select(AnalysisResult).where(AnalysisResult.article_id == article_id)
-        results = db.execute(statement).all()
+        results = db.execute(select(AnalysisResult).where(
+            AnalysisResult.article_id == article_id
+        )).all()
         return [row[0] for row in results]
 
     def get_by_article_and_type(
@@ -40,12 +41,10 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
         Returns:
             Analysis result if found, None otherwise
         """
-        statement = select(AnalysisResult).where(
+        result = db.execute(select(AnalysisResult).where(
             AnalysisResult.article_id == article_id,
             AnalysisResult.analysis_type == analysis_type
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
 
 

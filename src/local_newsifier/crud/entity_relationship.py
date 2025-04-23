@@ -49,10 +49,9 @@ class CRUDEntityRelationship:
         Returns:
             List of entity relationships
         """
-        statement = select(EntityRelationship).where(
+        return db.exec(select(EntityRelationship).where(
             EntityRelationship.source_entity_id == source_entity_id
-        )
-        return db.exec(statement).all()
+        )).all()
 
     def create_or_update(
         self, db: Session, *, obj_in: Union[EntityRelationship, Dict[str, Any]]

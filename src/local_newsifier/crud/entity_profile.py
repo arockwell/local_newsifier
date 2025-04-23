@@ -24,11 +24,9 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         Returns:
             Entity profile if found, None otherwise
         """
-        statement = select(EntityProfile).where(
+        result = db.execute(select(EntityProfile).where(
             EntityProfile.canonical_entity_id == entity_id
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
 
     def get_by_entity_and_type(
@@ -44,12 +42,10 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         Returns:
             Entity profile if found, None otherwise
         """
-        statement = select(EntityProfile).where(
+        result = db.execute(select(EntityProfile).where(
             EntityProfile.canonical_entity_id == entity_id,
             EntityProfile.profile_type == profile_type
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
 
     def create(

@@ -26,12 +26,10 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         Returns:
             Entity mention context if found, None otherwise
         """
-        statement = select(EntityMentionContext).where(
+        result = db.execute(select(EntityMentionContext).where(
             EntityMentionContext.entity_id == entity_id,
             EntityMentionContext.article_id == article_id
-        )
-        results = db.execute(statement)
-        result = results.first()
+        )).first()
         return result[0] if result else None
 
     def get_by_entity(
@@ -46,10 +44,9 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         Returns:
             List of entity mention contexts
         """
-        statement = select(EntityMentionContext).where(
+        results = db.execute(select(EntityMentionContext).where(
             EntityMentionContext.entity_id == entity_id
-        )
-        results = db.execute(statement).all()
+        )).all()
         return [row[0] for row in results]
 
     def get_sentiment_trend(
