@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Admin Login</h2>
+
+    {% if error %}
+    <div style="color: var(--secondary-color); margin-bottom: 1rem; padding: 0.5rem; background-color: rgba(245, 0, 87, 0.1); border-radius: 4px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+        <input type="hidden" name="next_url" value="{{ next_url }}">
+
+        <div style="margin-bottom: 1rem;">
+            <label for="username" style="display: block; margin-bottom: 0.5rem;">Username</label>
+            <input type="text" id="username" name="username" required
+                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label for="password" style="display: block; margin-bottom: 0.5rem;">Password</label>
+            <input type="password" id="password" name="password" required
+                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+        </div>
+
+        <button type="submit" class="button">Login</button>
+    </form>
+</div>
+{% endblock %}

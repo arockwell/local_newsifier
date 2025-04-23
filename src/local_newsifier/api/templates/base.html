@@ -165,7 +165,12 @@
             <h1>Local Newsifier</h1>
             <ul>
                 <li><a href="/">Home</a></li>
+                {% if request.session.get('authenticated') %}
                 <li><a href="/system/tables">Database</a></li>
+                <li><a href="/logout">Logout</a></li>
+                {% else %}
+                <li><a href="/login">Admin Login</a></li>
+                {% endif %}
                 <li><a href="/docs">API Docs</a></li>
             </ul>
         </nav>

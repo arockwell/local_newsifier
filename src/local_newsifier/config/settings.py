@@ -30,7 +30,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True,
         validate_default=True,
-        extra="allow"  # Allow extra fields like computed DATABASE_URL
+        extra="allow",  # Allow extra fields like computed DATABASE_URL
     )
 
     # OpenAI API key
@@ -64,14 +64,17 @@ class Settings(BaseSettings):
 
     # NER analysis settings
     NER_MODEL: str = "en_core_web_lg"
-    ENTITY_TYPES: List[str] = Field(
-        default_factory=lambda: ["PERSON", "ORG", "GPE"]
-    )
+    ENTITY_TYPES: List[str] = Field(default_factory=lambda: ["PERSON", "ORG", "GPE"])
+
+    # Authentication settings
+    SECRET_KEY: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "development_password"  # Default for development only
 
     @computed_field
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment.
-        
+
         Checks for DATABASE_URL environment variable first (commonly used by Railway and other platforms)
         and falls back to constructing one from individual components if not present.
         """
@@ -79,7 +82,7 @@ class Settings(BaseSettings):
         env_db_url = os.environ.get("DATABASE_URL")
         if env_db_url:
             return env_db_url
-            
+
         # Otherwise construct from individual components
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
