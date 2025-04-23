@@ -119,7 +119,7 @@ async def get_tables_api(
         return JSONResponse(content=get_tables_info(session))
     except Exception as e:
         logger.error(f"Error in tables API: {str(e)}")
-        return JSONResponse(content=[{"error": str(e)}])
+        return JSONResponse(content=[{"name": "error", "error": str(e)}])
 
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
