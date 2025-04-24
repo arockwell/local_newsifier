@@ -175,45 +175,6 @@ document.getElementById('fetch-rss-form').addEventListener('submit', async funct
     }
 });
 
-// Analyze entity trends form submission
-document.getElementById('analyze-trends-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const timeInterval = document.getElementById('time-interval').value;
-    const daysBack = document.getElementById('days-back').value;
-    const entityIdsText = document.getElementById('entity-ids').value;
-    
-    // Convert comma-separated entity IDs to array
-    let entityIds = [];
-    if (entityIdsText.trim()) {
-        entityIds = entityIdsText.split(',').map(id => id.trim()).filter(id => id);
-    }
-    
-    try {
-        // Construct URL with query parameters
-        let url = `/tasks/analyze-entity-trends?time_interval=${timeInterval}&days_back=${daysBack}`;
-        if (entityIds.length > 0) {
-            url += '&' + entityIds.map(id => `entity_ids=${id}`).join('&');
-        }
-        
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        if (response.ok) {
-            addRecentTask(result.task_id, 'Analyze Entity Trends', `${timeInterval}/${daysBack} days`, 'queued');
-            checkTaskStatus(result.task_id);
-        } else {
-            showError(result.detail || 'Failed to submit task');
-        }
-    } catch (error) {
-        showError('Error: ' + error.message);
-    }
-});
-
 // Check task status
 document.getElementById('check-task-button').addEventListener('click', function() {
     const taskId = document.getElementById('task-id').value.trim();
