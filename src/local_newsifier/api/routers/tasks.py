@@ -16,7 +16,6 @@ from local_newsifier.config.settings import settings
 from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.database.engine import get_session
 from local_newsifier.tasks import (
-    analyze_entity_trends,
     fetch_rss_feeds,
     process_article,
 )
@@ -100,38 +99,6 @@ async def fetch_rss_feeds_endpoint(
         "task_url": f"/tasks/status/{task.id}",
     }
 
-
-@router.post("/analyze-entity-trends")
-async def analyze_entity_trends_endpoint(
-    time_interval: str = Query("day", description="Time interval for trend analysis: hour, day, week, month"),
-    days_back: int = Query(7, description="Number of days to look back for trend analysis"),
-    entity_ids: Optional[List[int]] = Query(None, description="Optional list of entity IDs to analyze"),
-):
-    """
-    Submit a task to analyze entity trends.
-
-    Args:
-        time_interval: Time interval for trend analysis
-        days_back: Number of days to look back
-        entity_ids: Optional list of entity IDs to analyze
-
-    Returns:
-        Task information including task ID
-    """
-    task = analyze_entity_trends.delay(
-        time_interval=time_interval,
-        days_back=days_back,
-        entity_ids=entity_ids,
-    )
-    
-    return {
-        "task_id": task.id,
-        "time_interval": time_interval,
-        "days_back": days_back,
-        "entity_count": len(entity_ids) if entity_ids else "all",
-        "status": "queued",
-        "task_url": f"/tasks/status/{task.id}",
-    }
 
 
 @router.get("/status/{task_id}")
