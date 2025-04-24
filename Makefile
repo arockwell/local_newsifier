@@ -1,10 +1,11 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-spacy test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies"
+	@echo "  make setup-spacy       - Install spaCy model (en_core_web_lg)"
 	@echo "  make test              - Run tests"
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
@@ -17,6 +18,10 @@ help:
 # Installation
 install:
 	pip install -e .
+
+# Setup spaCy models
+setup-spacy:
+	bash scripts/init_spacy_models.sh
 
 # Testing
 test:
@@ -39,19 +44,19 @@ clean:
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 
 # Run FastAPI application
-run-api:
+run-api: setup-spacy
 	uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run Celery worker
-run-worker:
+run-worker: setup-spacy
 	celery -A local_newsifier.celery_app worker --loglevel=info
 
 # Run Celery beat scheduler
-run-beat:
+run-beat: setup-spacy
 	celery -A local_newsifier.celery_app beat --loglevel=info
 
 # Run Celery worker and beat (for development)
-run-all-celery:
+run-all-celery: setup-spacy
 	@echo "Starting Celery worker and beat..."
 	@echo "Worker output: celery-worker.log"
 	@echo "Beat output: celery-beat.log"
