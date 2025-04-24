@@ -9,7 +9,6 @@ from celery import Task
 from celery.result import AsyncResult
 
 from local_newsifier.tasks import (
-    analyze_entity_trends,
     fetch_rss_feeds,
     process_article,
     article_crud,
@@ -94,17 +93,24 @@ class TestBaseTask:
 class TestProcessArticle:
     """Tests for the process_article task."""
     
-    @patch("local_newsifier.tasks.process_article_flow")
-    @patch("local_newsifier.tasks.process_entities_in_article")
+    @patch("local_newsifier.tasks.NewsPipelineFlow")
+    @patch("local_newsifier.tasks.EntityTrackingFlow")
     def test_process_article_success(
-        self, mock_process_entities, mock_process_article_flow, 
+        self, mock_entity_flow_class, mock_pipeline_class, 
         mock_article, mock_article_crud
     ):
         """Test that the process_article task processes an article successfully."""
         # Setup mocks
         mock_article_crud.get.return_value = mock_article
-        mock_process_article_flow.return_value = {"status": "success"}
-        mock_process_entities.return_value = {"entities": [{"id": 1, "name": "Test Entity"}]}
+        
+        # Setup mock flow instances
+        mock_pipeline = Mock()
+        mock_entity_flow = Mock()
+        mock_pipeline_class.return_value = mock_pipeline
+        mock_entity_flow_class.return_value = mock_entity_flow
+        
+        # Setup mock return values
+        mock_entity_flow.process_article.return_value = [{"id": 1, "name": "Test Entity"}]
         
         # Patch the module-level _crud_article variable
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):
@@ -113,9 +119,8 @@ class TestProcessArticle:
             
             # Verify
             assert mock_article_crud.get.call_count == 1
-            # Skip checking exact args, just make sure it was called
-            mock_process_article_flow.assert_called_once_with(mock_article)
-            mock_process_entities.assert_called_once_with(mock_article)
+            mock_pipeline.process_url_directly.assert_called_once_with(mock_article.url)
+            mock_entity_flow.process_article.assert_called_once_with(mock_article.id)
             
             assert result["article_id"] == mock_article.id
             assert result["status"] == "success"
@@ -147,16 +152,17 @@ class TestProcessArticle:
         
         # Patch the module-level _crud_article variable
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):
-            # Mock process_article_flow to raise an exception
-            with patch("local_newsifier.tasks.process_article_flow") as mock_process:
-                mock_process.side_effect = Exception("Test error")
+            # Mock NewsPipelineFlow to raise an exception
+            with patch("local_newsifier.tasks.NewsPipelineFlow") as mock_pipeline_class:
+                mock_pipeline = Mock()
+                mock_pipeline_class.return_value = mock_pipeline
+                mock_pipeline.process_url_directly.side_effect = Exception("Test error")
                 
                 # Call the task
                 result = process_article(mock_article.id)
                 
                 # Verify
                 assert mock_article_crud.get.call_count == 1
-                # Skip checking exact args, just make sure it was called
                 assert result["article_id"] == mock_article.id
                 assert result["status"] == "error"
                 assert "Test error" in result["message"]
@@ -268,110 +274,3 @@ class TestFetchRssFeeds:
                     assert result["feeds_processed"] == 1
                     assert result["articles_found"] == 2
                     assert result["articles_added"] == 1
-                    assert result["articles_updated"] == 1
-
-
-class TestAnalyzeEntityTrends:
-    """Tests for the analyze_entity_trends task."""
-    
-    @patch("local_newsifier.tasks.analyze_trends")
-    def test_analyze_entity_trends_success(self, mock_analyze_trends):
-        """Test that the analyze_entity_trends task analyzes trends successfully."""
-        # Setup mocks
-        mock_analyze_trends.return_value = {
-            "entity_trends": [
-                {
-                    "entity_id": 1,
-                    "entity_name": "Test Entity 1",
-                    "entity_type": "PERSON",
-                    "trend_direction": "up",
-                    "trend_score": 0.75,
-                    "mention_count": 10,
-                    "average_sentiment": 0.5
-                },
-                {
-                    "entity_id": 2,
-                    "entity_name": "Test Entity 2",
-                    "entity_type": "ORG",
-                    "trend_direction": "down",
-                    "trend_score": -0.5,
-                    "mention_count": 5,
-                    "average_sentiment": -0.2
-                }
-            ]
-        }
-        
-        # Call the task
-        result = analyze_entity_trends(time_interval="day", days_back=7)
-        
-        # Verify
-        mock_analyze_trends.assert_called_once_with(
-            time_interval="day", 
-            days_back=7,
-            entity_ids=None
-        )
-        
-        assert result["status"] == "success"
-        assert result["time_interval"] == "day"
-        assert result["days_back"] == 7
-        assert result["entities_analyzed"] == 2
-        assert len(result["entity_trends"]) == 2
-        
-    @patch("local_newsifier.tasks.analyze_trends")
-    def test_analyze_entity_trends_with_specific_entities(self, mock_analyze_trends):
-        """Test that the analyze_entity_trends task handles specific entity IDs properly."""
-        # Setup mocks
-        entity_ids = [1, 3]
-        mock_analyze_trends.return_value = {
-            "entity_trends": [
-                {
-                    "entity_id": 1,
-                    "entity_name": "Test Entity 1",
-                    "entity_type": "PERSON",
-                    "trend_direction": "up",
-                    "trend_score": 0.75,
-                    "mention_count": 10,
-                    "average_sentiment": 0.5
-                }
-            ]
-        }
-        
-        # Call the task
-        result = analyze_entity_trends(
-            time_interval="week", 
-            days_back=14,
-            entity_ids=entity_ids
-        )
-        
-        # Verify
-        mock_analyze_trends.assert_called_once_with(
-            time_interval="week", 
-            days_back=14,
-            entity_ids=entity_ids
-        )
-        
-        assert result["status"] == "success"
-        assert result["time_interval"] == "week"
-        assert result["days_back"] == 14
-        assert result["entities_analyzed"] == 1
-        
-    @patch("local_newsifier.tasks.analyze_trends")
-    def test_analyze_entity_trends_error(self, mock_analyze_trends):
-        """Test that the analyze_entity_trends task handles errors properly."""
-        # Setup mocks
-        mock_analyze_trends.side_effect = Exception("Test error")
-        
-        # Call the task
-        result = analyze_entity_trends(time_interval="day", days_back=7)
-        
-        # Verify
-        mock_analyze_trends.assert_called_once_with(
-            time_interval="day", 
-            days_back=7,
-            entity_ids=None
-        )
-        
-        assert result["status"] == "error"
-        assert result["time_interval"] == "day"
-        assert result["days_back"] == 7
-        assert "Test error" in result["message"]

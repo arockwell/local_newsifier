@@ -136,3 +136,51 @@ class ArticleService:
                 "status": article.status,
                 "analysis_results": [result.results for result in analysis_results]
             }
+    
+    def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[Article]:
+        """Create a new article from an RSS feed entry.
+        
+        Args:
+            entry: RSS feed entry data
+            
+        Returns:
+            Created article or None if creation failed
+        """
+        from datetime import datetime
+        
+        # Extract data from the RSS entry
+        title = entry.get("title", "Untitled")
+        url = entry.get("link", "")
+        
+        # Handle published date parsing
+        published_at = datetime.now()
+        if "published" in entry:
+            try:
+                # Attempt to parse the published date
+                from dateutil.parser import parse
+                published_at = parse(entry["published"])
+            except Exception:
+                # Fall back to current date if parsing fails
+                pass
+        
+        # Extract content
+        content = ""
+        if "content" in entry and len(entry["content"]) > 0:
+            content = entry["content"][0].get("value", "")
+        elif "summary" in entry:
+            content = entry.get("summary", "")
+        
+        with self.session_factory() as session:
+            # Create article object
+            article_data = Article(
+                title=title,
+                url=url,
+                content=content,
+                published_at=published_at,
+                status="new"
+            )
+            
+            # Save to database
+            article = self.article_crud.create(session, obj_in=article_data)
+            
+            return article

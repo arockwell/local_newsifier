@@ -33,13 +33,40 @@ def get_db() -> Iterator[Session]:
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 
+# Import models
+from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.crud.analysis_result import CRUDAnalysisResult
+from local_newsifier.services.entity_service import EntityService
+from local_newsifier.crud.canonical_entity import canonical_entity
+from local_newsifier.crud.entity_mention_context import entity_mention_context
+from local_newsifier.crud.entity_profile import entity_profile
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
 # Initialize CRUD instances
 _crud_article = CRUDArticle(Article)
 _crud_entity = CRUDEntity(Entity)
+_crud_analysis_result = CRUDAnalysisResult(AnalysisResult)
+
+# Create entity service for article service dependency
+_entity_service = EntityService(
+    entity_crud=_crud_entity,
+    canonical_entity_crud=canonical_entity,
+    entity_mention_context_crud=entity_mention_context,
+    entity_profile_crud=entity_profile,
+    article_crud=_crud_article,
+    entity_extractor=EntityExtractor(),
+    context_analyzer=ContextAnalyzer(),
+    entity_resolver=EntityResolver(),
+    session_factory=get_session
+)
 
 # Create article service
 _service_article = ArticleService(
     article_crud=_crud_article,
+    analysis_result_crud=_crud_analysis_result,
+    entity_service=_entity_service,
     session_factory=get_session
 )
 
