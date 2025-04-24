@@ -12,4 +12,6 @@ psutil>=5.9.0
 itsdangerous>=2.1.2
 alembic>=1.13.1
 celery>=5.3.6
+spacy>=3.5.0
+https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.5.0/en_core_web_lg-3.5.0-py3-none-any.whl
 -e .
