@@ -66,7 +66,7 @@ The Local Newsifier uses Celery for asynchronous task processing to handle resou
 ### Critical Configuration
 - **PostgreSQL Transport**: When using PostgreSQL as a broker, we must:
   - Use the `sqla+` prefix for the broker URL: `sqla+postgresql://...`
-  - Have the `celery-sqlalchemy-transport` package installed
+  - Have the `kombu-sqlalchemy` package installed
   - Configure result backend with `db+` prefix: `db+postgresql://...`
 
 ### Key Tasks

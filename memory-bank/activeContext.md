@@ -18,7 +18,7 @@
 
 - Fixed Celery PostgreSQL transport issue
   - Updated CELERY_BROKER_URL to use SQLAlchemy transport prefix: `sqla+postgresql://...`
-  - Added celery-sqlalchemy-transport package to requirements.txt
+  - Added kombu-sqlalchemy package instead of the non-existent celery-sqlalchemy-transport
   - Resolved KeyError: 'No such transport: postgresql' error during Celery startup
 
 ## Technical Details
