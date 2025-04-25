@@ -58,16 +58,17 @@ The Local Newsifier uses Celery for asynchronous task processing to handle resou
 ### Architecture
 - **Celery Application**: Configured in `src/local_newsifier/celery_app.py`
 - **Task Definitions**: Defined in `src/local_newsifier/tasks.py`
-- **Message Broker**: PostgreSQL (same database as the application) using SQLAlchemy transport
-- **Result Backend**: PostgreSQL (same database as the application) using SQLAlchemy backend
+- **Message Broker**: Redis - efficient, in-memory data store optimized for messaging
+- **Result Backend**: Redis - same instance used for storing task results
 - **Task Scheduler**: Celery Beat for periodic tasks
 - **Workers**: Celery workers that execute the tasks
 
 ### Critical Configuration
-- **PostgreSQL Transport**: When using PostgreSQL as a broker, we must:
-  - Use the `sqla+` prefix for the broker URL: `sqla+postgresql://...`
-  - Have the `kombu-sqlalchemy` package installed
-  - Configure result backend with `db+` prefix: `db+postgresql://...`
+- **Redis Configuration**:
+  - Default URL: `redis://localhost:6379/0`
+  - Requires the `redis` package
+  - Redis is natively supported by Celery without additional adapters
+  - Same Redis instance can be used for both broker and result backend
 
 ### Key Tasks
 1. **Process Article**: Asynchronously processes articles to extract entities and analyze context

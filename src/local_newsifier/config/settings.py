@@ -129,36 +129,28 @@ class Settings(BaseSettings):
     @computed_field
     def CELERY_BROKER_URL(self) -> str:
         """Get the Celery broker URL based on environment.
-        Uses DATABASE_URL with specific query parameters for PostgreSQL broker.
+        Uses Redis as the message broker.
         """
         # Use dedicated environment variable if available
         broker_url = os.environ.get("CELERY_BROKER_URL")
         if broker_url:
             return broker_url
             
-        # Otherwise construct from database URL
-        db_url = str(self.DATABASE_URL)
-        # Add the required transport prefix for PostgreSQL
-        if db_url.startswith("postgresql://"):
-            return f"sqla+{db_url}?prepared_statements=False"
-        return f"sqla+{db_url}?prepared_statements=False"
+        # Use Redis with default settings
+        return "redis://localhost:6379/0"
     
     @computed_field
     def CELERY_RESULT_BACKEND(self) -> str:
         """Get the Celery result backend URL based on environment.
-        Uses DATABASE_URL with db+ prefix for SQLAlchemy backend.
+        Uses Redis as the result backend.
         """
         # Use dedicated environment variable if available
         result_backend = os.environ.get("CELERY_RESULT_BACKEND")
         if result_backend:
             return result_backend
             
-        # Otherwise construct from database URL
-        db_url = str(self.DATABASE_URL)
-        # Convert to SQLAlchemy format by adding "db+" prefix
-        if db_url.startswith("postgresql://"):
-            return f"db+{db_url}"
-        return f"db+{db_url}"
+        # Use Redis with default settings
+        return "redis://localhost:6379/0"
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""

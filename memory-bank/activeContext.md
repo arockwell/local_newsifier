@@ -16,10 +16,11 @@
   - Modified templates directory path in main.py to work in both development and production
   - Implemented a path detection mechanism to handle different environments
 
-- Fixed Celery PostgreSQL transport issue
-  - Updated CELERY_BROKER_URL to use SQLAlchemy transport prefix: `sqla+postgresql://...`
-  - Added kombu-sqlalchemy package instead of the non-existent celery-sqlalchemy-transport
-  - Resolved KeyError: 'No such transport: postgresql' error during Celery startup
+- Changed Celery broker from PostgreSQL to Redis
+  - Switched CELERY_BROKER_URL and CELERY_RESULT_BACKEND to use Redis: `redis://localhost:6379/0`
+  - Removed PostgreSQL-specific transport configuration (no longer needed)
+  - Added redis package to dependencies
+  - Simplified Celery configuration with natively supported broker
 
 ## Technical Details
 

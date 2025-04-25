@@ -49,9 +49,9 @@
 
 ## Known Issues
 - ✅ Fixed: Celery worker and beat startup errors with "KeyError: 'No such transport: postgresql'"
-  - Added proper SQLAlchemy transport configuration for PostgreSQL
-  - Updated broker URL format to use `sqla+` prefix
-  - Added kombu-sqlalchemy package to requirements.txt and Poetry dependencies
+  - Changed from PostgreSQL to Redis for Celery message broker and result backend
+  - Redis is natively supported by Celery without requiring special adapters
+  - Added redis package to requirements.txt and Poetry dependencies
 
 ## Deployment Notes
 - Railway deployment requires environment variables for database connection
