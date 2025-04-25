@@ -30,16 +30,27 @@
 - Table details can be viewed with proper SQL queries
 
 ### Deployment Configuration
-- Railway.json is properly configured:
+- Railway.json is properly configured with separate process settings for web, worker, and beat:
   ```json
   {
-    "build": {
-      "builder": "NIXPACKS"
-    },
     "deploy": {
-      "startCommand": "uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
       "restartPolicyType": "ON_FAILURE",
-      "restartPolicyMaxRetries": 3
+      "restartPolicyMaxRetries": 3,
+      "processes": {
+        "web": {
+          "healthcheckPath": "/health",
+          "healthcheckTimeout": 60,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_alembic.sh && alembic upgrade head && python -m uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT"
+        },
+        "worker": {
+          "healthcheckEnabled": false,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_celery_worker.sh --concurrency=2"
+        },
+        "beat": {
+          "healthcheckEnabled": false,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_celery_beat.sh"
+        }
+      }
     }
   }
   ```

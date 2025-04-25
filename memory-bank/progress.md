@@ -53,6 +53,11 @@
   - Redis is natively supported by Celery without requiring special adapters
   - Added redis package to requirements.txt and Poetry dependencies
 
+- ✅ Fixed: Railway deployment health check failures for Celery processes
+  - Updated railway.json to disable health checks for worker and beat processes
+  - Added process-specific configurations instead of global health check settings
+  - Specified health checks only for the web process that provides HTTP endpoints
+
 ## Deployment Notes
 - Railway deployment requires environment variables for database connection
 - Application is configured to use PostgreSQL for production
