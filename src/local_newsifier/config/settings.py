@@ -138,7 +138,10 @@ class Settings(BaseSettings):
             
         # Otherwise construct from database URL
         db_url = str(self.DATABASE_URL)
-        return f"{db_url}?prepared_statements=False"
+        # Add the required transport prefix for PostgreSQL
+        if db_url.startswith("postgresql://"):
+            return f"sqla+{db_url}?prepared_statements=False"
+        return f"sqla+{db_url}?prepared_statements=False"
     
     @computed_field
     def CELERY_RESULT_BACKEND(self) -> str:

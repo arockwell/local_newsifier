@@ -16,6 +16,11 @@
   - Modified templates directory path in main.py to work in both development and production
   - Implemented a path detection mechanism to handle different environments
 
+- Fixed Celery PostgreSQL transport issue
+  - Updated CELERY_BROKER_URL to use SQLAlchemy transport prefix: `sqla+postgresql://...`
+  - Added celery-sqlalchemy-transport package to requirements.txt
+  - Resolved KeyError: 'No such transport: postgresql' error during Celery startup
+
 ## Technical Details
 
 ### Web Interface Status

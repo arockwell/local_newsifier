@@ -48,7 +48,10 @@
 - Implement scheduled scraping and analysis
 
 ## Known Issues
-- None critical at the moment
+- ✅ Fixed: Celery worker and beat startup errors with "KeyError: 'No such transport: postgresql'"
+  - Added proper SQLAlchemy transport configuration for PostgreSQL
+  - Updated broker URL format to use `sqla+` prefix
+  - Added celery-sqlalchemy-transport package to requirements.txt
 
 ## Deployment Notes
 - Railway deployment requires environment variables for database connection
