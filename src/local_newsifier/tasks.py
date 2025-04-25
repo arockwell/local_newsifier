@@ -14,7 +14,7 @@ from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
 from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.crud.entity import CRUDEntity
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import get_session, SessionManager
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.services.article_service import ArticleService
@@ -67,7 +67,7 @@ _service_article = ArticleService(
     article_crud=_crud_article,
     analysis_result_crud=_crud_analysis_result,
     entity_service=_entity_service,
-    session_factory=get_session
+    session_factory=lambda: SessionManager()  # Use SessionManager which is a context manager
 )
 
 # These are exported for tests - don't use directly
