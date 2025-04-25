@@ -66,6 +66,8 @@
   - POSTGRES_HOST
   - POSTGRES_PORT
   - POSTGRES_DB
+  - CELERY_BROKER_URL (Redis URL for production - need to provision Redis in Railway)
+  - CELERY_RESULT_BACKEND (optional - defaults to broker URL)
 
 ## Key Decisions
 
