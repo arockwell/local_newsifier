@@ -87,51 +87,27 @@ class RSSParser:
         """
         try:
             # Fetch the feed
-            logger.debug(f"Fetching RSS feed from URL: {feed_url}")
             response = requests.get(feed_url)
             response.raise_for_status()
-            logger.debug(f"Successfully fetched feed. Status code: {response.status_code}")
-            
+
             # Parse the XML
-            logger.debug("Parsing XML response")
             root = ElementTree.fromstring(response.content)
-            logger.debug(f"Root tag: {root.tag}")
-            
-            # Log feed namespaces for debugging
-            namespaces = root.attrib
-            logger.debug(f"Feed namespaces: {namespaces}")
 
             # Handle both RSS and Atom feeds
-            entries = []
             if root.tag.endswith("rss"):
-                logger.debug("Detected RSS format feed")
                 entries = root.findall(".//item")
-                logger.debug(f"Found {len(entries)} items using .//item")
-                
-                # Try alternative path if no entries found
-                if not entries:
-                    logger.debug("Trying alternative XPath for RSS items")
-                    entries = root.findall("./channel/item")
-                    logger.debug(f"Found {len(entries)} items using ./channel/item")
             elif root.tag.endswith("feed"):  # Atom feed
-                logger.debug("Detected Atom format feed")
                 entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
-                logger.debug(f"Found {len(entries)} entries")
             else:
-                logger.debug(f"Unknown feed format with root tag: {root.tag}")
                 entries = []
 
             if not entries:
                 logger.error(f"No entries found in feed: {feed_url}")
-                # Log a sample of the XML for debugging
-                xml_sample = response.content[:500].decode('utf-8', errors='replace')
-                logger.debug(f"Sample of XML content: {xml_sample}...")
                 return []
 
             items = []
-            for i, entry in enumerate(entries):
+            for entry in entries:
                 try:
-                    logger.debug(f"Processing entry {i+1}/{len(entries)}")
                     # Extract title
                     title = (
                         self._get_element_text(
@@ -139,21 +115,17 @@ class RSSParser:
                         )
                         or "No title"
                     )
-                    logger.debug(f"Extracted title: {title}")
 
                     # Extract URL
                     url = None
                     if root.tag.endswith("rss"):
                         url = self._get_element_text(entry, "link")
-                        logger.debug(f"RSS link extraction result: {url}")
                     else:  # Atom feed
                         link_elem = entry.find("{http://www.w3.org/2005/Atom}link")
                         if link_elem is not None:
                             url = link_elem.get("href")
-                            logger.debug(f"Atom link extraction result: {url}")
 
                     if not url:
-                        logger.warning(f"No URL found for entry with title: {title}, skipping")
                         continue
 
                     # Extract published date
@@ -164,11 +136,9 @@ class RSSParser:
                         "published",
                         "{http://www.w3.org/2005/Atom}published",
                     )
-                    logger.debug(f"Date text extracted: {date_text}")
                     if date_text:
                         try:
                             published = date_parser.parse(date_text)
-                            logger.debug(f"Parsed date: {published}")
                         except Exception as e:
                             logger.warning(f"Could not parse date: {e}")
 
@@ -179,7 +149,6 @@ class RSSParser:
                         "summary",
                         "{http://www.w3.org/2005/Atom}summary",
                     )
-                    logger.debug(f"Description extracted: {description[:50]}..." if description and len(description) > 50 else description)
 
                     item = RSSItem(
                         title=title,
@@ -187,21 +156,16 @@ class RSSParser:
                         published=published,
                         description=description,
                     )
-                    logger.debug(f"Created RSSItem: {item}")
 
                     items.append(item)
 
                 except Exception as e:
                     logger.error(f"Error parsing entry in feed {feed_url}: {e}")
-                    logger.debug(f"Entry that caused the error: {ElementTree.tostring(entry)[:200]}")
                     continue
 
-            logger.info(f"Successfully parsed {len(items)} items from feed: {feed_url}")
             return items
         except Exception as e:
             logger.error(f"Error parsing feed {feed_url}: {e}")
-            import traceback
-            logger.debug(f"Traceback: {traceback.format_exc()}")
             return []
 
     def get_new_urls(self, feed_url: str) -> List[RSSItem]:
@@ -244,37 +208,30 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     try:
         # Use the parser to get items
         items = _parser.parse_feed(feed_url)
-        logger.debug(f"Received {len(items)} items from RSSParser.parse_feed")
         
         # Extract feed title (use first item's title as fallback for feed title)
         feed_title = "Unknown Feed"
         if items:
             feed_title = f"Feed containing {items[0].title}"
-            logger.debug(f"Set feed title to: {feed_title}")
             
         # Convert items to dictionary format expected by tasks
         entries = []
-        for i, item in enumerate(items):
+        for item in items:
             entry = {
                 "title": item.title,
                 "link": item.url,
                 "description": item.description or "",
                 "published": item.published.isoformat() if item.published else None,
             }
-            logger.debug(f"Converted item {i+1} to dictionary format")
             entries.append(entry)
             
-        result = {
+        return {
             "title": feed_title,
             "feed_url": feed_url,
             "entries": entries,
         }
-        logger.info(f"Returning parsed feed with {len(entries)} entries")
-        return result
     except Exception as e:
         logger.error(f"Error parsing RSS feed {feed_url}: {str(e)}")
-        import traceback
-        logger.debug(f"Traceback: {traceback.format_exc()}")
         return {
             "title": "Error parsing feed",
             "feed_url": feed_url,

@@ -17,10 +17,12 @@ from local_newsifier.api.routers import auth, system, tasks
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
-from local_newsifier.config.logging_config import configure_logging
 
-# Configure enhanced logging
-configure_logging()
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(

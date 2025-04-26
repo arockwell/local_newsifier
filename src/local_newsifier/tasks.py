@@ -157,9 +157,6 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
     """
     if not feed_urls:
         feed_urls = settings.RSS_FEED_URLS
-        logger.debug(f"No feed URLs provided, using default URLs from settings: {feed_urls}")
-    else:
-        logger.debug(f"Processing provided feed URLs: {feed_urls}")
     
     logger.info(f"Fetching articles from {len(feed_urls)} RSS feeds")
     
@@ -168,90 +165,51 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
         "articles_found": 0,
         "articles_added": 0,
         "feeds": [],
-        "errors": [],  # Track errors for debugging
     }
     
     try:
         for feed_url in feed_urls:
             try:
-                logger.info(f"Processing feed: {feed_url}")
-                
                 # Parse the RSS feed
                 feed_data = parse_rss_feed(feed_url)
-                logger.debug(f"Feed data returned: title={feed_data.get('title')}, entries={len(feed_data.get('entries', []))}")
                 
                 feed_result = {
                     "url": feed_url,
                     "title": feed_data.get("title", "Unknown"),
                     "articles_found": len(feed_data.get("entries", [])),
                     "articles_processed": 0,
-                    "skipped_articles": 0,  # Track articles skipped because they already exist
                 }
                 
                 # Process each article in the feed
-                for i, entry in enumerate(feed_data.get("entries", [])):
-                    entry_link = entry.get("link", "")
-                    logger.debug(f"Processing entry {i+1}/{len(feed_data.get('entries', []))}: {entry.get('title')} - {entry_link}")
-                    
+                for entry in feed_data.get("entries", []):
                     # Check if article already exists
-                    try:
-                        existing = self.article_crud.get_by_url(self.db, url=entry_link)
-                        if existing:
-                            logger.debug(f"Article already exists in database with ID: {existing.id}")
-                            feed_result["skipped_articles"] += 1
-                            continue
-                        else:
-                            logger.debug(f"Article does not exist in database, will create new")
-                    except Exception as db_error:
-                        logger.error(f"Error checking if article exists: {str(db_error)}")
-                        import traceback
-                        logger.debug(f"Traceback for database error: {traceback.format_exc()}")
-                        feed_result["errors"] = feed_result.get("errors", []) + [f"DB error for {entry_link}: {str(db_error)}"]
-                        continue
+                    existing = self.article_crud.get_by_url(self.db, url=entry.get("link", ""))
                     
-                    # Create and save new article
-                    try:
-                        logger.debug(f"Creating article from RSS entry: {entry.get('title')}")
+                    if not existing:
+                        # Create and save new article
                         article_id = self.article_service.create_article_from_rss_entry(entry)
                         if article_id:
-                            logger.debug(f"Article created successfully with ID: {article_id}")
                             # Queue article processing task
                             process_article.delay(article_id)
                             feed_result["articles_processed"] += 1
                             results["articles_added"] += 1
-                        else:
-                            logger.warning(f"Failed to create article: {entry.get('title')} - returned None")
-                            feed_result["errors"] = feed_result.get("errors", []) + [f"Create failed for {entry.get('title')}"]
-                    except Exception as article_error:
-                        logger.error(f"Error creating article: {str(article_error)}")
-                        import traceback
-                        logger.debug(f"Traceback for article creation error: {traceback.format_exc()}")
-                        feed_result["errors"] = feed_result.get("errors", []) + [f"Create error for {entry.get('title')}: {str(article_error)}"]
                 
-                # Add feed statistics
-                logger.info(f"Feed processing complete: found={feed_result['articles_found']}, created={feed_result['articles_processed']}, skipped={feed_result['skipped_articles']}")
                 results["feeds_processed"] += 1
                 results["articles_found"] += feed_result["articles_found"]
                 results["feeds"].append(feed_result)
                 
             except Exception as e:
                 logger.error(f"Error processing feed {feed_url}: {str(e)}")
-                import traceback
-                logger.debug(f"Traceback for feed processing error: {traceback.format_exc()}")
                 results["feeds"].append({
                     "url": feed_url,
                     "status": "error",
                     "message": str(e),
                 })
-                results["errors"].append(f"Feed error for {feed_url}: {str(e)}")
         
-        logger.info(f"RSS feed processing summary: processed={results['feeds_processed']}, found={results['articles_found']}, added={results['articles_added']}")
         return results
     except Exception as e:
         logger.exception(f"Error fetching RSS feeds: {str(e)}")
-        import traceback
-        logger.debug(f"Traceback for task error: {traceback.format_exc()}")
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+        return {"status": "error", "message": str(e)}
 
 
 @worker_ready.connect

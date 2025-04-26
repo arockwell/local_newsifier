@@ -5,7 +5,6 @@
 - Deployment configuration for Railway
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
-- RSS feed parsing and debugging
 
 ## Recent Changes
 - Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
@@ -13,12 +12,6 @@
   - Updated `fetch_rss_feeds` task to work with article IDs instead of objects
   - Updated tests to reflect these changes
   - Prevents session detachment issues when passing database objects between contexts
-
-- Enhanced RSS feed processing and logging
-  - Added detailed logging throughout the RSS parser and feed processing tasks
-  - Created a new logging configuration system in `config/logging_config.py`
-  - Implemented a standalone debug script for testing RSS feeds (`scripts/debug_rss_parser.py`)
-  - Added `logs/` directory for collecting detailed debug logs
 
 - Fixed SQLModel parameter binding issue in system.py
   - Changed from `session.exec(query, params)` to `session.exec(query.bindparams(...))`
