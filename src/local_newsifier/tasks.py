@@ -62,8 +62,12 @@ _entity_service = EntityService(
     session_factory=get_session
 )
 
-# Create article service
-_service_article = ArticleService(
+# Initialize article service - this handles the circular import problem 
+# by calling back into the article_service module
+from local_newsifier.services.article_service import initialize_article_service
+
+# Create the article service with proper dependencies
+article_service = initialize_article_service(
     article_crud=_crud_article,
     analysis_result_crud=_crud_analysis_result,
     entity_service=_entity_service,
@@ -73,7 +77,6 @@ _service_article = ArticleService(
 # These are exported for tests and services/__init__.py
 article_crud = _crud_article
 entity_crud = _crud_entity
-article_service = _service_article
 
 # Also export entity_service for services/__init__.py
 entity_service = _entity_service
@@ -93,7 +96,7 @@ class BaseTask(Task):
     @property
     def article_service(self):
         """Get article service."""
-        return _service_article
+        return article_service
     
     @property
     def article_crud(self):
