@@ -4,8 +4,15 @@
 - Web interface functionality with correct database interaction
 - Deployment configuration for Railway
 - Database schema management with Alembic
+- SQLAlchemy session management in asynchronous tasks
 
 ## Recent Changes
+- Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
+  - Modified `ArticleService.create_article_from_rss_entry()` to return an ID instead of SQLModel object
+  - Updated `fetch_rss_feeds` task to work with article IDs instead of objects
+  - Updated tests to reflect these changes
+  - Prevents session detachment issues when passing database objects between contexts
+
 - Fixed SQLModel parameter binding issue in system.py
   - Changed from `session.exec(query, params)` to `session.exec(query.bindparams(...))`
   - SQLModel's Session.exec() method takes only one parameter (the query itself)

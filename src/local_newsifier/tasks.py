@@ -187,10 +187,10 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
                     
                     if not existing:
                         # Create and save new article
-                        article = self.article_service.create_article_from_rss_entry(entry)
-                        if article:
+                        article_id = self.article_service.create_article_from_rss_entry(entry)
+                        if article_id:
                             # Queue article processing task
-                            process_article.delay(article.id)
+                            process_article.delay(article_id)
                             feed_result["articles_processed"] += 1
                             results["articles_added"] += 1
                 

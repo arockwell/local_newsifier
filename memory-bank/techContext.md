@@ -51,6 +51,36 @@ query = query.bindparams(param=value)
 columns = session.exec(query).all()
 ```
 
+### SQLAlchemy Session Management
+SQLAlchemy requires careful handling of session lifecycles to avoid "Instance is not bound to a Session" errors:
+
+1. **Session Scopes**: Objects are only usable within the session scope where they were retrieved/created:
+
+```python
+# Correct pattern - use objects within session scope
+with SessionManager() as session:
+    article = session.get(Article, article_id)
+    # Use article within this block
+    result = process_article_data(article)  # Pass data, not ORM objects
+    return result
+```
+
+2. **Object Detachment**: When a session closes, objects become "detached" and accessing lazy-loaded attributes fails:
+
+```python
+# Problematic pattern that causes "Instance is not bound to a Session" errors
+with SessionManager() as session:
+    article = session.get(Article, article_id)
+# Session closed here
+article.entities  # ERROR! Accessing relationship after session closed
+```
+
+3. **Solutions**: Several approaches can solve this:
+   - Return IDs instead of ORM objects from functions/methods
+   - Eager load relationships with `selectinload` before session closes
+   - Set `expire_on_commit=False` on sessions
+   - Explicitly refresh objects in new sessions when needed
+
 ## Celery Integration
 
 The Local Newsifier uses Celery for asynchronous task processing to handle resource-intensive operations without blocking the main application flow.

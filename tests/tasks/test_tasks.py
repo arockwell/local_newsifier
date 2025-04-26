@@ -200,10 +200,8 @@ class TestFetchRssFeeds:
         # Mock article_service
         mock_article_service = Mock()
         
-        # Mock create_article_from_rss_entry
-        mock_article = Mock()
-        mock_article.id = 1
-        mock_article_service.create_article_from_rss_entry.return_value = mock_article
+        # Mock create_article_from_rss_entry to return article ID
+        mock_article_service.create_article_from_rss_entry.return_value = 1  # Return ID directly
         
         # Patch the module-level CRUD and service
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):
@@ -249,10 +247,8 @@ class TestFetchRssFeeds:
         # Mock article_service
         mock_article_service = Mock()
         
-        # Mock create_article_from_rss_entry
-        new_article = Mock()
-        new_article.id = 2
-        mock_article_service.create_article_from_rss_entry.return_value = new_article
+        # Mock create_article_from_rss_entry to return article ID
+        mock_article_service.create_article_from_rss_entry.return_value = 2  # Return ID directly
         
         # Patch the module-level CRUD and service
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):

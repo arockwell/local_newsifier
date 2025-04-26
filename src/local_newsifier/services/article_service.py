@@ -144,7 +144,7 @@ class ArticleService:
                 "analysis_results": [result.results for result in analysis_results]
             }
     
-    def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[Article]:
+    def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[int]:
         """Create a new article from an RSS feed entry.
         
         Args:
@@ -210,4 +210,4 @@ class ArticleService:
             # Save to database
             article = self.article_crud.create(session, obj_in=article_data)
             
-            return article
+            return article.id if article else None
