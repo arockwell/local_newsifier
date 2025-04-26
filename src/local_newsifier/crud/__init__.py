@@ -10,3 +10,5 @@ from .entity import entity
 from .entity_mention_context import entity_mention_context
 from .entity_profile import entity_profile
 from .entity_relationship import entity_relationship
+from .rss_feed import rss_feed
+from .feed_processing_log import feed_processing_log
