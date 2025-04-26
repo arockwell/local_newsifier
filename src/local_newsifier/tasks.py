@@ -231,3 +231,7 @@ def on_worker_ready(sender, **kwargs):
 
 # Register the process_article task with the RSS feed service
 register_process_article_task(process_article)
+
+# Register the entity_service with the services module
+from local_newsifier.services import register_entity_service
+register_entity_service(_entity_service)
