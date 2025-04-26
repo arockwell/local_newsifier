@@ -2,19 +2,20 @@
 
 import logging
 import os
+import pathlib
 from typing import Dict
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
-from local_newsifier.api.routers import auth
-from local_newsifier.api.routers import system
+from local_newsifier.api.dependencies import get_templates
+from local_newsifier.api.routers import auth, system, tasks
+from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 
@@ -57,30 +58,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Mount templates directory
-import pathlib
-
-# Get the templates directory path - works both in development and production
-if os.path.exists("src/local_newsifier/api/templates"):
-    # Development environment
-    templates_dir = "src/local_newsifier/api/templates"
-else:
-    # Production environment - use package-relative path
-    templates_dir = str(pathlib.Path(__file__).parent / "templates")
-
-templates = Jinja2Templates(directory=templates_dir)
-
 # Add session middleware
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Include routers
 app.include_router(auth.router)
 app.include_router(system.router)
+app.include_router(tasks.router)
 
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+async def root(request: Request, templates=Depends(get_templates)):
     """Root endpoint serving home page."""
     return templates.TemplateResponse(
         "index.html",
@@ -114,6 +103,8 @@ async def get_config():
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
+    templates = get_templates()  # Get the templates directly
+    
     if request.url.path.startswith("/api"):
         return JSONResponse(
             status_code=404,

@@ -51,13 +51,20 @@ class ArticleService:
             Dictionary with article data and processing results
         """
         with SessionManager() as session:
+            # Extract domain as source if not provided
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            source = parsed_url.netloc or "Unknown Source"
+            
             # Create article record
             article_data = Article(
                 url=url,
                 title=title,
                 content=content,
                 published_at=published_at,
-                status="analyzed"
+                status="analyzed",
+                source=source,
+                scraped_at=datetime.now()
             )
             article = self.article_crud.create(session, obj_in=article_data)
             
@@ -136,3 +143,71 @@ class ArticleService:
                 "status": article.status,
                 "analysis_results": [result.results for result in analysis_results]
             }
+    
+    def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[int]:
+        """Create a new article from an RSS feed entry.
+        
+        Args:
+            entry: RSS feed entry data
+            
+        Returns:
+            Created article or None if creation failed
+        """
+        from datetime import datetime
+        
+        # Extract data from the RSS entry
+        title = entry.get("title", "Untitled")
+        url = entry.get("link", "")
+        
+        # Extract source from feed data or URL
+        source = entry.get("source", {}).get("title", "")
+        if not source and "feed_url" in entry:
+            # Try to get domain from feed URL
+            from urllib.parse import urlparse
+            parsed_url = urlparse(entry.get("feed_url", ""))
+            source = parsed_url.netloc
+        
+        # Fallback to domain name from article URL if source is still empty
+        if not source and url:
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            source = parsed_url.netloc
+            
+        # Default source if all else fails
+        if not source:
+            source = "Unknown Source"
+        
+        # Handle published date parsing
+        published_at = datetime.now()
+        if "published" in entry:
+            try:
+                # Attempt to parse the published date
+                from dateutil.parser import parse
+                published_at = parse(entry["published"])
+            except Exception:
+                # Fall back to current date if parsing fails
+                pass
+        
+        # Extract content
+        content = ""
+        if "content" in entry and len(entry["content"]) > 0:
+            content = entry["content"][0].get("value", "")
+        elif "summary" in entry:
+            content = entry.get("summary", "")
+        
+        with self.session_factory() as session:
+            # Create article object with source
+            article_data = Article(
+                title=title,
+                url=url,
+                content=content,
+                published_at=published_at,
+                status="new",
+                source=source,
+                scraped_at=datetime.now()
+            )
+            
+            # Save to database
+            article = self.article_crud.create(session, obj_in=article_data)
+            
+            return article.id if article else None

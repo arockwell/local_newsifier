@@ -48,7 +48,20 @@
 - Implement scheduled scraping and analysis
 
 ## Known Issues
-- None critical at the moment
+- ✅ Fixed: SQLAlchemy "Instance is not bound to a Session" error during RSS feed processing
+  - Changed ArticleService.create_article_from_rss_entry() to return article ID instead of SQLModel object
+  - Updated task code to work with IDs instead of SQLModel objects
+  - Prevents detached session issues when objects are accessed outside their originating session
+
+- ✅ Fixed: Celery worker and beat startup errors with "KeyError: 'No such transport: postgresql'"
+  - Changed from PostgreSQL to Redis for Celery message broker and result backend
+  - Redis is natively supported by Celery without requiring special adapters
+  - Added redis package to requirements.txt and Poetry dependencies
+
+- ✅ Fixed: Railway deployment health check failures for Celery processes
+  - Updated railway.json to disable health checks for worker and beat processes
+  - Added process-specific configurations instead of global health check settings
+  - Specified health checks only for the web process that provides HTTP endpoints
 
 ## Deployment Notes
 - Railway deployment requires environment variables for database connection

@@ -1,8 +1,9 @@
 """Flow for analyzing and detecting trends in local news articles."""
 
 from datetime import datetime, timezone, timedelta
+import logging
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
@@ -18,6 +19,9 @@ from local_newsifier.models.trend import (
 )
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+
+# Global logger
+logger = logging.getLogger(__name__)
 
 
 class TrendAnalysisState:

@@ -55,6 +55,43 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_FILE: Optional[Path] = None
+    
+    # Celery settings
+    CELERY_TASK_SERIALIZER: str = "json"
+    CELERY_RESULT_SERIALIZER: str = "json"
+    CELERY_ACCEPT_CONTENT: List[str] = ["json"]
+    CELERY_TIMEZONE: str = "UTC"
+    CELERY_TASK_TRACK_STARTED: bool = True
+    CELERY_TASK_TIME_LIMIT: int = 30 * 60  # 30 minutes
+    CELERY_WORKER_MAX_TASKS_PER_CHILD: int = 100  # Restart worker after 100 tasks
+    CELERY_WORKER_HIJACK_ROOT_LOGGER: bool = False
+    CELERY_WORKER_PREFETCH_MULTIPLIER: int = 1  # Prefetch one task at a time
+    
+    # Celery Beat settings
+    CELERY_BEAT_SCHEDULE: dict = {
+        "fetch_rss_feeds_hourly": {
+            "task": "local_newsifier.tasks.fetch_rss_feeds",
+            "schedule": 3600.0,  # Every hour
+            "args": (None,),
+            "options": {"expires": 3500},
+        },
+        "analyze_entity_trends_daily": {
+            "task": "local_newsifier.tasks.analyze_entity_trends",
+            "schedule": 86400.0,  # Every day
+            "kwargs": {"time_interval": "day", "days_back": 7},
+            "options": {"expires": 86000},
+        },
+    }
+    
+    # Task-specific settings
+    ARTICLE_PROCESSING_TIMEOUT: int = 600  # 10 minutes timeout for article processing
+    RSS_FEED_URLS: List[str] = Field(
+        default_factory=lambda: [
+            "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+            "https://feeds.washingtonpost.com/rss/national",
+            "https://www.theguardian.com/us/rss",
+        ]
+    )
 
     # Scraping settings
     USER_AGENT: str = "Local-Newsifier/1.0"
@@ -88,6 +125,32 @@ class Settings(BaseSettings):
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+    
+    @computed_field
+    def CELERY_BROKER_URL(self) -> str:
+        """Get the Celery broker URL based on environment.
+        Uses Redis as the message broker.
+        """
+        # Use dedicated environment variable if available
+        broker_url = os.environ.get("CELERY_BROKER_URL")
+        if broker_url:
+            return broker_url
+            
+        # Use Redis with default settings
+        return "redis://localhost:6379/0"
+    
+    @computed_field
+    def CELERY_RESULT_BACKEND(self) -> str:
+        """Get the Celery result backend URL based on environment.
+        Uses Redis as the result backend.
+        """
+        # Use dedicated environment variable if available
+        result_backend = os.environ.get("CELERY_RESULT_BACKEND")
+        if result_backend:
+            return result_backend
+            
+        # Use Redis with default settings
+        return "redis://localhost:6379/0"
 
     def get_database_url(self) -> str:
         """Get the database URL based on environment."""

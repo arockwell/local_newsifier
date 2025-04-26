@@ -4,8 +4,15 @@
 - Web interface functionality with correct database interaction
 - Deployment configuration for Railway
 - Database schema management with Alembic
+- SQLAlchemy session management in asynchronous tasks
 
 ## Recent Changes
+- Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
+  - Modified `ArticleService.create_article_from_rss_entry()` to return an ID instead of SQLModel object
+  - Updated `fetch_rss_feeds` task to work with article IDs instead of objects
+  - Updated tests to reflect these changes
+  - Prevents session detachment issues when passing database objects between contexts
+
 - Fixed SQLModel parameter binding issue in system.py
   - Changed from `session.exec(query, params)` to `session.exec(query.bindparams(...))`
   - SQLModel's Session.exec() method takes only one parameter (the query itself)
@@ -16,6 +23,12 @@
   - Modified templates directory path in main.py to work in both development and production
   - Implemented a path detection mechanism to handle different environments
 
+- Changed Celery broker from PostgreSQL to Redis
+  - Switched CELERY_BROKER_URL and CELERY_RESULT_BACKEND to use Redis: `redis://localhost:6379/0`
+  - Removed PostgreSQL-specific transport configuration (no longer needed)
+  - Added redis package to dependencies
+  - Simplified Celery configuration with natively supported broker
+
 ## Technical Details
 
 ### Web Interface Status
@@ -24,16 +37,27 @@
 - Table details can be viewed with proper SQL queries
 
 ### Deployment Configuration
-- Railway.json is properly configured:
+- Railway.json is properly configured with separate process settings for web, worker, and beat:
   ```json
   {
-    "build": {
-      "builder": "NIXPACKS"
-    },
     "deploy": {
-      "startCommand": "uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT",
       "restartPolicyType": "ON_FAILURE",
-      "restartPolicyMaxRetries": 3
+      "restartPolicyMaxRetries": 3,
+      "processes": {
+        "web": {
+          "healthcheckPath": "/health",
+          "healthcheckTimeout": 60,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_alembic.sh && alembic upgrade head && python -m uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT"
+        },
+        "worker": {
+          "healthcheckEnabled": false,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_celery_worker.sh --concurrency=2"
+        },
+        "beat": {
+          "healthcheckEnabled": false,
+          "command": "bash scripts/init_spacy_models.sh && bash scripts/init_celery_beat.sh"
+        }
+      }
     }
   }
   ```
@@ -60,6 +84,8 @@
   - POSTGRES_HOST
   - POSTGRES_PORT
   - POSTGRES_DB
+  - CELERY_BROKER_URL (Redis URL for production - need to provision Redis in Railway)
+  - CELERY_RESULT_BACKEND (optional - defaults to broker URL)
 
 ## Key Decisions
 
