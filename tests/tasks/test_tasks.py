@@ -205,7 +205,7 @@ class TestFetchRssFeeds:
         
         # Patch the module-level CRUD and service
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):
-            with patch("local_newsifier.tasks._service_article", mock_article_service):
+            with patch("local_newsifier.tasks.article_service", mock_article_service):
                 # Mock process_article task
                 with patch("local_newsifier.tasks.process_article") as mock_process:
                     mock_async_result = Mock(spec=AsyncResult)
@@ -252,7 +252,7 @@ class TestFetchRssFeeds:
         
         # Patch the module-level CRUD and service
         with patch("local_newsifier.tasks._crud_article", mock_article_crud):
-            with patch("local_newsifier.tasks._service_article", mock_article_service):
+            with patch("local_newsifier.tasks.article_service", mock_article_service):
                 # Mock process_article task
                 with patch("local_newsifier.tasks.process_article") as mock_process:
                     mock_async_result = Mock(spec=AsyncResult)
