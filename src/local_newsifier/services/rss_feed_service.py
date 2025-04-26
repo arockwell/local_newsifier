@@ -15,7 +15,17 @@ from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, FeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
 from local_newsifier.services.article_service import ArticleService
-from local_newsifier.tasks import process_article
+
+# This will be set later to avoid circular imports
+_process_article_task = None
+
+def register_process_article_task(task_func):
+    """Register the process_article task function to avoid circular imports.
+    
+    This function will be called from tasks.py after all imports are complete.
+    """
+    global _process_article_task
+    _process_article_task = task_func
 
 logger = logging.getLogger(__name__)
 
@@ -244,8 +254,10 @@ class RSSFeedService:
                         # Queue article processing
                         if task_queue_func:
                             task_queue_func(article_id)
+                        elif _process_article_task:
+                            _process_article_task.delay(article_id)
                         else:
-                            process_article.delay(article_id)
+                            logger.warning(f"No task function available to process article {article_id}")
                         articles_added += 1
                 except Exception as e:
                     logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")

@@ -109,6 +109,9 @@ class BaseTask(Task):
         return _crud_entity
 
 
+# Import this function to register the task - avoiding circular imports
+from local_newsifier.services.rss_feed_service import register_process_article_task
+
 @app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.process_article")
 def process_article(self, article_id: int) -> Dict:
     """
@@ -225,3 +228,6 @@ def on_worker_ready(sender, **kwargs):
     Executed when a Celery worker starts up.
     """
     logger.info("Celery worker is ready")
+
+# Register the process_article task with the RSS feed service
+register_process_article_task(process_article)
