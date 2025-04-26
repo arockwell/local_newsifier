@@ -70,10 +70,13 @@ _service_article = ArticleService(
     session_factory=lambda: SessionManager()  # Use SessionManager which is a context manager
 )
 
-# These are exported for tests - don't use directly
+# These are exported for tests and services/__init__.py
 article_crud = _crud_article
 entity_crud = _crud_entity
 article_service = _service_article
+
+# Also export entity_service for services/__init__.py
+entity_service = _entity_service
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
