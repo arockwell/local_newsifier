@@ -11,7 +11,7 @@ from sqlmodel import Field, Relationship, SQLModel
 class RSSFeed(SQLModel, table=True):
     """Model for storing RSS feed information."""
     
-    __tablename__ = "rss_feed"
+    __tablename__ = "rss_feeds"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     url: str = Field(index=True, unique=True)
@@ -23,19 +23,19 @@ class RSSFeed(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Relationships
-    processing_logs: List["FeedProcessingLog"] = Relationship(
+    processing_logs: List["RSSFeedProcessingLog"] = Relationship(
         back_populates="feed",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
 
-class FeedProcessingLog(SQLModel, table=True):
+class RSSFeedProcessingLog(SQLModel, table=True):
     """Model for tracking RSS feed processing history."""
     
-    __tablename__ = "feed_processing_log"
+    __tablename__ = "rss_feed_processing_logs"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    feed_id: int = Field(foreign_key="rss_feed.id", index=True)
+    feed_id: int = Field(foreign_key="rss_feeds.id", index=True)
     status: str = Field(index=True)  # success, error, etc.
     articles_found: int = Field(default=0)
     articles_added: int = Field(default=0)

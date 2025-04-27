@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
-from local_newsifier.models.rss_feed import RSSFeed, FeedProcessingLog
+from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
 from local_newsifier.services.article_service import ArticleService
 
@@ -246,9 +246,19 @@ class RSSFeedService:
                         # Use injected article service
                         article_id = self.article_service.create_article_from_rss_entry(entry)
                     else:
-                        # Import if not injected (avoid circular imports)
-                        from local_newsifier.services.article_service import article_service
-                        article_id = article_service.create_article_from_rss_entry(entry)
+                        # Create a new instance for direct CLI usage if no service is injected
+                        from local_newsifier.services.article_service import ArticleService
+                        from local_newsifier.crud.article import article as article_crud
+                        from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+                        from local_newsifier.database.engine import SessionManager
+                        
+                        temp_article_service = ArticleService(
+                            article_crud=article_crud,
+                            analysis_result_crud=analysis_result_crud,
+                            entity_service=None,  # Not needed for creating articles from RSS
+                            session_factory=lambda: SessionManager()
+                        )
+                        article_id = temp_article_service.create_article_from_rss_entry(entry)
                     
                     if article_id:
                         # Queue article processing
@@ -342,7 +352,7 @@ class RSSFeedService:
             "updated_at": feed.updated_at.isoformat(),
         }
 
-    def _format_log_dict(self, log: FeedProcessingLog) -> Dict[str, Any]:
+    def _format_log_dict(self, log: RSSFeedProcessingLog) -> Dict[str, Any]:
         """Format processing log as a dict.
 
         Args:
@@ -365,3 +375,15 @@ class RSSFeedService:
 
 # Create a singleton instance
 rss_feed_service = RSSFeedService()
+
+def register_article_service(article_svc):
+    """Register the article service to avoid circular imports.
+    
+    This function will be called from tasks.py after all imports are complete
+    and the article_service is properly initialized.
+    
+    Args:
+        article_svc: The initialized article service
+    """
+    global rss_feed_service
+    rss_feed_service.article_service = article_svc

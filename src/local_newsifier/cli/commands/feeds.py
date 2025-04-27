@@ -15,8 +15,13 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
-from local_newsifier.services.rss_feed_service import rss_feed_service
+from local_newsifier.services.rss_feed_service import rss_feed_service, register_article_service
 from local_newsifier.database.engine import get_session
+from local_newsifier.services.article_service import article_service
+
+# Register article_service with rss_feed_service to fix circular import issues
+if article_service is not None:
+    register_article_service(article_service)
 
 
 @click.group(name="feeds")
@@ -168,9 +173,54 @@ def remove_feed(id, force):
         click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
 
 
+def direct_process_article(article_id):
+    """Process an article directly without Celery.
+    
+    This function provides a synchronous processing path for CLI operations,
+    bypassing the need for Celery task infrastructure.
+    
+    Args:
+        article_id: The ID of the article to process
+        
+    Returns:
+        bool: True if processing was successful, False otherwise
+    """
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.crud.article import article as article_crud
+    from local_newsifier.database.engine import SessionManager
+    
+    with SessionManager() as session:
+        try:
+            # Get the article from the database
+            article = article_crud.get(session, id=article_id)
+            if not article:
+                click.echo(f"Article with ID {article_id} not found")
+                return False
+            
+            # Process the article through the news pipeline
+            if article.url:
+                news_pipeline = NewsPipelineFlow()
+                news_pipeline.process_url_directly(article.url)
+            
+            # Process entities in the article
+            entity_flow = EntityTrackingFlow()
+            entities = entity_flow.process_article(article.id)
+            
+            click.echo(f"Processed article {article_id}: {article.title}")
+            if entities:
+                click.echo(f"  Found {len(entities)} entities")
+            
+            return True
+        except Exception as e:
+            click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
+            return False
+
+
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
-def process_feed(id):
+@click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+def process_feed(id, no_process):
     """Process a specific feed."""
     feed = rss_feed_service.get_feed(id)
     if not feed:
@@ -179,7 +229,10 @@ def process_feed(id):
     
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
     
-    result = rss_feed_service.process_feed(id)
+    # Use direct processing function if not skipping processing
+    task_func = None if no_process else direct_process_article
+    
+    result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
     if result["status"] == "success":
         click.echo(click.style("Processing completed successfully!", fg="green"))

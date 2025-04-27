@@ -74,6 +74,10 @@ article_service = initialize_article_service(
     session_factory=lambda: SessionManager()  # Use SessionManager which is a context manager
 )
 
+# Register article_service with rss_feed_service to resolve circular import issue
+from local_newsifier.services.rss_feed_service import register_article_service
+register_article_service(article_service)
+
 # These are exported for tests and services/__init__.py
 article_crud = _crud_article
 entity_crud = _crud_entity

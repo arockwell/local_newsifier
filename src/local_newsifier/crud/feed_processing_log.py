@@ -6,15 +6,15 @@ from typing import List, Optional
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.rss_feed import FeedProcessingLog
+from local_newsifier.models.rss_feed import RSSFeedProcessingLog
 
 
-class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
+class CRUDFeedProcessingLog(CRUDBase[RSSFeedProcessingLog]):
     """CRUD operations for feed processing logs."""
 
     def get_by_feed_id(
         self, db: Session, *, feed_id: int, skip: int = 0, limit: int = 100
-    ) -> List[FeedProcessingLog]:
+    ) -> List[RSSFeedProcessingLog]:
         """Get processing logs for a specific feed with pagination.
 
         Args:
@@ -27,14 +27,14 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
             List of processing logs for the feed
         """
         return db.exec(
-            select(FeedProcessingLog)
-            .where(FeedProcessingLog.feed_id == feed_id)
-            .order_by(FeedProcessingLog.started_at.desc())
+            select(RSSFeedProcessingLog)
+            .where(RSSFeedProcessingLog.feed_id == feed_id)
+            .order_by(RSSFeedProcessingLog.started_at.desc())
             .offset(skip)
             .limit(limit)
         ).all()
 
-    def get_latest_by_feed_id(self, db: Session, *, feed_id: int) -> Optional[FeedProcessingLog]:
+    def get_latest_by_feed_id(self, db: Session, *, feed_id: int) -> Optional[RSSFeedProcessingLog]:
         """Get the most recent processing log for a feed.
 
         Args:
@@ -45,15 +45,15 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
             The most recent processing log if found, None otherwise
         """
         return db.exec(
-            select(FeedProcessingLog)
-            .where(FeedProcessingLog.feed_id == feed_id)
-            .order_by(FeedProcessingLog.started_at.desc())
+            select(RSSFeedProcessingLog)
+            .where(RSSFeedProcessingLog.feed_id == feed_id)
+            .order_by(RSSFeedProcessingLog.started_at.desc())
             .limit(1)
         ).first()
 
     def get_by_status(
         self, db: Session, *, status: str, skip: int = 0, limit: int = 100
-    ) -> List[FeedProcessingLog]:
+    ) -> List[RSSFeedProcessingLog]:
         """Get processing logs with a specific status.
 
         Args:
@@ -66,16 +66,16 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
             List of processing logs with the specified status
         """
         return db.exec(
-            select(FeedProcessingLog)
-            .where(FeedProcessingLog.status == status)
-            .order_by(FeedProcessingLog.started_at.desc())
+            select(RSSFeedProcessingLog)
+            .where(RSSFeedProcessingLog.status == status)
+            .order_by(RSSFeedProcessingLog.started_at.desc())
             .offset(skip)
             .limit(limit)
         ).all()
 
     def create_processing_started(
         self, db: Session, *, feed_id: int
-    ) -> FeedProcessingLog:
+    ) -> RSSFeedProcessingLog:
         """Create a new processing log with 'started' status.
 
         Args:
@@ -85,7 +85,7 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
         Returns:
             Created processing log
         """
-        log = FeedProcessingLog(
+        log = RSSFeedProcessingLog(
             feed_id=feed_id,
             status="started",
             started_at=datetime.now(timezone.utc),
@@ -104,7 +104,7 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
         articles_found: int = 0,
         articles_added: int = 0,
         error_message: Optional[str] = None,
-    ) -> Optional[FeedProcessingLog]:
+    ) -> Optional[RSSFeedProcessingLog]:
         """Update a processing log when processing is completed.
 
         Args:
@@ -133,4 +133,4 @@ class CRUDFeedProcessingLog(CRUDBase[FeedProcessingLog]):
 
 
 # Create a singleton instance
-feed_processing_log = CRUDFeedProcessingLog(FeedProcessingLog)
+feed_processing_log = CRUDFeedProcessingLog(RSSFeedProcessingLog)
