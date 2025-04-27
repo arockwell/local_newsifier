@@ -12,6 +12,7 @@ def test_cli_loads_without_error():
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "feeds" in result.output
+    assert "db" in result.output
     
 
 def test_cli_version():
