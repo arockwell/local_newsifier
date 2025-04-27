@@ -125,28 +125,99 @@ class EntityService:
         return state
 ```
 
-### Dependency Injection
+### Dependency Injection Container
 
-Components accept their dependencies as constructor parameters with sensible defaults:
+We use a dedicated dependency injection container to manage component relationships and resolve circular dependencies:
 
 ```python
-def __init__(
-    self,
-    analysis_result_crud=None,
-    article_crud=None,
-    entity_crud=None,
-    session_factory=None
-):
-    self.analysis_result_crud = analysis_result_crud or analysis_result
-    self.article_crud = article_crud or article
-    self.entity_crud = entity_crud or entity
-    self.session_factory = session_factory or SessionManager
+class DIContainer:
+    """Dependency Injection Container.
+    
+    This container manages service and component dependencies centrally,
+    allowing for proper dependency resolution and avoiding circular imports.
+    """
+    
+    def __init__(self):
+        self._services = {}
+        self._factories = {}
+    
+    def register(self, name, service):
+        """Register a service with the container."""
+        self._services[name] = service
+        return service
+    
+    def register_factory(self, name, factory):
+        """Register a factory function for lazy service creation."""
+        self._factories[name] = factory
+        return factory
+    
+    def get(self, name):
+        """Get a service from the container.
+        
+        If the service doesn't exist but a factory is registered,
+        the factory will be called to create the service.
+        """
+        # Return existing service if available
+        if name in self._services:
+            return self._services[name]
+        
+        # Otherwise try to create it from a factory
+        if name in self._factories:
+            service = self._factories[name]()
+            self._services[name] = service
+            return service
+        
+        return None
 ```
 
-This pattern facilitates:
-- Unit testing with mocks
-- Flexibility in component configuration
-- Clear dependency relationships
+A centralized container initialization module registers all services:
+
+```python
+# Initialize container
+container = DIContainer()
+
+# Register database session factory
+container.register("session_factory", SessionManager)
+
+# Register CRUD modules
+container.register("article_crud", article_crud)
+container.register("entity_crud", entity_crud)
+# ... more CRUD registrations ...
+
+# Register services
+container.register_factory("article_service", lambda: ArticleService(
+    article_crud=container.get("article_crud"),
+    analysis_result_crud=container.get("analysis_result_crud"),
+    entity_service=container.get("entity_service"),
+    session_factory=container.get("session_factory")
+))
+# ... more service registrations ...
+```
+
+Components still accept dependencies as constructor parameters, but they now use the container as a fallback:
+
+```python
+def _get_session(self) -> Session:
+    """Get a database session."""
+    if self.session_factory:
+        return self.session_factory()
+        
+    # Get session factory from container as fallback
+    session_factory = container.get("session_factory")
+    if session_factory:
+        return session_factory()
+        
+    # Last resort fallback
+    from local_newsifier.database.engine import get_session
+    return next(get_session())
+```
+
+This pattern provides:
+- Centralized dependency management
+- Resolution of circular dependencies
+- Lazy loading of services
+- Improved testability
+- Clear component relationships
 
 ### Pipeline Processing
 
