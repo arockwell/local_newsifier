@@ -618,8 +618,9 @@ class TestRSSFeedService:
         sample_feed_data
     ):
         """Test process_feed with global task function."""
-        # Save the original global task function and declare it as global
+        # Declare the variable as global first
         global _process_article_task
+        # Then save the original global task function
         orig_task = _process_article_task
         
         _, mock_session = mock_session_factory
@@ -663,8 +664,9 @@ class TestRSSFeedService:
         sample_feed_data
     ):
         """Test process_feed with no article service and no task function."""
-        # Set up the global task function to None
+        # Declare the variable as global first
         global _process_article_task
+        # Then save the original global task function 
         orig_task = _process_article_task
         
         _, mock_session = mock_session_factory
@@ -727,8 +729,9 @@ class TestRSSFeedService:
         sample_feed_data
     ):
         """Test process_feed with no article service and temp service creation fails."""
-        # Set up the global task function to None
+        # Declare the variable as global first
         global _process_article_task
+        # Then save the original global task function
         orig_task = _process_article_task
         
         _, mock_session = mock_session_factory
