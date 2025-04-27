@@ -149,23 +149,28 @@ def test_no_article_service_fallback():
     mock_temp_article_service = MagicMock()
     mock_temp_article_service.create_article_from_rss_entry.side_effect = [201, 202]
     
+    # Create a mock DIContainer
+    mock_container = MagicMock()
+    mock_container.get.return_value = None  # Return None for article_service
+    
     # Use patch to mock all the imports inside the try block
-    with patch('local_newsifier.services.rss_feed_service.parse_rss_feed', return_value=mock_feed_data):
-        with patch('local_newsifier.crud.article.article') as mock_article_crud:
-            with patch('local_newsifier.crud.analysis_result.analysis_result') as mock_analysis_result_crud:
-                with patch('local_newsifier.database.engine.SessionManager') as mock_session_manager:
-                    with patch('local_newsifier.services.article_service.ArticleService', return_value=mock_temp_article_service):
-                        # Execute the method
-                        result = service.process_feed(1, task_queue_func=mock_task_queue_func)
-                        
-                        # Verify result
-                        assert result["status"] == "success"
-                        assert result["articles_added"] == 2
-                        
-                        # Verify tasks were queued with the right IDs
-                        assert mock_task_queue_func.call_count == 2
-                        mock_task_queue_func.assert_any_call(201)
-                        mock_task_queue_func.assert_any_call(202)
+    with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container):
+        with patch('local_newsifier.services.rss_feed_service.parse_rss_feed', return_value=mock_feed_data):
+            with patch('local_newsifier.crud.article.article') as mock_article_crud:
+                with patch('local_newsifier.crud.analysis_result.analysis_result') as mock_analysis_result_crud:
+                    with patch('local_newsifier.database.engine.SessionManager') as mock_session_manager:
+                        with patch('local_newsifier.services.article_service.ArticleService', return_value=mock_temp_article_service):
+                            # Execute the method
+                            result = service.process_feed(1, task_queue_func=mock_task_queue_func)
+                            
+                            # Verify result
+                            assert result["status"] == "success"
+                            assert result["articles_added"] == 2
+                            
+                            # Verify tasks were queued with the right IDs
+                            assert mock_task_queue_func.call_count == 2
+                            mock_task_queue_func.assert_any_call(201)
+                            mock_task_queue_func.assert_any_call(202)
 
 
 def test_temp_service_creation_failure():
