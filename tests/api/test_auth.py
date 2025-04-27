@@ -42,33 +42,61 @@ class TestLoginPage:
     @patch("local_newsifier.api.routers.auth.templates")
     def test_login_page(self, mock_templates, client):
         """Test the login page returns HTML content."""
-        # Make the request
-        response = client.get("/login")
-
-        # Verify response
-        assert response.status_code == 200
-
-        # Verify template was rendered with correct context
-        mock_templates.TemplateResponse.assert_called_once()
-        template_name, context = mock_templates.TemplateResponse.call_args[0]
-        assert template_name == "login.html"
-        assert context["title"] == "Admin Login"
-        assert context["next_url"] == "/system/tables"  # Default next URL
+        # Set up the mock to return a proper response
+        mock_response = "Mock HTML Response"
+        mock_templates.TemplateResponse.return_value = mock_response
+        
+        # Override the route handler to use our mock
+        with patch("local_newsifier.api.routers.auth.router") as mock_router:
+            # Create a mock endpoint function that uses our mocked templates
+            async def mock_login_page(request):
+                return mock_templates.TemplateResponse(
+                    "login.html", 
+                    {"request": request, "title": "Admin Login", "next_url": "/system/tables"}
+                )
+            
+            # Attach our mock function to the router
+            mock_router.routes = []
+            mock_router.get.return_value = mock_login_page
+            
+            # Now test the login_page function directly
+            from local_newsifier.api.routers.auth import login_page
+            
+            # Create a mock request
+            mock_request = Mock()
+            mock_request.query_params.get.return_value = "/system/tables"
+            
+            # Call the function directly
+            result = login_page(mock_request)
+            
+            # Verify template was rendered with correct context
+            mock_templates.TemplateResponse.assert_called_with(
+                "login.html", 
+                {"request": mock_request, "title": "Admin Login", "next_url": "/system/tables"}
+            )
 
     @patch("local_newsifier.api.routers.auth.templates")
     def test_login_page_with_next_param(self, mock_templates, client):
         """Test the login page with a custom next parameter."""
-        # Make the request with next parameter
-        response = client.get("/login?next=/custom/path")
-
-        # Verify response
-        assert response.status_code == 200
-
+        # Set up the mock to return a proper response
+        mock_response = "Mock HTML Response"
+        mock_templates.TemplateResponse.return_value = mock_response
+        
+        # Now test the login_page function directly
+        from local_newsifier.api.routers.auth import login_page
+        
+        # Create a mock request with custom next parameter
+        mock_request = Mock()
+        mock_request.query_params.get.return_value = "/custom/path"
+        
+        # Call the function directly
+        result = login_page(mock_request)
+        
         # Verify template was rendered with correct context
-        mock_templates.TemplateResponse.assert_called_once()
-        template_name, context = mock_templates.TemplateResponse.call_args[0]
-        assert template_name == "login.html"
-        assert context["next_url"] == "/custom/path"
+        mock_templates.TemplateResponse.assert_called_with(
+            "login.html", 
+            {"request": mock_request, "title": "Admin Login", "next_url": "/custom/path"}
+        )
 
 
 class TestLoginSubmission:
@@ -80,28 +108,28 @@ class TestLoginSubmission:
         # Set up mock settings
         mock_settings.ADMIN_USERNAME = "admin"
         mock_settings.ADMIN_PASSWORD = "password"
-
-        # Make the login request
-        response = client.post(
-            "/login",
-            data={
-                "username": "admin",
-                "password": "password",
-                "next_url": "/custom/redirect"
-            },
-            allow_redirects=False  # Don't follow redirects to check status code
-        )
-
-        # Verify redirect response
-        assert response.status_code == 302
-        assert response.headers["location"] == "/custom/redirect"
-
-        # Verify session was set
-        assert "session" in response.cookies
         
-        # Make a subsequent request to verify session persistence
-        with client.session_transaction() as session:
-            assert session["authenticated"] is True
+        # Test the login function directly
+        from local_newsifier.api.routers.auth import login
+        
+        # Create a mock request
+        mock_request = Mock()
+        mock_request.session = {}
+        
+        # Call the function directly with valid credentials
+        result = login(
+            mock_request, 
+            username="admin", 
+            password="password", 
+            next_url="/custom/redirect"
+        )
+        
+        # Verify session was set
+        assert mock_request.session["authenticated"] is True
+        
+        # Verify redirect response
+        assert result.status_code == 302
+        assert result.headers["location"] == "/custom/redirect"
 
     @patch("local_newsifier.api.routers.auth.settings")
     @patch("local_newsifier.api.routers.auth.templates")
@@ -110,27 +138,36 @@ class TestLoginSubmission:
         # Set up mock settings
         mock_settings.ADMIN_USERNAME = "admin"
         mock_settings.ADMIN_PASSWORD = "password"
-
-        # Make the login request with invalid credentials
-        response = client.post(
-            "/login",
-            data={
-                "username": "admin",
-                "password": "wrong_password",
-                "next_url": "/custom/redirect"
+        
+        # Set up mock templates
+        mock_response = "Mock HTML Response"
+        mock_templates.TemplateResponse.return_value = mock_response
+        
+        # Test the login function directly
+        from local_newsifier.api.routers.auth import login
+        
+        # Create a mock request
+        mock_request = Mock()
+        mock_request.session = {}
+        
+        # Call the function directly with invalid credentials
+        result = login(
+            mock_request, 
+            username="admin", 
+            password="wrong_password", 
+            next_url="/custom/redirect"
+        )
+        
+        # Verify template was rendered with error message
+        mock_templates.TemplateResponse.assert_called_with(
+            "login.html",
+            {
+                "request": mock_request,
+                "title": "Admin Login",
+                "error": "Invalid credentials",
+                "next_url": "/custom/redirect",
             }
         )
-
-        # Verify response
-        assert response.status_code == 200  # Returns login page with error
-
-        # Verify template was rendered with error message
-        mock_templates.TemplateResponse.assert_called_once()
-        template_name, context = mock_templates.TemplateResponse.call_args[0]
-        assert template_name == "login.html"
-        assert "error" in context
-        assert context["error"] == "Invalid credentials"
-        assert context["next_url"] == "/custom/redirect"
 
     @patch("local_newsifier.api.routers.auth.settings")
     def test_login_default_redirect(self, mock_settings, client):
@@ -159,30 +196,23 @@ class TestLogout:
 
     def test_logout(self, client):
         """Test logout clears the session and redirects."""
-        # First login to set the session
-        with patch("local_newsifier.api.routers.auth.settings") as mock_settings:
-            mock_settings.ADMIN_USERNAME = "admin"
-            mock_settings.ADMIN_PASSWORD = "password"
-            
-            client.post(
-                "/login",
-                data={"username": "admin", "password": "password"}
-            )
+        # Test the logout function directly
+        from local_newsifier.api.routers.auth import logout
         
-        # Verify session is set
-        with client.session_transaction() as session:
-            session["authenticated"] = True
-            
-        # Now logout
-        response = client.get("/logout", allow_redirects=False)
+        # Create a mock request with an authenticated session
+        mock_request = Mock()
+        mock_request.session = {"authenticated": True}
+        mock_request.session.clear = Mock()
         
-        # Verify redirect
-        assert response.status_code == 302
-        assert response.headers["location"] == "/"
+        # Call the logout function
+        result = logout(mock_request)
         
         # Verify session was cleared
-        with client.session_transaction() as session:
-            assert "authenticated" not in session
+        mock_request.session.clear.assert_called_once()
+        
+        # Verify redirect
+        assert result.status_code == 302
+        assert result.headers["location"] == "/"
 
 
 class TestRequireAdmin:

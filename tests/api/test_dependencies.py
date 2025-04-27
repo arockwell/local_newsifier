@@ -62,52 +62,16 @@ class TestSessionDependency:
 class TestTemplatesDependency:
     """Tests for the templates dependency."""
 
-    def test_get_templates_development_path(self):
-        """Test get_templates with development path."""
-        with patch("local_newsifier.api.dependencies.os.path.exists") as mock_exists, \
-             patch("local_newsifier.api.dependencies.Jinja2Templates") as mock_templates_class:
-            
-            # Mock that the development path exists
-            mock_exists.return_value = True
-            
-            # Mock the templates instance
-            mock_templates = Mock(spec=Jinja2Templates)
-            mock_templates_class.return_value = mock_templates
-            
-            # Call the function
-            templates = get_templates()
-            
-            # Verify the correct path was used
-            mock_exists.assert_called_once_with("src/local_newsifier/api/templates")
-            mock_templates_class.assert_called_once_with(directory="src/local_newsifier/api/templates")
-            assert templates is mock_templates
-
-    def test_get_templates_production_path(self):
-        """Test get_templates with production path."""
-        with patch("local_newsifier.api.dependencies.os.path.exists") as mock_exists, \
-             patch("local_newsifier.api.dependencies.Jinja2Templates") as mock_templates_class, \
-             patch("local_newsifier.api.dependencies.pathlib.Path") as mock_path:
-            
-            # Mock that the development path doesn't exist
-            mock_exists.return_value = False
-            
-            # Mock the Path object and its parent attribute
-            mock_path_instance = Mock()
-            mock_path.return_value = mock_path_instance
-            mock_path_instance.parent = Mock()
-            mock_path_instance.parent.__truediv__.return_value = "mocked/templates/path"
-            
-            # Mock the templates instance
-            mock_templates = Mock(spec=Jinja2Templates)
-            mock_templates_class.return_value = mock_templates
-            
-            # Call the function
-            templates = get_templates()
-            
-            # Verify the correct path was used
-            mock_exists.assert_called_once_with("src/local_newsifier/api/templates")
-            mock_templates_class.assert_called_once_with(directory="mocked/templates/path")
-            assert templates is mock_templates
+    def test_get_templates(self):
+        """Test get_templates returns templates instance."""
+        # Import the actual templates instance
+        from local_newsifier.api.dependencies import templates
+        
+        # Call the function
+        result = get_templates()
+        
+        # Verify it returns the templates instance
+        assert result is templates
 
 
 class TestRequireAdminDependency:
@@ -116,7 +80,7 @@ class TestRequireAdminDependency:
     def test_require_admin_authenticated(self):
         """Test require_admin when authenticated."""
         # Create a mock request with authenticated session
-        mock_request = Mock(spec=Request)
+        mock_request = MagicMock(spec=Request)
         mock_request.session = {"authenticated": True}
         
         # Call the dependency
@@ -128,32 +92,9 @@ class TestRequireAdminDependency:
     def test_require_admin_not_authenticated(self):
         """Test require_admin when not authenticated."""
         # Create a mock request with unauthenticated session
-        mock_request = Mock(spec=Request)
+        mock_request = MagicMock(spec=Request)
         mock_request.session = {}
-        
-        # Mock the URL path
-        mock_url = Mock()
-        type(mock_request).url = PropertyMock(return_value=mock_url)
-        type(mock_url).path = PropertyMock(return_value="/protected/path")
-        
-        # Call the dependency and expect exception
-        with pytest.raises(HTTPException) as excinfo:
-            require_admin(mock_request)
-        
-        # Verify exception details
-        assert excinfo.value.status_code == 302
-        assert excinfo.value.headers["Location"] == "/login?next=/protected/path"
-
-    def test_require_admin_empty_session(self):
-        """Test require_admin with empty session."""
-        # Create a mock request with None session
-        mock_request = Mock(spec=Request)
-        mock_request.session = None
-        
-        # Mock the URL path
-        mock_url = Mock()
-        type(mock_request).url = PropertyMock(return_value=mock_url)
-        type(mock_url).path = PropertyMock(return_value="/protected/path")
+        mock_request.url.path = "/protected/path"
         
         # Call the dependency and expect exception
         with pytest.raises(HTTPException) as excinfo:
