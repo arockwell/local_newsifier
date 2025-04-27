@@ -177,8 +177,8 @@ def test_process_feed_no_service_no_task(mock_db_session, mock_session_factory):
                                 result = service.process_feed(feed_id)
                                 
                                 # Assert
-                                # The service creates a temporary ArticleService once
-                                assert mock_article_service_class.call_count == 1
+                                # The service creates a temporary ArticleService for each entry in the feed
+                                assert mock_article_service_class.call_count == 2
                                 assert mock_article_service.create_article_from_rss_entry.call_count == 2
                                 
                                 assert result["status"] == "success"
