@@ -62,18 +62,28 @@ _entity_service = EntityService(
     session_factory=get_session
 )
 
-# Create article service
-_service_article = ArticleService(
+# Initialize article service - this handles the circular import problem 
+# by calling back into the article_service module
+from local_newsifier.services.article_service import initialize_article_service
+
+# Create the article service with proper dependencies
+article_service = initialize_article_service(
     article_crud=_crud_article,
     analysis_result_crud=_crud_analysis_result,
     entity_service=_entity_service,
     session_factory=lambda: SessionManager()  # Use SessionManager which is a context manager
 )
 
-# These are exported for tests - don't use directly
+# Register article_service with rss_feed_service to resolve circular import issue
+from local_newsifier.services.rss_feed_service import register_article_service
+register_article_service(article_service)
+
+# These are exported for tests and services/__init__.py
 article_crud = _crud_article
 entity_crud = _crud_entity
-article_service = _service_article
+
+# Also export entity_service for services/__init__.py
+entity_service = _entity_service
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
@@ -90,7 +100,7 @@ class BaseTask(Task):
     @property
     def article_service(self):
         """Get article service."""
-        return _service_article
+        return article_service
     
     @property
     def article_crud(self):
@@ -102,6 +112,9 @@ class BaseTask(Task):
         """Get entity CRUD."""
         return _crud_entity
 
+
+# Import this function to register the task - avoiding circular imports
+from local_newsifier.services.rss_feed_service import register_process_article_task
 
 @app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.process_article")
 def process_article(self, article_id: int) -> Dict:
@@ -219,3 +232,10 @@ def on_worker_ready(sender, **kwargs):
     Executed when a Celery worker starts up.
     """
     logger.info("Celery worker is ready")
+
+# Register the process_article task with the RSS feed service
+register_process_article_task(process_article)
+
+# Register the entity_service with the services module
+from local_newsifier.services import register_entity_service
+register_entity_service(_entity_service)

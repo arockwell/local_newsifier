@@ -211,3 +211,23 @@ class ArticleService:
             article = self.article_crud.create(session, obj_in=article_data)
             
             return article.id if article else None
+
+
+# Create a placeholder for the article_service that will be properly initialized later
+# This handles the circular import problem while providing the instance where expected
+article_service = None
+
+# This function will be called from tasks.py to properly initialize the service
+def initialize_article_service(article_crud, analysis_result_crud, entity_service, session_factory=None):
+    """Initialize the global article_service instance to avoid circular imports.
+    
+    This is called from tasks.py after all dependencies are available.
+    """
+    global article_service
+    article_service = ArticleService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        entity_service=entity_service,
+        session_factory=session_factory
+    )
+    return article_service

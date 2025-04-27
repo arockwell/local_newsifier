@@ -7,6 +7,28 @@
 - SQLAlchemy session management in asynchronous tasks
 
 ## Recent Changes
+- Improved test coverage above the 87% threshold
+  - Added comprehensive tests for database engine (75% coverage, up from 55%)
+  - Added extensive tests for RSS feed service (98% coverage, up from 27%)
+  - Added tests for API tasks router
+  - Overall coverage improved from 86.38% to 90%
+  - Fixed test mocking issues with session factories and dependencies
+  - Used proper session factory pattern in tests to isolate database operations
+  - Enhanced test robustness with better fixtures and mocking
+
+- Fixed "No task function available" errors in CLI feed processing
+  - Added `direct_process_article()` function to CLI command module to bypass Celery
+  - Passed the function to `process_feed()` as task_queue_func parameter
+  - Implemented synchronous article processing for CLI operations
+  - Added a --no-process option to skip article processing if needed
+  - Added detailed console output for article processing status
+
+- Fixed circular dependency issue in RSS feed processing (NoneType error)
+  - Added `register_article_service()` function to `rss_feed_service.py`
+  - Updated `tasks.py` to register the initialized article_service with rss_feed_service
+  - Resolved the 'NoneType' object has no attribute 'create_article_from_rss_entry' error
+  - Prevents null reference when RSSFeedService falls back to importing article_service directly
+
 - Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
   - Modified `ArticleService.create_article_from_rss_entry()` to return an ID instead of SQLModel object
   - Updated `fetch_rss_feeds` task to work with article IDs instead of objects

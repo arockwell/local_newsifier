@@ -11,6 +11,7 @@ from local_newsifier.models.base import TableBase
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.models.entity_tracking import (
     CanonicalEntity,
     EntityMention,
@@ -31,6 +32,8 @@ __all__ = [
     "Article",
     "Entity",
     "AnalysisResult",
+    "RSSFeed",
+    "RSSFeedProcessingLog",
     # Entity tracking models
     "CanonicalEntity",
     "EntityMention",

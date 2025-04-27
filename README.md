@@ -37,6 +37,28 @@ poetry run python -m spacy download en_core_web_lg
 
 ## Usage
 
+### Command Line Interface (CLI)
+
+The system provides a command-line interface for managing RSS feeds and other operations:
+
+```bash
+# Activate Poetry shell
+poetry shell
+
+# Get help
+nf --help
+
+# Manage RSS feeds
+nf feeds list              # List all feeds
+nf feeds add <url>         # Add a new feed
+nf feeds show <id>         # Show feed details
+nf feeds process <id>      # Process a feed manually
+```
+
+For detailed CLI documentation, see [README_CLI.md](README_CLI.md).
+
+### Scripts
+
 Run the article processing pipeline:
 ```bash
 poetry run python scripts/run_pipeline.py --url <URL>
@@ -233,6 +255,11 @@ src/
 │   ├── flows/          # crew.ai Flow definitions
 │   │   ├── analysis/   # Analysis workflows
 │   │   └── ...         # Other flows (news pipeline, RSS, etc.)
+│   ├── cli/            # Command Line Interface
+│   │   └── commands/   # CLI command implementations
+│   ├── crud/           # Database CRUD operations
+│   ├── services/       # Business logic services
+│   ├── api/            # FastAPI web API
 │   └── config/         # Configuration
 tests/                  # Test suite
 scripts/                # Runtime scripts
