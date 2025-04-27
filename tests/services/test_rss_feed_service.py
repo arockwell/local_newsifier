@@ -1097,8 +1097,8 @@ def test_process_feed_uses_container_article_service(mock_db_session, mock_sessi
         session_factory=mock_session_factory
     )
     
-    # Patch container and parse_rss_feed in the service
-    with patch('local_newsifier.services.rss_feed_service.container', mock_container), \
+    # Patch get_container and parse_rss_feed in the service
+    with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container), \
          patch('local_newsifier.services.rss_feed_service.parse_rss_feed', mock_parse_rss_feed):
         
         # Act
