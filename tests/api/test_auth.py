@@ -1,7 +1,7 @@
 """Tests for the authentication router."""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI, Request
