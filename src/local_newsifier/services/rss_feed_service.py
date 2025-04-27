@@ -241,24 +241,30 @@ class RSSFeedService:
             # Process each article in the feed
             for entry in feed_data.get("entries", []):
                 try:
-                    # Create article
-                    if self.article_service:
+                    # Create article - protect against None article_service
+                    article_id = None
+                    
+                    if self.article_service is not None:
                         # Use injected article service
                         article_id = self.article_service.create_article_from_rss_entry(entry)
                     else:
                         # Create a new instance for direct CLI usage if no service is injected
-                        from local_newsifier.services.article_service import ArticleService
-                        from local_newsifier.crud.article import article as article_crud
-                        from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-                        from local_newsifier.database.engine import SessionManager
-                        
-                        temp_article_service = ArticleService(
-                            article_crud=article_crud,
-                            analysis_result_crud=analysis_result_crud,
-                            entity_service=None,  # Not needed for creating articles from RSS
-                            session_factory=lambda: SessionManager()
-                        )
-                        article_id = temp_article_service.create_article_from_rss_entry(entry)
+                        try:
+                            from local_newsifier.services.article_service import ArticleService
+                            from local_newsifier.crud.article import article as article_crud
+                            from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+                            from local_newsifier.database.engine import SessionManager
+
+                            temp_article_service = ArticleService(
+                                article_crud=article_crud,
+                                analysis_result_crud=analysis_result_crud,
+                                entity_service=None,  # Not needed for creating articles from RSS
+                                session_factory=lambda: SessionManager()
+                            )
+                            article_id = temp_article_service.create_article_from_rss_entry(entry)
+                        except Exception as temp_e:
+                            logger.error(f"Failed to create temporary article service: {str(temp_e)}")
+                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
                     
                     if article_id:
                         # Queue article processing
