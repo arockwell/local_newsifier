@@ -74,13 +74,16 @@ def test_get_session_success(mock_get_engine):
     mock_get_engine.return_value = mock_engine
     
     # Use a context manager to simulate Session's behavior
-    with patch('local_newsifier.database.engine.Session', return_value=mock_session):
+    with patch('local_newsifier.database.engine.Session') as mock_session_class:
+        # Configure the mock to return our mock_session when used as a context manager
+        mock_session_class.return_value.__enter__.return_value = mock_session
+        
         # Act
         session_gen = get_session()
         session = next(session_gen)
         
         # Assert
-        assert session == mock_session
+        assert session is mock_session
 
 
 @patch('local_newsifier.database.engine.get_engine', return_value=None)

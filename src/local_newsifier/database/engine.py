@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+import time
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -29,7 +30,6 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     Returns:
         SQLModel engine or None if connection fails after retries
     """
-    import time
     
     for attempt in range(max_retries + 1):
         try:

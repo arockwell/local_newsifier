@@ -14,7 +14,6 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
-from local_newsifier.services.article_service import ArticleService
 
 # This will be set later to avoid circular imports
 _process_article_task = None
@@ -26,6 +25,7 @@ def register_process_article_task(task_func):
     """
     global _process_article_task
     _process_article_task = task_func
+    return task_func
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +206,16 @@ class RSSFeedService:
             return None
         
         return self._format_feed_dict(removed)
+
+    def register_process_article_task(self, task_func):
+        """Register the process_article task function.
+        
+        This method is for convenience when using an instance directly.
+        
+        Args:
+            task_func: The celery task function to register
+        """
+        return register_process_article_task(task_func)
 
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
