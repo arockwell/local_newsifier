@@ -1014,19 +1014,19 @@ def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
 
 
 @pytest.fixture
-def patch_container(mock_container):
-    """Patch the container in rss_feed_service module."""
+def patch_get_container(mock_container):
+    """Patch the get_container function in rss_feed_service module."""
     mock_di_container, mock_article_service = mock_container
     
-    # Patch the container in the RSSFeedService module
-    with patch('local_newsifier.services.rss_feed_service.container', mock_di_container):
+    # Patch the get_container function in the RSSFeedService module
+    with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_di_container):
         yield mock_di_container, mock_article_service
 
 
-def test_register_article_service(patch_container):
+def test_register_article_service(patch_get_container):
     """Test registering the article service with container."""
     # Arrange
-    mock_container, _ = patch_container
+    mock_container, _ = patch_get_container
     
     # Mock the RSSFeedService that would be returned by container.get
     mock_rss_feed_service = MagicMock()
