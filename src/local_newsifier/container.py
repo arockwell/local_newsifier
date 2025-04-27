@@ -123,11 +123,26 @@ def init_container(environment="production"):
             from local_newsifier.tools.entity_tracker_service import EntityTracker
             from local_newsifier.tools.file_writer import FileWriterTool
             
+            # Additional analysis tools
+            from local_newsifier.services.analysis_service import AnalysisService
+            from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+            from local_newsifier.tools.sentiment_tracker import SentimentTracker
+            from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+            from local_newsifier.tools.trend_reporter import TrendReporter
+            
+            # Register entity analysis tools
             container.register_factory("entity_extractor", lambda c: EntityExtractor())
             container.register_factory("context_analyzer", lambda c: ContextAnalyzer())
             container.register_factory("entity_resolver", lambda c: EntityResolver())
             container.register_factory("entity_tracker", lambda c: EntityTracker())
             container.register_factory("file_writer", lambda c: FileWriterTool(output_dir="output"))
+            
+            # Register sentiment and trend analysis tools
+            container.register_factory("analysis_service", lambda c: AnalysisService())
+            container.register_factory("sentiment_analyzer", lambda c: SentimentAnalysisTool(session=None))
+            container.register_factory("sentiment_tracker", lambda c: SentimentTracker(session=None))
+            container.register_factory("opinion_visualizer", lambda c: OpinionVisualizerTool(session=None))
+            container.register_factory("trend_reporter", lambda c: TrendReporter(output_dir="trend_output"))
         except ImportError:
             # These tools are optional
             pass
@@ -158,13 +173,22 @@ def init_container(environment="production"):
                 session_factory=c.get("session_factory")
             ))
         
-        # TrendAnalysisFlow
+        # TrendAnalysisFlow with proper dependencies
         container.register_factory("trend_analysis_flow",
-            lambda c: TrendAnalysisFlow())
+            lambda c: TrendAnalysisFlow(
+                analysis_service=c.get("analysis_service"),
+                trend_reporter=c.get("trend_reporter"),
+                output_dir="trend_output"
+            ))
         
-        # PublicOpinionFlow
+        # PublicOpinionFlow with proper dependencies
         container.register_factory("public_opinion_flow",
-            lambda c: PublicOpinionFlow())
+            lambda c: PublicOpinionFlow(
+                sentiment_analyzer=c.get("sentiment_analyzer"),
+                sentiment_tracker=c.get("sentiment_tracker"),
+                opinion_visualizer=c.get("opinion_visualizer"),
+                session_factory=c.get("session_factory")
+            ))
         
         # RSSScrapingFlow
         container.register_factory("rss_scraping_flow",

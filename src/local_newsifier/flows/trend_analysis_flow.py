@@ -74,6 +74,11 @@ class NewsTrendAnalysisFlow(Flow):
 
     def __init__(
         self,
+        analysis_service: Optional[AnalysisService] = None,
+        trend_reporter: Optional[TrendReporter] = None,
+        data_aggregator: Optional[Any] = None,
+        topic_analyzer: Optional[Any] = None,
+        trend_detector: Optional[Any] = None,
         config: Optional[TrendAnalysisConfig] = None,
         output_dir: str = "trend_output",
     ):
@@ -81,6 +86,11 @@ class NewsTrendAnalysisFlow(Flow):
         Initialize the trend analysis flow.
 
         Args:
+            analysis_service: Service for analysis operations
+            trend_reporter: Tool for generating trend reports
+            data_aggregator: Tool for aggregating data (for backwards compatibility)
+            topic_analyzer: Tool for analyzing topics (for backwards compatibility)
+            trend_detector: Tool for detecting trends (for backwards compatibility)
             config: Configuration for trend analysis
             output_dir: Directory for report output
         """
@@ -88,15 +98,15 @@ class NewsTrendAnalysisFlow(Flow):
         self.config = config or TrendAnalysisConfig()
         
         # Initialize reporter
-        self.reporter = TrendReporter(output_dir=output_dir)
+        self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
         
         # Use analysis service for all trend analysis operations 
-        self.analysis_service = AnalysisService()
+        self.analysis_service = analysis_service or AnalysisService()
         
         # For backwards compatibility with tests
-        self.data_aggregator = MagicMock()
-        self.topic_analyzer = MagicMock()
-        self.trend_detector = MagicMock()
+        self.data_aggregator = data_aggregator or MagicMock()
+        self.topic_analyzer = topic_analyzer or MagicMock()
+        self.trend_detector = trend_detector or MagicMock()
         
     def aggregate_historical_data(
         self, state: TrendAnalysisState

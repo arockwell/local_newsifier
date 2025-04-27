@@ -33,28 +33,42 @@ logger = logging.getLogger(__name__)
 class PublicOpinionFlow(Flow):
     """Flow for analyzing public opinion and sentiment in news articles."""
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(
+        self, 
+        sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
+        sentiment_tracker: Optional[SentimentTracker] = None,
+        opinion_visualizer: Optional[OpinionVisualizerTool] = None,
+        session_factory: Optional[callable] = None,
+        session: Optional[Session] = None
+    ):
         """
         Initialize the public opinion analysis flow.
 
         Args:
+            sentiment_analyzer: Tool for sentiment analysis
+            sentiment_tracker: Tool for tracking sentiment over time
+            opinion_visualizer: Tool for generating visualizations
+            session_factory: Factory function for creating database sessions
             session: Optional SQLModel session to use
         """
         super().__init__()
 
         # Set up database connection if not provided
         if session is None:
-            self.session_generator = get_session()
+            if session_factory:
+                self.session_generator = session_factory()
+            else:
+                self.session_generator = get_session()
             self.session = next(self.session_generator)
             self._owns_session = True
         else:
             self.session = session
             self._owns_session = False
 
-        # Initialize tools
-        self.sentiment_analyzer = SentimentAnalysisTool(self.session)
-        self.sentiment_tracker = SentimentTracker(self.session)
-        self.opinion_visualizer = OpinionVisualizerTool(self.session)
+        # Initialize tools or use provided ones
+        self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)
+        self.sentiment_tracker = sentiment_tracker or SentimentTracker(self.session)
+        self.opinion_visualizer = opinion_visualizer or OpinionVisualizerTool(self.session)
 
     def __del__(self):
         """Clean up resources when the flow is deleted."""
