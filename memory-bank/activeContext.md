@@ -7,6 +7,15 @@
 - SQLAlchemy session management in asynchronous tasks
 
 ## Recent Changes
+- Improved test coverage above the 87% threshold
+  - Added comprehensive tests for database engine (75% coverage, up from 55%)
+  - Added extensive tests for RSS feed service (98% coverage, up from 27%)
+  - Added tests for API tasks router
+  - Overall coverage improved from 86.38% to 90%
+  - Fixed test mocking issues with session factories and dependencies
+  - Used proper session factory pattern in tests to isolate database operations
+  - Enhanced test robustness with better fixtures and mocking
+
 - Fixed "No task function available" errors in CLI feed processing
   - Added `direct_process_article()` function to CLI command module to bypass Celery
   - Passed the function to `process_feed()` as task_queue_func parameter
