@@ -108,11 +108,40 @@ def init_container(environment="production"):
         )
     )
     
+    # Register tools if available (expanded)
+    if TOOLS_AVAILABLE:
+        container.register_factory("rss_parser", 
+                               lambda c: RSSParser())
+        container.register_factory("web_scraper", 
+                               lambda c: WebScraper())
+        
+        # Register analysis tools
+        try:
+            from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+            from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+            from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+            from local_newsifier.tools.entity_tracker_service import EntityTracker
+            
+            container.register_factory("entity_extractor", lambda c: EntityExtractor())
+            container.register_factory("context_analyzer", lambda c: ContextAnalyzer())
+            container.register_factory("entity_resolver", lambda c: EntityResolver())
+            container.register_factory("entity_tracker", lambda c: EntityTracker())
+        except ImportError:
+            # These tools are optional
+            pass
+    
     # Register flow services if available
     if FLOWS_AVAILABLE:
-        # EntityTrackingFlow
+        # EntityTrackingFlow with proper dependencies
         container.register_factory("entity_tracking_flow",
-            lambda c: EntityTrackingFlow())
+            lambda c: EntityTrackingFlow(
+                entity_service=c.get("entity_service"),
+                entity_tracker=c.get("entity_tracker"),
+                entity_extractor=c.get("entity_extractor"),
+                context_analyzer=c.get("context_analyzer"),
+                entity_resolver=c.get("entity_resolver"),
+                session_factory=c.get("session_factory")
+            ))
         
         # NewsPipelineFlow
         container.register_factory("news_pipeline_flow",
