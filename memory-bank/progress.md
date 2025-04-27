@@ -48,6 +48,18 @@
 - Implement scheduled scraping and analysis
 
 ## Known Issues
+- ✅ Fixed: NoneType error during RSS feed processing with CLI commands
+  - Added registration of article_service in the CLI command module
+  - Created local ArticleService instance in RSSFeedService.process_feed as fallback
+  - Resolves 'NoneType' object has no attribute 'create_article_from_rss_entry' errors
+  - Fixed circular dependency issues between services by providing alternative code paths
+  
+- ✅ Fixed: "No task function available" errors in CLI mode
+  - Implemented direct_process_article function in the CLI commands
+  - Bypassed Celery task infrastructure for CLI operations
+  - Process articles synchronously during CLI feed processing
+  - Added feedback in the terminal for each processed article
+
 - ✅ Fixed: SQLAlchemy "Instance is not bound to a Session" error during RSS feed processing
   - Changed ArticleService.create_article_from_rss_entry() to return article ID instead of SQLModel object
   - Updated task code to work with IDs instead of SQLModel objects
