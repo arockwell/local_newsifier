@@ -24,41 +24,83 @@ from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 
-    def __init__(self, output_dir: str = "output"):
-        """Initialize the pipeline flow."""
+    def __init__(
+        self, 
+        article_service: Optional[ArticleService] = None,
+        entity_service: Optional[EntityService] = None,
+        pipeline_service: Optional[NewsPipelineService] = None,
+        web_scraper: Optional[WebScraperTool] = None,
+        file_writer: Optional[FileWriterTool] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        context_analyzer: Optional[ContextAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
+        session_factory: Optional[callable] = None,
+        output_dir: str = "output"
+    ):
+        """Initialize the pipeline flow.
+        
+        Args:
+            article_service: Service for article operations
+            entity_service: Service for entity operations
+            pipeline_service: Service for news pipeline operations
+            web_scraper: Tool for scraping web content
+            file_writer: Tool for writing files
+            entity_extractor: Tool for extracting entities
+            context_analyzer: Tool for analyzing context
+            entity_resolver: Tool for resolving entities
+            session_factory: Function to create database sessions
+            output_dir: Directory for output files
+        """
         super().__init__()
-        # Create basic tools
-        self.scraper = WebScraperTool()
-        self.writer = FileWriterTool(output_dir=output_dir)
         
-        # Create entity service
-        self.entity_service = EntityService(
-            entity_crud=entity_crud,
-            canonical_entity_crud=canonical_entity_crud,
-            entity_mention_context_crud=entity_mention_context_crud,
-            entity_profile_crud=entity_profile_crud,
-            article_crud=article_crud,  # Added missing article_crud parameter
-            entity_extractor=EntityExtractor(),
-            context_analyzer=ContextAnalyzer(),
-            entity_resolver=EntityResolver(),
-            session_factory=get_session
-        )
+        # Create or use provided tools
+        self.scraper = web_scraper or WebScraperTool()
+        self.writer = file_writer or FileWriterTool(output_dir=output_dir)
         
-        # Create article service
-        self.article_service = ArticleService(
-            article_crud=article_crud,
-            analysis_result_crud=analysis_result_crud,
-            entity_service=self.entity_service,
-            session_factory=get_session
-        )
+        # Get or create session factory
+        self._session_factory = session_factory or get_session
         
-        # Create pipeline service
-        self.pipeline_service = NewsPipelineService(
-            article_service=self.article_service,
-            web_scraper=self.scraper,
-            file_writer=self.writer,
-            session_factory=get_session
-        )
+        # Create or use provided entity service
+        self._entity_extractor = entity_extractor or EntityExtractor()
+        self._context_analyzer = context_analyzer or ContextAnalyzer()
+        self._entity_resolver = entity_resolver or EntityResolver()
+        
+        if entity_service:
+            self.entity_service = entity_service
+        else:
+            self.entity_service = EntityService(
+                entity_crud=entity_crud,
+                canonical_entity_crud=canonical_entity_crud,
+                entity_mention_context_crud=entity_mention_context_crud,
+                entity_profile_crud=entity_profile_crud,
+                article_crud=article_crud,
+                entity_extractor=self._entity_extractor,
+                context_analyzer=self._context_analyzer,
+                entity_resolver=self._entity_resolver,
+                session_factory=self._session_factory
+            )
+        
+        # Create or use provided article service
+        if article_service:
+            self.article_service = article_service
+        else:
+            self.article_service = ArticleService(
+                article_crud=article_crud,
+                analysis_result_crud=analysis_result_crud,
+                entity_service=self.entity_service,
+                session_factory=self._session_factory
+            )
+        
+        # Create or use provided pipeline service
+        if pipeline_service:
+            self.pipeline_service = pipeline_service
+        else:
+            self.pipeline_service = NewsPipelineService(
+                article_service=self.article_service,
+                web_scraper=self.scraper,
+                file_writer=self.writer,
+                session_factory=self._session_factory
+            )
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """Task for scraping article content."""

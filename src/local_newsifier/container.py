@@ -143,9 +143,18 @@ def init_container(environment="production"):
                 session_factory=c.get("session_factory")
             ))
         
-        # NewsPipelineFlow
+        # NewsPipelineFlow with proper dependencies
         container.register_factory("news_pipeline_flow",
-            lambda c: NewsPipelineFlow())
+            lambda c: NewsPipelineFlow(
+                article_service=c.get("article_service"),
+                entity_service=c.get("entity_service"),
+                web_scraper=c.get("web_scraper"),
+                file_writer=c.get("file_writer"),
+                entity_extractor=c.get("entity_extractor"),
+                context_analyzer=c.get("context_analyzer"),
+                entity_resolver=c.get("entity_resolver"),
+                session_factory=c.get("session_factory")
+            ))
         
         # TrendAnalysisFlow
         container.register_factory("trend_analysis_flow",
