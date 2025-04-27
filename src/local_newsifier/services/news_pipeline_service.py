@@ -45,20 +45,32 @@ class NewsPipelineService:
         if not scraped_data:
             return {"status": "error", "message": "Failed to scrape content"}
         
-        # Process article
-        result = self.article_service.process_article(
-            url=url,
-            content=scraped_data["content"],
-            title=scraped_data["title"],
-            published_at=scraped_data.get("published_at", datetime.now())
-        )
-        
-        # Save results to file if needed
-        if self.file_writer:
-            file_path = self.file_writer.write_results(result)
-            result["file_path"] = file_path
-        
-        return result
+        try:
+            # Process article
+            result = self.article_service.process_article(
+                url=url,
+                content=scraped_data["content"],
+                title=scraped_data["title"],
+                published_at=scraped_data.get("published_at", datetime.now())
+            )
+            
+            # Save results to file if needed
+            if self.file_writer:
+                try:
+                    file_path = self.file_writer.write_results(result)
+                    result["file_path"] = file_path
+                except Exception as e:
+                    # Handle file writer errors
+                    result["error"] = f"Error writing results to file: {str(e)}"
+            
+            return result
+        except Exception as e:
+            # Handle processing errors
+            return {
+                "status": "error",
+                "message": f"Error processing article: {str(e)}",
+                "url": url
+            }
     
     def process_content(
         self, 
@@ -82,17 +94,29 @@ class NewsPipelineService:
         if published_at is None:
             published_at = datetime.now()
         
-        # Process article
-        result = self.article_service.process_article(
-            url=url,
-            content=content,
-            title=title,
-            published_at=published_at
-        )
-        
-        # Save results to file if needed
-        if self.file_writer:
-            file_path = self.file_writer.write_results(result)
-            result["file_path"] = file_path
-        
-        return result
+        try:
+            # Process article
+            result = self.article_service.process_article(
+                url=url,
+                content=content,
+                title=title,
+                published_at=published_at
+            )
+            
+            # Save results to file if needed
+            if self.file_writer:
+                try:
+                    file_path = self.file_writer.write_results(result)
+                    result["file_path"] = file_path
+                except Exception as e:
+                    # Handle file writer errors
+                    result["error"] = f"Error writing results to file: {str(e)}"
+            
+            return result
+        except Exception as e:
+            # Handle processing errors
+            return {
+                "status": "error",
+                "message": f"Error processing article: {str(e)}",
+                "url": url
+            }
