@@ -183,7 +183,8 @@ class TestProcessArticle:
         # Verify response
         assert response.status_code == 404
         response_data = response.json()
-        assert "not found" in response_data["detail"]
+        assert "detail" in response_data
+        assert f"Article with ID {article_id} not found" in response_data["detail"]
 
         # Clean up
         client.app.dependency_overrides = {}
@@ -194,7 +195,7 @@ class TestFetchRSSFeeds:
 
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
-    def test_fetch_rss_feeds_with_default_urls(
+    def test_fetch_rss_feeds_default(
         self, mock_settings, mock_fetch_rss_feeds, client, mock_rss_feed_service
     ):
         """Test fetching RSS feeds with default URLs from settings."""
@@ -226,12 +227,12 @@ class TestFetchRSSFeeds:
         client.app.dependency_overrides = {}
 
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
-    def test_fetch_rss_feeds_with_custom_urls(
+    def test_fetch_rss_feeds_custom_urls(
         self, mock_fetch_rss_feeds, client, mock_rss_feed_service
     ):
         """Test fetching RSS feeds with custom URLs."""
         # Set up mocks
-        custom_urls = ["https://example.com/custom1", "https://example.com/custom2"]
+        custom_feeds = ["https://custom.com/feed1", "https://custom.com/feed2", "https://custom.com/feed3"]
         
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
@@ -240,20 +241,207 @@ class TestFetchRSSFeeds:
         # Register the dependency override
         client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
 
-        # Make the request with query parameters
-        url_params = "&".join([f"feed_urls={url}" for url in custom_urls])
-        response = client.post(f"/tasks/fetch-rss-feeds?{url_params}")
+        # Make the request
+        response = client.post("/tasks/fetch-rss-feeds", params={"feed_urls": custom_feeds})
 
         # Verify response
         assert response.status_code == 200
         response_data = response.json()
         assert response_data["task_id"] == "test-task-id"
-        assert response_data["feed_count"] == len(custom_urls)
+        assert response_data["feed_count"] == len(custom_feeds)
         assert response_data["status"] == "queued"
         assert response_data["task_url"] == f"/tasks/status/test-task-id"
 
         # Verify mocks were called
-        mock_fetch_rss_feeds.delay.assert_called_once_with(custom_urls)
+        mock_fetch_rss_feeds.delay.assert_called_once_with(custom_feeds)
 
         # Clean up
         client.app.dependency_overrides = {}
+
+
+class TestTaskStatus:
+    """Tests for task status endpoint."""
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_get_task_status_pending(self, mock_celery_app, mock_async_result_class, client):
+        """Test getting status of a pending task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "PENDING"
+        mock_result.successful.return_value = False
+        mock_result.failed.return_value = False
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.get(f"/tasks/status/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["task_id"] == task_id
+        assert response_data["status"] == "PENDING"
+        assert "result" not in response_data
+        assert "error" not in response_data
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_get_task_status_success(self, mock_celery_app, mock_async_result_class, client):
+        """Test getting status of a successful task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "SUCCESS"
+        mock_result.successful.return_value = True
+        mock_result.failed.return_value = False
+        mock_result.result = {"processed": 5, "skipped": 2}
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.get(f"/tasks/status/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["task_id"] == task_id
+        assert response_data["status"] == "SUCCESS"
+        assert response_data["result"] == {"processed": 5, "skipped": 2}
+        assert "error" not in response_data
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_get_task_status_failure(self, mock_celery_app, mock_async_result_class, client):
+        """Test getting status of a failed task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "FAILURE"
+        mock_result.successful.return_value = False
+        mock_result.failed.return_value = True
+        mock_result.result = Exception("Task processing error")
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.get(f"/tasks/status/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["task_id"] == task_id
+        assert response_data["status"] == "FAILURE"
+        assert "result" not in response_data
+        assert response_data["error"] == "Task processing error"
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_get_task_status_progress(self, mock_celery_app, mock_async_result_class, client):
+        """Test getting status of a task in progress."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "PROGRESS"
+        mock_result.successful.return_value = False
+        mock_result.failed.return_value = False
+        mock_result.info = {"current": 5, "total": 10, "percent": 50}
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.get(f"/tasks/status/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["task_id"] == task_id
+        assert response_data["status"] == "PROGRESS"
+        assert response_data["progress"] == {"current": 5, "total": 10, "percent": 50}
+        assert "result" not in response_data
+        assert "error" not in response_data
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+
+
+class TestCancelTask:
+    """Tests for cancel task endpoint."""
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_cancel_running_task(self, mock_celery_app, mock_async_result_class, client):
+        """Test cancelling a running task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "RUNNING"
+        mock_result.successful.return_value = False
+        mock_result.failed.return_value = False
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.delete(f"/tasks/cancel/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["message"] == f"Task {task_id} revoke signal sent"
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+        mock_celery_app.control.revoke.assert_called_once_with(task_id, terminate=True)
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_cancel_completed_task(self, mock_celery_app, mock_async_result_class, client):
+        """Test cancelling a completed task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "SUCCESS"
+        mock_result.successful.return_value = True
+        mock_result.failed.return_value = False
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.delete(f"/tasks/cancel/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["message"] == f"Task {task_id} already completed"
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+        mock_celery_app.control.revoke.assert_not_called()
+
+    @patch("local_newsifier.api.routers.tasks.AsyncResult", autospec=True)
+    @patch("local_newsifier.api.routers.tasks.celery_app", autospec=True)
+    def test_cancel_failed_task(self, mock_celery_app, mock_async_result_class, client):
+        """Test cancelling a failed task."""
+        # Set up mocks
+        mock_result = MagicMock()
+        mock_result.status = "FAILURE"
+        mock_result.successful.return_value = False
+        mock_result.failed.return_value = True
+        mock_async_result_class.return_value = mock_result
+
+        # Make the request
+        task_id = "test-task-id"
+        response = client.delete(f"/tasks/cancel/{task_id}")
+
+        # Verify response
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["message"] == f"Task {task_id} already completed"
+
+        # Verify mocks were called
+        mock_async_result_class.assert_called_once_with(task_id, app=mock_celery_app)
+        mock_celery_app.control.revoke.assert_not_called()
