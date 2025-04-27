@@ -55,6 +55,9 @@ class TestBaseTask:
         # Need to get a task instance to test
         task = process_article
         
+        # Reset the _db attribute to force getting a new session
+        task._db = None
+        
         # Access the db property
         db = task.db
         assert db is mock_session
