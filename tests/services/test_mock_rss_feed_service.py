@@ -216,35 +216,40 @@ def test_process_feed_temp_service_fails(mock_db_session, mock_session_factory):
     error_log.status = "error"
     mock_feed_processing_log_crud.update_processing_completed.return_value = error_log
     
+    # Create a mock container that returns None for article_service
+    mock_container = MagicMock()
+    mock_container.get.return_value = None
+    
     # Use a more realistic approach for testing with database errors
     with patch('local_newsifier.services.rss_feed_service._process_article_task', None):
-        with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
-            # Mock feed data
-            mock_parse_rss_feed.return_value = {
-                "feed": {"title": "Example Feed"},
-                "entries": [{"title": "Article 1"}]
-            }
-            
-            # Create a mock for ArticleService that simulates raising an error during creation_article_from_rss_entry
-            mock_article_service = MagicMock()
-            mock_article_service.create_article_from_rss_entry.side_effect = ValueError("Database error")
-            
-            # Setup the ArticleService mock
-            with patch('local_newsifier.services.article_service.ArticleService', return_value=mock_article_service):
-                # Create service with no article service
-                service = RSSFeedService(
-                    rss_feed_crud=mock_rss_feed_crud,
-                    feed_processing_log_crud=mock_feed_processing_log_crud,
-                    article_service=None,  # No article service
-                    session_factory=mock_session_factory
-                )
+        with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container):
+            with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
+                # Mock feed data
+                mock_parse_rss_feed.return_value = {
+                    "feed": {"title": "Example Feed"},
+                    "entries": [{"title": "Article 1"}]
+                }
                 
-                # Act - the service will catch the exception but continue processing
-                result = service.process_feed(feed_id)
+                # Create a mock for ArticleService that simulates raising an error during creation_article_from_rss_entry
+                mock_article_service = MagicMock()
+                mock_article_service.create_article_from_rss_entry.side_effect = ValueError("Database error")
                 
-                # Assert - even though there was an error in processing an article,
-                # the overall feed process completes successfully 
-                assert result["status"] == "success"
-                assert result["feed_id"] == feed_id
-                # No articles were successfully added due to errors
-                assert result["articles_added"] == 0
+                # Setup the ArticleService mock
+                with patch('local_newsifier.services.article_service.ArticleService', return_value=mock_article_service):
+                    # Create service with no article service
+                    service = RSSFeedService(
+                        rss_feed_crud=mock_rss_feed_crud,
+                        feed_processing_log_crud=mock_feed_processing_log_crud,
+                        article_service=None,  # No article service
+                        session_factory=mock_session_factory
+                    )
+                    
+                    # Act - the service will catch the exception but continue processing
+                    result = service.process_feed(feed_id)
+                    
+                    # Assert - even though there was an error in processing an article,
+                    # the overall feed process completes successfully 
+                    assert result["status"] == "success"
+                    assert result["feed_id"] == feed_id
+                    # No articles were successfully added due to errors
+                    assert result["articles_added"] == 0
