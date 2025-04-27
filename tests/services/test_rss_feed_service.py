@@ -949,12 +949,13 @@ class TestRSSFeedService:
 
 def test_register_process_article_task():
     """Test register_process_article_task."""
-    # Save the original value
+    # Declare the variable as global first
+    global _process_article_task
+    # Then save the original value
     original_task = _process_article_task
     
     try:
         # Reset the global variable
-        global _process_article_task
         _process_article_task = None
         
         # Create a mock task function
