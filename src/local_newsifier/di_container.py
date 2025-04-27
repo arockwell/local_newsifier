@@ -73,17 +73,31 @@ class DIContainer:
         # If we're already creating this service (circular dependency),
         # create a placeholder to break the cycle
         if name in self._creating:
-            # For simple dict-like services
-            self._services[name] = {}
+            # For dict-like services, create a placeholder if it doesn't already exist
+            if name not in self._services:
+                self._services[name] = {}
             return self._services[name]
             
         # Mark that we're creating this service to detect circular dependencies
         self._creating.add(name)
         
         try:
-            # Create the service using its factory
-            self._services[name] = self._factories[name](self)
-            return self._services[name]
+            # Create a placeholder if one doesn't already exist
+            if name not in self._services:
+                self._services[name] = {}
+                
+            # Create the service using its factory and get the result
+            result = self._factories[name](self)
+            
+            # If the result is a dict, update the placeholder with the result's contents
+            # This ensures existing references to the placeholder get the updated values
+            if isinstance(result, dict) and isinstance(self._services[name], dict):
+                self._services[name].update(result)
+                return self._services[name]
+            else:
+                # Otherwise replace the placeholder completely
+                self._services[name] = result
+                return result
         finally:
             # Remove from creating set regardless of success/failure
             self._creating.remove(name)
