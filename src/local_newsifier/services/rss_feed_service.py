@@ -14,7 +14,13 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
-from local_newsifier.container import container
+# Import container at runtime to avoid circular imports
+# from local_newsifier.container import container
+
+def get_container():
+    """Get the container at runtime to avoid circular imports."""
+    from local_newsifier.container import container
+    return container
 
 # Task reference for registration - will be set by register_process_article_task
 _process_article_task = None
@@ -61,7 +67,7 @@ class RSSFeedService:
             return self.session_factory()
             
         # Get session factory from container as fallback
-        session_factory = container.get("session_factory")
+        session_factory = get_container().get("session_factory")
         if session_factory:
             return session_factory()
             
@@ -269,7 +275,7 @@ class RSSFeedService:
                     
                     if article_service is None:
                         # Try to get from container
-                        article_service = container.get("article_service")
+                        article_service = get_container().get("article_service")
                         
                     if article_service is not None:
                         # Use available article service
@@ -419,6 +425,6 @@ def register_article_service(article_svc):
     Args:
         article_svc: The initialized article service
     """
-    rss_feed_service = container.get("rss_feed_service")
+    rss_feed_service = get_container().get("rss_feed_service")
     if rss_feed_service:
         rss_feed_service.article_service = article_svc

@@ -11,7 +11,7 @@ def test_get_session_yield():
     """Test that get_session yields a database session."""
     # Create a mock session factory and session
     mock_session = Mock(spec=Session)
-    mock_manager = Mock()
+    mock_manager = MagicMock()  # Use MagicMock for magic methods
     mock_manager.__enter__.return_value = mock_session
     
     # Create a mock for container
@@ -41,7 +41,7 @@ def test_get_session_from_container():
     # Create a mock session factory and session
     mock_session = Mock(spec=Session)
     mock_session_factory = Mock()
-    mock_manager = Mock()
+    mock_manager = MagicMock()  # Use MagicMock for magic methods
     mock_manager.__enter__.return_value = mock_session
     mock_session_factory.return_value = mock_manager
     
