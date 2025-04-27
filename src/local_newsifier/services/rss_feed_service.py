@@ -14,14 +14,16 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.container import container
 
-# This will be set later to avoid circular imports
+# Task reference for registration - will be set by register_process_article_task
 _process_article_task = None
 
 def register_process_article_task(task_func):
     """Register the process_article task function to avoid circular imports.
     
     This function will be called from tasks.py after all imports are complete.
+    TEMPORARY: Will be removed once all code is updated to use the container.
     """
     global _process_article_task
     _process_article_task = task_func
@@ -57,6 +59,13 @@ class RSSFeedService:
         """Get a database session."""
         if self.session_factory:
             return self.session_factory()
+            
+        # Get session factory from container as fallback
+        session_factory = container.get("session_factory")
+        if session_factory:
+            return session_factory()
+            
+        # Last resort fallback to direct import
         from local_newsifier.database.engine import get_session
         return next(get_session())
 
@@ -211,6 +220,7 @@ class RSSFeedService:
         """Register the process_article task function.
         
         This method is for convenience when using an instance directly.
+        TEMPORARY: Will be removed once all code is updated to use the container.
         
         Args:
             task_func: The celery task function to register
@@ -254,11 +264,20 @@ class RSSFeedService:
                     # Create article - protect against None article_service
                     article_id = None
                     
-                    if self.article_service is not None:
-                        # Use injected article service
-                        article_id = self.article_service.create_article_from_rss_entry(entry)
+                    # Get article service - try instance first, then container, then fallback
+                    article_service = self.article_service
+                    
+                    if article_service is None:
+                        # Try to get from container
+                        article_service = container.get("article_service")
+                        
+                    if article_service is not None:
+                        # Use available article service
+                        article_id = article_service.create_article_from_rss_entry(entry)
                     else:
-                        # Create a new instance for direct CLI usage if no service is injected
+                        # Last resort fallback - direct creation of service
+                        # This should never happen when using the container
+                        logger.warning("No article_service available - creating temporary instance")
                         try:
                             from local_newsifier.services.article_service import ArticleService
                             from local_newsifier.crud.article import article as article_crud
@@ -389,17 +408,17 @@ class RSSFeedService:
         }
 
 
-# Create a singleton instance
-rss_feed_service = RSSFeedService()
-
+# For backwards compatibility during transition
+# Will be removed once all code is updated to use the container
 def register_article_service(article_svc):
     """Register the article service to avoid circular imports.
     
-    This function will be called from tasks.py after all imports are complete
-    and the article_service is properly initialized.
+    This function will be called from tasks.py after all imports are complete.
+    TEMPORARY: Will be removed once all code is updated to use the container.
     
     Args:
         article_svc: The initialized article service
     """
-    global rss_feed_service
-    rss_feed_service.article_service = article_svc
+    rss_feed_service = container.get("rss_feed_service")
+    if rss_feed_service:
+        rss_feed_service.article_service = article_svc
