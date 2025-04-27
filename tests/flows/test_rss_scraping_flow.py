@@ -15,25 +15,70 @@ from local_newsifier.tools.rss_parser import RSSItem
 @pytest.fixture
 def mock_rss_parser():
     with patch("local_newsifier.flows.rss_scraping_flow.RSSParser") as mock:
+        parser_instance = Mock()
+        mock.return_value = parser_instance
         yield mock
 
 
 @pytest.fixture
 def mock_web_scraper():
     with patch("local_newsifier.flows.rss_scraping_flow.WebScraperTool") as mock:
+        scraper_instance = Mock()
+        mock.return_value = scraper_instance
         yield mock
+
+
+@pytest.fixture
+def mock_rss_feed_service():
+    mock = Mock()
+    return mock
+
+
+@pytest.fixture
+def mock_article_service():
+    mock = Mock()
+    return mock
 
 
 class TestRSSScrapingFlow:
     def setup_method(self):
+        # Create with default parameters
         self.flow = RSSScrapingFlow()
 
     def test_init_with_cache_dir(self, tmp_path):
         """Test initialization with cache directory."""
         flow = RSSScrapingFlow(cache_dir=str(tmp_path))
         assert flow.cache_dir == tmp_path
+        assert flow.rss_feed_service is None
+        assert flow.article_service is None
         assert isinstance(flow.rss_parser, Mock) is False
         assert isinstance(flow.web_scraper, Mock) is False
+    
+    def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service, 
+                                   mock_rss_parser, mock_web_scraper):
+        """Test initialization with provided dependencies."""
+        parser_instance = Mock()
+        scraper_instance = Mock()
+        
+        # Create flow with all dependencies provided
+        flow = RSSScrapingFlow(
+            rss_feed_service=mock_rss_feed_service,
+            article_service=mock_article_service,
+            rss_parser=parser_instance,
+            web_scraper=scraper_instance,
+            cache_dir="/tmp/cache"
+        )
+        
+        # Verify dependencies were used
+        assert flow.rss_feed_service is mock_rss_feed_service
+        assert flow.article_service is mock_article_service
+        assert flow.rss_parser is parser_instance
+        assert flow.web_scraper is scraper_instance
+        assert flow.cache_dir == Path("/tmp/cache")
+        
+        # Verify RSSParser and WebScraperTool classes were not called
+        mock_rss_parser.assert_not_called()
+        mock_web_scraper.assert_not_called()
 
     def test_process_feed_no_new_articles(self, mock_rss_parser):
         """Test processing a feed with no new articles."""
