@@ -18,7 +18,7 @@ from unittest.mock import Mock, mock_open, patch
 import pytest
 import requests
 
-from local_newsifier.tools.rss_parser import RSSItem, RSSParser, parse_rss_feed
+from local_newsifier.tools.rss_parser import RSSItem, RSSParser, parse_rss_feed, RSSParsingError
 
 # Sample RSS feed XML
 SAMPLE_RSS_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -274,8 +274,15 @@ class TestRSSParser:
         """Test parsing a feed with error."""
         mock_get.side_effect = Exception("Failed to fetch feed")
 
-        items = self.parser.parse_feed("http://example.com/feed")
-        assert len(items) == 0
+        # Should raise RSSParsingError with appropriate details
+        with pytest.raises(RSSParsingError) as excinfo:
+            self.parser.parse_feed("http://example.com/feed")
+        
+        # Verify error details
+        assert "Unexpected error: Failed to fetch feed" in str(excinfo.value)
+        assert excinfo.value.feed_url == "http://example.com/feed"
+        assert excinfo.value.error_type == "unexpected_error"
+        assert excinfo.value.original_error is not None
 
     @patch("requests.get")
     def test_parse_malformed_xml(self, mock_get):
@@ -284,9 +291,15 @@ class TestRSSParser:
         mock_response.content = MALFORMED_XML.encode("utf-8")
         mock_get.return_value = mock_response
 
-        # Should not raise an exception, but return empty list
-        items = self.parser.parse_feed("http://example.com/malformed")
-        assert len(items) == 0
+        # Should raise RSSParsingError with XML parsing error details
+        with pytest.raises(RSSParsingError) as excinfo:
+            self.parser.parse_feed("http://example.com/malformed")
+        
+        # Verify error details
+        assert "XML parsing error" in str(excinfo.value)
+        assert excinfo.value.feed_url == "http://example.com/malformed"
+        assert excinfo.value.error_type == "xml_parse_error"
+        assert excinfo.value.original_error is not None
 
     @patch("requests.get")
     def test_parse_incomplete_rss(self, mock_get):
@@ -373,18 +386,29 @@ class TestRSSParser:
         """Test handling of network errors."""
         # Test connection error
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
-        items = self.parser.parse_feed("http://example.com/connection-error")
-        assert len(items) == 0
+        with pytest.raises(RSSParsingError) as excinfo:
+            self.parser.parse_feed("http://example.com/connection-error")
+        assert "Connection error" in str(excinfo.value)
+        assert excinfo.value.error_type == "network_connection_error"
         
         # Test timeout error
         mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
-        items = self.parser.parse_feed("http://example.com/timeout")
-        assert len(items) == 0
+        with pytest.raises(RSSParsingError) as excinfo:
+            self.parser.parse_feed("http://example.com/timeout")
+        assert "Timeout" in str(excinfo.value)
+        assert excinfo.value.error_type == "network_timeout"
         
-        # Test HTTP error
-        mock_get.side_effect = requests.exceptions.HTTPError("404 Client Error")
-        items = self.parser.parse_feed("http://example.com/http-error")
-        assert len(items) == 0
+        # Test HTTP error - need to create a proper response with status_code
+        mock_response = Mock()
+        mock_response.status_code = 404
+        http_error = requests.exceptions.HTTPError("404 Client Error")
+        http_error.response = mock_response
+        mock_get.side_effect = http_error
+        
+        with pytest.raises(RSSParsingError) as excinfo:
+            self.parser.parse_feed("http://example.com/http-error")
+        assert "HTTP error" in str(excinfo.value)
+        assert "network_http_error" in excinfo.value.error_type or "http_" in excinfo.value.error_type
 
     @patch("requests.get")
     def test_get_new_urls(self, mock_get):
