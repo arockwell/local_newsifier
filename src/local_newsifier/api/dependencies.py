@@ -8,7 +8,10 @@ from fastapi import HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
+from local_newsifier.container import container
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.services.article_service import ArticleService
+from local_newsifier.services.rss_feed_service import RSSFeedService
 
 # Get the templates directory path - works both in development and production
 # This handles different environments: local development vs Railway deployment
@@ -61,5 +64,24 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Session: SQLModel session
     """
-    with SessionManager() as session:
+    session_factory = container.get("session_factory") or SessionManager
+    with session_factory() as session:
         yield session
+
+
+def get_article_service() -> ArticleService:
+    """Get the article service from the container.
+
+    Returns:
+        ArticleService: The article service instance
+    """
+    return container.get("article_service")
+
+
+def get_rss_feed_service() -> RSSFeedService:
+    """Get the RSS feed service from the container.
+
+    Returns:
+        RSSFeedService: The RSS feed service instance
+    """
+    return container.get("rss_feed_service")

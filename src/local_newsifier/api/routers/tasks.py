@@ -10,11 +10,16 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from local_newsifier.api.dependencies import get_templates
+from local_newsifier.api.dependencies import (
+    get_templates,
+    get_session,
+    get_article_service,
+    get_rss_feed_service,
+)
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import settings
-from local_newsifier.crud.article import CRUDArticle
-from local_newsifier.database.engine import get_session
+from local_newsifier.services.article_service import ArticleService
+from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.tasks import (
     fetch_rss_feeds,
     process_article,
@@ -45,7 +50,7 @@ async def tasks_dashboard(
 @router.post("/process-article/{article_id}")
 async def process_article_endpoint(
     article_id: int = Path(..., title="Article ID", description="ID of the article to process"),
-    db=Depends(get_session),
+    article_service: ArticleService = Depends(get_article_service),
 ):
     """
     Submit a task to process an article asynchronously.
@@ -57,8 +62,7 @@ async def process_article_endpoint(
         Task information including task ID
     """
     # Verify article exists
-    article_crud = CRUDArticle(db)
-    article = article_crud.get(article_id)
+    article = article_service.get_article(article_id)
     if not article:
         raise HTTPException(status_code=404, detail=f"Article with ID {article_id} not found")
 
@@ -76,13 +80,15 @@ async def process_article_endpoint(
 
 @router.post("/fetch-rss-feeds")
 async def fetch_rss_feeds_endpoint(
-    feed_urls: Optional[List[str]] = Query(None, description="List of RSS feed URLs to process")
+    feed_urls: Optional[List[str]] = Query(None, description="List of RSS feed URLs to process"),
+    rss_feed_service: RSSFeedService = Depends(get_rss_feed_service),
 ):
     """
     Submit a task to fetch articles from RSS feeds.
 
     Args:
         feed_urls: Optional list of RSS feed URLs. If not provided, uses default feeds from settings.
+        rss_feed_service: RSS feed service provided by dependency injection
 
     Returns:
         Task information including task ID
