@@ -121,11 +121,13 @@ def init_container(environment="production"):
             from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
             from local_newsifier.tools.resolution.entity_resolver import EntityResolver
             from local_newsifier.tools.entity_tracker_service import EntityTracker
+            from local_newsifier.tools.file_writer import FileWriterTool
             
             container.register_factory("entity_extractor", lambda c: EntityExtractor())
             container.register_factory("context_analyzer", lambda c: ContextAnalyzer())
             container.register_factory("entity_resolver", lambda c: EntityResolver())
             container.register_factory("entity_tracker", lambda c: EntityTracker())
+            container.register_factory("file_writer", lambda c: FileWriterTool(output_dir="output"))
         except ImportError:
             # These tools are optional
             pass
