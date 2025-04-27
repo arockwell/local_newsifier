@@ -21,6 +21,7 @@ class DIContainer:
         """Initialize an empty container."""
         self._services = {}  # Registered service instances
         self._factories = {}  # Factory functions for lazy loading services
+        self._creating = set()  # Set of services currently being created (for circular dep detection)
 
     def register(self, name: str, instance: Any) -> 'DIContainer':
         """Register a service instance directly.
@@ -51,15 +52,38 @@ class DIContainer:
     def get(self, name: str) -> Any:
         """Get a service by name, creating it via factory if needed.
 
+        This method handles circular dependencies by detecting when a service
+        is already in the process of being created, and returning a partially
+        initialized service in that case.
+
         Args:
             name: The service name/key
 
         Returns:
             The service instance, or None if not found
         """
-        # If service doesn't exist but has a factory, create it
-        if name not in self._services and name in self._factories:
-            self._services[name] = self._factories[name](self)
+        # Return the service if it already exists
+        if name in self._services:
+            return self._services[name]
+            
+        # If no factory exists for this service, return None
+        if name not in self._factories:
+            return None
+            
+        # If we're already creating this service (circular dependency),
+        # create a placeholder to break the cycle
+        if name in self._creating:
+            # For simple dict-like services
+            self._services[name] = {}
+            return self._services[name]
+            
+        # Mark that we're creating this service to detect circular dependencies
+        self._creating.add(name)
         
-        # Return the service or None if not found
-        return self._services.get(name)
+        try:
+            # Create the service using its factory
+            self._services[name] = self._factories[name](self)
+            return self._services[name]
+        finally:
+            # Remove from creating set regardless of success/failure
+            self._creating.remove(name)

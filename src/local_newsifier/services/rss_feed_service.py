@@ -275,7 +275,11 @@ class RSSFeedService:
                     
                     if article_service is None:
                         # Try to get from container
-                        article_service = get_container().get("article_service")
+                        try:
+                            article_service = get_container().get("article_service")
+                        except:
+                            # If container access fails, continue with None
+                            article_service = None
                         
                     if article_service is not None:
                         # Use available article service
@@ -285,17 +289,21 @@ class RSSFeedService:
                         # This should never happen when using the container
                         logger.warning("No article_service available - creating temporary instance")
                         try:
+                            # Import modules at runtime to avoid circular imports
                             from local_newsifier.services.article_service import ArticleService
                             from local_newsifier.crud.article import article as article_crud
                             from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
                             from local_newsifier.database.engine import SessionManager
 
+                            # Create temporary ArticleService for this single article
                             temp_article_service = ArticleService(
                                 article_crud=article_crud,
                                 analysis_result_crud=analysis_result_crud,
                                 entity_service=None,  # Not needed for creating articles from RSS
                                 session_factory=lambda: SessionManager()
                             )
+                            
+                            # Use the temporary service to create the article
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
