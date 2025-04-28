@@ -13,37 +13,72 @@ from local_newsifier.services.entity_service import EntityService
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityService")
 def test_entity_tracking_flow_init(
     mock_entity_service_class, 
-    mock_resolver, 
-    mock_context_analyzer, 
-    mock_extractor
+    mock_tracker_class,
+    mock_resolver_class, 
+    mock_context_analyzer_class, 
+    mock_extractor_class
 ):
     """Test initializing the entity tracking flow with defaults."""
-    # Setup mock
+    # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
     mock_entity_service_class.return_value = mock_entity_service
+    
+    mock_tracker = Mock()
+    mock_tracker_class.return_value = mock_tracker
+    
+    mock_extractor = Mock()
+    mock_extractor_class.return_value = mock_extractor
+    
+    mock_analyzer = Mock()
+    mock_context_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = Mock()
+    mock_resolver_class.return_value = mock_resolver
     
     # Initialize flow
     flow = EntityTrackingFlow()
     
-    # Verify service was created
+    # Verify service and tools were created
     assert flow.entity_service is not None
     assert flow.session is None
+    assert flow._entity_tracker is not None
+    assert flow._entity_extractor is not None
+    assert flow._context_analyzer is not None
+    assert flow._entity_resolver is not None
 
 
-def test_entity_tracking_flow_init_with_service():
-    """Test initializing the entity tracking flow with provided service."""
-    # Setup mock
+def test_entity_tracking_flow_init_with_dependencies():
+    """Test initializing the entity tracking flow with provided dependencies."""
+    # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    mock_session_factory = Mock()
     mock_session = Mock()
     
-    # Initialize flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_entity_service, session=mock_session)
+    # Initialize flow with mock dependencies
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver,
+        session_factory=mock_session_factory,
+        session=mock_session
+    )
     
-    # Verify service was used
+    # Verify dependencies were used
     assert flow.entity_service is mock_entity_service
+    assert flow._entity_tracker is mock_entity_tracker
+    assert flow._entity_extractor is mock_entity_extractor
+    assert flow._context_analyzer is mock_context_analyzer
+    assert flow._entity_resolver is mock_entity_resolver
     assert flow.session is mock_session
 
 

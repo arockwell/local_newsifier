@@ -188,24 +188,9 @@ def direct_process_article(article_id):
     article_crud = container.get("article_crud")
     session_factory = container.get("session_factory")
     
-    # Get flow services from container if they're available
+    # Get flow services from container
     news_pipeline_flow = container.get("news_pipeline_flow")
     entity_tracking_flow = container.get("entity_tracking_flow")
-    
-    # If flows aren't available through container, try direct imports as fallback
-    if news_pipeline_flow is None:
-        try:
-            from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-            news_pipeline_flow = NewsPipelineFlow()
-        except ImportError:
-            news_pipeline_flow = None
-    
-    if entity_tracking_flow is None:
-        try:
-            from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-            entity_tracking_flow = EntityTrackingFlow()
-        except ImportError:
-            entity_tracking_flow = None
     
     with session_factory() as session:
         try:

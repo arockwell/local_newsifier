@@ -53,20 +53,42 @@ def test_entity_tracking_flow_uses_service():
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 def test_entity_tracking_flow_creates_default_service(
-    mock_resolver_class, mock_analyzer_class, mock_extractor_class, mock_service_class
+    mock_tracker_class, mock_resolver_class, mock_analyzer_class, mock_extractor_class, mock_service_class
 ):
     """Test that EntityTrackingFlow creates a default service if none is provided."""
     # Setup mocks
     mock_service = MagicMock()
     mock_service_class.return_value = mock_service
     
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
+    
+    mock_tracker = MagicMock()
+    mock_tracker_class.return_value = mock_tracker
+    
     # Create flow without providing a service
     flow = EntityTrackingFlow()
     
-    # Verify the service was created
+    # Verify the service and tools were created
     mock_service_class.assert_called_once()
+    mock_extractor_class.assert_called_once()
+    mock_analyzer_class.assert_called_once()
+    mock_resolver_class.assert_called_once()
+    mock_tracker_class.assert_called_once()
+    
     assert flow.entity_service is mock_service
+    assert flow._entity_extractor is mock_extractor
+    assert flow._context_analyzer is mock_analyzer
+    assert flow._entity_resolver is mock_resolver
+    assert flow._entity_tracker is mock_tracker
 
 
 def test_entity_tracking_flow_handles_errors():

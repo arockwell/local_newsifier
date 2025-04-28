@@ -61,14 +61,10 @@ def mock_file_writer():
 
 
 @pytest.fixture(scope="session")
-def pipeline(mock_scraper, mock_article_service, mock_file_writer):
-    """Create a pipeline instance with mocked components."""
-    pipeline = NewsPipelineFlow(output_dir="test_output")
-    pipeline.scraper = mock_scraper
-    pipeline.writer = mock_file_writer
-    pipeline.article_service = mock_article_service
-    pipeline.pipeline_service = Mock()
-    pipeline.pipeline_service.process_url = Mock(return_value={
+def mock_pipeline_service():
+    """Create a mock pipeline service that returns successful results."""
+    pipeline_service = Mock()
+    pipeline_service.process_url = Mock(return_value={
         "article_id": 1,
         "title": "Test Article",
         "url": "https://example.com/test",
@@ -81,6 +77,31 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer):
             }
         }
     })
+    return pipeline_service
+
+
+@pytest.fixture(scope="session")
+def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline_service):
+    """Create a pipeline instance with mocked components."""
+    # Create mock entity service and tools as needed by constructor
+    mock_entity_service = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    mock_session_factory = Mock()
+    
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        file_writer=mock_file_writer,
+        article_service=mock_article_service,
+        pipeline_service=mock_pipeline_service,
+        entity_service=mock_entity_service,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver,
+        session_factory=mock_session_factory,
+        output_dir="test_output"
+    )
     return pipeline
 
 
