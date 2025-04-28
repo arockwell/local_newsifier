@@ -184,13 +184,28 @@ def direct_process_article(article_id):
     Returns:
         bool: True if processing was successful, False otherwise
     """
-    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.database.engine import SessionManager
-    
-    # Get article_crud from container
+    # Get all required dependencies from the container
     article_crud = container.get("article_crud")
-    session_factory = container.get("session_factory") or SessionManager
+    session_factory = container.get("session_factory")
+    
+    # Get flow services from container if they're available
+    news_pipeline_flow = container.get("news_pipeline_flow")
+    entity_tracking_flow = container.get("entity_tracking_flow")
+    
+    # If flows aren't available through container, try direct imports as fallback
+    if news_pipeline_flow is None:
+        try:
+            from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+            news_pipeline_flow = NewsPipelineFlow()
+        except ImportError:
+            news_pipeline_flow = None
+    
+    if entity_tracking_flow is None:
+        try:
+            from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+            entity_tracking_flow = EntityTrackingFlow()
+        except ImportError:
+            entity_tracking_flow = None
     
     with session_factory() as session:
         try:
@@ -201,13 +216,13 @@ def direct_process_article(article_id):
                 return False
             
             # Process the article through the news pipeline
-            if article.url:
-                news_pipeline = NewsPipelineFlow()
-                news_pipeline.process_url_directly(article.url)
+            if article.url and news_pipeline_flow:
+                news_pipeline_flow.process_url_directly(article.url)
             
             # Process entities in the article
-            entity_flow = EntityTrackingFlow()
-            entities = entity_flow.process_article(article.id)
+            entities = None
+            if entity_tracking_flow:
+                entities = entity_tracking_flow.process_article(article.id)
             
             click.echo(f"Processed article {article_id}: {article.title}")
             if entities:

@@ -1,97 +1,288 @@
 """Tests for the dependency injection container."""
-
 import pytest
-from local_newsifier.di_container import DIContainer
+from unittest.mock import MagicMock, create_autospec, call
+
+from local_newsifier.di_container import DIContainer, Scope
 
 
 class TestDIContainer:
-    """Tests for the DIContainer class."""
+    """Test cases for the DIContainer class."""
 
     def test_register_and_get(self):
-        """Test registering a service and retrieving it."""
+        """Test registering and retrieving a service."""
+        # Arrange
         container = DIContainer()
-        
-        # Register a simple service
-        service = {"name": "test-service"}
+        service = object()
+
+        # Act
         container.register("service", service)
-        
-        # Retrieve the service
-        retrieved = container.get("service")
-        
-        # Verify it's the same instance
-        assert retrieved is service
-        assert retrieved["name"] == "test-service"
+        result = container.get("service")
+
+        # Assert
+        assert result is service
 
     def test_get_nonexistent(self):
-        """Test retrieving a non-existent service returns None."""
+        """Test getting a service that doesn't exist."""
+        # Arrange
         container = DIContainer()
-        
-        # Try to get a service that doesn't exist
-        service = container.get("nonexistent")
-        
-        # Verify it returns None
-        assert service is None
+
+        # Act
+        result = container.get("nonexistent")
+
+        # Assert
+        assert result is None
 
     def test_register_factory(self):
-        """Test registering a factory function and lazy loading."""
+        """Test registering and retrieving a service via factory."""
+        # Arrange
         container = DIContainer()
-        
-        # Register a value that the factory will need
-        container.register("config", {"db_url": "postgresql://localhost/test"})
-        
-        # Register a factory that uses another service
-        def create_service(c):
-            return {
-                "name": "factory-service",
-                "config": c.get("config")
-            }
-        
-        container.register_factory("factory_service", create_service)
-        
-        # The service shouldn't be created yet
-        assert "factory_service" not in container._services
-        
-        # Get the service, which should trigger the factory
-        service = container.get("factory_service")
-        
-        # Verify the service was created correctly
-        assert service is not None
-        assert service["name"] == "factory-service"
-        assert service["config"]["db_url"] == "postgresql://localhost/test"
-        
-        # Verify the service is now cached
-        assert "factory_service" in container._services
+        service = object()
+        factory = lambda c: service
+
+        # Act
+        container.register_factory("service", factory)
+        result = container.get("service")
+
+        # Assert
+        assert result is service
 
     def test_circular_dependency(self):
-        """Test circular dependencies are resolved correctly."""
+        """Test that circular dependencies are handled correctly."""
+        # Arrange
         container = DIContainer()
-        
-        # Register two factories that depend on each other
-        def create_service_a(c):
+
+        def factory_a(c):
+            # First get B, which will need A creating a circular dependency
+            b = c.get("b")
+            return {"dependency": b, "value": "A"}
+
+        def factory_b(c):
+            # First get A, which is being created
+            a = c.get("a")
+            return {"dependency": a, "value": "B"}
+
+        # Act
+        container.register_factory("a", factory_a)
+        container.register_factory("b", factory_b)
+
+        # Get A, which depends on B, which depends on A (circular)
+        result_a = container.get("a")
+        result_b = container.get("b")
+
+        # Assert
+        assert result_a["value"] == "A"
+        assert result_b["value"] == "B"
+        assert result_a["dependency"] is result_b
+        assert result_b["dependency"] is result_a
+
+    def test_scope_singleton(self):
+        """Test that singleton services return the same instance."""
+        # Arrange
+        container = DIContainer()
+        instance_count = 0
+
+        def factory(c):
+            nonlocal instance_count
+            instance_count += 1
+            return {"id": instance_count}
+
+        # Act
+        container.register_factory("service", factory, scope=Scope.SINGLETON)
+        result1 = container.get("service")
+        result2 = container.get("service")
+
+        # Assert
+        assert result1 is result2
+        assert instance_count == 1
+        assert result1["id"] == 1
+
+    def test_scope_transient(self):
+        """Test that transient services return a new instance each time."""
+        # Arrange
+        container = DIContainer()
+        instance_count = 0
+
+        def factory(c):
+            nonlocal instance_count
+            instance_count += 1
+            return {"id": instance_count}
+
+        # Act
+        container.register_factory("service", factory, scope=Scope.TRANSIENT)
+        result1 = container.get("service")
+        result2 = container.get("service")
+
+        # Assert
+        assert result1 is not result2
+        assert instance_count == 2
+        assert result1["id"] == 1
+        assert result2["id"] == 2
+
+    def test_factory_with_params(self):
+        """Test registering a factory that accepts additional parameters."""
+        # Arrange
+        container = DIContainer()
+        calls = []
+
+        def factory(c, param1=None, param2=None):
+            # Track what parameters were actually received
+            calls.append((param1, param2))
             return {
-                "name": "service-a",
-                "service_b": c.get("service_b")
+                "param1": param1,
+                "param2": param2
             }
+
+        # Act
+        container.register_factory_with_params("service", factory)
+        result1 = container.get("service")
+        result2 = container.get("service", param1="value1", param2="value2")
+
+        # Assert - we should have two calls
+        assert len(calls) == 2
+        assert calls[0] == (None, None)  # First call with no params
+        assert calls[1] == ("value1", "value2")  # Second call with params
         
-        def create_service_b(c):
-            return {
-                "name": "service-b",
-                "service_a": c.get("service_a")
-            }
+        # Check actual results
+        assert result1["param1"] is None
+        assert result1["param2"] is None
+        assert result2["param1"] == "value1"
+        assert result2["param2"] == "value2"
+
+    def test_cleanup_handler(self):
+        """Test that cleanup handlers are called when services are removed."""
+        # Arrange
+        container = DIContainer()
+        service = MagicMock()
+        cleanup_handler = MagicMock()
+
+        container.register("service", service)
+        container.register_cleanup("service", cleanup_handler)
+
+        # Act
+        container.remove("service")
+
+        # Assert
+        cleanup_handler.assert_called_once_with(service)
+
+    def test_clear(self):
+        """Test that all services are removed when clear is called."""
+        # Arrange
+        container = DIContainer()
+        service1 = MagicMock()
+        service2 = MagicMock()
+        cleanup1 = MagicMock()
+        cleanup2 = MagicMock()
+
+        container.register("service1", service1)
+        container.register("service2", service2)
+        container.register_cleanup("service1", cleanup1)
+        container.register_cleanup("service2", cleanup2)
+
+        # Act
+        container.clear()
+
+        # Assert
+        cleanup1.assert_called_once_with(service1)
+        cleanup2.assert_called_once_with(service2)
+        assert container.get("service1") is None
+        assert container.get("service2") is None
+        assert not container.has("service1")
+        assert not container.has("service2")
+
+    def test_has(self):
+        """Test checking if a service exists in the container."""
+        # Arrange
+        container = DIContainer()
+        container.register("existing", "value")
+        container.register_factory("factory", lambda c: "value")
+
+        # Act & Assert
+        assert container.has("existing") is True
+        assert container.has("factory") is True
+        assert container.has("nonexistent") is False
+
+    def test_child_scope_inheritance(self):
+        """Test that child containers inherit services from parent."""
+        # Arrange
+        parent = DIContainer()
+        singleton_service = object()
+        parent.register("singleton", singleton_service, scope=Scope.SINGLETON)
+
+        # Create a transient service to verify it's NOT inherited
+        transient_count = 0
+        def transient_factory(c):
+            nonlocal transient_count
+            transient_count += 1
+            return f"Transient {transient_count}"
+
+        parent.register_factory("transient", transient_factory, scope=Scope.TRANSIENT)
+
+        # Act
+        child = parent.create_child_scope()
+        parent_singleton = parent.get("singleton")
+        child_singleton = child.get("singleton")
         
-        container.register_factory("service_a", create_service_a)
-        container.register_factory("service_b", create_service_b)
+        parent_transient1 = parent.get("transient")
+        parent_transient2 = parent.get("transient")
+        child_transient = child.get("transient")
+
+        # Assert - child should have parent's singleton
+        assert parent_singleton is child_singleton
+        assert parent_singleton is singleton_service
+
+        # Transients should be different instances
+        assert parent_transient1 != parent_transient2
+        assert parent_transient1 != child_transient
+        assert parent_transient2 != child_transient
+
+    def test_child_scope_isolation(self):
+        """Test that child containers can override parent services."""
+        # Arrange
+        parent = DIContainer()
+        parent_service = object()
+        child_service = object()
+        parent.register("service", parent_service)
+
+        # Act
+        child = parent.create_child_scope()
+        child.register("service", child_service)  # Override in child
+
+        # Assert - child should have its own service, parent unchanged
+        assert parent.get("service") is parent_service
+        assert child.get("service") is child_service
+
+    def test_child_scope_factory_isolation(self):
+        """Test that child containers properly handle factory scopes."""
+        # Arrange
+        parent = DIContainer()
         
-        # Get service A, which should trigger both factories
-        service_a = container.get("service_a")
+        # Create two factory functions
+        parent_calls = 0
+        def parent_factory(c):
+            nonlocal parent_calls
+            parent_calls += 1
+            return f"Parent {parent_calls}"
         
-        # Verify both services were created and linked correctly
-        assert service_a is not None
-        assert service_a["name"] == "service-a"
+        child_calls = 0
+        def child_factory(c):
+            nonlocal child_calls
+            child_calls += 1
+            return f"Child {child_calls}"
         
-        service_b = service_a["service_b"]
-        assert service_b is not None
-        assert service_b["name"] == "service-b"
+        # Register parent factory
+        parent.register_factory("scoped_service", parent_factory, scope=Scope.SCOPED)
         
-        # Verify circular reference works (should point back to same instance)
-        assert service_b["service_a"] is service_a
+        # Act
+        child = parent.create_child_scope()
+        # Override factory in child
+        child.register_factory("scoped_service", child_factory, scope=Scope.SCOPED)
+        
+        # Get services
+        parent_result = parent.get("scoped_service")
+        child_result = child.get("scoped_service")
+        
+        # Assert - each container should use its own factory
+        assert parent_result == "Parent 1"
+        assert child_result == "Child 1"
+        assert parent_calls == 1
+        assert child_calls == 1

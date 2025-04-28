@@ -95,12 +95,12 @@ def process_article(self, article_id: int) -> Dict:
             return {"article_id": article_id, "status": "error", "message": "Article not found"}
         
         # Process the article through the news pipeline
-        news_pipeline = NewsPipelineFlow()
+        news_pipeline = container.get("news_pipeline_flow") or NewsPipelineFlow()
         if article.url:
             news_pipeline.process_url_directly(article.url)
         
         # Process entities in the article
-        entity_flow = EntityTrackingFlow()
+        entity_flow = container.get("entity_tracking_flow") or EntityTrackingFlow()
         entities = entity_flow.process_article(article.id)
         
         return {
