@@ -29,36 +29,48 @@ class EntityTrackingFlow(Flow):
     def __init__(
         self, 
         entity_service: Optional[EntityService] = None,
+        entity_tracker: Optional[EntityTracker] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        context_analyzer: Optional[ContextAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
+        session_factory: Optional[callable] = None,
         session: Optional[Session] = None
     ):
         """Initialize the entity tracking flow.
         
         Args:
             entity_service: Service for entity operations
+            entity_tracker: Service for tracking entities
+            entity_extractor: Tool for extracting entities
+            context_analyzer: Tool for analyzing context
+            entity_resolver: Tool for resolving entities
+            session_factory: Function to create database sessions
             session: Optional database session
         """
         super().__init__()
         self.session = session
         
+        # Use provided dependencies or create defaults
+        self._entity_tracker = entity_tracker or EntityTracker()
+        self._entity_extractor = entity_extractor or EntityExtractor()
+        self._context_analyzer = context_analyzer or ContextAnalyzer()
+        self._entity_resolver = entity_resolver or EntityResolver()
+        
+        # Use provided entity service or create one with dependencies
         if entity_service:
             self.entity_service = entity_service
         else:
-            # Create default dependencies
-            entity_extractor = EntityExtractor()
-            context_analyzer = ContextAnalyzer()
-            entity_resolver = EntityResolver()
-            entity_tracker = EntityTracker()
-            
-            # Create service with defaults
+            # Create service with injected or default dependencies
             self.entity_service = EntityService(
                 entity_crud=entity_crud,
                 canonical_entity_crud=canonical_entity_crud,
                 entity_mention_context_crud=entity_mention_context_crud,
                 entity_profile_crud=entity_profile_crud,
                 article_crud=article_crud,
-                entity_extractor=entity_extractor,
-                context_analyzer=context_analyzer,
-                entity_resolver=entity_resolver
+                entity_extractor=self._entity_extractor,
+                context_analyzer=self._context_analyzer,
+                entity_resolver=self._entity_resolver,
+                session_factory=session_factory
             )
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
