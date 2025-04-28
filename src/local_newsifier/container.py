@@ -24,6 +24,7 @@ from local_newsifier.crud import (
 # Import service classes
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
+from local_newsifier.services.apify_service import ApifyService
 
 # Import flow classes if they exist
 try:
@@ -106,6 +107,11 @@ def init_container(environment="production"):
             article_service=c.get("article_service"),  # Will be lazily loaded
             session_factory=c.get("session_factory")
         )
+    )
+    
+    # ApifyService
+    container.register_factory("apify_service", 
+        lambda c: ApifyService()
     )
     
     # Register tools if available (expanded)

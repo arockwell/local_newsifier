@@ -108,6 +108,26 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "development_password"  # Default for development only
 
+    # Apify settings
+    APIFY_TOKEN: Optional[str] = Field(default=None, description="Token for Apify API")
+    
+    def validate_apify_token(self) -> str:
+        """Validate that APIFY_TOKEN is set and return it.
+        
+        Raises:
+            ValueError: If APIFY_TOKEN is not set
+            
+        Returns:
+            str: The validated APIFY_TOKEN
+        """
+        if not self.APIFY_TOKEN:
+            raise ValueError(
+                "APIFY_TOKEN is required but not set. "
+                "Please set the APIFY_TOKEN environment variable. "
+                "See the 'Getting started > Secrets' section in README.md for instructions."
+            )
+        return self.APIFY_TOKEN
+
     @computed_field
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment.
