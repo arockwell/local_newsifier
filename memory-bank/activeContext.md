@@ -5,8 +5,19 @@
 - Deployment configuration for Railway
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
+- Resolving circular dependencies with dependency injection
 
 ## Recent Changes
+- Implemented dependency injection container pattern
+  - Created DIContainer class with service registration and resolution
+  - Added container initialization module that registers all services
+  - Updated API dependencies to use container-based services
+  - Updated tasks router to use dependency-injected services
+  - Modified tasks.py to use the container
+  - Updated RSSFeedService to use the container
+  - Updated CLI commands to use container-based service resolution
+  - Updated tests to support container-based dependency resolution
+  - Resolved circular dependencies between services that previously required globals
 - Improved test coverage above the 87% threshold
   - Added comprehensive tests for database engine (75% coverage, up from 55%)
   - Added extensive tests for RSS feed service (98% coverage, up from 27%)
@@ -23,11 +34,12 @@
   - Added a --no-process option to skip article processing if needed
   - Added detailed console output for article processing status
 
-- Fixed circular dependency issue in RSS feed processing (NoneType error)
-  - Added `register_article_service()` function to `rss_feed_service.py`
-  - Updated `tasks.py` to register the initialized article_service with rss_feed_service
-  - Resolved the 'NoneType' object has no attribute 'create_article_from_rss_entry' error
-  - Prevents null reference when RSSFeedService falls back to importing article_service directly
+- Fixed circular dependency issue in RSS feed processing with DI container
+  - Replaced global singletons with container-provided services
+  - Removed direct imports between modules that caused circular imports
+  - Added proper dependency resolution through the container
+  - Services now get dependencies from container when needed
+  - No more need for global registration functions and circular imports
 
 - Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
   - Modified `ArticleService.create_article_from_rss_entry()` to return an ID instead of SQLModel object

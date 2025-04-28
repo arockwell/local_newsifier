@@ -12,12 +12,13 @@ from sqlmodel import Session
 
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
-from local_newsifier.crud.article import CRUDArticle
-from local_newsifier.crud.entity import CRUDEntity
-from local_newsifier.database.engine import get_session, SessionManager
+from local_newsifier.container import container
+from local_newsifier.database.engine import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.services.article_service import ArticleService
+from local_newsifier.services.entity_service import EntityService
+from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
 logger = logging.getLogger(__name__)
@@ -29,61 +30,15 @@ def get_db() -> Iterator[Session]:
     return get_session()
 
 
-# Import models
-from local_newsifier.models.article import Article
-from local_newsifier.models.entity import Entity
+# Import and register the process_article task function with RSSFeedService
+# to avoid circular imports
+from local_newsifier.services.rss_feed_service import register_process_article_task
 
-# Import models
-from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.crud.analysis_result import CRUDAnalysisResult
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.crud.canonical_entity import canonical_entity
-from local_newsifier.crud.entity_mention_context import entity_mention_context
-from local_newsifier.crud.entity_profile import entity_profile
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-
-# Initialize CRUD instances
-_crud_article = CRUDArticle(Article)
-_crud_entity = CRUDEntity(Entity)
-_crud_analysis_result = CRUDAnalysisResult(AnalysisResult)
-
-# Create entity service for article service dependency
-_entity_service = EntityService(
-    entity_crud=_crud_entity,
-    canonical_entity_crud=canonical_entity,
-    entity_mention_context_crud=entity_mention_context,
-    entity_profile_crud=entity_profile,
-    article_crud=_crud_article,
-    entity_extractor=EntityExtractor(),
-    context_analyzer=ContextAnalyzer(),
-    entity_resolver=EntityResolver(),
-    session_factory=get_session
-)
-
-# Initialize article service - this handles the circular import problem 
-# by calling back into the article_service module
-from local_newsifier.services.article_service import initialize_article_service
-
-# Create the article service with proper dependencies
-article_service = initialize_article_service(
-    article_crud=_crud_article,
-    analysis_result_crud=_crud_analysis_result,
-    entity_service=_entity_service,
-    session_factory=lambda: SessionManager()  # Use SessionManager which is a context manager
-)
-
-# Register article_service with rss_feed_service to resolve circular import issue
-from local_newsifier.services.rss_feed_service import register_article_service
-register_article_service(article_service)
-
-# These are exported for tests and services/__init__.py
-article_crud = _crud_article
-entity_crud = _crud_entity
-
-# Also export entity_service for services/__init__.py
-entity_service = _entity_service
+# Get services from container
+article_service = container.get("article_service")
+entity_service = container.get("entity_service")
+article_crud = container.get("article_crud")
+entity_crud = container.get("entity_crud")
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
@@ -100,21 +55,24 @@ class BaseTask(Task):
     @property
     def article_service(self):
         """Get article service."""
-        return article_service
+        return container.get("article_service")
     
     @property
     def article_crud(self):
         """Get article CRUD."""
-        return _crud_article
+        return container.get("article_crud")
     
     @property
     def entity_crud(self):
         """Get entity CRUD."""
-        return _crud_entity
+        return container.get("entity_crud")
+    
+    @property
+    def rss_feed_service(self):
+        """Get RSS feed service."""
+        return container.get("rss_feed_service")
 
 
-# Import this function to register the task - avoiding circular imports
-from local_newsifier.services.rss_feed_service import register_process_article_task
 
 @app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.process_article")
 def process_article(self, article_id: int) -> Dict:
@@ -238,4 +196,4 @@ register_process_article_task(process_article)
 
 # Register the entity_service with the services module
 from local_newsifier.services import register_entity_service
-register_entity_service(_entity_service)
+register_entity_service(container.get("entity_service"))

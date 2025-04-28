@@ -15,13 +15,8 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
-from local_newsifier.services.rss_feed_service import rss_feed_service, register_article_service
+from local_newsifier.container import container
 from local_newsifier.database.engine import get_session
-from local_newsifier.services.article_service import article_service
-
-# Register article_service with rss_feed_service to fix circular import issues
-if article_service is not None:
-    register_article_service(article_service)
 
 
 @click.group(name="feeds")
@@ -37,6 +32,7 @@ def feeds_group():
 @click.option("--skip", type=int, default=0, help="Number of feeds to skip")
 def list_feeds(active_only, json_output, limit, skip):
     """List all feeds with optional filtering."""
+    rss_feed_service = container.get("rss_feed_service")
     feeds = rss_feed_service.list_feeds(skip=skip, limit=limit, active_only=active_only)
     
     if json_output:
@@ -76,6 +72,7 @@ def add_feed(url, name, description):
     feed_name = name or url
     
     try:
+        rss_feed_service = container.get("rss_feed_service")
         feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
         click.echo(f"Feed added successfully with ID: {feed['id']}")
     except ValueError as e:
@@ -88,6 +85,7 @@ def add_feed(url, name, description):
 @click.option("--show-logs", is_flag=True, help="Show processing logs")
 def show_feed(id, json_output, show_logs):
     """Show feed details."""
+    rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -156,6 +154,7 @@ def show_feed(id, json_output, show_logs):
 @click.option("--force", is_flag=True, help="Skip confirmation")
 def remove_feed(id, force):
     """Remove a feed."""
+    rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -187,10 +186,13 @@ def direct_process_article(article_id):
     """
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.crud.article import article as article_crud
     from local_newsifier.database.engine import SessionManager
     
-    with SessionManager() as session:
+    # Get article_crud from container
+    article_crud = container.get("article_crud")
+    session_factory = container.get("session_factory") or SessionManager
+    
+    with session_factory() as session:
         try:
             # Get the article from the database
             article = article_crud.get(session, id=article_id)
@@ -222,6 +224,7 @@ def direct_process_article(article_id):
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
 def process_feed(id, no_process):
     """Process a specific feed."""
+    rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -250,6 +253,7 @@ def process_feed(id, no_process):
 @click.option("--active/--inactive", help="Set feed active or inactive")
 def update_feed(id, name, description, active):
     """Update feed properties."""
+    rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
