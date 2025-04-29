@@ -24,6 +24,13 @@ from local_newsifier.models.sentiment import (
     OpinionTrend,
     SentimentShift,
 )
+from local_newsifier.models.apify import (
+    ApifySourceConfig,
+    ApifyJob,
+    ApifyDatasetItem,
+    ApifyCredentials,
+    ApifyWebhook,
+)
 
 # Export only the class names, not the actual classes
 __all__ = [
@@ -44,4 +51,10 @@ __all__ = [
     "SentimentAnalysis",
     "OpinionTrend",
     "SentimentShift",
+    # Apify models
+    "ApifySourceConfig",
+    "ApifyJob", 
+    "ApifyDatasetItem",
+    "ApifyCredentials",
+    "ApifyWebhook",
 ]
