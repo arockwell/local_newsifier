@@ -64,22 +64,60 @@ def mock_article():
 class TestBaseTask:
     """Tests for the BaseTask class."""
     
-    def test_db_property(self, monkeypatch):
-        """Test that the db property returns a database session."""
+    def test_session_factory_property(self, mock_container):
+        """Test that the session_factory property returns factory from container."""
         # Set up mock
-        mock_session = Mock()
-        mock_get_db = Mock(return_value=iter([mock_session]))
-        monkeypatch.setattr("local_newsifier.tasks.get_db", mock_get_db)
+        mock_container_obj, _, _, _, _, _ = mock_container
+        mock_session_factory = Mock()
+        
+        # Configure container to return our mock session factory
+        def mock_get(service_name):
+            if service_name == "session_factory":
+                return mock_session_factory
+            return Mock()
+        
+        mock_container_obj.get.side_effect = mock_get
         
         # Need to get a task instance to test
         task = process_article
         
-        # Reset the _db attribute to force getting a new session
-        task._db = None
+        # Reset the _session_factory attribute to force getting from container
+        task._session_factory = None
+        
+        # Access the session_factory property
+        factory = task.session_factory
+        assert factory is mock_session_factory
+        mock_container_obj.get.assert_any_call("session_factory")
+    
+    def test_db_property(self, mock_container):
+        """Test that the db property returns a database session from session factory."""
+        # Set up mock
+        mock_container_obj, _, _, _, _, _ = mock_container
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        
+        # Configure container to return our mock session factory
+        def mock_get(service_name):
+            if service_name == "session_factory":
+                return mock_session_factory
+            return Mock()
+        
+        mock_container_obj.get.side_effect = mock_get
+        
+        # Need to get a task instance to test
+        task = process_article
+        
+        # Reset the attributes to force getting new instances
+        task._session_factory = None
+        task._session = None
         
         # Access the db property
         db = task.db
         assert db is mock_session
+        mock_container_obj.get.assert_any_call("session_factory")
+        mock_session_factory.return_value.__enter__.assert_called_once()
         
     def test_article_service_property(self, mock_container):
         """Test that the article_service property returns service from container."""
@@ -134,6 +172,14 @@ class TestProcessArticle:
         # Unpack mock container
         _, _, mock_article_crud, _, _, _ = mock_container
         
+        # Create a mock task instance with a mock session factory
+        task = process_article
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_session_factory.return_value.__exit__ = Mock(return_value=None)
+        task._session_factory = mock_session_factory
+        
         # Setup mocks
         mock_article_crud.get.return_value = mock_article
         
@@ -149,11 +195,16 @@ class TestProcessArticle:
         # Call the task
         result = process_article(mock_article.id)
             
-        # Verify
-        assert mock_article_crud.get.call_count == 1
+        # Verify session was used properly
+        mock_session_factory.return_value.__enter__.assert_called_once()
+        mock_session_factory.return_value.__exit__.assert_called_once()
+        
+        # Verify task called methods with session
+        mock_article_crud.get.assert_called_once_with(mock_session, id=mock_article.id)
         mock_pipeline.process_url_directly.assert_called_once_with(mock_article.url)
         mock_entity_flow.process_article.assert_called_once_with(mock_article.id)
         
+        # Verify result
         assert result["article_id"] == mock_article.id
         assert result["status"] == "success"
         assert result["processed"] is True
@@ -165,14 +216,28 @@ class TestProcessArticle:
         # Unpack mock container
         _, _, mock_article_crud, _, _, _ = mock_container
         
+        # Create a mock task instance with a mock session factory
+        task = process_article
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_session_factory.return_value.__exit__ = Mock(return_value=None)
+        task._session_factory = mock_session_factory
+        
         # Setup mocks
         mock_article_crud.get.return_value = None
         
         # Call the task
         result = process_article(999)
         
-        # Verify
-        assert mock_article_crud.get.call_count == 1
+        # Verify session was used properly
+        mock_session_factory.return_value.__enter__.assert_called_once()
+        mock_session_factory.return_value.__exit__.assert_called_once()
+        
+        # Verify task called methods with session
+        mock_article_crud.get.assert_called_once_with(mock_session, id=999)
+        
+        # Verify result
         assert result["article_id"] == 999
         assert result["status"] == "error"
         assert "Article not found" in result["message"]
@@ -181,6 +246,14 @@ class TestProcessArticle:
         """Test that the process_article task handles errors properly."""
         # Unpack mock container
         _, _, mock_article_crud, _, _, _ = mock_container
+        
+        # Create a mock task instance with a mock session factory
+        task = process_article
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_session_factory.return_value.__exit__ = Mock(return_value=None)
+        task._session_factory = mock_session_factory
         
         # Setup mocks
         mock_article_crud.get.return_value = mock_article
@@ -194,8 +267,14 @@ class TestProcessArticle:
             # Call the task
             result = process_article(mock_article.id)
             
-            # Verify
-            assert mock_article_crud.get.call_count == 1
+            # Verify session handling occurred
+            mock_session_factory.return_value.__enter__.assert_called_once()
+            mock_session_factory.return_value.__exit__.assert_called_once()
+            
+            # Verify task called methods with session
+            mock_article_crud.get.assert_called_once_with(mock_session, id=mock_article.id)
+            
+            # Verify result
             assert result["article_id"] == mock_article.id
             assert result["status"] == "error"
             assert "Test error" in result["message"]
@@ -211,6 +290,14 @@ class TestFetchRssFeeds:
         """Test that the fetch_rss_feeds task fetches feeds successfully."""
         # Unpack mock container
         _, mock_article_service, mock_article_crud, _, _, _ = mock_container
+        
+        # Create a mock task instance with a mock session factory
+        task = fetch_rss_feeds
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_session_factory.return_value.__exit__ = Mock(return_value=None)
+        task._session_factory = mock_session_factory
         
         # Setup mocks
         feed_urls = ["https://example.com/feed1", "https://example.com/feed2"]
@@ -246,11 +333,23 @@ class TestFetchRssFeeds:
             # Call the task
             result = fetch_rss_feeds(feed_urls)
             
-            # Verify
+            # Verify session was used properly
+            mock_session_factory.return_value.__enter__.assert_called_once()
+            mock_session_factory.return_value.__exit__.assert_called_once()
+            
+            # Verify methods were called with session
+            assert mock_article_crud.get_by_url.call_count == 3
+            calls = [call(mock_session, url="https://example.com/article1"),
+                    call(mock_session, url="https://example.com/article2"),
+                    call(mock_session, url="https://example.com/article3")]
+            mock_article_crud.get_by_url.assert_has_calls(calls, any_order=False)
+            
+            # Verify other call counts
             assert mock_parse_rss.call_count == 2
             assert mock_article_service.create_article_from_rss_entry.call_count == 3
             assert mock_process.delay.call_count == 3
             
+            # Verify results
             assert result["feeds_processed"] == 2
             assert result["articles_found"] == 3
             assert result["articles_added"] == 3
@@ -262,6 +361,14 @@ class TestFetchRssFeeds:
         """Test that the fetch_rss_feeds task handles existing articles properly."""
         # Unpack mock container
         _, mock_article_service, mock_article_crud, _, _, _ = mock_container
+        
+        # Create a mock task instance with a mock session factory
+        task = fetch_rss_feeds
+        mock_session = Mock()
+        mock_session_factory = Mock()
+        mock_session_factory.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_session_factory.return_value.__exit__ = Mock(return_value=None)
+        task._session_factory = mock_session_factory
         
         # Setup mocks
         feed_urls = ["https://example.com/feed1"]
@@ -290,12 +397,22 @@ class TestFetchRssFeeds:
             # Call the task
             result = fetch_rss_feeds(feed_urls)
             
-            # Verify
-            assert mock_parse_rss.call_count == 1
+            # Verify session was used properly
+            mock_session_factory.return_value.__enter__.assert_called_once()
+            mock_session_factory.return_value.__exit__.assert_called_once()
+            
+            # Verify methods were called with session
             assert mock_article_crud.get_by_url.call_count == 2
+            calls = [call(mock_session, url="https://example.com/article1"),
+                    call(mock_session, url="https://example.com/article2")]
+            mock_article_crud.get_by_url.assert_has_calls(calls, any_order=False)
+            
+            # Verify other calls
+            assert mock_parse_rss.call_count == 1
             assert mock_article_service.create_article_from_rss_entry.call_count == 1
             assert mock_process.delay.call_count == 1
             
+            # Verify results
             assert result["feeds_processed"] == 1
             assert result["articles_found"] == 2
             assert result["articles_added"] == 1
