@@ -122,7 +122,7 @@ class OpinionVisualizerTool:
             sentiment_values=sentiment_values,
             confidence_intervals=confidence_intervals,
             article_counts=article_counts,
-            metadata={
+            viz_metadata={
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
                 "interval": interval,
@@ -263,8 +263,8 @@ class OpinionVisualizerTool:
         report = f"SENTIMENT ANALYSIS REPORT: {data.topic}\n"
         report += "=" * 50 + "\n\n"
 
-        report += f"Time period: {data.metadata['start_date']} to {data.metadata['end_date']}\n"
-        report += f"Interval: {data.metadata['interval']}\n\n"
+        report += f"Time period: {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}\n"
+        report += f"Interval: {data.viz_metadata['interval']}\n\n"
 
         report += "SUMMARY STATISTICS\n"
         report += f"Average sentiment: {avg_sentiment:.2f}\n"
@@ -287,16 +287,16 @@ class OpinionVisualizerTool:
         if not data:
             return "No sentiment data available for comparison"
 
-        # Get metadata from first entry
+        # Get viz_metadata from first entry
         first_topic = list(data.keys())[0]
-        metadata = data[first_topic].metadata
+        viz_metadata = data[first_topic].viz_metadata
 
         # Build report
         report = "SENTIMENT COMPARISON REPORT\n"
         report += "=" * 50 + "\n\n"
 
-        report += f"Time period: {metadata['start_date']} to {metadata['end_date']}\n"
-        report += f"Interval: {metadata['interval']}\n\n"
+        report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
+        report += f"Interval: {viz_metadata['interval']}\n\n"
 
         report += "SUMMARY STATISTICS\n"
         for topic, topic_data in data.items():
@@ -349,8 +349,8 @@ class OpinionVisualizerTool:
         # Build report
         report = f"# Sentiment Analysis Report: {data.topic}\n\n"
 
-        report += f"**Time period:** {data.metadata['start_date']} to {data.metadata['end_date']}  \n"
-        report += f"**Interval:** {data.metadata['interval']}\n\n"
+        report += f"**Time period:** {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}  \n"
+        report += f"**Interval:** {data.viz_metadata['interval']}\n\n"
 
         report += "## Summary Statistics\n\n"
         report += f"- **Average sentiment:** {avg_sentiment:.2f}\n"
@@ -375,17 +375,17 @@ class OpinionVisualizerTool:
         if not data:
             return "No sentiment data available for comparison"
 
-        # Get metadata from first entry
+        # Get viz_metadata from first entry
         first_topic = list(data.keys())[0]
-        metadata = data[first_topic].metadata
+        viz_metadata = data[first_topic].viz_metadata
 
         # Build report
         report = "# Sentiment Comparison Report\n\n"
 
         report += (
-            f"**Time period:** {metadata['start_date']} to {metadata['end_date']}  \n"
+            f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
         )
-        report += f"**Interval:** {metadata['interval']}\n\n"
+        report += f"**Interval:** {viz_metadata['interval']}\n\n"
 
         report += "## Summary Statistics\n\n"
         report += "| Topic | Average Sentiment | Total Articles |\n"
@@ -462,8 +462,8 @@ class OpinionVisualizerTool:
 
         report += f"<h1>Sentiment Analysis Report: {data.topic}</h1>\n"
 
-        report += f"<p><strong>Time period:</strong> {data.metadata['start_date']} to {data.metadata['end_date']}<br>\n"
-        report += f"<strong>Interval:</strong> {data.metadata['interval']}</p>\n"
+        report += f"<p><strong>Time period:</strong> {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}<br>\n"
+        report += f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<ul>\n"
@@ -492,9 +492,9 @@ class OpinionVisualizerTool:
         if not data:
             return "<p>No sentiment data available for comparison</p>"
 
-        # Get metadata from first entry
+        # Get viz_metadata from first entry
         first_topic = list(data.keys())[0]
-        metadata = data[first_topic].metadata
+        viz_metadata = data[first_topic].viz_metadata
 
         # Build report
         report = "<html><head>\n"
@@ -511,8 +511,8 @@ class OpinionVisualizerTool:
 
         report += "<h1>Sentiment Comparison Report</h1>\n"
 
-        report += f"<p><strong>Time period:</strong> {metadata['start_date']} to {metadata['end_date']}<br>\n"
-        report += f"<strong>Interval:</strong> {metadata['interval']}</p>\n"
+        report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
+        report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<table>\n"

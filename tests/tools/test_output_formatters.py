@@ -41,7 +41,7 @@ class TestOpinionVisualizerOutputFormatting:
                 {"lower": -0.6, "upper": -0.4}
             ],
             article_counts=[5, 3, 7],
-            metadata={
+            viz_metadata={
                 "start_date": "2023-05-01",
                 "end_date": "2023-05-03",
                 "interval": "day"
@@ -63,7 +63,7 @@ class TestOpinionVisualizerOutputFormatting:
                 {"lower": 0.5, "upper": 0.7}
             ],
             article_counts=[3, 4, 5],
-            metadata={
+            viz_metadata={
                 "start_date": "2023-05-01",
                 "end_date": "2023-05-03",
                 "interval": "day"
@@ -286,7 +286,7 @@ class TestOpinionVisualizerOutputFormatting:
             sentiment_values=[],
             article_counts=[],
             confidence_intervals=[],
-            metadata={"start_date": "2023-05-01", "end_date": "2023-05-03", "interval": "day"}
+            viz_metadata={"start_date": "2023-05-01", "end_date": "2023-05-03", "interval": "day"}
         )
         
         # Test text report
