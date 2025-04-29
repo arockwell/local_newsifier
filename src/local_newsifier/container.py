@@ -260,10 +260,10 @@ def register_core_tools(container):
             )
         )
         
-        # Register rss_parser_tool
-        container.register_factory(
+        # Register rss_parser_tool with configurable parameters
+        container.register_factory_with_params(
             "rss_parser_tool", 
-            lambda c: RSSParser()
+            lambda c, **kwargs: RSSParser()
         )
         
         # Register file_writer_tool with configurable output_dir
