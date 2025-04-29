@@ -12,6 +12,7 @@ from tabulate import tabulate
 
 from local_newsifier.cli.commands.feeds import feeds_group
 from local_newsifier.cli.commands.db import db_group
+from local_newsifier.cli.commands.apify import apify_group
 
 
 @click.group()
@@ -29,6 +30,7 @@ def cli():
 # Add command groups
 cli.add_command(feeds_group)
 cli.add_command(db_group)
+cli.add_command(apify_group)
 
 
 def main():
