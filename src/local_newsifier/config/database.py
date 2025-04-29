@@ -10,6 +10,9 @@ from local_newsifier.config.common import (
     get_cursor_db_name,
 )
 
+# Re-export get_settings for backward compatibility
+from local_newsifier.config.settings import get_settings
+
 
 class DatabaseSettings:
     """Database configuration settings."""

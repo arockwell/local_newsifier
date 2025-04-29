@@ -16,6 +16,9 @@ from local_newsifier.config.common import (
     DEFAULT_DB_ECHO,
 )
 
+# Re-export get_settings for backward compatibility
+from local_newsifier.config.settings import get_settings
+
 # Set up logger
 logger = logging.getLogger(__name__)
 
