@@ -138,37 +138,98 @@ class DIContainer:
     """
     
     def __init__(self):
-        self._services = {}
-        self._factories = {}
+        self._services = {}         # Registered service instances
+        self._factories = {}        # Factory functions for lazy loading services
+        self._scopes = {}           # Lifetime scope of each service
+        self._creating = set()      # Set of services currently being created (for circular dep detection)
+        self._cleanup_handlers = {} # Handlers for cleanup when a service is removed
     
-    def register(self, name, service):
+    def register(self, name, service, scope=Scope.SINGLETON):
         """Register a service with the container."""
         self._services[name] = service
-        return service
+        self._scopes[name] = scope
+        return self
     
-    def register_factory(self, name, factory):
+    def register_factory(self, name, factory, scope=Scope.SINGLETON):
         """Register a factory function for lazy service creation."""
         self._factories[name] = factory
-        return factory
+        self._scopes[name] = scope
+        return self
+        
+    def register_factory_with_params(self, name, factory, scope=Scope.SINGLETON):
+        """Register a factory function that can accept additional parameters."""
+        self._factories[name] = factory
+        self._scopes[name] = scope
+        # Mark as parameterized factory
+        setattr(self._factories[name], '_accepts_params', True)
+        return self
     
-    def get(self, name):
+    def get(self, name, **kwargs):
         """Get a service from the container.
         
         If the service doesn't exist but a factory is registered,
         the factory will be called to create the service.
         """
-        # Return existing service if available
+        # Check for parameterized factories with parameters
+        has_params = bool(kwargs)
+        is_parameterized = name in self._factories and getattr(self._factories[name], '_accepts_params', False)
+        
+        # For parameterized factories with parameters, create a new instance
+        if has_params and is_parameterized and name in self._factories:
+            return self._create_service(name, store_instance=False, **kwargs)
+            
+        # For transient services, always create a new instance
+        if name in self._scopes and self._scopes[name] == Scope.TRANSIENT and name in self._factories:
+            return self._create_service(name, **kwargs)
+            
+        # Return the service if it already exists
         if name in self._services:
             return self._services[name]
-        
-        # Otherwise try to create it from a factory
-        if name in self._factories:
-            service = self._factories[name]()
-            self._services[name] = service
-            return service
-        
-        return None
+            
+        # If no factory exists for this service, return None
+        if name not in self._factories:
+            return None
+            
+        # Create the service (and store according to scope)
+        return self._create_service(name, **kwargs)
 ```
+
+#### Tool Registration Pattern
+
+Tools are registered in dedicated functions based on their category:
+
+```python
+def register_core_tools(container):
+    """Register core tool classes in the container."""
+    try:
+        from local_newsifier.tools.web_scraper import WebScraperTool
+        from local_newsifier.tools.rss_parser import RSSParser
+        from local_newsifier.tools.file_writer import FileWriterTool
+        
+        # Register web_scraper_tool with configurable user_agent
+        container.register_factory_with_params(
+            "web_scraper_tool", 
+            lambda c, **kwargs: WebScraperTool(
+                user_agent=kwargs.get("user_agent")
+            )
+        )
+        
+        # Backward compatibility registration
+        container.register_factory("web_scraper", lambda c: c.get("web_scraper_tool"))
+        
+        # ... more tool registrations ...
+    except ImportError as e:
+        # Log error but continue initialization
+        print(f"Error registering core tools: {e}")
+```
+
+Tools follow a standardized naming convention:
+- Standard name pattern: `{tool_name}_tool` (e.g., `web_scraper_tool`)
+- Backward compatibility: `{tool_name}` (e.g., `web_scraper`)
+
+This dual registration allows gradual migration without breaking existing code.
+
+#### Service Registration Pattern
 
 A centralized container initialization module registers all services:
 
@@ -185,11 +246,12 @@ container.register("entity_crud", entity_crud)
 # ... more CRUD registrations ...
 
 # Register services
-container.register_factory("article_service", lambda: ArticleService(
-    article_crud=container.get("article_crud"),
-    analysis_result_crud=container.get("analysis_result_crud"),
-    entity_service=container.get("entity_service"),
-    session_factory=container.get("session_factory")
+container.register_factory("article_service", lambda c: ArticleService(
+    article_crud=c.get("article_crud"),
+    analysis_result_crud=c.get("analysis_result_crud"),
+    entity_service=c.get("entity_service"),
+    session_factory=c.get("session_factory"),
+    container=c  # Inject the container itself for lazy resolution
 ))
 # ... more service registrations ...
 ```
@@ -197,19 +259,10 @@ container.register_factory("article_service", lambda: ArticleService(
 Components still accept dependencies as constructor parameters, but they now use the container as a fallback:
 
 ```python
-def _get_session(self) -> Session:
-    """Get a database session."""
-    if self.session_factory:
-        return self.session_factory()
-        
-    # Get session factory from container as fallback
-    session_factory = container.get("session_factory")
-    if session_factory:
-        return session_factory()
-        
-    # Last resort fallback
-    from local_newsifier.database.engine import get_session
-    return next(get_session())
+def _ensure_dependencies(self):
+    """Ensure all dependencies are available."""
+    if self.web_scraper is None and self.container:
+        self.web_scraper = self.container.get("web_scraper_tool")
 ```
 
 This pattern provides:
@@ -218,6 +271,7 @@ This pattern provides:
 - Lazy loading of services
 - Improved testability
 - Clear component relationships
+- Configurable service initialization
 
 ### Pipeline Processing
 
