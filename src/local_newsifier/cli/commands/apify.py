@@ -14,8 +14,9 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
-from local_newsifier.container import container
+# Import directly instead of using container to avoid loading flow dependencies
 from local_newsifier.config.settings import settings
+from local_newsifier.services.apify_service import ApifyService
 
 
 @click.group(name="apify")
@@ -58,8 +59,8 @@ def test_connection(token):
         return
     
     try:
-        # Get the Apify service from container
-        apify_service = container.get("apify_service")
+        # Create the Apify service directly
+        apify_service = ApifyService(token)
         
         # Test if we can access the client
         client = apify_service.client
@@ -115,8 +116,8 @@ def run_actor(actor_id, input, wait, token, output):
                 return
     
     try:
-        # Get the Apify service from container
-        apify_service = container.get("apify_service")
+        # Create Apify service directly
+        apify_service = ApifyService(token)
         
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
@@ -172,8 +173,8 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
         return
     
     try:
-        # Get the Apify service from container
-        apify_service = container.get("apify_service")
+        # Create Apify service directly
+        apify_service = ApifyService(token)
         
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
@@ -247,8 +248,8 @@ def get_actor(actor_id, token):
         return
     
     try:
-        # Get the Apify service from container
-        apify_service = container.get("apify_service")
+        # Create Apify service directly
+        apify_service = ApifyService(token)
         
         # Get actor details
         click.echo(f"Retrieving details for actor {actor_id}...")
@@ -298,8 +299,8 @@ def scrape_content(url, max_pages, max_depth, token, output):
         return
     
     try:
-        # Get the Apify service from container
-        apify_service = container.get("apify_service")
+        # Create Apify service directly
+        apify_service = ApifyService(token)
         
         # Configure the actor input
         run_input = {
