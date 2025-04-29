@@ -8,18 +8,22 @@ from typing import List, Optional
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
-def get_cursor_db_name() -> str:
-    """Get a cursor-specific database name.
-
-    Returns:
-        Database name with cursor ID
-    """
-    cursor_id = os.environ.get("CURSOR_DB_ID")
-    if not cursor_id:
-        cursor_id = str(uuid.uuid4())[:8]
-        os.environ["CURSOR_DB_ID"] = cursor_id
-    return f"local_newsifier_{cursor_id}"
+from local_newsifier.config.common import (
+    get_cursor_db_name,
+    get_database_url as build_database_url,
+    DEFAULT_POSTGRES_USER,
+    DEFAULT_POSTGRES_PASSWORD,
+    DEFAULT_POSTGRES_HOST,
+    DEFAULT_POSTGRES_PORT,
+    DEFAULT_DB_POOL_SIZE,
+    DEFAULT_DB_MAX_OVERFLOW,
+    DEFAULT_DB_ECHO,
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_CACHE_DIR,
+    DEFAULT_TEMP_DIR,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_LOG_FORMAT,
+)
 
 
 class Settings(BaseSettings):
@@ -37,23 +41,23 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
 
     # Database settings
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
+    POSTGRES_USER: str = DEFAULT_POSTGRES_USER
+    POSTGRES_PASSWORD: str = DEFAULT_POSTGRES_PASSWORD
+    POSTGRES_HOST: str = DEFAULT_POSTGRES_HOST
+    POSTGRES_PORT: str = DEFAULT_POSTGRES_PORT
     POSTGRES_DB: str = Field(default_factory=get_cursor_db_name)
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
-    DB_ECHO: bool = False
+    DB_POOL_SIZE: int = DEFAULT_DB_POOL_SIZE
+    DB_MAX_OVERFLOW: int = DEFAULT_DB_MAX_OVERFLOW
+    DB_ECHO: bool = DEFAULT_DB_ECHO
 
     # Directory settings
-    OUTPUT_DIR: Path = Field(default_factory=lambda: Path("output"))
-    CACHE_DIR: Path = Field(default_factory=lambda: Path("cache"))
-    TEMP_DIR: Path = Field(default_factory=lambda: Path("temp"))
+    OUTPUT_DIR: Path = Field(default_factory=lambda: DEFAULT_OUTPUT_DIR)
+    CACHE_DIR: Path = Field(default_factory=lambda: DEFAULT_CACHE_DIR)
+    TEMP_DIR: Path = Field(default_factory=lambda: DEFAULT_TEMP_DIR)
 
     # Logging settings
-    LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    LOG_LEVEL: str = DEFAULT_LOG_LEVEL
+    LOG_FORMAT: str = DEFAULT_LOG_FORMAT
     LOG_FILE: Optional[Path] = None
     
     # Celery settings
@@ -141,9 +145,12 @@ class Settings(BaseSettings):
             return env_db_url
 
         # Otherwise construct from individual components
-        return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return build_database_url(
+            self.POSTGRES_USER,
+            self.POSTGRES_PASSWORD,
+            self.POSTGRES_HOST,
+            self.POSTGRES_PORT,
+            self.POSTGRES_DB
         )
     
     @computed_field

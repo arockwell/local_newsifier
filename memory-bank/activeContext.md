@@ -9,6 +9,16 @@
 - Standardizing all tool, service, and flow registrations in the dependency injection container
 
 ## Recent Changes
+- Fixed circular import dependencies between config and database modules (Issue #72)
+  - Created a new common.py module in the config package to hold shared constants and functions
+  - Updated settings.py to import from common.py instead of defining the shared constants directly
+  - Updated database.py to use runtime imports for settings to break the circular dependency
+  - Updated engine.py to use runtime imports for settings to break the circular dependency
+  - Updated session_utils.py to use runtime imports for the container to break the circular dependency
+  - Updated the config/__init__.py file to ensure the imports are in the correct order
+  - Maintained backward compatibility for tests by re-exporting get_settings
+  - Resolved conflicts with main branch and updated the pull request
+
 - Fixed circular import in dependency injection system
   - Modified session_utils.py to use lazy imports when getting the container
   - Enhanced with_container_session decorator to accept optional container parameter

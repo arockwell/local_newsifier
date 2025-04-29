@@ -11,6 +11,8 @@ from typing import TypeVar, Callable, Any, Optional, Dict
 
 from sqlmodel import Session
 
+# Import container at runtime to avoid circular imports
+
 # Set up logger
 logger = logging.getLogger(__name__)
 
