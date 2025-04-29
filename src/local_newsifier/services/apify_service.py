@@ -59,12 +59,14 @@ class ApifyService:
             **kwargs: Additional arguments to pass to the API
             
         Returns:
-            Dict[str, Any]: Dataset items
+            Dict[str, Any]: Dataset items in format {"items": [...]}
             
         Raises:
             ValueError: If APIFY_TOKEN is not set
         """
-        return self.client.dataset(dataset_id).list_items(**kwargs)
+        list_page = self.client.dataset(dataset_id).list_items(**kwargs)
+        # Convert ListPage object to a dictionary with "items" key
+        return {"items": list(list_page)}
     
     def get_actor_details(self, actor_id: str) -> Dict[str, Any]:
         """Get details about an Apify actor.
