@@ -67,7 +67,7 @@ class TrendAnalysisFlow(FlowBase):
     
     def analyze_trends(
         self,
-        time_frame: Union[TimeFrame, str] = TimeFrame.DAILY,
+        time_frame: Union[TimeFrame, str] = TimeFrame.DAY,
         trend_types: Optional[List[Union[TrendType, str]]] = None,
         limit: int = 10,
         min_articles: int = 3,
@@ -176,13 +176,13 @@ class TrendAnalysisFlow(FlowBase):
         
         # Determine date range based on time frame
         end_date = datetime.now(timezone.utc)
-        if config.time_frame == TimeFrame.DAILY:
+        if config.time_frame == TimeFrame.DAY:
             start_date = end_date - timedelta(days=1)
-        elif config.time_frame == TimeFrame.WEEKLY:
+        elif config.time_frame == TimeFrame.WEEK:
             start_date = end_date - timedelta(days=7)
-        elif config.time_frame == TimeFrame.MONTHLY:
+        elif config.time_frame == TimeFrame.MONTH:
             start_date = end_date - timedelta(days=30)
-        elif config.time_frame == TimeFrame.QUARTERLY:
+        elif config.time_frame == TimeFrame.QUARTER:
             start_date = end_date - timedelta(days=90)
         else:
             start_date = end_date - timedelta(days=1)  # Default to daily

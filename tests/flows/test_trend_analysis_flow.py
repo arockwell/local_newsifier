@@ -93,11 +93,11 @@ def test_trend_analysis_state_init():
 
     # Test with custom config
     config = TrendAnalysisConfig(
-        time_frame=TimeFrame.MONTHLY,
+        time_frame=TimeFrame.MONTH,
         min_articles=5,
     )
     state = TrendAnalysisState(config=config)
-    assert state.config.time_frame == TimeFrame.MONTHLY
+    assert state.config.time_frame == TimeFrame.MONTH
     assert state.config.min_articles == 5
 
 
@@ -198,7 +198,7 @@ def test_detect_trends(mock_dependencies, sample_trends):
     
     # Create analysis configuration
     config = TrendAnalysisConfig(
-        time_frame=TimeFrame.DAILY,
+        time_frame=TimeFrame.DAY,
         trend_types=[TrendType.ENTITY, TrendType.TOPIC],
         limit=10,
         min_articles=3
