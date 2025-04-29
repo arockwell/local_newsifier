@@ -97,16 +97,32 @@ class NewsTrendAnalysisFlow(Flow):
         super().__init__()
         self.config = config or TrendAnalysisConfig()
         
-        # Initialize reporter
-        self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
+        # Import container here to avoid circular imports
+        from local_newsifier.container import container
         
-        # Use analysis service for all trend analysis operations 
-        self.analysis_service = analysis_service or AnalysisService()
+        # Initialize reporter from container or provided instance
+        self.reporter = trend_reporter or container.get("trend_reporter_tool") or TrendReporter(output_dir=output_dir)
         
-        # For backwards compatibility with tests
-        self.data_aggregator = data_aggregator or MagicMock()
-        self.topic_analyzer = topic_analyzer or MagicMock()
-        self.trend_detector = trend_detector or MagicMock()
+        # Use analysis service from container if not provided
+        self.analysis_service = analysis_service or container.get("analysis_service")
+        
+        # For backwards compatibility with tests, use container if available
+        # These should be properly mocked in tests, but for backward compatibility
+        # we'll still accept direct dependencies
+        self.data_aggregator = data_aggregator
+        if self.data_aggregator is None:
+            data_aggregator_tool = container.get("data_aggregator_tool")
+            self.data_aggregator = data_aggregator_tool if data_aggregator_tool is not None else MagicMock()
+            
+        self.topic_analyzer = topic_analyzer
+        if self.topic_analyzer is None:
+            topic_analyzer_tool = container.get("topic_analyzer_tool")
+            self.topic_analyzer = topic_analyzer_tool if topic_analyzer_tool is not None else MagicMock()
+            
+        self.trend_detector = trend_detector
+        if self.trend_detector is None:
+            trend_detector_tool = container.get("trend_detector_tool")
+            self.trend_detector = trend_detector_tool if trend_detector_tool is not None else MagicMock()
         
     def aggregate_historical_data(
         self, state: TrendAnalysisState

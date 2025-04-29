@@ -34,7 +34,7 @@ class PublicOpinionFlow(Flow):
     """Flow for analyzing public opinion and sentiment in news articles."""
 
     def __init__(
-        self, 
+        self,
         sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
         sentiment_tracker: Optional[SentimentTracker] = None,
         opinion_visualizer: Optional[OpinionVisualizerTool] = None,
@@ -52,23 +52,59 @@ class PublicOpinionFlow(Flow):
             session: Optional SQLModel session to use
         """
         super().__init__()
-
-        # Set up database connection if not provided
+        
+        # Import container here to avoid circular imports
+        from local_newsifier.container import container
+        
+        # Get session factory from container if not provided
+        self._session_factory = session_factory or container.get("session_factory")
+        
+        # Set up session - provided session takes precedence
         if session is None:
-            if session_factory:
-                self.session_generator = session_factory()
+            if self._session_factory:
+                self.session_generator = self._session_factory()
+                self.session = next(self.session_generator)
+                self._owns_session = True
             else:
+                # Fallback to legacy method if no container or session factory provided
                 self.session_generator = get_session()
-            self.session = next(self.session_generator)
-            self._owns_session = True
+                self.session = next(self.session_generator)
+                self._owns_session = True
         else:
             self.session = session
             self._owns_session = False
-
-        # Initialize tools or use provided ones
-        self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)
-        self.sentiment_tracker = sentiment_tracker or SentimentTracker(self.session)
-        self.opinion_visualizer = opinion_visualizer or OpinionVisualizerTool(self.session)
+        
+        # Get tools from container or use provided ones
+        # For sentiment tools, create a session-bound instance with params if getting from container
+        self.sentiment_analyzer = sentiment_analyzer
+        if self.sentiment_analyzer is None:
+            sentiment_analyzer_tool = container.get("sentiment_analyzer_tool")
+            if sentiment_analyzer_tool is not None:
+                # If tool factory is available, create with session
+                self.sentiment_analyzer = container.get_with_params("sentiment_analyzer_tool", session=self.session)
+            else:
+                # Fallback to direct instantiation
+                self.sentiment_analyzer = SentimentAnalysisTool(self.session)
+        
+        self.sentiment_tracker = sentiment_tracker
+        if self.sentiment_tracker is None:
+            sentiment_tracker_tool = container.get("sentiment_tracker_tool")
+            if sentiment_tracker_tool is not None:
+                # If tool factory is available, create with session
+                self.sentiment_tracker = container.get_with_params("sentiment_tracker_tool", session=self.session)
+            else:
+                # Fallback to direct instantiation
+                self.sentiment_tracker = SentimentTracker(self.session)
+        
+        self.opinion_visualizer = opinion_visualizer
+        if self.opinion_visualizer is None:
+            opinion_visualizer_tool = container.get("opinion_visualizer_tool")
+            if opinion_visualizer_tool is not None:
+                # If tool factory is available, create with session
+                self.opinion_visualizer = container.get_with_params("opinion_visualizer_tool", session=self.session)
+            else:
+                # Fallback to direct instantiation
+                self.opinion_visualizer = OpinionVisualizerTool(self.session)
 
     def __del__(self):
         """Clean up resources when the flow is deleted."""

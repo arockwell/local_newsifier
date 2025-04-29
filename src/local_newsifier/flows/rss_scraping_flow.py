@@ -16,11 +16,11 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
-class RSSScrapingFlow:
+class RSSScrapingFlow(Flow):
     """Flow for processing RSS feeds and scraping their content."""
 
     def __init__(
-        self, 
+        self,
         rss_feed_service: Optional[RSSFeedService] = None,
         article_service: Optional[ArticleService] = None,
         rss_parser: Optional[RSSParser] = None,
@@ -37,16 +37,35 @@ class RSSScrapingFlow:
             web_scraper: Tool for scraping web content
             cache_dir: Optional directory to store cache files
         """
+        super().__init__()
         self.cache_dir = Path(cache_dir) if cache_dir else None
-        self.rss_feed_service = rss_feed_service
-        self.article_service = article_service
-
-        # Initialize or use provided tools
+        
+        # Import container here to avoid circular imports
+        from local_newsifier.container import container
+        
+        # Get services from container if not provided
+        self.rss_feed_service = rss_feed_service or container.get("rss_feed_service")
+        self.article_service = article_service or container.get("article_service")
+        
+        # Get or create tools from container
         cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
-        self.rss_parser = rss_parser or RSSParser(
-            cache_file=str(cache_file) if cache_file else None
-        )
-        self.web_scraper = web_scraper or WebScraperTool()
+        
+        # Get RSSParser from container or create one
+        if rss_parser:
+            self.rss_parser = rss_parser
+        else:
+            # Try to get from container first
+            parser_tool = container.get("rss_parser_tool")
+            if parser_tool is not None:
+                self.rss_parser = parser_tool
+            else:
+                # Fall back to direct creation
+                self.rss_parser = RSSParser(
+                    cache_file=str(cache_file) if cache_file else None
+                )
+        
+        # Get WebScraperTool from container or use provided one
+        self.web_scraper = web_scraper or container.get("web_scraper_tool") or WebScraperTool()
 
     def process_feed(self, feed_url: str) -> List[NewsAnalysisState]:
         """

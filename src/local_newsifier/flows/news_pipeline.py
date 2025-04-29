@@ -25,7 +25,7 @@ class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 
     def __init__(
-        self, 
+        self,
         article_service: Optional[ArticleService] = None,
         entity_service: Optional[EntityService] = None,
         pipeline_service: Optional[NewsPipelineService] = None,
@@ -38,7 +38,7 @@ class NewsPipelineFlow(Flow):
         output_dir: str = "output"
     ):
         """Initialize the pipeline flow.
-        
+
         Args:
             article_service: Service for article operations
             entity_service: Service for entity operations
@@ -53,49 +53,33 @@ class NewsPipelineFlow(Flow):
         """
         super().__init__()
         
-        # Create or use provided tools
-        self.scraper = web_scraper or WebScraperTool()
-        self.writer = file_writer or FileWriterTool(output_dir=output_dir)
+        # Import container here to avoid circular imports
+        from local_newsifier.container import container
         
-        # Get or create session factory
-        self._session_factory = session_factory or get_session
+        # Use provided dependencies or get from container
+        self.scraper = web_scraper or container.get("web_scraper_tool")
+        self.writer = file_writer or container.get("file_writer_tool") or FileWriterTool(output_dir=output_dir)
         
-        # Create or use provided entity service
-        self._entity_extractor = entity_extractor or EntityExtractor()
-        self._context_analyzer = context_analyzer or ContextAnalyzer()
-        self._entity_resolver = entity_resolver or EntityResolver()
+        # Get session factory from container if not provided
+        self._session_factory = session_factory or container.get("session_factory")
         
-        if entity_service:
-            self.entity_service = entity_service
-        else:
-            self.entity_service = EntityService(
-                entity_crud=entity_crud,
-                canonical_entity_crud=canonical_entity_crud,
-                entity_mention_context_crud=entity_mention_context_crud,
-                entity_profile_crud=entity_profile_crud,
-                article_crud=article_crud,
-                entity_extractor=self._entity_extractor,
-                context_analyzer=self._context_analyzer,
-                entity_resolver=self._entity_resolver,
-                session_factory=self._session_factory
-            )
+        # Get entity-related tools from container if not provided
+        self._entity_extractor = entity_extractor or container.get("entity_extractor_tool")
+        self._context_analyzer = context_analyzer or container.get("context_analyzer_tool") 
+        self._entity_resolver = entity_resolver or container.get("entity_resolver_tool")
         
-        # Create or use provided article service
-        if article_service:
-            self.article_service = article_service
-        else:
-            self.article_service = ArticleService(
-                article_crud=article_crud,
-                analysis_result_crud=analysis_result_crud,
-                entity_service=self.entity_service,
-                session_factory=self._session_factory
-            )
+        # Get entity service from container if not provided
+        self.entity_service = entity_service or container.get("entity_service")
         
-        # Create or use provided pipeline service
+        # Get article service from container if not provided
+        self.article_service = article_service or container.get("article_service")
+        
+        # Get or create pipeline service
         if pipeline_service:
             self.pipeline_service = pipeline_service
         else:
-            self.pipeline_service = NewsPipelineService(
+            # Look for pipeline service in container first, create if not found
+            self.pipeline_service = container.get("news_pipeline_service") or NewsPipelineService(
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
