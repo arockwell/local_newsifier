@@ -6,9 +6,23 @@
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
 - Resolving circular dependencies with dependency injection
-- Standardizing all tool registrations in the dependency injection container
+- Standardizing all tool, service, and flow registrations in the dependency injection container
 
 ## Recent Changes
+- Fixed circular import in dependency injection system
+  - Modified session_utils.py to use lazy imports when getting the container
+  - Enhanced with_container_session decorator to accept optional container parameter
+  - Added proper validation and null checks for session factory
+  - Resolved CI pipeline failure with better module initialization order
+  - Improved error handling with detailed logging
+
+- Registered all service and flow classes in the dependency injection container
+  - Added lifecycle management with init, start, stop, and cleanup handlers
+  - Standardized all service registrations with consistent scope (singleton)
+  - Resolved circular dependencies through lazy loading
+  - Added proper error handling and logging
+  - Simplified flow class registration with proper dependency structure
+
 - Registered all tool classes in the dependency injection container
   - Created standardized organization with dedicated registration functions
   - Implemented consistent naming conventions with *_tool suffix
@@ -73,6 +87,27 @@
   - Simplified Celery configuration with natively supported broker
 
 ## Technical Details
+
+### Dependency Injection Circular Import Fix
+We fixed a circular import issue between container.py and session_utils.py that was causing CI failures. The problem was that:
+
+1. container.py imported session_utils.get_container_session
+2. session_utils.py imported container.container
+
+This created a circular dependency that failed during module initialization. The solution was:
+
+```python
+# Old problematic code in session_utils.py
+from local_newsifier.container import container  # Top-level import
+
+# New working solution
+def get_container_session(container=None, **kwargs):
+    if container is None:
+        # Import only when needed to avoid circular imports
+        from local_newsifier.container import container
+```
+
+This approach uses lazy imports to break the circular dependency. The container is only imported when actually needed, not at module initialization time. We also made the container injectable as a parameter, further improving flexibility.
 
 ### Web Interface Status
 - The web application is now working correctly
