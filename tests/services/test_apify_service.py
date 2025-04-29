@@ -1,8 +1,9 @@
 """Tests for the Apify service."""
 
 import os
+import json
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock, PropertyMock
 
 from apify_client import ApifyClient
 
@@ -23,6 +24,13 @@ def mock_apify_client():
     mock_dataset.list_items.return_value = {"items": [{"id": 1, "name": "test"}]}
     
     return mock_client
+
+
+class MockListPage:
+    """Mock for the ListPage object."""
+    
+    def __init__(self, items=None):
+        self.items = items or [{"id": 1, "name": "test"}]
 
 
 @pytest.fixture
