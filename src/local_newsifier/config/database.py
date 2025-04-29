@@ -19,8 +19,7 @@ class DatabaseSettings:
 
     def __init__(self):
         """Initialize the database settings wrapper."""
-        # Import settings here to avoid circular imports
-        from local_newsifier.config.settings import get_settings
+        # Use the imported get_settings for backward compatibility with tests
         self._settings = get_settings()
 
     @property
@@ -70,8 +69,8 @@ def get_database() -> Any:
     """
     # Import here to avoid circular imports
     from local_newsifier.database.engine import get_engine
-    from local_newsifier.config.settings import get_settings
     
+    # Use the imported get_settings for backward compatibility with tests
     settings = get_settings()
     return get_engine(str(settings.DATABASE_URL))
 
