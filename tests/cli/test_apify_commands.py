@@ -230,8 +230,8 @@ class TestApifyCommands:
         assert result.exit_code == 0
         assert "Retrieving items from dataset test_dataset" in result.output
         assert "Retrieved 1 items" in result.output
-        # Table output should have headers
-        assert "Title" in result.output
+        # Table output should have headers - lowercase column names
+        assert "title" in result.output
         
     @patch("local_newsifier.cli.commands.apify.ApifyService")
     def test_get_actor(self, mock_service_class, mock_apify_service, runner, original_token):

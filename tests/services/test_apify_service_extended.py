@@ -35,21 +35,20 @@ class MockListPageWithData:
 class MockListPageDict:
     """Mock ListPage with dict-like behavior."""
     def __init__(self):
-        self._items = [{"id": 4, "title": "Test dict-like"}]
+        self._data = {"items": [{"id": 4, "title": "Test dict-like"}]}
     
     def get(self, key, default=None):
-        if key == "items":
-            return self._items
-        return default
+        return self._data.get(key, default)
 
 
 class MockListPageString:
     """Mock ListPage that converts to JSON string."""
     def __init__(self):
-        self._data = {"items": [{"id": 5, "title": "Test string conversion"}]}
+        self._items = [{"id": 5, "title": "Test string conversion"}]
     
     def __str__(self):
-        return json.dumps(self._data)
+        # Return a JSON array directly without wrapping in an "items" key
+        return json.dumps(self._items)
 
 
 class TestApifyServiceExtended:
