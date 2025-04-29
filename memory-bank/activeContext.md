@@ -6,8 +6,17 @@
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
 - Resolving circular dependencies with dependency injection
+- Standardizing all tool registrations in the dependency injection container
 
 ## Recent Changes
+- Registered all tool classes in the dependency injection container
+  - Created standardized organization with dedicated registration functions
+  - Implemented consistent naming conventions with *_tool suffix
+  - Added backward compatibility registrations to maintain existing code
+  - Used factory methods for configurable tool initialization
+  - Added comprehensive tests for tool registration in tests/utils/test_tool_registration.py
+  - Created documentation for tool registration patterns in docs/dependency_injection_tools.md
+
 - Implemented dependency injection container pattern
   - Created DIContainer class with service registration and resolution
   - Added container initialization module that registers all services
