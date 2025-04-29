@@ -11,7 +11,7 @@ from typing import TypeVar, Callable, Any, Optional
 
 from sqlmodel import Session
 
-from local_newsifier.container import container
+# Import container at runtime to avoid circular imports
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -30,6 +30,9 @@ def get_container_session():
     Returns:
         A session context manager
     """
+    # Import container at runtime to avoid circular imports
+    from local_newsifier.container import container
+    
     session_factory = container.get("session_factory")
     if session_factory is None:
         logger.error("Session factory not available in container")

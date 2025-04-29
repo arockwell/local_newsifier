@@ -9,7 +9,12 @@ from typing import Generator, Optional, Callable, TypeVar, Any
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy import text
 
-from local_newsifier.config.settings import get_settings
+# Import common settings to avoid circular imports
+from local_newsifier.config.common import (
+    DEFAULT_DB_POOL_SIZE,
+    DEFAULT_DB_MAX_OVERFLOW,
+    DEFAULT_DB_ECHO,
+)
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -33,6 +38,8 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     
     for attempt in range(max_retries + 1):
         try:
+            # Import settings here to avoid circular imports
+            from local_newsifier.config.settings import get_settings
             settings = get_settings()
             url = url or str(settings.DATABASE_URL)
             
@@ -54,12 +61,17 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
                     "connect_timeout": 10,  # Timeout after 10 seconds
                 }
                 
+            # Use settings or default values from common module
+            pool_size = getattr(settings, 'DB_POOL_SIZE', DEFAULT_DB_POOL_SIZE)
+            max_overflow = getattr(settings, 'DB_MAX_OVERFLOW', DEFAULT_DB_MAX_OVERFLOW)
+            echo = getattr(settings, 'DB_ECHO', DEFAULT_DB_ECHO)
+                
             engine = create_engine(
                 url,
-                pool_size=settings.DB_POOL_SIZE,
-                max_overflow=settings.DB_MAX_OVERFLOW,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
                 connect_args=connect_args,
-                echo=settings.DB_ECHO,
+                echo=echo,
                 # Added for better connection stability
                 pool_pre_ping=True,
                 pool_recycle=300,  # Recycle connections after 5 minutes
@@ -136,6 +148,7 @@ def create_db_and_tables(engine=None):
         if engine is None:
             logger.debug("No engine provided, creating new engine")
             try:
+                # Use runtime import to avoid circular dependencies
                 engine = get_engine()
             except Exception as e:
                 logger.error(f"Failed to create engine: {str(e)}")
