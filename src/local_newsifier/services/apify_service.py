@@ -65,8 +65,28 @@ class ApifyService:
             ValueError: If APIFY_TOKEN is not set
         """
         list_page = self.client.dataset(dataset_id).list_items(**kwargs)
-        # Convert ListPage object to a dictionary with "items" key
-        return {"items": list(list_page)}
+        
+        # Handle different ways to access items from ListPage object
+        try:
+            # Try direct attribute access first
+            if hasattr(list_page, 'items'):
+                return {"items": list_page.items}
+            # Try __iter__ for iterable objects
+            elif hasattr(list_page, '__iter__'):
+                return {"items": list(list_page)}
+            # Try data attribute if it exists
+            elif hasattr(list_page, 'data'):
+                return {"items": list_page.data}
+            # If it's a dictionary-like object
+            elif hasattr(list_page, 'get'):
+                return {"items": list_page.get('items', [])}
+            # Last resort - convert to string and evaluate as JSON
+            else:
+                import json
+                return {"items": json.loads(str(list_page))}
+        except Exception as e:
+            # If all else fails, return empty items list
+            return {"items": [], "error": str(e)}
     
     def get_actor_details(self, actor_id: str) -> Dict[str, Any]:
         """Get details about an Apify actor.
