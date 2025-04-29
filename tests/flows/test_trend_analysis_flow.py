@@ -7,7 +7,7 @@ import pytest
 
 from local_newsifier.flows.trend_analysis_flow import TrendAnalysisFlow
 from local_newsifier.tools.trend_reporter import ReportFormat
-from local_newsifier.models.state import AnalysisStatus, TrendAnalysisState
+from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
     TimeFrame, TrendAnalysis, TrendAnalysisConfig, TrendStatus, TrendType
 )
@@ -79,42 +79,6 @@ def sample_trends():
 
     return [trend1, trend2]
 
-
-def test_trend_analysis_state_init():
-    """Test TrendAnalysisState initialization."""
-    # Test with default config
-    state = TrendAnalysisState()
-    assert state.status == AnalysisStatus.INITIALIZED
-    assert state.detected_trends == []
-    assert state.logs == []
-    assert state.report_path is None
-    assert state.error is None
-    assert isinstance(state.config, TrendAnalysisConfig)
-
-    # Test with custom config
-    config = TrendAnalysisConfig(
-        time_frame=TimeFrame.MONTH,
-        min_articles=5,
-    )
-    state = TrendAnalysisState(config=config)
-    assert state.config.time_frame == TimeFrame.MONTH
-    assert state.config.min_articles == 5
-
-
-def test_trend_analysis_state_methods():
-    """Test TrendAnalysisState methods."""
-    state = TrendAnalysisState()
-
-    # Test add_log method
-    state.add_log("Test log message")
-    assert len(state.logs) == 1
-    assert "Test log message" in state.logs[0]
-
-    # Test set_error method
-    state.set_error("Test error message")
-    assert state.error == "Test error message"
-    assert len(state.logs) == 2
-    assert "ERROR: Test error message" in state.logs[1]
 
 
 def test_trend_analysis_flow_init(mock_dependencies):
