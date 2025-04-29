@@ -4,11 +4,20 @@
 - Web interface functionality with correct database interaction
 - Deployment configuration for Railway
 - Database schema management with Alembic
-- SQLAlchemy session management in asynchronous tasks
+- Standardized database session management approach
 - Resolving circular dependencies with dependency injection
 - Standardizing all tool, service, and flow registrations in the dependency injection container
 
 ## Recent Changes
+- Standardized database session management approach (Issue #71)
+  - Created a single source of truth for database session management in `session_utils.py`
+  - Implemented `get_db_session()` as the standard way to obtain a database session
+  - Added `with_db_session` decorator for functions that need session management
+  - Added deprecation warnings to legacy session management methods
+  - Updated services to use the standardized approach
+  - Created comprehensive documentation in `docs/database_session_management.md`
+  - Added tests for the new session management utilities
+  - Updated `systemPatterns.md` to document the standardized approach
 - Fixed circular import in dependency injection system
   - Modified session_utils.py to use lazy imports when getting the container
   - Enhanced with_container_session decorator to accept optional container parameter

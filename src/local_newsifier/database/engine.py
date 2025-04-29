@@ -3,6 +3,7 @@
 import logging
 import traceback
 import time
+import warnings
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -10,6 +11,7 @@ from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy import text
 
 from local_newsifier.config.settings import get_settings
+from local_newsifier.database.session_utils import get_db_session, with_db_session
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -85,23 +87,28 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
 
 
 def get_session() -> Generator[Session, None, None]:
-    """Get a database session.
+    """Get a database session (DEPRECATED).
+
+    This function is deprecated. Use get_db_session from session_utils instead.
 
     Yields:
         Database session or None if engine creation fails
     """
-    engine = get_engine()
-    if engine is None:
-        logger.warning("Cannot create session - database engine is None")
+    warnings.warn(
+        "get_session() is deprecated. Use get_db_session() from session_utils instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    # Use the new standardized approach internally
+    session_ctx = get_db_session()
+    try:
+        with session_ctx as session:
+            yield session
+    except Exception as e:
+        logger.error(f"Error during session: {str(e)}")
+        logger.error(traceback.format_exc())
         yield None
-    else:
-        try:
-            with Session(engine) as session:
-                yield session
-        except Exception as e:
-            logger.error(f"Error during session: {str(e)}")
-            logger.error(traceback.format_exc())
-            yield None
 
 
 @contextmanager
@@ -159,10 +166,18 @@ def create_db_and_tables(engine=None):
 
 
 class SessionManager:
-    """Session manager for database operations."""
+    """Session manager for database operations (DEPRECATED).
+    
+    This class is deprecated. Use get_db_session from session_utils instead.
+    """
 
     def __init__(self):
         """Initialize the session manager."""
+        warnings.warn(
+            "SessionManager is deprecated. Use get_db_session() from session_utils instead.",
+            DeprecationWarning, 
+            stacklevel=2
+        )
         self.session = None
         self.engine = None
 
@@ -173,12 +188,9 @@ class SessionManager:
             Session: Database session or None if engine creation fails
         """
         try:
-            self.engine = get_engine()
-            if self.engine is None:
-                logger.warning("SessionManager: Cannot create session - database engine is None")
-                return None
-
-            self.session = Session(self.engine)
+            # Use the new standardized approach internally
+            session_ctx = get_db_session()
+            self.session = session_ctx.__enter__()
             return self.session
         except Exception as e:
             logger.error(f"SessionManager: Error creating session: {str(e)}")
@@ -212,12 +224,9 @@ class SessionManager:
 
 
 def with_session(func: F) -> F:
-    """Add session management to database functions.
+    """Add session management to database functions (DEPRECATED).
 
-    This decorator ensures that a database session is available to the
-    decorated function. If a session is provided as a keyword argument,
-    it is used directly. Otherwise, a new session is created and managed
-    for the duration of the function call.
+    This decorator is deprecated. Use with_db_session from session_utils instead.
 
     Args:
         func: Function to decorate
@@ -225,34 +234,11 @@ def with_session(func: F) -> F:
     Returns:
         Decorated function
     """
-    def wrapper(*args, session: Optional[Session] = None, **kwargs):
-        """Execute function with session management.
-
-        Args:
-            session: SQLModel session
-            *args: Positional arguments
-            **kwargs: Keyword arguments
-
-        Returns:
-            Result of the decorated function or None if session creation fails
-        """
-        if session is not None:
-            try:
-                return func(*args, session=session, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in with_session (provided session): {str(e)}")
-                logger.error(traceback.format_exc())
-                return None
-
-        try:
-            with SessionManager() as new_session:
-                if new_session is None:
-                    logger.warning("with_session: SessionManager returned None, cannot execute function")
-                    return None
-                return func(*args, session=new_session, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in with_session (new session): {str(e)}")
-            logger.error(traceback.format_exc())
-            return None
-
-    return wrapper
+    warnings.warn(
+        "with_session() is deprecated. Use with_db_session() from session_utils instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    # Use the new standardized approach internally
+    return with_db_session(func)
