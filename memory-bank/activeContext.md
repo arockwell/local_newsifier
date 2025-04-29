@@ -6,9 +6,16 @@
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
 - Resolving circular dependencies with dependency injection
-- Standardizing all tool registrations in the dependency injection container
+- Standardizing all tool, service, and flow registrations in the dependency injection container
 
 ## Recent Changes
+- Registered all service and flow classes in the dependency injection container
+  - Added lifecycle management with init, start, stop, and cleanup handlers
+  - Standardized all service registrations with consistent scope (singleton)
+  - Resolved circular dependencies through lazy loading
+  - Added proper error handling and logging
+  - Simplified flow class registration with proper dependency structure
+
 - Registered all tool classes in the dependency injection container
   - Created standardized organization with dedicated registration functions
   - Implemented consistent naming conventions with *_tool suffix
