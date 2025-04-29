@@ -325,6 +325,69 @@ Legacy session management methods (`SessionManager`, `get_session()`, and `with_
 
 ## Core Implementation Patterns
 
+### Circular Import Resolution
+
+We use several strategies to resolve circular import dependencies:
+
+1. **Common Module Pattern**
+   - Extract shared constants and utilities to a common module
+   - This module has no dependencies on other modules
+   - Other modules import from this common module
+   - Example: `config/common.py` contains shared database constants
+
+2. **Runtime Imports**
+   - Import modules only when needed, not at module initialization time
+   - Use inside functions rather than at the module level
+   - Example:
+     ```python
+     def get_database():
+         # Import here to avoid circular imports
+         from local_newsifier.database.engine import get_engine
+         
+         settings = get_settings()
+         return get_engine(str(settings.DATABASE_URL))
+     ```
+
+3. **Re-export for Backward Compatibility**
+   - Re-export imported symbols to maintain backward compatibility
+   - Allows tests and existing code to continue working
+   - Example:
+     ```python
+     # Re-export get_settings for backward compatibility
+     from local_newsifier.config.settings import get_settings
+     ```
+
+4. **Dependency Injection**
+   - Pass dependencies as parameters rather than importing them
+   - Use the container to resolve dependencies at runtime
+   - Example:
+     ```python
+     def get_container_session(container=None, **kwargs):
+         if container is None:
+             # Import only when needed
+             from local_newsifier.container import container
+         
+         session_factory = container.get("session_factory")
+         return session_factory()
+     ```
+
+5. **Import Order Management**
+   - Carefully manage import order in package `__init__.py` files
+   - Import modules in dependency order (least dependent first)
+   - Example:
+     ```python
+     # Import common module first as it has no dependencies
+     from local_newsifier.config.common import (...)
+     
+     # Import settings next as it depends only on common
+     from local_newsifier.config.settings import (...)
+     
+     # Import database last as it depends on both common and settings
+     from local_newsifier.config.database import (...)
+     ```
+
+These strategies work together to break circular dependencies while maintaining backward compatibility and code readability.
+
 ### Model Definitions
 
 SQLModel is used for model definitions, providing both ORM and Pydantic validation:
