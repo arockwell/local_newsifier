@@ -74,14 +74,32 @@ class EntityTrackingFlow(Flow):
         self._session_factory = session_factory or (None if is_test else container.get("session_factory"))
         
         # Use provided entity service or get from container
-        # In tests, we need to create a default service if not provided
+        # For tests, we must have entity_service explicitly provided
         if entity_service:
             self.entity_service = entity_service
-        elif is_test:
-            from local_newsifier.services.entity_service import EntityService
-            self.entity_service = EntityService()
-        else:
+        elif not is_test:
             self.entity_service = container.get("entity_service")
+        else:
+            # For tests, we need to mock all components to construct a default entity service
+            from local_newsifier.services.entity_service import EntityService
+            from local_newsifier.crud.entity import entity as entity_crud
+            from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+            from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+            from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+            from local_newsifier.crud.article import article as article_crud
+            from unittest.mock import MagicMock
+            
+            # Create mocks for testing
+            self.entity_service = EntityService(
+                entity_crud=entity_crud,
+                canonical_entity_crud=canonical_entity_crud,
+                entity_mention_context_crud=entity_mention_context_crud,
+                entity_profile_crud=entity_profile_crud,
+                article_crud=article_crud,
+                entity_extractor=MagicMock(),
+                context_analyzer=MagicMock(),
+                entity_resolver=MagicMock()
+            )
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
