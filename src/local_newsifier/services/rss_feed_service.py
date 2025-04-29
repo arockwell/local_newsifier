@@ -14,26 +14,6 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
-# Import container at runtime to avoid circular imports
-# from local_newsifier.container import container
-
-def get_container():
-    """Get the container at runtime to avoid circular imports."""
-    from local_newsifier.container import container
-    return container
-
-# Task reference for registration - will be set by register_process_article_task
-_process_article_task = None
-
-def register_process_article_task(task_func):
-    """Register the process_article task function to avoid circular imports.
-    
-    This function will be called from tasks.py after all imports are complete.
-    TEMPORARY: Will be removed once all code is updated to use the container.
-    """
-    global _process_article_task
-    _process_article_task = task_func
-    return task_func
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +27,7 @@ class RSSFeedService:
         feed_processing_log_crud=None,
         article_service=None,
         session_factory=None,
+        container=None,
     ):
         """Initialize with dependencies.
 
@@ -55,11 +36,13 @@ class RSSFeedService:
             feed_processing_log_crud: CRUD for feed processing logs
             article_service: Service for article management
             session_factory: Factory for database sessions
+            container: The DI container for resolving additional dependencies
         """
         self.rss_feed_crud = rss_feed_crud or rss_feed
         self.feed_processing_log_crud = feed_processing_log_crud or feed_processing_log
         self.article_service = article_service
         self.session_factory = session_factory
+        self.container = container
 
     def _get_session(self) -> Session:
         """Get a database session."""
@@ -67,9 +50,10 @@ class RSSFeedService:
             return self.session_factory()
             
         # Get session factory from container as fallback
-        session_factory = get_container().get("session_factory")
-        if session_factory:
-            return session_factory()
+        if self.container:
+            session_factory = self.container.get("session_factory")
+            if session_factory:
+                return session_factory()
             
         # Last resort fallback to direct import
         from local_newsifier.database.engine import get_session
@@ -222,16 +206,6 @@ class RSSFeedService:
         
         return self._format_feed_dict(removed)
 
-    def register_process_article_task(self, task_func):
-        """Register the process_article task function.
-        
-        This method is for convenience when using an instance directly.
-        TEMPORARY: Will be removed once all code is updated to use the container.
-        
-        Args:
-            task_func: The celery task function to register
-        """
-        return register_process_article_task(task_func)
 
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
@@ -276,7 +250,8 @@ class RSSFeedService:
                     if article_service is None:
                         # Try to get from container
                         try:
-                            article_service = get_container().get("article_service")
+                            if self.container:
+                                article_service = self.container.get("article_service")
                         except:
                             # If container access fails, continue with None
                             article_service = None
@@ -313,10 +288,16 @@ class RSSFeedService:
                         # Queue article processing
                         if task_queue_func:
                             task_queue_func(article_id)
-                        elif _process_article_task:
-                            _process_article_task.delay(article_id)
                         else:
-                            logger.warning(f"No task function available to process article {article_id}")
+                            # Get process_article_task from container
+                            process_article_task = None
+                            if self.container:
+                                process_article_task = self.container.get("process_article_task")
+                            
+                            if process_article_task:
+                                process_article_task.delay(article_id)
+                            else:
+                                logger.warning(f"No task function available to process article {article_id}")
                         articles_added += 1
                 except Exception as e:
                     logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
@@ -433,6 +414,8 @@ def register_article_service(article_svc):
     Args:
         article_svc: The initialized article service
     """
-    rss_feed_service = get_container().get("rss_feed_service")
+    # Import at runtime to avoid circular imports
+    from local_newsifier.container import container
+    rss_feed_service = container.get("rss_feed_service")
     if rss_feed_service:
         rss_feed_service.article_service = article_svc

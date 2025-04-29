@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch, call
 
 from local_newsifier.services.rss_feed_service import (
     RSSFeedService,
-    register_process_article_task,
     register_article_service,
 )
+from local_newsifier.container import container
 
 
 @pytest.fixture
@@ -25,31 +25,19 @@ def mock_session_factory(mock_db_session):
     return mock_factory
 
 
-@patch('local_newsifier.services.rss_feed_service._process_article_task', None)
-def test_register_process_article_task():
-    """Test registering the process article task."""
-    # Arrange
-    mock_task = MagicMock()
-    
-    # We need to mock the module to capture changes to its global variable
-    with patch('local_newsifier.services.rss_feed_service') as mock_module:
-        # Act
-        register_process_article_task(mock_task)
-        
-        # Assert - check if the module's global variable was set correctly
-        # The module's _process_article_task should have been set to our mock_task
-        mock_module._process_article_task = mock_task
-
-
 @patch('local_newsifier.services.rss_feed_service.parse_rss_feed')
-@patch('local_newsifier.services.rss_feed_service._process_article_task')
-def test_process_feed_with_global_task_func(mock_process_article_task, mock_parse_rss_feed, mock_db_session, mock_session_factory):
-    """Test processing a feed with the global task function."""
+def test_process_feed_with_container_task(mock_parse_rss_feed, mock_db_session, mock_session_factory):
+    """Test processing a feed with task from container."""
     # Arrange
     feed_id = 1
     
-    # Setup mock task with delay method
+    # Mock process_article_task
+    mock_process_article_task = MagicMock()
     mock_process_article_task.delay = MagicMock()
+    
+    # Mock container
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_process_article_task
     
     # Mock RSS feed
     mock_rss_feed_crud = MagicMock()
@@ -95,13 +83,13 @@ def test_process_feed_with_global_task_func(mock_process_article_task, mock_pars
         ]
     }
     
-    # Create service with session factory but NO task_queue_func parameter
-    # This should force it to use the global _process_article_task
+    # Create service with mock container
     service = RSSFeedService(
         rss_feed_crud=mock_rss_feed_crud,
         feed_processing_log_crud=mock_feed_processing_log_crud,
         article_service=mock_article_service,
-        session_factory=mock_session_factory
+        session_factory=mock_session_factory,
+        container=mock_container
     )
     
     # Act
@@ -116,8 +104,8 @@ def test_process_feed_with_global_task_func(mock_process_article_task, mock_pars
     assert result["articles_added"] == 2
 
 
-def test_process_feed_no_service_no_task(mock_db_session, mock_session_factory):
-    """Test processing a feed with no article service and no global task."""
+def test_process_feed_no_service_with_container(mock_db_session, mock_session_factory):
+    """Test processing a feed with no article service but using container."""
     # Arrange
     feed_id = 1
     
@@ -142,35 +130,39 @@ def test_process_feed_no_service_no_task(mock_db_session, mock_session_factory):
     mock_article_service = MagicMock()
     mock_article_service.create_article_from_rss_entry.side_effect = [101, 102]  # Return different IDs for clarity
     
-    # Create a mock container that returns None for article_service
+    # Create a mock container that selectively returns mocks
     mock_container = MagicMock()
-    mock_container.get.return_value = None
+    def mock_get(name):
+        if name == "article_service":
+            return None
+        if name == "process_article_task":
+            return None
+        return None
+    mock_container.get.side_effect = mock_get
     
-    # Using proper patching without decorators for better control
-    with patch('local_newsifier.services.rss_feed_service._process_article_task', None):
-        with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container):
-            with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
-                # Setup mock feed data
-                mock_parse_rss_feed.return_value = {
-                    "feed": {"title": "Example Feed"},
-                    "entries": [{"title": "Article 1"}, {"title": "Article 2"}]
-                }
-                
-                # Setup mock for temporary article service creation
-                with patch('local_newsifier.services.article_service.ArticleService') as mock_article_service_class:
-                    mock_article_service_class.return_value = mock_article_service
-                    
-                    # Ensure our imports will work by mocking them
-                    with patch('local_newsifier.crud.article.article'):
-                        with patch('local_newsifier.crud.analysis_result.analysis_result'):
-                            with patch('local_newsifier.database.engine.SessionManager'):
+    with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
+        # Setup mock feed data
+        mock_parse_rss_feed.return_value = {
+            "feed": {"title": "Example Feed"},
+            "entries": [{"title": "Article 1"}, {"title": "Article 2"}]
+        }
+        
+        # Setup mock for temporary article service creation
+        with patch('local_newsifier.services.article_service.ArticleService') as mock_article_service_class:
+            mock_article_service_class.return_value = mock_article_service
+            
+            # Ensure our imports will work by mocking them
+            with patch('local_newsifier.crud.article.article'):
+                with patch('local_newsifier.crud.analysis_result.analysis_result'):
+                    with patch('local_newsifier.database.engine.SessionManager'):
                                 
-                                # Create service instance with no article service
+                                # Create service instance with mock container
                                 service = RSSFeedService(
                                     rss_feed_crud=mock_rss_feed_crud,
                                     feed_processing_log_crud=mock_feed_processing_log_crud,
                                     article_service=None,  # No article service
-                                    session_factory=mock_session_factory
+                                    session_factory=mock_session_factory,
+                                    container=mock_container
                                 )
                                 
                                 # Act
@@ -216,14 +208,18 @@ def test_process_feed_temp_service_fails(mock_db_session, mock_session_factory):
     error_log.status = "error"
     mock_feed_processing_log_crud.update_processing_completed.return_value = error_log
     
-    # Create a mock container that returns None for article_service
+    # Create a mock container that returns None for article_service and process_article_task
     mock_container = MagicMock()
-    mock_container.get.return_value = None
+    def mock_get(name):
+        if name == "article_service":
+            return None
+        if name == "process_article_task":
+            return None
+        return None
+    mock_container.get.side_effect = mock_get
     
     # Use a more realistic approach for testing with database errors
-    with patch('local_newsifier.services.rss_feed_service._process_article_task', None):
-        with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container):
-            with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
+    with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
                 # Mock feed data
                 mock_parse_rss_feed.return_value = {
                     "feed": {"title": "Example Feed"},
@@ -241,7 +237,8 @@ def test_process_feed_temp_service_fails(mock_db_session, mock_session_factory):
                         rss_feed_crud=mock_rss_feed_crud,
                         feed_processing_log_crud=mock_feed_processing_log_crud,
                         article_service=None,  # No article service
-                        session_factory=mock_session_factory
+                        session_factory=mock_session_factory,
+                        container=mock_container
                     )
                     
                     # Act - the service will catch the exception but continue processing

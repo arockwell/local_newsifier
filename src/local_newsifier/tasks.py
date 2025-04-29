@@ -16,9 +16,6 @@ from local_newsifier.container import container
 from local_newsifier.database.engine import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-from local_newsifier.services.article_service import ArticleService
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
 logger = logging.getLogger(__name__)
@@ -28,17 +25,6 @@ logger = logging.getLogger(__name__)
 def get_db() -> Iterator[Session]:
     """Get a database session generator."""
     return get_session()
-
-
-# Import and register the process_article task function with RSSFeedService
-# to avoid circular imports
-from local_newsifier.services.rss_feed_service import register_process_article_task
-
-# Get services from container
-article_service = container.get("article_service")
-entity_service = container.get("entity_service")
-article_crud = container.get("article_crud")
-entity_crud = container.get("entity_crud")
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
@@ -68,9 +54,18 @@ class BaseTask(Task):
         return container.get("entity_crud")
     
     @property
+    def entity_service(self):
+        """Get entity service."""
+        return container.get("entity_service")
+    
+    @property
     def rss_feed_service(self):
         """Get RSS feed service."""
-        return container.get("rss_feed_service")
+        service = container.get("rss_feed_service")
+        if service:
+            # Ensure the service has access to the container
+            service.container = container
+        return service
 
 
 
@@ -190,10 +185,6 @@ def on_worker_ready(sender, **kwargs):
     Executed when a Celery worker starts up.
     """
     logger.info("Celery worker is ready")
-
-# Register the process_article task with the RSS feed service
-register_process_article_task(process_article)
-
-# Register the entity_service with the services module
-from local_newsifier.services import register_entity_service
-register_entity_service(container.get("entity_service"))
+    
+    # Register the process_article task in the container
+    container.register("process_article_task", process_article)
