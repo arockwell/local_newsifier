@@ -1,127 +1,65 @@
-"""Flow for tracking entities across news articles."""
+"""Flow for tracking entities across news articles using the simplified DI pattern."""
 
-import sys
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
 from sqlmodel import Session
 
-# Check if crewai is available
-try:
-    from crewai import Flow
-    has_crewai = True
-except ImportError:
-    has_crewai = False
-    Flow = object  # Use object as base class if crewai is not available
-
-from local_newsifier.crud.article import article as article_crud
-from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+from local_newsifier.flows.flow_base import FlowBase
+from local_newsifier.di.descriptors import Dependency
 from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.models.state import (
     EntityTrackingState, EntityBatchTrackingState, 
     EntityDashboardState, EntityRelationshipState, TrackingStatus
 )
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.tools.entity_tracker_service import EntityTracker
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+from local_newsifier.database.engine import SessionManager
 
 
-class EntityTrackingFlow(Flow):
-    """Flow for tracking entities across news articles using state-based pattern."""
+# Delay imports for lazy loading
+def _get_entity_service():
+    from local_newsifier.services.entity_service import EntityService
+    return EntityService
 
+
+class EntityTrackingFlow(FlowBase):
+    """Flow for tracking entities across news articles using state-based pattern.
+    
+    This implementation uses the simplified DI pattern with descriptors
+    for cleaner dependency declaration and resolution.
+    """
+    
+    # Define dependencies using descriptors - these will be lazy-loaded when needed
+    entity_service = Dependency()
+    entity_tracker = Dependency()
+    entity_extractor = Dependency()
+    context_analyzer = Dependency()
+    entity_resolver = Dependency()
+    session_factory = Dependency(fallback=SessionManager)
+    
     def __init__(
         self,
-        entity_service: Optional[EntityService] = None,
-        entity_tracker: Optional[EntityTracker] = None,
-        entity_extractor: Optional[EntityExtractor] = None,
-        context_analyzer: Optional[ContextAnalyzer] = None,
-        entity_resolver: Optional[EntityResolver] = None,
-        session_factory: Optional[callable] = None,
-        session: Optional[Session] = None
+        container=None,
+        session: Optional[Session] = None,
+        **explicit_deps
     ):
         """Initialize the entity tracking flow.
-
+        
         Args:
-            entity_service: Service for entity operations
-            entity_tracker: Service for tracking entities
-            entity_extractor: Tool for extracting entities
-            context_analyzer: Tool for analyzing context
-            entity_resolver: Tool for resolving entities
-            session_factory: Function to create database sessions
-            session: Optional database session
+            container: Optional DI container for resolving dependencies
+            session: Optional database session (for direct use)
+            **explicit_deps: Explicit dependencies (overrides container)
         """
-        super().__init__()
+        # Initialize the FlowBase
+        super().__init__(container, **explicit_deps)
+            
         self.session = session
-        
-        # Import container here to avoid circular imports
-        from local_newsifier.container import container
-        
-        # Check if we're in a test environment
-        is_test = "pytest" in sys.modules
-        
-        # Use provided dependencies or create mocks/get from container
-        # The trick here is: in test_entity_tracking_flow_service.py, these classes are patched
-        # So we need to use the already patched classes, not re-import them
-        if entity_tracker:
-            self._entity_tracker = entity_tracker
-        elif is_test:
-            # Creates an instance of the patched EntityTracker class
-            self._entity_tracker = EntityTracker()
-        else:
-            self._entity_tracker = container.get("entity_tracker_tool")
-            
-        if entity_extractor:
-            self._entity_extractor = entity_extractor
-        elif is_test:
-            # Creates an instance of the patched EntityExtractor class
-            self._entity_extractor = EntityExtractor()  
-        else:
-            self._entity_extractor = container.get("entity_extractor_tool")
-            
-        if context_analyzer:
-            self._context_analyzer = context_analyzer
-        elif is_test:
-            # Creates an instance of the patched ContextAnalyzer class
-            self._context_analyzer = ContextAnalyzer()
-        else:
-            self._context_analyzer = container.get("context_analyzer_tool")
-            
-        if entity_resolver:
-            self._entity_resolver = entity_resolver
-        elif is_test:
-            # Creates an instance of the patched EntityResolver class
-            self._entity_resolver = EntityResolver()
-        else:
-            self._entity_resolver = container.get("entity_resolver_tool")
-        
-        # Use provided session factory or get from container
-        self._session_factory = session_factory or (None if is_test else container.get("session_factory"))
-        
-        # Use provided entity service or get from container
-        # For tests, use the patched EntityService class directly
-        if entity_service:
-            self.entity_service = entity_service
-        elif not is_test:
-            self.entity_service = container.get("entity_service")
-        else:
-            # For tests, we need to create a new service with existing mocks
-            # Important: DON'T re-import EntityService as that would ignore patching
-            self.entity_service = EntityService(
-                entity_crud=entity_crud,
-                canonical_entity_crud=canonical_entity_crud,
-                entity_mention_context_crud=entity_mention_context_crud,
-                entity_profile_crud=entity_profile_crud,
-                article_crud=article_crud,
-                entity_extractor=self._entity_extractor,
-                context_analyzer=self._context_analyzer,
-                entity_resolver=self._entity_resolver
-            )
-
+    
+    def ensure_dependencies(self) -> None:
+        """Ensure all required dependencies are available."""
+        # Access dependencies to trigger lazy loading
+        assert self.entity_service is not None, "EntityService is required"
+        # Other dependencies will be loaded when needed
+    
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
         
@@ -164,7 +102,9 @@ class EntityTrackingFlow(Flow):
         Returns:
             List of processed entity mentions
         """
-        with self.entity_service.session_factory() as session:
+        from local_newsifier.crud.article import article as article_crud
+        
+        with self.session_factory() as session:
             # Get article
             article = article_crud.get(session, id=article_id)
                 
