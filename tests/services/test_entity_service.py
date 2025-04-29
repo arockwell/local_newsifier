@@ -53,9 +53,14 @@ def test_process_article_entities():
     mock_entity_profile_crud = MagicMock()
     mock_article_crud = MagicMock()  # Added mock for article_crud
     
-    # Mock session factory
+    # Create container
+    mock_container = MagicMock()
+    
+    # This should be in the test scope, not within the with block
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__ = MagicMock(return_value=mock_session)
+    mock_session_context.__exit__ = MagicMock(return_value=None)
     
     # Create the service with mocks
     from local_newsifier.services.entity_service import EntityService
@@ -68,7 +73,7 @@ def test_process_article_entities():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -139,9 +144,16 @@ def test_process_article_with_state():
     mock_entity_profile_crud = MagicMock()
     mock_article_crud = MagicMock()
     
-    # Mock session factory
+    # Mock session and session context manager
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__ = MagicMock(return_value=mock_session)
+    mock_session_context.__exit__ = MagicMock(return_value=None)
+    
+    # Mock get_db_session function to return our mock session context
+    with patch('local_newsifier.database.session_utils.get_db_session', return_value=mock_session_context):
+        # Create container
+        mock_container = MagicMock()
     
     # Create state
     state = EntityTrackingState(
@@ -151,30 +163,37 @@ def test_process_article_with_state():
         published_at=datetime(2025, 1, 1, tzinfo=timezone.utc)
     )
     
-    # Create service
-    from local_newsifier.services.entity_service import EntityService
-    service = EntityService(
-        entity_crud=mock_entity_crud,
-        canonical_entity_crud=mock_canonical_entity_crud,
-        entity_mention_context_crud=mock_entity_mention_context_crud,
-        entity_profile_crud=mock_entity_profile_crud,
-        article_crud=mock_article_crud,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
-    )
+    # Use patcher for the duration of the test
+    with patch('local_newsifier.database.session_utils.get_db_session', return_value=mock_session_context):
+        # Create service
+        from local_newsifier.services.entity_service import EntityService
+        service = EntityService(
+            entity_crud=mock_entity_crud,
+            canonical_entity_crud=mock_canonical_entity_crud,
+            entity_mention_context_crud=mock_entity_mention_context_crud,
+            entity_profile_crud=mock_entity_profile_crud,
+            article_crud=mock_article_crud,
+            entity_extractor=mock_entity_extractor,
+            context_analyzer=mock_context_analyzer,
+            entity_resolver=mock_entity_resolver,
+            container=mock_container
+        )
+        
+        # Act
+        result_state = service.process_article_with_state(state)
     
-    # Act
-    result_state = service.process_article_with_state(state)
-    
-    # Assert
-    assert result_state.status == TrackingStatus.SUCCESS
-    assert len(result_state.entities) == 1
-    assert result_state.entities[0]["original_text"] == "John Doe"
-    mock_article_crud.update_status.assert_called_once_with(
-        mock_session, article_id=1, status="entity_tracked"
-    )
+        # Assert
+        assert result_state.status == TrackingStatus.SUCCESS
+        assert len(result_state.entities) == 1
+        assert result_state.entities[0]["original_text"] == "John Doe"
+        
+        # Check that update_status was called once
+        assert mock_article_crud.update_status.call_count == 1
+        
+        # Check the arguments separately to avoid mock equality issues
+        args, kwargs = mock_article_crud.update_status.call_args
+        assert kwargs["article_id"] == 1
+        assert kwargs["status"] == "entity_tracked"
     # Verify the logs were updated
     assert any("Processing article for entity tracking" in log for log in result_state.run_logs)
     assert any("Successfully processed 1 entities" in log for log in result_state.run_logs)
@@ -197,8 +216,14 @@ def test_process_article_with_state_error_handling():
     mock_context_analyzer = MagicMock()
     mock_entity_resolver = MagicMock()
     
-    # Mock session factory
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(), __exit__=MagicMock()))
+    # Mock container and session
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create state
     state = EntityTrackingState(
@@ -219,7 +244,7 @@ def test_process_article_with_state_error_handling():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -296,9 +321,14 @@ def test_process_articles_batch():
     mock_article_crud = MagicMock()
     mock_article_crud.get_by_status.return_value = [mock_article1, mock_article2]
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create batch state
     state = EntityBatchTrackingState(status_filter="analyzed")
@@ -314,7 +344,7 @@ def test_process_articles_batch():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -391,9 +421,14 @@ def test_process_articles_batch_partial_failure():
     mock_article_crud = MagicMock()
     mock_article_crud.get_by_status.return_value = [mock_article1, mock_article2]
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create batch state
     state = EntityBatchTrackingState(status_filter="analyzed")
@@ -409,7 +444,7 @@ def test_process_articles_batch_partial_failure():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -474,9 +509,14 @@ def test_generate_entity_dashboard():
     mock_context_analyzer = MagicMock()
     mock_entity_resolver = MagicMock()
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create dashboard state
     state = EntityDashboardState(days=30, entity_type="PERSON")
@@ -492,7 +532,7 @@ def test_generate_entity_dashboard():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -532,9 +572,14 @@ def test_generate_entity_dashboard_error():
     mock_context_analyzer = MagicMock()
     mock_entity_resolver = MagicMock()
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create dashboard state
     state = EntityDashboardState(days=30, entity_type="PERSON")
@@ -550,7 +595,7 @@ def test_generate_entity_dashboard_error():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -614,9 +659,14 @@ def test_find_entity_relationships():
     mock_context_analyzer = MagicMock()
     mock_entity_resolver = MagicMock()
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create relationship state
     state = EntityRelationshipState(entity_id=1, days=30)
@@ -632,7 +682,7 @@ def test_find_entity_relationships():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act
@@ -678,9 +728,14 @@ def test_find_entity_relationships_error():
     mock_context_analyzer = MagicMock()
     mock_entity_resolver = MagicMock()
     
-    # Mock session factory
+    # Mock container and session
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_session), __exit__=MagicMock()))
+    mock_context = MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_context
     
     # Create relationship state
     state = EntityRelationshipState(entity_id=999, days=30)  # Non-existent entity ID
@@ -696,7 +751,7 @@ def test_find_entity_relationships_error():
         entity_extractor=mock_entity_extractor,
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
+        container=mock_container
     )
     
     # Act

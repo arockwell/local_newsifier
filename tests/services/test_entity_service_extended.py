@@ -99,28 +99,30 @@ def test_process_article_entities_with_multiple_entity_types():
     mock_entity_profile_crud = MagicMock()
     mock_article_crud = MagicMock()
     
-    # Mock session factory
+    # Mock session for container
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(
-        return_value=MagicMock(
-            __enter__=MagicMock(return_value=mock_session), 
-            __exit__=MagicMock()
-        )
-    )
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__ = MagicMock(return_value=mock_session)
+    mock_session_context.__exit__ = MagicMock(return_value=None)
+    
+    # Create container mock
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_session_context
     
     # Create the service with mocks
-    from local_newsifier.services.entity_service import EntityService
-    service = EntityService(
-        entity_crud=mock_entity_crud,
-        canonical_entity_crud=mock_canonical_entity_crud,
-        entity_mention_context_crud=mock_entity_mention_context_crud,
-        entity_profile_crud=mock_entity_profile_crud,
-        article_crud=mock_article_crud,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
-    )
+    with patch('local_newsifier.database.session_utils.get_db_session', return_value=mock_session_context):
+        from local_newsifier.services.entity_service import EntityService
+        service = EntityService(
+            entity_crud=mock_entity_crud,
+            canonical_entity_crud=mock_canonical_entity_crud,
+            entity_mention_context_crud=mock_entity_mention_context_crud,
+            entity_profile_crud=mock_entity_profile_crud,
+            article_crud=mock_article_crud,
+            entity_extractor=mock_entity_extractor,
+            context_analyzer=mock_context_analyzer,
+            entity_resolver=mock_entity_resolver,
+            container=mock_container
+        )
     
     # Act
     result = service.process_article_entities(
@@ -232,28 +234,30 @@ def test_entity_resolution_with_ambiguous_entities():
     mock_entity_profile_crud = MagicMock()
     mock_article_crud = MagicMock()
     
-    # Mock session factory
+    # Mock session for container
     mock_session = MagicMock()
-    mock_session_factory = MagicMock(
-        return_value=MagicMock(
-            __enter__=MagicMock(return_value=mock_session), 
-            __exit__=MagicMock()
-        )
-    )
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__ = MagicMock(return_value=mock_session)
+    mock_session_context.__exit__ = MagicMock(return_value=None)
+    
+    # Create container mock
+    mock_container = MagicMock()
+    mock_container.get.return_value = mock_session_context
     
     # Create the service with mocks
-    from local_newsifier.services.entity_service import EntityService
-    service = EntityService(
-        entity_crud=mock_entity_crud,
-        canonical_entity_crud=mock_canonical_entity_crud,
-        entity_mention_context_crud=mock_entity_mention_context_crud,
-        entity_profile_crud=mock_entity_profile_crud,
-        article_crud=mock_article_crud,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory
-    )
+    with patch('local_newsifier.database.session_utils.get_db_session', return_value=mock_session_context):
+        from local_newsifier.services.entity_service import EntityService
+        service = EntityService(
+            entity_crud=mock_entity_crud,
+            canonical_entity_crud=mock_canonical_entity_crud,
+            entity_mention_context_crud=mock_entity_mention_context_crud,
+            entity_profile_crud=mock_entity_profile_crud,
+            article_crud=mock_article_crud,
+            entity_extractor=mock_entity_extractor,
+            context_analyzer=mock_context_analyzer,
+            entity_resolver=mock_entity_resolver,
+            container=mock_container
+        )
     
     # Act
     result = service.process_article_entities(
