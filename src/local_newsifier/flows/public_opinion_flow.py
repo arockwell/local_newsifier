@@ -87,8 +87,8 @@ class PublicOpinionFlow(Flow):
         if self.sentiment_analyzer is None:
             sentiment_analyzer_tool = container.get("sentiment_analyzer_tool")
             if sentiment_analyzer_tool is not None:
-                # If tool factory is available, create with session
-                self.sentiment_analyzer = container.get_with_params("sentiment_analyzer_tool", session=self.session)
+            # If tool factory is available, create with session
+            self.sentiment_analyzer = container.get("sentiment_analyzer_tool", session=self.session)
             else:
                 # Fallback to direct instantiation
                 self.sentiment_analyzer = SentimentAnalysisTool(self.session)
@@ -98,7 +98,7 @@ class PublicOpinionFlow(Flow):
             sentiment_tracker_tool = container.get("sentiment_tracker_tool")
             if sentiment_tracker_tool is not None:
                 # If tool factory is available, create with session
-                self.sentiment_tracker = container.get_with_params("sentiment_tracker_tool", session=self.session)
+                self.sentiment_tracker = container.get("sentiment_tracker_tool", session=self.session)
             else:
                 # Fallback to direct instantiation
                 self.sentiment_tracker = SentimentTracker(self.session)
@@ -108,7 +108,7 @@ class PublicOpinionFlow(Flow):
             opinion_visualizer_tool = container.get("opinion_visualizer_tool")
             if opinion_visualizer_tool is not None:
                 # If tool factory is available, create with session
-                self.opinion_visualizer = container.get_with_params("opinion_visualizer_tool", session=self.session)
+                self.opinion_visualizer = container.get("opinion_visualizer_tool", session=self.session)
             else:
                 # Fallback to direct instantiation
                 self.opinion_visualizer = OpinionVisualizerTool(self.session)

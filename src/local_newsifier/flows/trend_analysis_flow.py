@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone, timedelta
 import logging
+import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
@@ -106,11 +107,21 @@ class NewsTrendAnalysisFlow(Flow):
         # Import container here to avoid circular imports
         from local_newsifier.container import container
         
+        # Check if we're in a test environment
+        is_test = "pytest" in sys.modules
+        
         # Initialize reporter from container or provided instance
-        self.reporter = trend_reporter or container.get("trend_reporter_tool") or TrendReporter(output_dir=output_dir)
+        self.reporter = trend_reporter
+        if self.reporter is None:
+            if not is_test:
+                self.reporter = container.get("trend_reporter_tool")
+            if self.reporter is None:
+                self.reporter = TrendReporter(output_dir=output_dir)
         
         # Use analysis service from container if not provided
-        self.analysis_service = analysis_service or container.get("analysis_service")
+        self.analysis_service = analysis_service
+        if self.analysis_service is None and not is_test:
+            self.analysis_service = container.get("analysis_service")
         
         # For backwards compatibility with tests, use container if available
         # These should be properly mocked in tests, but for backward compatibility

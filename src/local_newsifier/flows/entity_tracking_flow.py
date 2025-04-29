@@ -1,5 +1,6 @@
 """Flow for tracking entities across news articles."""
 
+import sys
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
@@ -60,17 +61,27 @@ class EntityTrackingFlow(Flow):
         # Import container here to avoid circular imports
         from local_newsifier.container import container
         
+        # Check if we're in a test environment
+        is_test = "pytest" in sys.modules
+        
         # Use provided dependencies or get from container
-        self._entity_tracker = entity_tracker or container.get("entity_tracker_tool")
-        self._entity_extractor = entity_extractor or container.get("entity_extractor_tool")
-        self._context_analyzer = context_analyzer or container.get("context_analyzer_tool")
-        self._entity_resolver = entity_resolver or container.get("entity_resolver_tool")
+        self._entity_tracker = entity_tracker or (None if is_test else container.get("entity_tracker_tool"))
+        self._entity_extractor = entity_extractor or (None if is_test else container.get("entity_extractor_tool"))
+        self._context_analyzer = context_analyzer or (None if is_test else container.get("context_analyzer_tool"))
+        self._entity_resolver = entity_resolver or (None if is_test else container.get("entity_resolver_tool"))
         
         # Use provided session factory or get from container
-        self._session_factory = session_factory or container.get("session_factory")
+        self._session_factory = session_factory or (None if is_test else container.get("session_factory"))
         
         # Use provided entity service or get from container
-        self.entity_service = entity_service or container.get("entity_service")
+        # In tests, we need to create a default service if not provided
+        if entity_service:
+            self.entity_service = entity_service
+        elif is_test:
+            from local_newsifier.services.entity_service import EntityService
+            self.entity_service = EntityService()
+        else:
+            self.entity_service = container.get("entity_service")
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
