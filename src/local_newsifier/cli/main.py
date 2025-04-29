@@ -10,10 +10,6 @@ import sys
 import click
 from tabulate import tabulate
 
-from local_newsifier.cli.commands.feeds import feeds_group
-from local_newsifier.cli.commands.db import db_group
-from local_newsifier.cli.commands.apify import apify_group
-
 
 @click.group()
 @click.version_option(version="0.1.0")
@@ -27,10 +23,33 @@ def cli():
     pass
 
 
-# Add command groups
-cli.add_command(feeds_group)
-cli.add_command(db_group)
-cli.add_command(apify_group)
+def is_apify_command():
+    """Check if the user is trying to run an apify command.
+    
+    This helps us avoid loading dependencies that have SQLite requirements
+    when they're not needed.
+    
+    Returns:
+        bool: True if the command is apify-related
+    """
+    # Check if 'apify' is in the command arguments
+    return len(sys.argv) > 1 and sys.argv[1] == "apify"
+
+
+# Conditionally load commands to avoid unnecessary dependencies
+if is_apify_command():
+    # Only load the apify command if it's being used
+    from local_newsifier.cli.commands.apify import apify_group
+    cli.add_command(apify_group)
+else:
+    # Load all other command groups
+    from local_newsifier.cli.commands.feeds import feeds_group
+    from local_newsifier.cli.commands.db import db_group
+    from local_newsifier.cli.commands.apify import apify_group
+    
+    cli.add_command(feeds_group)
+    cli.add_command(db_group)
+    cli.add_command(apify_group)
 
 
 def main():
