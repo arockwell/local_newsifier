@@ -66,7 +66,13 @@ class ApifyService:
         """
         list_page = self.client.dataset(dataset_id).list_items(**kwargs)
         
-        # Handle different ways to access items from ListPage object
+        # Handle different response formats from the Apify API
+        
+        # Case 1: Already in correct format with "items" key (used in test mock)
+        if isinstance(list_page, dict) and "items" in list_page:
+            return list_page
+        
+        # Case 2: Handle ListPage object various ways
         try:
             # Try direct attribute access first
             if hasattr(list_page, 'items'):
@@ -77,9 +83,6 @@ class ApifyService:
             # Try data attribute if it exists
             elif hasattr(list_page, 'data'):
                 return {"items": list_page.data}
-            # If it's a dictionary-like object
-            elif hasattr(list_page, 'get'):
-                return {"items": list_page.get('items', [])}
             # Last resort - convert to string and evaluate as JSON
             else:
                 import json
