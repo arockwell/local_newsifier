@@ -1,0 +1,69 @@
+"""
+Database session utilities for standardized session management.
+
+This module provides utilities for consistent database session access and management
+across the application via the dependency injection container.
+"""
+
+import logging
+import functools
+from typing import TypeVar, Callable, Any, Optional
+
+from sqlmodel import Session
+
+from local_newsifier.container import container
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
+# Type variables for the with_container_session decorator
+F = TypeVar('F', bound=Callable[..., Any])
+T = TypeVar('T')
+
+
+def get_container_session():
+    """Get a session from the container's session factory.
+    
+    This function obtains the session factory from the container
+    and returns a session context manager.
+    
+    Returns:
+        A session context manager
+    """
+    session_factory = container.get("session_factory")
+    if session_factory is None:
+        logger.error("Session factory not available in container")
+        raise ValueError("Session factory not available in container")
+    return session_factory()
+
+
+def with_container_session(func: F) -> F:
+    """Decorator that provides a container-managed session to the decorated function.
+    
+    If a session is already provided as a keyword argument, it will be used directly.
+    Otherwise, a new session will be obtained from the container.
+    
+    Args:
+        func: The function to decorate
+        
+    Returns:
+        The decorated function with session management
+    """
+    @functools.wraps(func)
+    def wrapper(*args, session: Optional[Session] = None, **kwargs):
+        # If a session is already provided, use it directly
+        if session is not None:
+            return func(*args, session=session, **kwargs)
+        
+        # Otherwise, get a new session from the container
+        try:
+            with get_container_session() as new_session:
+                if new_session is None:
+                    logger.error("Failed to obtain a valid session from container")
+                    return None
+                return func(*args, session=new_session, **kwargs)
+        except Exception as e:
+            logger.exception(f"Error in with_container_session: {e}")
+            return None
+            
+    return wrapper

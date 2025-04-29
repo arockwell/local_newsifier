@@ -5,6 +5,7 @@ This module defines asynchronous tasks for processing articles and fetching RSS 
 
 import logging
 from typing import Dict, List, Optional, Iterator
+import contextlib
 
 from celery import Task, current_task
 from celery.signals import worker_ready
@@ -13,12 +14,9 @@ from sqlmodel import Session
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
 from local_newsifier.container import container
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.session_utils import get_container_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-from local_newsifier.services.article_service import ArticleService
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
 logger = logging.getLogger(__name__)
@@ -26,31 +24,45 @@ logger = logging.getLogger(__name__)
 
 # Expose get_db as a module-level function for tests
 def get_db() -> Iterator[Session]:
-    """Get a database session generator."""
-    return get_session()
-
-
-# Import and register the process_article task function with RSSFeedService
-# to avoid circular imports
-from local_newsifier.services.rss_feed_service import register_process_article_task
-
-# Get services from container
-article_service = container.get("article_service")
-entity_service = container.get("entity_service")
-article_crud = container.get("article_crud")
-entity_crud = container.get("entity_crud")
+    """Get a database session generator using container."""
+    with contextlib.closing(get_container_session()) as session:
+        yield session
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
     
-    _db = None
+    def __init__(self):
+        """Initialize BaseTask with session factory from container."""
+        self._session = None
+        self._session_factory = None
+    
+    @property
+    def session_factory(self):
+        """Get session factory from container."""
+        if self._session_factory is None:
+            self._session_factory = container.get("session_factory")
+        return self._session_factory
     
     @property
     def db(self):
-        """Get database session."""
-        if self._db is None:
-            self._db = next(get_db())
-        return self._db
+        """Get database session.
+        
+        Note: This property should be used for quick operations only.
+        For longer operations with proper transaction management,
+        use a context manager:
+        
+        ```
+        with self.session_factory() as session:
+            # database operations
+        ```
+        """
+        if self._session is None:
+            # Get a session for short-lived operations
+            # The caller should not keep this session alive across async boundaries
+            session_factory = self.session_factory
+            if session_factory:
+                self._session = session_factory().__enter__()
+        return self._session
     
     @property
     def article_service(self):
@@ -68,10 +80,29 @@ class BaseTask(Task):
         return container.get("entity_crud")
     
     @property
+    def entity_service(self):
+        """Get entity service."""
+        return container.get("entity_service")
+    
+    @property
     def rss_feed_service(self):
         """Get RSS feed service."""
-        return container.get("rss_feed_service")
+        service = container.get("rss_feed_service")
+        if service:
+            # Ensure the service has access to the container
+            service.container = container
+        return service
 
+
+
+    def __del__(self):
+        """Clean up session if it exists."""
+        if self._session is not None:
+            try:
+                self._session.__exit__(None, None, None)
+                self._session = None
+            except Exception as e:
+                logger.error(f"Error cleaning up session: {e}")
 
 
 @app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.process_article")
@@ -88,28 +119,30 @@ def process_article(self, article_id: int) -> Dict:
     logger.info(f"Processing article with ID: {article_id}")
     
     try:
-        # Get the article from the database
-        article = self.article_crud.get(self.db, id=article_id)
-        if not article:
-            logger.error(f"Article with ID {article_id} not found")
-            return {"article_id": article_id, "status": "error", "message": "Article not found"}
-        
-        # Process the article through the news pipeline
-        news_pipeline = container.get("news_pipeline_flow") or NewsPipelineFlow()
-        if article.url:
-            news_pipeline.process_url_directly(article.url)
-        
-        # Process entities in the article
-        entity_flow = container.get("entity_tracking_flow") or EntityTrackingFlow()
-        entities = entity_flow.process_article(article.id)
-        
-        return {
-            "article_id": article_id,
-            "status": "success",
-            "processed": True,
-            "entities_found": len(entities) if entities else 0,
-            "article_title": article.title,
-        }
+        # Use proper session management with context manager
+        with self.session_factory() as session:
+            # Get the article from the database
+            article = self.article_crud.get(session, id=article_id)
+            if not article:
+                logger.error(f"Article with ID {article_id} not found")
+                return {"article_id": article_id, "status": "error", "message": "Article not found"}
+            
+            # Process the article through the news pipeline
+            news_pipeline = container.get("news_pipeline_flow") or NewsPipelineFlow()
+            if article.url:
+                news_pipeline.process_url_directly(article.url)
+            
+            # Process entities in the article
+            entity_flow = container.get("entity_tracking_flow") or EntityTrackingFlow()
+            entities = entity_flow.process_article(article.id)
+            
+            return {
+                "article_id": article_id,
+                "status": "success",
+                "processed": True,
+                "entities_found": len(entities) if entities else 0,
+                "article_title": article.title,
+            }
     except Exception as e:
         logger.exception(f"Error processing article {article_id}: {str(e)}")
         return {"article_id": article_id, "status": "error", "message": str(e)}
@@ -139,45 +172,47 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
     }
     
     try:
-        for feed_url in feed_urls:
-            try:
-                # Parse the RSS feed
-                feed_data = parse_rss_feed(feed_url)
-                
-                feed_result = {
-                    "url": feed_url,
-                    "title": feed_data.get("title", "Unknown"),
-                    "articles_found": len(feed_data.get("entries", [])),
-                    "articles_processed": 0,
-                }
-                
-                # Process each article in the feed
-                for entry in feed_data.get("entries", []):
-                    # Check if article already exists
-                    existing = self.article_crud.get_by_url(self.db, url=entry.get("link", ""))
+        # Use proper session management with context manager
+        with self.session_factory() as session:
+            for feed_url in feed_urls:
+                try:
+                    # Parse the RSS feed
+                    feed_data = parse_rss_feed(feed_url)
                     
-                    if not existing:
-                        # Create and save new article
-                        article_id = self.article_service.create_article_from_rss_entry(entry)
-                        if article_id:
-                            # Queue article processing task
-                            process_article.delay(article_id)
-                            feed_result["articles_processed"] += 1
-                            results["articles_added"] += 1
-                
-                results["feeds_processed"] += 1
-                results["articles_found"] += feed_result["articles_found"]
-                results["feeds"].append(feed_result)
-                
-            except Exception as e:
-                logger.error(f"Error processing feed {feed_url}: {str(e)}")
-                results["feeds"].append({
-                    "url": feed_url,
-                    "status": "error",
-                    "message": str(e),
-                })
-        
-        return results
+                    feed_result = {
+                        "url": feed_url,
+                        "title": feed_data.get("title", "Unknown"),
+                        "articles_found": len(feed_data.get("entries", [])),
+                        "articles_processed": 0,
+                    }
+                    
+                    # Process each article in the feed
+                    for entry in feed_data.get("entries", []):
+                        # Check if article already exists
+                        existing = self.article_crud.get_by_url(session, url=entry.get("link", ""))
+                        
+                        if not existing:
+                            # Create and save new article
+                            article_id = self.article_service.create_article_from_rss_entry(entry)
+                            if article_id:
+                                # Queue article processing task
+                                process_article.delay(article_id)
+                                feed_result["articles_processed"] += 1
+                                results["articles_added"] += 1
+                    
+                    results["feeds_processed"] += 1
+                    results["articles_found"] += feed_result["articles_found"]
+                    results["feeds"].append(feed_result)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing feed {feed_url}: {str(e)}")
+                    results["feeds"].append({
+                        "url": feed_url,
+                        "status": "error",
+                        "message": str(e),
+                    })
+            
+            return results
     except Exception as e:
         logger.exception(f"Error fetching RSS feeds: {str(e)}")
         return {"status": "error", "message": str(e)}
@@ -190,10 +225,6 @@ def on_worker_ready(sender, **kwargs):
     Executed when a Celery worker starts up.
     """
     logger.info("Celery worker is ready")
-
-# Register the process_article task with the RSS feed service
-register_process_article_task(process_article)
-
-# Register the entity_service with the services module
-from local_newsifier.services import register_entity_service
-register_entity_service(container.get("entity_service"))
+    
+    # Register the process_article task in the container
+    container.register("process_article_task", process_article)

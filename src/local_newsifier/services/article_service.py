@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Any
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.services.entity_service import EntityService
 from local_newsifier.database.engine import SessionManager
 
 
@@ -16,8 +15,9 @@ class ArticleService:
         self,
         article_crud,
         analysis_result_crud,
-        entity_service,
-        session_factory=None
+        entity_service=None,
+        session_factory=None,
+        container=None
     ):
         """Initialize with dependencies.
         
@@ -26,12 +26,24 @@ class ArticleService:
             analysis_result_crud: CRUD for analysis results
             entity_service: Service for entity operations
             session_factory: Factory for database sessions
+            container: DI container for resolving dependencies
         """
         self.article_crud = article_crud
         self.analysis_result_crud = analysis_result_crud
         self.entity_service = entity_service
         self.session_factory = session_factory
+        self.container = container
     
+    def _get_entity_service(self):
+        """Get the entity service, either from instance or container."""
+        if self.entity_service is not None:
+            return self.entity_service
+            
+        if self.container is not None:
+            return self.container.get("entity_service")
+            
+        return None
+        
     def process_article(
         self, 
         url: str,
@@ -69,7 +81,11 @@ class ArticleService:
             article = self.article_crud.create(session, obj_in=article_data)
             
             # Process entities using the entity service
-            entities = self.entity_service.process_article_entities(
+            entity_service = self._get_entity_service()
+            if not entity_service:
+                raise ValueError("Entity service not available - cannot process article entities")
+                
+            entities = entity_service.process_article_entities(
                 article_id=article.id,
                 content=content,
                 title=title,
@@ -211,23 +227,3 @@ class ArticleService:
             article = self.article_crud.create(session, obj_in=article_data)
             
             return article.id if article else None
-
-
-# Create a placeholder for the article_service that will be properly initialized later
-# This handles the circular import problem while providing the instance where expected
-article_service = None
-
-# This function will be called from tasks.py to properly initialize the service
-def initialize_article_service(article_crud, analysis_result_crud, entity_service, session_factory=None):
-    """Initialize the global article_service instance to avoid circular imports.
-    
-    This is called from tasks.py after all dependencies are available.
-    """
-    global article_service
-    article_service = ArticleService(
-        article_crud=article_crud,
-        analysis_result_crud=analysis_result_crud,
-        entity_service=entity_service,
-        session_factory=session_factory
-    )
-    return article_service

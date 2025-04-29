@@ -6,26 +6,11 @@ from unittest.mock import MagicMock, patch, call
 
 from local_newsifier.services.rss_feed_service import (
     RSSFeedService,
-    register_process_article_task,
     register_article_service,
-    _process_article_task,
 )
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.di_container import DIContainer
 from local_newsifier.container import container
-
-
-@pytest.fixture
-def reset_global_task():
-    """Reset the global task variable before and after tests."""
-    # Import inside fixture to make sure we're modifying the actual module variable
-    from local_newsifier.services.rss_feed_service import _process_article_task as original_task
-    # Set to None at the beginning of the test
-    import local_newsifier.services.rss_feed_service
-    local_newsifier.services.rss_feed_service._process_article_task = None
-    yield
-    # Restore at the end of the test
-    local_newsifier.services.rss_feed_service._process_article_task = original_task
 
 
 @pytest.fixture
@@ -1023,15 +1008,17 @@ def patch_get_container(mock_container):
         yield mock_di_container, mock_article_service
 
 
-def test_register_article_service(patch_get_container):
-    """Test registering the article service with container."""
-    # Arrange
-    mock_container, _ = patch_get_container
+def test_register_article_service():
+    """Test registering the article service.
     
-    # Mock the RSSFeedService that would be returned by container.get
+    This test is mainly to maintain backward compatibility during migration.
+    In the future, direct container access should be used instead.
+    """
+    # Create a mock container
+    mock_container = MagicMock(spec=DIContainer)
     mock_rss_feed_service = MagicMock()
     
-    # Make container.get return our mock for rss_feed_service
+    # Make the mock container return our mock rss_feed_service
     def mock_get(name):
         if name == "rss_feed_service":
             return mock_rss_feed_service
@@ -1039,17 +1026,17 @@ def test_register_article_service(patch_get_container):
     
     mock_container.get.side_effect = mock_get
     
-    # Test service doesn't have to match the real implementation
+    # Mock article service
     mock_article_service = MagicMock()
     
-    # Act
-    register_article_service(mock_article_service)
-    
-    # Assert
-    # Verify container.get was called with "rss_feed_service"
-    mock_container.get.assert_called_with("rss_feed_service")
-    # Verify the article_service was set on our mock rss_feed_service
-    assert mock_rss_feed_service.article_service == mock_article_service
+    # Patch the container module import in the function
+    with patch('local_newsifier.container.container', mock_container):
+        # Act
+        register_article_service(mock_article_service)
+        
+        # Assert
+        mock_container.get.assert_called_with("rss_feed_service")
+        assert mock_rss_feed_service.article_service == mock_article_service
 
 
 def test_process_feed_uses_container_article_service(mock_db_session, mock_session_factory):
@@ -1064,6 +1051,10 @@ def test_process_feed_uses_container_article_service(mock_db_session, mock_sessi
     def mock_get(name):
         if name == "article_service":
             return mock_article_service
+        elif name == "process_article_task":
+            task_mock = MagicMock()
+            task_mock.delay = MagicMock()
+            return task_mock
         return None
     mock_container.get.side_effect = mock_get
     
@@ -1094,12 +1085,12 @@ def test_process_feed_uses_container_article_service(mock_db_session, mock_sessi
         rss_feed_crud=mock_rss_feed_crud,
         feed_processing_log_crud=mock_feed_processing_log_crud,
         article_service=None,  # No article service injected
-        session_factory=mock_session_factory
+        session_factory=mock_session_factory,
+        container=mock_container  # Inject the mock container directly
     )
     
-    # Patch get_container and parse_rss_feed in the service
-    with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_container), \
-         patch('local_newsifier.services.rss_feed_service.parse_rss_feed', mock_parse_rss_feed):
+    # Only patch parse_rss_feed, we're using our mock container directly
+    with patch('local_newsifier.services.rss_feed_service.parse_rss_feed', mock_parse_rss_feed):
         
         # Act
         result = service.process_feed(feed_id, task_queue_func=MagicMock())
