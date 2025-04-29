@@ -1,7 +1,7 @@
 """
 Flow for analyzing public opinion and sentiment in news articles.
 
-This module provides a crew.ai Flow for orchestrating sentiment analysis, including:
+This module provides functionality for orchestrating sentiment analysis, including:
 
 1. Analyzing sentiment in article content
 2. Tracking sentiment changes over time for specific topics
@@ -14,490 +14,386 @@ and report generation in various formats (text, markdown, HTML).
 """
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 
 from sqlmodel import Session
 
-# Check if crewai is available
-try:
-    from crewai import Flow
-    has_crewai = True
-except ImportError:
-    has_crewai = False
-    Flow = object  # Use object as base class if crewai is not available
+from local_newsifier.flows.flow_base import FlowBase
+from local_newsifier.di.descriptors import Dependency
+from local_newsifier.database.engine import SessionManager
 
-from local_newsifier.database.engine import get_session, with_session
-from local_newsifier.crud.article import article as article_crud
-from local_newsifier.models.sentiment import SentimentVisualizationData
-from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-from local_newsifier.tools.sentiment_tracker import SentimentTracker
-from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-
+# Global logger
 logger = logging.getLogger(__name__)
 
 
-class PublicOpinionFlow(Flow):
-    """Flow for analyzing public opinion and sentiment in news articles."""
-
+class PublicOpinionFlow(FlowBase):
+    """Flow for analyzing public opinion and sentiment in news articles.
+    
+    This implementation uses the simplified DI pattern with descriptors
+    for cleaner dependency declaration and resolution.
+    """
+    
+    # Define dependencies using descriptors - these will be lazy-loaded when needed
+    sentiment_analyzer = Dependency()
+    sentiment_tracker = Dependency()
+    opinion_visualizer = Dependency()
+    entity_service = Dependency()
+    article_service = Dependency()
+    file_writer = Dependency()
+    session_factory = Dependency(fallback=SessionManager)
+    
     def __init__(
         self,
-        sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
-        sentiment_tracker: Optional[SentimentTracker] = None,
-        opinion_visualizer: Optional[OpinionVisualizerTool] = None,
-        session_factory: Optional[callable] = None,
-        session: Optional[Session] = None
+        container=None,
+        session: Optional[Session] = None,
+        **explicit_deps
     ):
-        """
-        Initialize the public opinion analysis flow.
-
+        """Initialize the public opinion flow.
+        
         Args:
-            sentiment_analyzer: Tool for sentiment analysis
-            sentiment_tracker: Tool for tracking sentiment over time
-            opinion_visualizer: Tool for generating visualizations
-            session_factory: Factory function for creating database sessions
-            session: Optional SQLModel session to use
+            container: Optional DI container for resolving dependencies
+            session: Optional database session (for direct use)
+            **explicit_deps: Explicit dependencies (overrides container)
         """
-        super().__init__()
-        
-        # Import container here to avoid circular imports
-        from local_newsifier.container import container
-        
-        # Check if we're in a test environment
-        is_test = "pytest" in sys.modules
-        
-        # Get session factory from container if not provided
-        self._session_factory = session_factory
-        if self._session_factory is None and not is_test:
-            self._session_factory = container.get("session_factory")
-        
-        # Set up session - provided session takes precedence
-        if session is None:
-            if self._session_factory:
-                self.session_generator = self._session_factory()
-                self.session = next(self.session_generator)
-                self._owns_session = True
-            else:
-                # Fallback to legacy method if no container or session factory provided
-                self.session_generator = get_session()
-                self.session = next(self.session_generator)
-                self._owns_session = True
-        else:
-            self.session = session
-            self._owns_session = False
-        
-        # Get tools from container or use provided ones
-        # For sentiment tools, create a session-bound instance with params if getting from container
-        self.sentiment_analyzer = sentiment_analyzer
-        if self.sentiment_analyzer is None:
-            sentiment_analyzer_tool = container.get("sentiment_analyzer_tool")
-            if sentiment_analyzer_tool is not None:
-                # If tool factory is available, create with session
-                self.sentiment_analyzer = container.get("sentiment_analyzer_tool", session=self.session)
-            else:
-                # Fallback to direct instantiation
-                self.sentiment_analyzer = SentimentAnalysisTool(self.session)
-        
-        self.sentiment_tracker = sentiment_tracker
-        if self.sentiment_tracker is None:
-            sentiment_tracker_tool = container.get("sentiment_tracker_tool")
-            if sentiment_tracker_tool is not None:
-                # If tool factory is available, create with session
-                self.sentiment_tracker = container.get("sentiment_tracker_tool", session=self.session)
-            else:
-                # Fallback to direct instantiation
-                self.sentiment_tracker = SentimentTracker(self.session)
-        
-        self.opinion_visualizer = opinion_visualizer
-        if self.opinion_visualizer is None:
-            opinion_visualizer_tool = container.get("opinion_visualizer_tool")
-            if opinion_visualizer_tool is not None:
-                # If tool factory is available, create with session
-                self.opinion_visualizer = container.get("opinion_visualizer_tool", session=self.session)
-            else:
-                # Fallback to direct instantiation
-                self.opinion_visualizer = OpinionVisualizerTool(self.session)
-
-    def __del__(self):
-        """Clean up resources when the flow is deleted."""
-        if hasattr(self, "_owns_session") and self._owns_session:
-            if hasattr(self, "session") and self.session is not None:
-                try:
-                    next(self.session_generator, None)
-                except StopIteration:
-                    pass
-
-    @with_session
-    def analyze_articles(
-        self, article_ids: Optional[List[int]] = None, *, session: Optional[Session] = None
-    ) -> Dict[int, Dict]:
-        """
-        Analyze sentiment for specific articles or all unanalyzed articles.
-
-        Args:
-            article_ids: Optional list of article IDs to analyze
-            session: Optional SQLModel session
-
-        Returns:
-            Dictionary mapping article IDs to sentiment results
-        """
-        # Use provided session or instance session
-        session = session or self.session
-        
-        # If no article IDs provided, get all articles that need sentiment analysis
-        if not article_ids:
-            articles = article_crud.get_by_status(session, status="analyzed")
-            article_ids = [article.id for article in articles]
-
-        # Analyze each article
-        results = {}
-        for article_id in article_ids:
-            try:
-                sentiment_results = self.sentiment_analyzer.analyze_article(
-                    article_id, session=session
-                )
-                results[article_id] = sentiment_results
-
-                # Update article status to indicate sentiment analysis is complete
-                article_crud.update_status(
-                    session, article_id=article_id, status="sentiment_analyzed"
-                )
-
-            except Exception as e:
-                logger.error(f"Error analyzing article {article_id}: {str(e)}")
-                results[article_id] = {"error": str(e)}
-
-        return results
-
-    @with_session
-    def analyze_topic_sentiment(
-        self, topics: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
-    ) -> Dict[str, Dict]:
-        """
-        Analyze sentiment trends for specific topics.
-
-        Args:
-            topics: List of topics to analyze
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLModel session
-
-        Returns:
-            Dictionary containing topic sentiment analysis results
-        """
-        # Use provided session or instance session
-        session = session or self.session
-        
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(
-            f"Analyzing sentiment for topics {topics} from {start_date} to {end_date}"
-        )
-
-        # Get sentiment data by topic and period
-        sentiment_by_period = self.sentiment_tracker.get_sentiment_by_period(
-            start_date=start_date,
-            end_date=end_date,
-            time_interval=interval,
-            topics=topics,
-            session=session
-        )
-
-        # Detect sentiment shifts
-        shifts = self.sentiment_tracker.detect_sentiment_shifts(
-            topics=topics,
-            start_date=start_date,
-            end_date=end_date,
-            time_interval=interval,
-            session=session
-        )
-
-        # Prepare results
-        results = {
-            "date_range": {"start": start_date, "end": end_date, "days": days_back},
-            "interval": interval,
-            "topics": topics,
-            "sentiment_by_period": sentiment_by_period,
-            "sentiment_shifts": shifts,
-        }
-
-        return results
-
-    @with_session
+        # Initialize the FlowBase
+        super().__init__(container, **explicit_deps)
+            
+        self.session = session
+    
+    def ensure_dependencies(self) -> None:
+        """Ensure all required dependencies are available."""
+        # Access dependencies to trigger lazy loading
+        assert self.sentiment_analyzer is not None, "SentimentAnalyzer is required"
+        assert self.sentiment_tracker is not None, "SentimentTracker is required"
+        # Other dependencies will be loaded when needed
+    
     def analyze_entity_sentiment(
-        self, entity_names: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
-    ) -> Dict[str, Dict]:
-        """
-        Analyze sentiment trends for specific entities.
-
-        Args:
-            entity_names: List of entity names to analyze
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLModel session
-
-        Returns:
-            Dictionary containing entity sentiment analysis results
-        """
-        # Use provided session or instance session
-        session = session or self.session
-        
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(
-            f"Analyzing sentiment for entities {entity_names} from {start_date} to {end_date}"
-        )
-
-        # Get sentiment data by entity and period
-        entity_sentiments = {}
-        for entity_name in entity_names:
-            entity_sentiment = self.sentiment_tracker.get_entity_sentiment_trends(
-                entity_name=entity_name,
-                start_date=start_date,
-                end_date=end_date,
-                time_interval=interval,
-                session=session
-            )
-            entity_sentiments[entity_name] = entity_sentiment
-
-        # Prepare results
-        results = {
-            "date_range": {"start": start_date, "end": end_date, "days": days_back},
-            "interval": interval,
-            "entities": entity_names,
-            "entity_sentiments": entity_sentiments,
-        }
-
-        return results
-
-    @with_session
-    def detect_opinion_shifts(
         self,
-        topics: List[str],
-        days_back: int = 30,
-        interval: str = "day",
-        shift_threshold: float = 0.3,
-        *,
-        session: Optional[Session] = None
-    ) -> Dict[str, List]:
-        """
-        Detect significant shifts in public opinion.
-
-        Args:
-            topics: List of topics to analyze
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            shift_threshold: Threshold for significant shifts
-            session: Optional SQLModel session
-
-        Returns:
-            Dictionary of detected opinion shifts by topic
-        """
-        # Use provided session or instance session
-        session = session or self.session
+        entity_id: int,
+        days: int = 30,
+        include_related: bool = True,
+        output_format: Optional[str] = None,
+        output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Analyze sentiment for a specific entity.
         
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(
-            f"Detecting opinion shifts for topics {topics} from {start_date} to {end_date}"
-        )
-
-        # Detect shifts
-        shifts = self.sentiment_tracker.detect_sentiment_shifts(
-            topics=topics,
-            start_date=start_date,
-            end_date=end_date,
-            time_interval=interval,
-            shift_threshold=shift_threshold,
-            session=session
-        )
-
-        # Group shifts by topic
-        shifts_by_topic = {}
-        for topic in topics:
-            topic_shifts = [s for s in shifts if s["topic"] == topic]
-            shifts_by_topic[topic] = topic_shifts
-
-        return shifts_by_topic
-
-    @with_session
-    def correlate_topics(
-        self,
-        topic_pairs: List[Tuple[str, str]],
-        days_back: int = 30,
-        interval: str = "day",
-        *,
-        session: Optional[Session] = None
-    ) -> List[Dict]:
-        """
-        Analyze correlation between sentiment of topic pairs.
-
         Args:
-            topic_pairs: List of topic name pairs to correlate
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            session: Optional SQLModel session
-
+            entity_id: ID of the entity to analyze
+            days: Number of days to include in analysis
+            include_related: Whether to include sentiment for related entities
+            output_format: Optional format for output report
+            output_path: Optional path for output report
+            
         Returns:
-            List of topic correlation results
+            Dictionary with sentiment analysis results
         """
-        # Use provided session or instance session
-        session = session or self.session
-        
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(f"Analyzing topic correlations from {start_date} to {end_date}")
-
-        # Calculate correlations
-        correlations = []
-        for topic1, topic2 in topic_pairs:
-            correlation = self.sentiment_tracker.calculate_topic_correlation(
-                topic1=topic1,
-                topic2=topic2,
+        with self.session_factory() as session:
+            # Get entity
+            entity = self.entity_service.get_canonical_entity(session, entity_id)
+            
+            if not entity:
+                raise ValueError(f"Entity with ID {entity_id} not found")
+            
+            # Calculate date range
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(days=days)
+            
+            # Analyze sentiment for entity
+            sentiment_data = self.sentiment_tracker.analyze_entity_sentiment(
+                session,
+                entity_id=entity_id,
                 start_date=start_date,
-                end_date=end_date,
-                time_interval=interval,
-                session=session
+                end_date=end_date
             )
-            correlations.append(correlation)
-
-        return correlations
-
-    @with_session
-    def generate_topic_report(
+            
+            # Include related entities if requested
+            related_sentiment = {}
+            if include_related:
+                # Get related entities
+                related_entities = self.entity_service.get_related_entities(
+                    session,
+                    entity_id=entity_id,
+                    limit=5
+                )
+                
+                # Analyze sentiment for each related entity
+                for related in related_entities:
+                    try:
+                        related_sentiment[related.name] = self.sentiment_tracker.analyze_entity_sentiment(
+                            session,
+                            entity_id=related.id,
+                            start_date=start_date,
+                            end_date=end_date
+                        )
+                    except Exception as e:
+                        logger.error(f"Error analyzing sentiment for related entity {related.name}: {str(e)}")
+            
+            # Generate visualization if requested
+            visualization_path = None
+            if output_format and self.opinion_visualizer:
+                try:
+                    visualization_path = self.opinion_visualizer.visualize_entity_sentiment(
+                        entity_name=entity.name,
+                        sentiment_data=sentiment_data,
+                        related_sentiment=related_sentiment,
+                        format=output_format,
+                        output_path=output_path
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating visualization: {str(e)}")
+            
+            # Return results
+            return {
+                "entity_id": entity_id,
+                "entity_name": entity.name,
+                "sentiment_data": sentiment_data,
+                "related_sentiment": related_sentiment,
+                "visualization_path": visualization_path
+            }
+    
+    def analyze_topic_sentiment(
         self,
         topic: str,
-        days_back: int = 30,
-        interval: str = "day",
-        format_type: str = "markdown",
-        *,
-        session: Optional[Session] = None
-    ) -> str:
-        """
-        Generate a report for a specific topic's sentiment analysis.
-
+        days: int = 30,
+        related_topics: Optional[List[str]] = None,
+        output_format: Optional[str] = None,
+        output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Analyze sentiment for a specific topic.
+        
         Args:
             topic: Topic to analyze
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            format_type: Report format type ('text', 'markdown', 'html')
-            session: Optional SQLModel session
-
+            days: Number of days to include in analysis
+            related_topics: Optional list of related topics to include
+            output_format: Optional format for output report
+            output_path: Optional path for output report
+            
         Returns:
-            Formatted report string
+            Dictionary with sentiment analysis results
         """
-        # Use provided session or instance session
-        session = session or self.session
-        
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(
-            f"Generating {format_type} report for topic {topic} from {start_date} to {end_date}"
-        )
-
-        # Prepare visualization data
-        try:
-            viz_data = self.opinion_visualizer.prepare_timeline_data(
-                topic=topic, 
-                start_date=start_date, 
-                end_date=end_date, 
-                interval=interval,
-                session=session
+        with self.session_factory() as session:
+            # Calculate date range
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(days=days)
+            
+            # Analyze sentiment for topic
+            sentiment_data = self.sentiment_tracker.analyze_topic_sentiment(
+                session,
+                topic=topic,
+                start_date=start_date,
+                end_date=end_date
             )
-
-            # Generate report based on format
-            if format_type == "markdown":
-                return self.opinion_visualizer.generate_markdown_report(
-                    viz_data, report_type="timeline"
-                )
-            elif format_type == "html":
-                return self.opinion_visualizer.generate_html_report(
-                    viz_data, report_type="timeline"
-                )
-            else:  # Default to text
-                return self.opinion_visualizer.generate_text_report(
-                    viz_data, report_type="timeline"
-                )
-
-        except Exception as e:
-            logger.error(f"Error generating report: {str(e)}")
-            return f"Error generating report: {str(e)}"
-
-    @with_session
-    def generate_comparison_report(
+            
+            # Include related topics if requested
+            related_sentiment = {}
+            if related_topics:
+                for related in related_topics:
+                    try:
+                        related_sentiment[related] = self.sentiment_tracker.analyze_topic_sentiment(
+                            session,
+                            topic=related,
+                            start_date=start_date,
+                            end_date=end_date
+                        )
+                    except Exception as e:
+                        logger.error(f"Error analyzing sentiment for related topic {related}: {str(e)}")
+            
+            # Generate visualization if requested
+            visualization_path = None
+            if output_format and self.opinion_visualizer:
+                try:
+                    visualization_path = self.opinion_visualizer.visualize_topic_sentiment(
+                        topic=topic,
+                        sentiment_data=sentiment_data,
+                        related_sentiment=related_sentiment,
+                        format=output_format,
+                        output_path=output_path
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating visualization: {str(e)}")
+            
+            # Return results
+            return {
+                "topic": topic,
+                "sentiment_data": sentiment_data,
+                "related_sentiment": related_sentiment,
+                "visualization_path": visualization_path
+            }
+    
+    def detect_sentiment_shifts(
         self,
-        topics: List[str],
-        days_back: int = 30,
-        interval: str = "day",
-        format_type: str = "markdown",
-        *,
-        session: Optional[Session] = None
-    ) -> str:
-        """
-        Generate a comparison report for multiple topics.
-
+        days: int = 30,
+        threshold: float = 0.3,
+        min_articles: int = 5,
+        output_format: Optional[str] = None,
+        output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Detect significant shifts in sentiment for entities and topics.
+        
         Args:
-            topics: List of topics to compare
-            days_back: Number of days to look back
-            interval: Time interval for grouping ('day', 'week', 'month')
-            format_type: Report format type ('text', 'markdown', 'html')
-            session: Optional SQLModel session
-
+            days: Number of days to include in analysis
+            threshold: Minimum sentiment shift to consider significant
+            min_articles: Minimum number of articles for entity/topic to be included
+            output_format: Optional format for output report
+            output_path: Optional path for output report
+            
         Returns:
-            Formatted comparison report string
+            Dictionary with detected sentiment shifts
         """
-        # Use provided session or instance session
-        session = session or self.session
+        with self.session_factory() as session:
+            # Calculate date range
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(days=days)
+            
+            # Detect entity sentiment shifts
+            entity_shifts = self.sentiment_tracker.detect_entity_sentiment_shifts(
+                session,
+                start_date=start_date,
+                end_date=end_date,
+                threshold=threshold,
+                min_articles=min_articles
+            )
+            
+            # Detect topic sentiment shifts
+            topic_shifts = self.sentiment_tracker.detect_topic_sentiment_shifts(
+                session,
+                start_date=start_date,
+                end_date=end_date,
+                threshold=threshold,
+                min_articles=min_articles
+            )
+            
+            # Generate visualization if requested
+            visualization_path = None
+            if output_format and self.opinion_visualizer:
+                try:
+                    visualization_path = self.opinion_visualizer.visualize_sentiment_shifts(
+                        entity_shifts=entity_shifts,
+                        topic_shifts=topic_shifts,
+                        format=output_format,
+                        output_path=output_path
+                    )
+                except Exception as e:
+                    logger.error(f"Error generating visualization: {str(e)}")
+            
+            # Return results
+            return {
+                "entity_shifts": entity_shifts,
+                "topic_shifts": topic_shifts,
+                "visualization_path": visualization_path
+            }
+    
+    def generate_sentiment_report(
+        self,
+        period: Union[str, int] = "day",
+        output_format: str = "html",
+        output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate a comprehensive sentiment analysis report.
+        
+        Args:
+            period: Time period for report (day, week, month, or number of days)
+            output_format: Format for output report (text, markdown, html)
+            output_path: Optional path for output report
+            
+        Returns:
+            Dictionary with report information
+        """
+        # Convert period to days
+        days = 1
+        if isinstance(period, str):
+            if period.lower() == "day":
+                days = 1
+            elif period.lower() == "week":
+                days = 7
+            elif period.lower() == "month":
+                days = 30
+            else:
+                try:
+                    days = int(period)
+                except ValueError:
+                    raise ValueError(f"Invalid period: {period}")
+        else:
+            days = period
         
         # Calculate date range
         end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        logger.info(f"Generating {format_type} comparison report for topics {topics}")
-
-        # Prepare visualization data for all topics
-        try:
-            comparison_data = {}
-            for topic in topics:
+        start_date = end_date - timedelta(days=days)
+        
+        # Generate report
+        with self.session_factory() as session:
+            # Get top entities
+            top_entities = self.entity_service.get_trending_entities(
+                session,
+                start_date=start_date,
+                end_date=end_date,
+                limit=10
+            )
+            
+            # Analyze sentiment for each entity
+            entity_sentiment = {}
+            for entity in top_entities:
                 try:
-                    topic_data = self.opinion_visualizer.prepare_timeline_data(
+                    entity_sentiment[entity.name] = self.sentiment_tracker.analyze_entity_sentiment(
+                        session,
+                        entity_id=entity.id,
+                        start_date=start_date,
+                        end_date=end_date
+                    )
+                except Exception as e:
+                    logger.error(f"Error analyzing sentiment for entity {entity.name}: {str(e)}")
+            
+            # Get top topics
+            top_topics = self.article_service.get_trending_topics(
+                session,
+                start_date=start_date,
+                end_date=end_date,
+                limit=10
+            )
+            
+            # Analyze sentiment for each topic
+            topic_sentiment = {}
+            for topic in top_topics:
+                try:
+                    topic_sentiment[topic] = self.sentiment_tracker.analyze_topic_sentiment(
+                        session,
                         topic=topic,
                         start_date=start_date,
-                        end_date=end_date,
-                        interval=interval,
-                        session=session
+                        end_date=end_date
                     )
-                    comparison_data[topic] = topic_data
-                except Exception as topic_error:
-                    logger.warning(
-                        f"Error preparing data for topic {topic}: {str(topic_error)}"
+                except Exception as e:
+                    logger.error(f"Error analyzing sentiment for topic {topic}: {str(e)}")
+            
+            # Detect sentiment shifts
+            sentiment_shifts = self.detect_sentiment_shifts(
+                days=days,
+                threshold=0.2,
+                min_articles=3
+            )
+            
+            # Generate visualization
+            report_path = None
+            if self.opinion_visualizer:
+                try:
+                    report_path = self.opinion_visualizer.generate_sentiment_report(
+                        period_days=days,
+                        entity_sentiment=entity_sentiment,
+                        topic_sentiment=topic_sentiment,
+                        sentiment_shifts=sentiment_shifts,
+                        format=output_format,
+                        output_path=output_path
                     )
-
-            # Generate report based on format
-            if format_type == "markdown":
-                return self.opinion_visualizer.generate_markdown_report(
-                    comparison_data, report_type="comparison"
-                )
-            elif format_type == "html":
-                return self.opinion_visualizer.generate_html_report(
-                    comparison_data, report_type="comparison"
-                )
-            else:  # Default to text
-                return self.opinion_visualizer.generate_text_report(
-                    comparison_data, report_type="comparison"
-                )
-
-        except Exception as e:
-            logger.error(f"Error generating comparison report: {str(e)}")
-            return f"Error generating comparison report: {str(e)}"
+                except Exception as e:
+                    logger.error(f"Error generating report: {str(e)}")
+            
+            # Return results
+            return {
+                "period": period,
+                "start_date": start_date,
+                "end_date": end_date,
+                "entity_sentiment": entity_sentiment,
+                "topic_sentiment": topic_sentiment,
+                "sentiment_shifts": sentiment_shifts,
+                "report_path": report_path
+            }

@@ -2,20 +2,14 @@
 
 from datetime import datetime, timezone, timedelta
 import logging
-import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-# Check if crewai is available
-try:
-    from crewai import Flow
-    has_crewai = True
-except ImportError:
-    has_crewai = False
-    Flow = object  # Use object as base class if crewai is not available
+from sqlmodel import Session
 
+from local_newsifier.flows.flow_base import FlowBase
+from local_newsifier.di.descriptors import Dependency
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
     TimeFrame,
@@ -24,294 +18,213 @@ from local_newsifier.models.trend import (
     TrendStatus,
     TrendType,
 )
-from local_newsifier.services.analysis_service import AnalysisService
-from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+from local_newsifier.database.engine import SessionManager
+from local_newsifier.tools.trend_reporter import ReportFormat
 
 # Global logger
 logger = logging.getLogger(__name__)
 
 
-class TrendAnalysisState:
-    """State for tracking the trend analysis flow."""
-
+class TrendAnalysisFlow(FlowBase):
+    """Flow for analyzing trends in news articles.
+    
+    This implementation uses the simplified DI pattern with descriptors
+    for cleaner dependency declaration and resolution.
+    """
+    
+    # Define dependencies using descriptors - these will be lazy-loaded when needed
+    analysis_service = Dependency()
+    trend_detector = Dependency()
+    trend_reporter = Dependency()
+    entity_service = Dependency()
+    sentiment_analyzer = Dependency()
+    session_factory = Dependency(fallback=SessionManager)
+    
     def __init__(
         self,
-        config: Optional[TrendAnalysisConfig] = None,
-        run_id: Optional[UUID] = None,
+        container=None,
+        session: Optional[Session] = None,
+        **explicit_deps
     ):
-        """
-        Initialize the trend analysis state.
-
+        """Initialize the trend analysis flow.
+        
         Args:
-            config: Configuration for trend analysis
-            run_id: Optional run ID
+            container: Optional DI container for resolving dependencies
+            session: Optional database session (for direct use)
+            **explicit_deps: Explicit dependencies (overrides container)
         """
-        self.run_id = run_id or uuid4()
-        self.config = config or TrendAnalysisConfig()
-        self.start_time = datetime.now(timezone.utc)
-        self.status = AnalysisStatus.INITIALIZED
-        self.detected_trends: List[TrendAnalysis] = []
-        self.logs: List[str] = []
-        self.report_path: Optional[str] = None
-        self.error: Optional[str] = None
-
-    def add_log(self, message: str) -> None:
-        """
-        Add a log message with timestamp.
-
-        Args:
-            message: Log message
-        """
-        timestamp = datetime.now(timezone.utc).isoformat()
-        self.logs.append(f"[{timestamp}] {message}")
-
-    def set_error(self, error_message: str) -> None:
-        """
-        Set error message.
-
-        Args:
-            error_message: Error message
-        """
-        self.error = error_message
-        self.add_log(f"ERROR: {error_message}")
-
-
-class NewsTrendAnalysisFlow(Flow):
-    """Flow for detecting and analyzing trends in local news coverage."""
-
-    def __init__(
+        # Initialize the FlowBase
+        super().__init__(container, **explicit_deps)
+            
+        self.session = session
+    
+    def ensure_dependencies(self) -> None:
+        """Ensure all required dependencies are available."""
+        # Access dependencies to trigger lazy loading
+        assert self.analysis_service is not None, "AnalysisService is required"
+        assert self.trend_detector is not None, "TrendDetector is required"
+        # Other dependencies will be loaded when needed
+    
+    def analyze_trends(
         self,
-        analysis_service: Optional[AnalysisService] = None,
-        trend_reporter: Optional[TrendReporter] = None,
-        data_aggregator: Optional[Any] = None,
-        topic_analyzer: Optional[Any] = None,
-        trend_detector: Optional[Any] = None,
-        config: Optional[TrendAnalysisConfig] = None,
-        output_dir: str = "trend_output",
-    ):
-        """
-        Initialize the trend analysis flow.
-
+        time_frame: Union[TimeFrame, str] = TimeFrame.DAILY,
+        trend_types: Optional[List[Union[TrendType, str]]] = None,
+        limit: int = 10,
+        min_articles: int = 3,
+        output_format: Optional[Union[ReportFormat, str]] = None,
+        output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Analyze trends across news articles.
+        
         Args:
-            analysis_service: Service for analysis operations
-            trend_reporter: Tool for generating trend reports
-            data_aggregator: Tool for aggregating data (for backwards compatibility)
-            topic_analyzer: Tool for analyzing topics (for backwards compatibility)
-            trend_detector: Tool for detecting trends (for backwards compatibility)
-            config: Configuration for trend analysis
-            output_dir: Directory for report output
-        """
-        super().__init__()
-        self.config = config or TrendAnalysisConfig()
-        
-        # Import container here to avoid circular imports
-        from local_newsifier.container import container
-        
-        # Check if we're in a test environment
-        is_test = "pytest" in sys.modules
-        
-        # Initialize reporter from container or provided instance
-        self.reporter = trend_reporter
-        if self.reporter is None:
-            if not is_test:
-                self.reporter = container.get("trend_reporter_tool")
-            if self.reporter is None:
-                self.reporter = TrendReporter(output_dir=output_dir)
-        
-        # Use analysis service from container if not provided
-        self.analysis_service = analysis_service
-        if self.analysis_service is None and not is_test:
-            self.analysis_service = container.get("analysis_service")
-        
-        # For backwards compatibility with tests, use container if available
-        # These should be properly mocked in tests, but for backward compatibility
-        # we'll still accept direct dependencies
-        self.data_aggregator = data_aggregator
-        if self.data_aggregator is None:
-            data_aggregator_tool = container.get("data_aggregator_tool")
-            self.data_aggregator = data_aggregator_tool if data_aggregator_tool is not None else MagicMock()
+            time_frame: Time frame for trend analysis
+            trend_types: Types of trends to analyze (defaults to all)
+            limit: Maximum number of trends to return
+            min_articles: Minimum number of articles for trend detection
+            output_format: Optional format for output report
+            output_path: Optional path for output report
             
-        self.topic_analyzer = topic_analyzer
-        if self.topic_analyzer is None:
-            topic_analyzer_tool = container.get("topic_analyzer_tool")
-            self.topic_analyzer = topic_analyzer_tool if topic_analyzer_tool is not None else MagicMock()
-            
-        self.trend_detector = trend_detector
-        if self.trend_detector is None:
-            trend_detector_tool = container.get("trend_detector_tool")
-            self.trend_detector = trend_detector_tool if trend_detector_tool is not None else MagicMock()
+        Returns:
+            Dictionary with trend analysis results
+        """
+        # Convert string time frame to enum if needed
+        if isinstance(time_frame, str):
+            time_frame = TimeFrame(time_frame)
         
-    def aggregate_historical_data(
-        self, state: TrendAnalysisState
-    ) -> TrendAnalysisState:
-        """
-        Retrieve articles for trend analysis.
-
-        Args:
-            state: Current flow state
-
-        Returns:
-            Updated state
-        """
-        try:
-            state.status = AnalysisStatus.SCRAPING
-            state.add_log("Starting article retrieval for trend analysis")
-
-            # Calculate date range based on configuration
-            if state.config.time_frame == TimeFrame.DAY:
-                days_back = state.config.lookback_periods
-            elif state.config.time_frame == TimeFrame.WEEK:
-                days_back = state.config.lookback_periods * 7
-            elif state.config.time_frame == TimeFrame.MONTH:
-                days_back = state.config.lookback_periods * 30
-            else:
-                days_back = 90  # Default to 90 days
-
-            end_date = datetime.now(timezone.utc)
-            start_date = end_date - timedelta(days=days_back)
-
-            # Add a log of the date range
-            state.add_log(
-                f"Analyzing trends from {start_date.isoformat()} to {end_date.isoformat()}"
-            )
-            
-            state.start_date = start_date
-            state.end_date = end_date
-            state.status = AnalysisStatus.SCRAPE_SUCCEEDED
-            state.add_log("Successfully completed article retrieval")
-
-        except Exception as e:
-            state.status = AnalysisStatus.SCRAPE_FAILED_NETWORK
-            state.set_error(f"Error during article retrieval: {str(e)}")
-
-        return state
-
-    def detect_trends(self, state: TrendAnalysisState) -> TrendAnalysisState:
-        """
-        Detect trends in the historical data.
-
-        Args:
-            state: Current flow state
-
-        Returns:
-            Updated state
-        """
-        try:
-            state.status = AnalysisStatus.ANALYZING
-            state.add_log("Starting trend detection")
-
-            # In test mode, we need to handle differently to make tests pass
-            is_test = "pytest" in sys.modules
-            
-            if is_test and hasattr(self.trend_detector, 'detect_entity_trends'):
-                # Use the mocked trend detector in test mode
-                entity_trends = self.trend_detector.detect_entity_trends()
-                anomaly_trends = []
-                if hasattr(self.trend_detector, 'detect_anomalous_patterns'):
-                    anomaly_trends = self.trend_detector.detect_anomalous_patterns()
-            else:
-                # In production mode, use with parameters
-                if self.analysis_service is None:
-                    raise ValueError("Analysis service is not available")
-                    
-                # Detect entity-based trends using TrendDetector
-                entity_trends = self.trend_detector.detect_entity_trends(
-                    entity_types=state.config.entity_types,
-                    min_significance=state.config.significance_threshold,
-                    min_mentions=state.config.min_articles,
-                    max_trends=state.config.topic_limit,
-                    session=self.analysis_service._get_session()
-                )
-                
-                # Detect anomalous patterns
-                anomaly_trends = self.trend_detector.detect_anomalous_patterns()
-
-            # Store the trends
-            state.detected_trends = entity_trends
-
-            state.add_log(f"Detected {len(state.detected_trends)} trends")
-            state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-
-        except Exception as e:
-            state.status = AnalysisStatus.ANALYSIS_FAILED
-            state.set_error(f"Error during trend detection: {str(e)}")
-
-        return state
-
-    def generate_report(
-        self, state: TrendAnalysisState, format: ReportFormat = ReportFormat.MARKDOWN
-    ) -> TrendAnalysisState:
-        """
-        Generate a report of detected trends.
-
-        Args:
-            state: Current flow state
-            format: Report format
-
-        Returns:
-            Updated state
-        """
-        try:
-            state.status = AnalysisStatus.SAVING
-            state.add_log(f"Generating {format.value} trend report")
-
-            if not state.detected_trends:
-                state.add_log("No trends to report")
-                state.report_path = None
-                state.status = AnalysisStatus.SAVE_SUCCEEDED
-                return state
-
-            # Generate and save report
-            state.report_path = self.reporter.save_report(
-                state.detected_trends, format=format
-            )
-
-            state.add_log(f"Saved trend report to {state.report_path}")
-            state.status = AnalysisStatus.SAVE_SUCCEEDED
-
-        except Exception as e:
-            state.status = AnalysisStatus.SAVE_FAILED
-            state.set_error(f"Error generating trend report: {str(e)}")
-
-        return state
-
-    def run_analysis(
-        self,
-        config: Optional[TrendAnalysisConfig] = None,
-        report_format: ReportFormat = ReportFormat.MARKDOWN,
-    ) -> TrendAnalysisState:
-        """
-        Run the full trend analysis flow.
-
-        Args:
-            config: Optional custom configuration
-            report_format: Format for the final report
-
-        Returns:
-            Flow state with results
-        """
-        # Initialize state
-        state = TrendAnalysisState(config or self.config)
-        state.add_log("Starting trend analysis flow")
-
-        # Execute pipeline
-        state = self.aggregate_historical_data(state)
-        if state.status != AnalysisStatus.SCRAPE_SUCCEEDED:
-            state.add_log("Aborting flow due to article retrieval failure")
-            return state
-
-        state = self.detect_trends(state)
-        if state.status != AnalysisStatus.ANALYSIS_SUCCEEDED:
-            state.add_log("Aborting flow due to trend detection failure")
-            return state
-
-        state = self.generate_report(state, format=report_format)
-
-        if state.status == AnalysisStatus.SAVE_SUCCEEDED:
-            state.status = AnalysisStatus.COMPLETED_SUCCESS
-            state.add_log("Successfully completed trend analysis flow")
+        # Convert string trend types to enum if needed
+        if trend_types:
+            enum_trend_types = []
+            for trend_type in trend_types:
+                if isinstance(trend_type, str):
+                    enum_trend_types.append(TrendType(trend_type))
+                else:
+                    enum_trend_types.append(trend_type)
+            trend_types = enum_trend_types
         else:
-            state.status = AnalysisStatus.COMPLETED_WITH_ERRORS
-            state.add_log("Completed trend analysis flow with errors")
-
-        return state
+            # Default to all trend types
+            trend_types = list(TrendType)
+        
+        # Create analysis config
+        config = TrendAnalysisConfig(
+            time_frame=time_frame,
+            trend_types=trend_types,
+            limit=limit,
+            min_articles=min_articles
+        )
+        
+        # Create analysis ID
+        analysis_id = str(uuid4())
+        
+        # Create analysis object
+        analysis = TrendAnalysis(
+            id=analysis_id,
+            config=config,
+            status=TrendStatus.PENDING,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        try:
+            # Detect trends
+            logger.info(f"Starting trend analysis: {analysis_id}")
+            results = self._detect_trends(analysis)
+            
+            # Generate report if requested
+            report_path = None
+            if output_format and self.trend_reporter:
+                if isinstance(output_format, str):
+                    output_format = ReportFormat(output_format)
+                
+                report_path = self.trend_reporter.generate_report(
+                    results,
+                    format=output_format,
+                    output_path=output_path
+                )
+            
+            # Update analysis status
+            analysis.status = TrendStatus.COMPLETED
+            analysis.completed_at = datetime.now(timezone.utc)
+            
+            return {
+                "analysis_id": analysis_id,
+                "status": analysis.status.value,
+                "trends": results,
+                "report_path": report_path
+            }
+        except Exception as e:
+            # Handle errors
+            logger.error(f"Error in trend analysis {analysis_id}: {str(e)}")
+            analysis.status = TrendStatus.FAILED
+            analysis.error = str(e)
+            
+            return {
+                "analysis_id": analysis_id,
+                "status": analysis.status.value,
+                "error": str(e)
+            }
+    
+    def _detect_trends(self, analysis: TrendAnalysis) -> Dict[str, Any]:
+        """Internal method to detect trends.
+        
+        Args:
+            analysis: TrendAnalysis configuration object
+            
+        Returns:
+            Dictionary with detected trends by category
+        """
+        config = analysis.config
+        results = {}
+        
+        # Determine date range based on time frame
+        end_date = datetime.now(timezone.utc)
+        if config.time_frame == TimeFrame.DAILY:
+            start_date = end_date - timedelta(days=1)
+        elif config.time_frame == TimeFrame.WEEKLY:
+            start_date = end_date - timedelta(days=7)
+        elif config.time_frame == TimeFrame.MONTHLY:
+            start_date = end_date - timedelta(days=30)
+        elif config.time_frame == TimeFrame.QUARTERLY:
+            start_date = end_date - timedelta(days=90)
+        else:
+            start_date = end_date - timedelta(days=1)  # Default to daily
+        
+        # Check for entity trends
+        if TrendType.ENTITY in config.trend_types:
+            entity_trends = self.trend_detector.detect_entity_trends(
+                start_date=start_date,
+                end_date=end_date,
+                limit=config.limit,
+                min_articles=config.min_articles
+            )
+            results["entity_trends"] = entity_trends
+        
+        # Check for topic trends
+        if TrendType.TOPIC in config.trend_types:
+            topic_trends = self.trend_detector.detect_topic_trends(
+                start_date=start_date,
+                end_date=end_date,
+                limit=config.limit,
+                min_articles=config.min_articles
+            )
+            results["topic_trends"] = topic_trends
+        
+        # Check for sentiment trends
+        if TrendType.SENTIMENT in config.trend_types:
+            sentiment_trends = self.trend_detector.detect_sentiment_trends(
+                start_date=start_date,
+                end_date=end_date,
+                limit=config.limit,
+                min_articles=config.min_articles
+            )
+            results["sentiment_trends"] = sentiment_trends
+        
+        # Check for keyword trends
+        if TrendType.KEYWORD in config.trend_types:
+            keyword_trends = self.trend_detector.detect_keyword_trends(
+                start_date=start_date,
+                end_date=end_date,
+                limit=config.limit,
+                min_articles=config.min_articles
+            )
+            results["keyword_trends"] = keyword_trends
+        
+        return results

@@ -1,292 +1,191 @@
-import sys
+"""Flow for processing news articles through the analysis pipeline."""
+
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, List, Optional, Any
 
-# Check if crewai is available
-try:
-    from crewai import Flow
-    has_crewai = True
-except ImportError:
-    has_crewai = False
-    Flow = object  # Use object as base class if crewai is not available
+from sqlmodel import Session
 
+from local_newsifier.flows.flow_base import FlowBase
+from local_newsifier.di.descriptors import Dependency
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from local_newsifier.tools.file_writer import FileWriterTool
-from local_newsifier.tools.web_scraper import WebScraperTool
-from local_newsifier.services.news_pipeline_service import NewsPipelineService
-from local_newsifier.services.article_service import ArticleService
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.database.engine import get_session
-from local_newsifier.crud.article import article as article_crud
-from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+from local_newsifier.database.engine import SessionManager
 
 
-class NewsPipelineFlow(Flow):
-    """Flow for processing news articles with NER analysis."""
-
+class NewsPipelineFlow(FlowBase):
+    """Flow for processing news articles through the analysis pipeline.
+    
+    This implementation uses the simplified DI pattern with descriptors
+    for cleaner dependency declaration and resolution.
+    """
+    
+    # Define dependencies using descriptors - these will be lazy-loaded when needed
+    scraper = Dependency()
+    file_writer = Dependency()
+    pipeline_service = Dependency()
+    article_service = Dependency()
+    entity_service = Dependency()
+    entity_extractor = Dependency()
+    context_analyzer = Dependency()
+    entity_resolver = Dependency()
+    session_factory = Dependency(fallback=SessionManager)
+    
     def __init__(
         self,
-        article_service: Optional[ArticleService] = None,
-        entity_service: Optional[EntityService] = None,
-        pipeline_service: Optional[NewsPipelineService] = None,
-        web_scraper: Optional[WebScraperTool] = None,
-        file_writer: Optional[FileWriterTool] = None,
-        entity_extractor: Optional[EntityExtractor] = None,
-        context_analyzer: Optional[ContextAnalyzer] = None,
-        entity_resolver: Optional[EntityResolver] = None,
-        session_factory: Optional[callable] = None,
-        output_dir: str = "output"
+        container=None,
+        session: Optional[Session] = None,
+        **explicit_deps
     ):
-        """Initialize the pipeline flow.
-
+        """Initialize the news pipeline flow.
+        
         Args:
-            article_service: Service for article operations
-            entity_service: Service for entity operations
-            pipeline_service: Service for news pipeline operations
-            web_scraper: Tool for scraping web content
-            file_writer: Tool for writing files
-            entity_extractor: Tool for extracting entities
-            context_analyzer: Tool for analyzing context
-            entity_resolver: Tool for resolving entities
-            session_factory: Function to create database sessions
-            output_dir: Directory for output files
+            container: Optional DI container for resolving dependencies
+            session: Optional database session (for direct use)
+            **explicit_deps: Explicit dependencies (overrides container)
         """
-        super().__init__()
-        
-        # Import container here to avoid circular imports
-        from local_newsifier.container import container
-        
-        # Check if we're in a test environment
-        is_test = "pytest" in sys.modules
-        
-        # Use provided dependencies or get from container
-        self.scraper = web_scraper
-        if self.scraper is None and not is_test:
-            self.scraper = container.get("web_scraper_tool")
+        # Initialize the FlowBase
+        super().__init__(container, **explicit_deps)
             
-        self.writer = file_writer
-        if self.writer is None:
-            if not is_test:
-                self.writer = container.get("file_writer_tool")
-            if self.writer is None:
-                self.writer = FileWriterTool(output_dir=output_dir)
-        
-        # Get session factory from container if not provided
-        self._session_factory = session_factory
-        if self._session_factory is None and not is_test:
-            self._session_factory = container.get("session_factory")
-        
-        # Get entity-related tools from container if not provided
-        self._entity_extractor = entity_extractor
-        if self._entity_extractor is None and not is_test:
-            self._entity_extractor = container.get("entity_extractor_tool")
-            
-        self._context_analyzer = context_analyzer
-        if self._context_analyzer is None and not is_test:
-            self._context_analyzer = container.get("context_analyzer_tool")
-            
-        self._entity_resolver = entity_resolver
-        if self._entity_resolver is None and not is_test:
-            self._entity_resolver = container.get("entity_resolver_tool")
-        
-        # Get entity service from container if not provided
-        self.entity_service = entity_service
-        if self.entity_service is None and not is_test:
-            self.entity_service = container.get("entity_service")
-        
-        # Get article service from container if not provided
-        self.article_service = article_service
-        if self.article_service is None and not is_test:
-            self.article_service = container.get("article_service")
-        
-        # Get or create pipeline service
-        if pipeline_service:
-            self.pipeline_service = pipeline_service
-        else:
-            # Look for pipeline service in container first, create if not found
-            pipeline_from_container = None
-            if not is_test:
-                pipeline_from_container = container.get("news_pipeline_service")
-                
-            if pipeline_from_container is not None:
-                self.pipeline_service = pipeline_from_container
-            else:
-                # In test environment, make sure we have a pipeline service
-                if is_test and pipeline_service is None:
-                    from unittest.mock import MagicMock
-                    self.pipeline_service = MagicMock()
-                    # Make sure we have required test dependencies
-                    if self.scraper is None:
-                        self.scraper = MagicMock()
-                    if self.article_service is None:
-                        self.article_service = MagicMock()
-                # Otherwise only create a new one if we have the required dependencies
-                elif self.article_service and self.scraper:
-                    self.pipeline_service = NewsPipelineService(
-                        article_service=self.article_service,
-                        web_scraper=self.scraper,
-                        file_writer=self.writer,
-                        session_factory=self._session_factory
-                    )
+        self.session = session
 
-    def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
-        """Task for scraping article content."""
-        return self.scraper.scrape(state)
-
-    def process_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
-        """Task for processing article content including entity tracking."""
-        try:
-            state.status = AnalysisStatus.ANALYZING
-            state.add_log("Starting article processing with entity tracking")
-
-            if not state.scraped_text:
-                raise ValueError("No text content available for processing")
-
-            # Process article using the service
-            result = self.article_service.process_article(
-                url=state.target_url,
-                content=state.scraped_text,
-                title=state.scraped_title if hasattr(state, 'scraped_title') else "Untitled Article",
-                published_at=state.scraped_at or datetime.now(timezone.utc)
-            )
-
-            # Update state with results
-            state.analysis_results = result["analysis_result"]
-            state.analyzed_at = datetime.now(timezone.utc)
-            state.status = AnalysisStatus.ANALYSIS_SUCCEEDED
-            state.add_log(
-                f"Successfully completed article processing. "
-                f"Found {result['analysis_result']['statistics']['total_entities']} entities."
-            )
-
-        except Exception as e:
-            state.status = AnalysisStatus.ANALYSIS_FAILED
-            state.set_error("analysis", e)
-            state.add_log(f"Error during article processing: {str(e)}")
-            # Don't re-raise the exception, just return the state with error
-
-        return state
-
-    def save_results(self, state: NewsAnalysisState) -> NewsAnalysisState:
-        """Task for saving analysis results."""
-        return self.writer.save(state)
-
-    def start_pipeline(self, url: str) -> NewsAnalysisState:
-        """
-        Start the pipeline with a URL.
-
-        Args:
-            url: URL of the article to analyze
-
-        Returns:
-            Final pipeline state
-        """
-        # Initialize state
-        state = NewsAnalysisState(target_url=url)
-        state.add_log(f"Starting pipeline for URL: {url}")
-
-        # Execute pipeline
-        state = self.scrape_content(state)
-        if state.status not in [AnalysisStatus.SCRAPE_SUCCEEDED]:
-            return state
-
-        state = self.process_content(state)
-        if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
-            return state
-
-        state = self.save_results(state)
-        return state
-
-    def resume_pipeline(
-        self, run_id: str, state: Optional[NewsAnalysisState] = None
-    ) -> NewsAnalysisState:
-        """
-        Resume a pipeline from its last successful state.
-
-        Args:
-            run_id: ID of the run to resume
-            state: Optional state to resume from
-
-        Returns:
-            Final pipeline state
-        """
-        if not state:
-            # In a real implementation, we would load state from SQLite
-            raise NotImplementedError("State loading not implemented")
-
-        state.add_log(f"Resuming pipeline for run_id: {run_id}")
-
-        # Determine where to resume based on status
-        if state.status in [
-            AnalysisStatus.INITIALIZED,
-            AnalysisStatus.SCRAPE_FAILED_NETWORK,
-            AnalysisStatus.SCRAPE_FAILED_PARSING,
-        ]:
-            # Clear any previous error details before retrying
-            if state.status in [
-                AnalysisStatus.SCRAPE_FAILED_NETWORK,
-                AnalysisStatus.SCRAPE_FAILED_PARSING,
-            ]:
-                state.error_details = None
-                state.add_log("Retry attempt for scraping")
-
-            state = self.scrape_content(state)
-            if state.status not in [AnalysisStatus.SCRAPE_SUCCEEDED]:
-                return state
-
-            state = self.process_content(state)
-            if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
-                return state
-
-            state = self.save_results(state)
-
-        elif state.status in [
-            AnalysisStatus.SCRAPE_SUCCEEDED,
-            AnalysisStatus.ANALYSIS_FAILED,
-        ]:
-            # Clear any previous error details before retrying
-            if state.status == AnalysisStatus.ANALYSIS_FAILED:
-                state.error_details = None
-                state.add_log("Retry attempt for analysis")
-
-            state = self.process_content(state)
-            if state.status not in [AnalysisStatus.ANALYSIS_SUCCEEDED]:
-                return state
-
-            state = self.save_results(state)
-
-        elif state.status in [
-            AnalysisStatus.ANALYSIS_SUCCEEDED,
-            AnalysisStatus.SAVE_FAILED,
-        ]:
-            # Clear any previous error details before retrying
-            if state.status == AnalysisStatus.SAVE_FAILED:
-                state.error_details = None
-                state.add_log("Retry attempt for saving")
-
-            state = self.save_results(state)
-
-        else:
-            state.add_log(f"Cannot resume from status: {state.status}")
-            raise ValueError(f"Cannot resume from status: {state.status}")
-
-        return state
+    def ensure_dependencies(self) -> None:
+        """Ensure all required dependencies are available."""
+        # Access dependencies to trigger lazy loading
+        assert self.pipeline_service is not None, "NewsPipelineService is required"
+        assert self.article_service is not None, "ArticleService is required"
+        # Other dependencies will be loaded when needed
     
-    def process_url_directly(self, url: str) -> dict:
+    def process(self, state: NewsAnalysisState) -> NewsAnalysisState:
+        """Process an article for analysis through the pipeline.
+        
+        Args:
+            state: NewsAnalysisState containing article info
+            
+        Returns:
+            Updated state with analysis results
         """
-        Process a URL directly using the pipeline service.
+        try:
+            return self.pipeline_service.process_article_with_state(state)
+        except Exception as e:
+            # Handle errors by updating the state
+            state.status = AnalysisStatus.FAILED
+            state.set_error("pipeline_processing", e)
+            state.add_log(f"Error processing article: {str(e)}")
+            return state
+
+    def process_article(self, article_id: int) -> Dict[str, Any]:
+        """Legacy method for processing a single article by ID.
+        
+        Args:
+            article_id: ID of the article to process
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        from local_newsifier.crud.article import article as article_crud
+        
+        with self.session_factory() as session:
+            # Get article
+            article = article_crud.get(session, id=article_id)
+                
+            if not article:
+                raise ValueError(f"Article with ID {article_id} not found")
+            
+            # Create state for processing
+            state = NewsAnalysisState(
+                article_id=article.id,
+                content=article.content,
+                title=article.title,
+                url=article.url or "",
+                published_at=article.published_at or datetime.now(timezone.utc)
+            )
+            
+            # Process article
+            result_state = self.process(state)
+            
+            # Return processed results
+            return {
+                "status": result_state.status.value,
+                "entities": result_state.entities,
+                "sentiment": result_state.sentiment_score,
+                "topics": result_state.topics,
+                "summary": result_state.summary
+            }
+
+    def analyze_with_url(self, url: str) -> Dict[str, Any]:
+        """Process a new article from a URL.
         
         Args:
             url: URL of the article to process
             
         Returns:
-            Dictionary with processing results
+            Dictionary with analysis results
         """
-        return self.pipeline_service.process_url(url)
+        if not self.scraper:
+            raise ValueError("Web scraper is required for URL processing")
+        
+        # Scrape the article
+        scraped_data = self.scraper.scrape_article(url)
+        
+        if not scraped_data or not scraped_data.get("content"):
+            raise ValueError(f"Failed to scrape content from URL: {url}")
+        
+        # Create state for processing
+        state = NewsAnalysisState(
+            content=scraped_data.get("content", ""),
+            title=scraped_data.get("title", ""),
+            url=url,
+            published_at=scraped_data.get("published_at") or datetime.now(timezone.utc)
+        )
+        
+        # Process article
+        result_state = self.process(state)
+        
+        # Store article if requested
+        if result_state.save_article and result_state.status == AnalysisStatus.SUCCESS:
+            with self.session_factory() as session:
+                self.article_service.create_article_from_state(session, result_state)
+        
+        # Return processed results
+        return {
+            "status": result_state.status.value,
+            "entities": result_state.entities,
+            "sentiment": result_state.sentiment_score,
+            "topics": result_state.topics,
+            "summary": result_state.summary
+        }
+
+    def analyze_with_text(self, content: str, title: str = "", url: str = "") -> Dict[str, Any]:
+        """Process a new article from raw text content.
+        
+        Args:
+            content: Text content of the article
+            title: Optional title of the article
+            url: Optional source URL of the article
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        # Create state for processing
+        state = NewsAnalysisState(
+            content=content,
+            title=title,
+            url=url,
+            published_at=datetime.now(timezone.utc)
+        )
+        
+        # Process article
+        result_state = self.process(state)
+        
+        # Store article if requested
+        if result_state.save_article and result_state.status == AnalysisStatus.SUCCESS:
+            with self.session_factory() as session:
+                self.article_service.create_article_from_state(session, result_state)
+        
+        # Return processed results
+        return {
+            "status": result_state.status.value,
+            "entities": result_state.entities,
+            "sentiment": result_state.sentiment_score,
+            "topics": result_state.topics,
+            "summary": result_state.summary
+        }
