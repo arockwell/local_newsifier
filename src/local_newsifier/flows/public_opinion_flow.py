@@ -17,8 +17,15 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 
-from crewai import Flow
 from sqlmodel import Session
+
+# Check if crewai is available
+try:
+    from crewai import Flow
+    has_crewai = True
+except ImportError:
+    has_crewai = False
+    Flow = object  # Use object as base class if crewai is not available
 
 from local_newsifier.database.engine import get_session, with_session
 from local_newsifier.crud.article import article as article_crud

@@ -7,7 +7,13 @@ from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from crewai import Flow
+# Check if crewai is available
+try:
+    from crewai import Flow
+    has_crewai = True
+except ImportError:
+    has_crewai = False
+    Flow = object  # Use object as base class if crewai is not available
 
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (

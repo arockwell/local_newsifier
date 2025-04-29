@@ -3,8 +3,15 @@
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
-from crewai import Flow
 from sqlmodel import Session
+
+# Check if crewai is available
+try:
+    from crewai import Flow
+    has_crewai = True
+except ImportError:
+    has_crewai = False
+    Flow = object  # Use object as base class if crewai is not available
 
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud

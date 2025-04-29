@@ -1,7 +1,13 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from crewai import Flow
+# Check if crewai is available
+try:
+    from crewai import Flow
+    has_crewai = True
+except ImportError:
+    has_crewai = False
+    Flow = object  # Use object as base class if crewai is not available
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.file_writer import FileWriterTool

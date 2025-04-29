@@ -13,6 +13,14 @@ from local_newsifier.tools.web_scraper import WebScraperTool
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
 
+# Check if crewai is available
+try:
+    from crewai import Flow
+    has_crewai = True
+except ImportError:
+    has_crewai = False
+    Flow = object  # Use object as base class if crewai is not available
+
 logger = logging.getLogger(__name__)
 
 
