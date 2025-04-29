@@ -37,7 +37,7 @@ class TestOpinionVisualizerTool:
                 {"lower": -0.6, "upper": -0.4}
             ],
             article_counts=[5, 3, 7],
-            metadata={
+            viz_metadata={
                 "start_date": "2023-05-01",
                 "end_date": "2023-05-03",
                 "interval": "day"
@@ -59,7 +59,7 @@ class TestOpinionVisualizerTool:
                 {"lower": 0.5, "upper": 0.7}
             ],
             article_counts=[3, 4, 5],
-            metadata={
+            viz_metadata={
                 "start_date": "2023-05-01",
                 "end_date": "2023-05-03",
                 "interval": "day"
@@ -86,7 +86,7 @@ class TestOpinionVisualizerTool:
                     {"lower": -0.4, "upper": -0.2},
                     {"lower": 0.1, "upper": 0.3}
                 ],
-                metadata={
+                viz_metadata={
                     "start_date": "2023-05-01",
                     "end_date": "2023-05-03",
                     "interval": "day"
@@ -121,7 +121,7 @@ class TestOpinionVisualizerTool:
                 sentiment_values=[],
                 article_counts=[],
                 confidence_intervals=[],
-                metadata={}
+                viz_metadata={}
             )
             
             # Dummy assertion to pass this test
@@ -143,7 +143,7 @@ class TestOpinionVisualizerTool:
                         sentiment_values=[-0.3, -0.5],
                         article_counts=[5, 3],
                         confidence_intervals=[],
-                        metadata={"interval": "day"}
+                        viz_metadata={"interval": "day"}
                     )
                 else:
                     return SentimentVisualizationData(
@@ -152,7 +152,7 @@ class TestOpinionVisualizerTool:
                         sentiment_values=[0.4, 0.6],
                         article_counts=[3, 4],
                         confidence_intervals=[],
-                        metadata={"interval": "day"}
+                        viz_metadata={"interval": "day"}
                     )
             
             mock_prepare.side_effect = prepare_side_effect
@@ -317,7 +317,7 @@ class TestOpinionVisualizerTool:
             sentiment_values=[],
             article_counts=[],
             confidence_intervals=[],
-            metadata={"start_date": "2023-05-01", "end_date": "2023-05-03", "interval": "day"}
+            viz_metadata={"start_date": "2023-05-01", "end_date": "2023-05-03", "interval": "day"}
         )
         
         # Text report should handle empty data
