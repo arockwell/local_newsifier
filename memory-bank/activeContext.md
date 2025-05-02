@@ -126,16 +126,16 @@ We've added Apify integration to automate web scraping. The integration includes
 3. CLI commands for working with Apify:
    ```bash
    # Test connection
-   python -m local_newsifier.cli.main apify test
+   nf apify test
    
    # Run an actor
-   python -m local_newsifier.cli.main apify run-actor apify/web-scraper --input input.json
+   nf apify run-actor apify/web-scraper --input input.json
    
    # Get dataset items
-   python -m local_newsifier.cli.main apify get-dataset DATASET_ID
+   nf apify get-dataset DATASET_ID
    
    # Scrape a website
-   python -m local_newsifier.cli.main apify scrape-content https://example.com
+   nf apify scrape-content https://example.com
    ```
 
 ### Dependency Injection Circular Import Fix
