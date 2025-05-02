@@ -26,6 +26,11 @@ We use a hybrid architecture that combines elements of several architectural pat
    - Uses specialized state objects to encapsulate operation parameters and results
    - Provides better separation of concerns between components
 
+5. **Integration Pattern**
+   - Used for external systems like Apify 
+   - Encapsulates third-party API interactions in dedicated service classes
+   - Standardizes data transformation between external and internal formats
+
 ### Component Relationships
 
 ```mermaid
@@ -37,6 +42,8 @@ graph TD
     D -.-> B
     F[State Objects] <-.-> A
     F <-.-> B
+    G[Integration Services] --> B
+    G --> H[External APIs]
 ```
 
 - **Flows** orchestrate end-to-end processes using services
@@ -44,6 +51,7 @@ graph TD
 - **CRUD Modules** handle database operations
 - **Tools** perform specific processing or analysis tasks
 - **State Objects** carry operation parameters and results between components
+- **Integration Services** interact with external systems like Apify
 - Tools return results to services, which may save them via CRUD modules
 
 ## Design Patterns
@@ -87,6 +95,32 @@ class AnalysisService:
             # Use CRUD to get data
             # Use tools to analyze
             # Save results using CRUD
+```
+
+### External Integration Pattern
+
+Integration services encapsulate interactions with external APIs and services:
+
+```python
+class ApifyService:
+    def __init__(self, token=None):
+        self._token = token
+        self._client = None
+        
+    @property
+    def client(self):
+        if self._client is None:
+            token = self._token or settings.validate_apify_token()
+            self._client = ApifyClient(token)
+        return self._client
+        
+    def run_actor(self, actor_id, run_input):
+        return self.client.actor(actor_id).call(run_input=run_input)
+        
+    def get_dataset_items(self, dataset_id, **kwargs):
+        list_page = self.client.dataset(dataset_id).list_items(**kwargs)
+        # Normalize response format
+        return {"items": list_page.items}
 ```
 
 ### State-Based Pattern
@@ -254,6 +288,11 @@ container.register_factory("article_service", lambda c: ArticleService(
     container=c  # Inject the container itself for lazy resolution
 ))
 # ... more service registrations ...
+
+# Register integration services
+container.register_factory_with_params("apify_service", lambda c, **kwargs: ApifyService(
+    token=kwargs.get("token")
+))
 ```
 
 Components still accept dependencies as constructor parameters, but they now use the container as a fallback:
@@ -582,6 +621,41 @@ def sample_articles():
             published_at=datetime.now(timezone.utc)
         )
     ]
+```
+
+### API Client Testing
+
+For testing integration services like Apify:
+
+```python
+@pytest.fixture
+def mock_apify_client():
+    with patch("apify_client.ApifyClient") as mock_client_class:
+        mock_client = mock_client_class.return_value
+        
+        # Setup actor mock
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        mock_actor.call.return_value = {"defaultDatasetId": "test_dataset_id"}
+        
+        # Setup dataset mock
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        mock_dataset.list_items.return_value = {"items": [{"url": "test.com"}]}
+        
+        yield mock_client
+        
+def test_apify_service_run_actor(mock_apify_client):
+    # Initialize service with test token
+    service = ApifyService(token="test_token")
+    
+    # Run actor
+    result = service.run_actor("test-actor", {"testInput": "value"})
+    
+    # Verify client was called correctly
+    mock_apify_client.actor.assert_called_once_with("test-actor")
+    mock_apify_client.actor().call.assert_called_once_with(run_input={"testInput": "value"})
+    assert result == {"defaultDatasetId": "test_dataset_id"}
 ```
 
 ## Database Migration Patterns
