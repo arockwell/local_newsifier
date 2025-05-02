@@ -111,8 +111,14 @@ def register_container_service(service_name: str) -> Callable:
         else:
             logger.warning(f"Service {service_name} not found in DIContainer")
             return None
+    except (AttributeError, TypeError) as e:
+        logger.error(f"Type error registering {service_name}: {str(e)}")
+        return None
+    except ValueError as e:
+        logger.error(f"Value error registering {service_name}: {str(e)}")
+        return None
     except Exception as e:
-        logger.error(f"Error registering service {service_name}: {str(e)}")
+        logger.error(f"Unexpected error registering {service_name}: {str(e)}")
         return None
 
 
@@ -153,8 +159,12 @@ async def migrate_container_services(app: FastAPI) -> None:
                 service_class = service.__class__
                 register_with_injectable(name, service_class)
                 logger.info(f"Registered service {name} with fastapi-injectable")
+            except (AttributeError, TypeError) as e:
+                logger.error(f"Type error registering service {name}: {str(e)}")
+            except ValueError as e:
+                logger.error(f"Value error registering service {name}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error registering service {name}: {str(e)}")
+                logger.error(f"Unexpected error registering service {name}: {str(e)}")
     
     # Register factory-created services
     registered_factories = 0
@@ -168,6 +178,10 @@ async def migrate_container_services(app: FastAPI) -> None:
                 register_with_injectable(name, service_class)
                 registered_factories += 1
                 logger.info(f"Registered factory service {name} with fastapi-injectable")
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Type error registering factory {name}: {str(e)}")
+        except ValueError as e:
+            logger.warning(f"Value error registering factory {name}: {str(e)}")
         except Exception as e:
             logger.warning(f"Could not register factory {name}: {str(e)}")
     
