@@ -9,6 +9,8 @@
 - **PostgreSQL**: Database for persistent storage
 - **Alembic**: Database migration tool for schema versioning
 - **Celery**: Asynchronous task queue for background processing
+- **Redis**: Message broker and result backend for Celery
+- **Apify Client**: Integration with Apify web scraping platform
 
 ### Frontend Technologies
 - **Jinja2 Templates**: Server-side rendering for web interface
@@ -19,6 +21,7 @@
 - **Text Processing**: For entity extraction and analysis
 - **Sentiment Analysis**: For determining article sentiment
 - **Trend Analysis**: For identifying patterns and trends
+- **spaCy**: NLP library for entity extraction and text processing
 
 ## Development Environment
 - **Poetry**: Dependency management
@@ -36,6 +39,11 @@ The database consists of several key tables:
 - **entities**: Tracks extracted entities
 - **canonical_entities**: Normalized entity references
 - **analysis_results**: Stores analysis output
+- **rss_feeds**: Stores RSS feed sources
+- **feed_processing_logs**: Tracks RSS feed processing history
+- **apify_source_configs**: Stores Apify scraper configurations
+- **apify_jobs**: Tracks Apify scraping job runs
+- **apify_dataset_items**: Stores raw data from Apify scraping jobs
 
 ## Key Technical Insights
 
@@ -119,10 +127,17 @@ The Local Newsifier uses Celery for asynchronous task processing to handle resou
    task = analyze_entity_trends.delay(time_interval="day", days_back=7)
    ```
 
+4. **Process Apify Dataset**: Processes data from Apify web scraping jobs
+   ```python
+   from local_newsifier.tasks import process_apify_dataset
+   task = process_apify_dataset.delay(job_id)
+   ```
+
 ### Periodic Tasks
 Celery Beat is used to schedule periodic tasks:
 - Hourly RSS feed fetching
 - Daily entity trend analysis
+- Regular Apify actor runs based on configured schedules
 
 ### Development
 For local development, the Makefile provides several commands:
@@ -169,3 +184,36 @@ The application is configured for Railway deployment using:
    - POSTGRES_HOST
    - POSTGRES_PORT
    - POSTGRES_DB
+   - CELERY_BROKER_URL (for Celery broker)
+   - CELERY_RESULT_BACKEND (for Celery backend)
+   - APIFY_TOKEN (for Apify web scraping integration)
+
+## Apify Integration
+
+The Local Newsifier integrates with the Apify web scraping platform to automate content collection from websites.
+
+### Apify Components
+- **ApifyService**: Service class for interacting with the Apify API
+- **Apify Models**: SQLModel database models for storing Apify-related data
+- **CLI Commands**: Command-line interface for Apify operations
+
+### Apify Workflow
+1. Configure scraping sources in the `apify_source_configs` table
+2. Run Apify actors to scrape web content
+3. Store the raw scraping results in the `apify_dataset_items` table
+4. Process the raw data into articles and entities
+
+### CLI Commands
+```bash
+# Test Apify API connection
+nf apify test
+
+# Run an Apify actor
+nf apify run-actor apify/web-scraper --input input.json
+
+# Get data from an Apify dataset
+nf apify get-dataset DATASET_ID
+
+# Scrape content from a URL
+nf apify scrape-content https://example.com
+```

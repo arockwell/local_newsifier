@@ -7,8 +7,16 @@
 - SQLAlchemy session management in asynchronous tasks
 - Resolving circular dependencies with dependency injection
 - Standardizing all tool, service, and flow registrations in the dependency injection container
+- Apify integration for automated web scraping
 
 ## Recent Changes
+- Added Apify integration for web scraping (PR #147)
+  - Created SQLModel models for Apify data (source configs, jobs, dataset items)
+  - Added Alembic migration for new tables
+  - Implemented ApifyService for interacting with the Apify API
+  - Created CLI commands for Apify operations (test, run-actor, get-dataset, etc.)
+  - Added scrape-content command for easy website scraping
+
 - Fixed circular import dependencies between config and database modules (Issue #72)
   - Created a new common.py module in the config package to hold shared constants and functions
   - Updated settings.py to import from common.py instead of defining the shared constants directly
@@ -98,6 +106,38 @@
 
 ## Technical Details
 
+### Apify Integration
+We've added Apify integration to automate web scraping. The integration includes:
+
+1. Database models for storing Apify-related data:
+   - `ApifySourceConfig`: Configuration for scraping sources
+   - `ApifyJob`: Tracking scraping job runs
+   - `ApifyDatasetItem`: Raw data from scraping jobs
+   - `ApifyCredentials`: API credentials management
+   - `ApifyWebhook`: Webhook configuration
+
+2. ApifyService class for interacting with the Apify API:
+   ```python
+   apify_service = ApifyService(token=settings.APIFY_TOKEN)
+   run_result = apify_service.run_actor("apify/web-scraper", run_input)
+   dataset_items = apify_service.get_dataset_items(dataset_id)
+   ```
+
+3. CLI commands for working with Apify:
+   ```bash
+   # Test connection
+   nf apify test
+   
+   # Run an actor
+   nf apify run-actor apify/web-scraper --input input.json
+   
+   # Get dataset items
+   nf apify get-dataset DATASET_ID
+   
+   # Scrape a website
+   nf apify scrape-content https://example.com
+   ```
+
 ### Dependency Injection Circular Import Fix
 We fixed a circular import issue between container.py and session_utils.py that was causing CI failures. The problem was that:
 
@@ -172,8 +212,8 @@ This approach uses lazy imports to break the circular dependency. The container 
   - POSTGRES_HOST
   - POSTGRES_PORT
   - POSTGRES_DB
-  - CELERY_BROKER_URL (Redis URL for production - need to provision Redis in Railway)
-  - CELERY_RESULT_BACKEND (optional - defaults to broker URL)
+  - REDIS_URL (for Celery broker and backend)
+  - APIFY_TOKEN (for Apify web scraping integration)
 
 ## Key Decisions
 
@@ -221,9 +261,12 @@ The proper way to reference the module in Procfile and railway.json is `local_ne
 2. Improve entity resolution accuracy
 3. Implement scheduled scraping and analysis
 4. Add user authentication for admin functions
+5. Enhance Apify integration to automatically process scraped content into articles
 
 ## Key Learnings
 1. SQLModel has different parameter binding requirements compared to SQLAlchemy
 2. Parameter binding needs to happen before passing the query to session.exec()
 3. Railway deployment requires proper configuration of both railway.json and Procfile
 4. Database connection depends on environment variables being correctly set
+5. Celery works much better with Redis as broker than with PostgreSQL
+6. Apify provides a powerful platform for web scraping that integrates well with our system

@@ -7,6 +7,7 @@
 - ✅ Created database schema with tables for articles, entities, analysis results
 - ✅ Set up relationship models between entities
 - ✅ Added database connection and session management
+- ✅ Added Apify models for web scraping integration
 
 ### Entity Tracking System
 - ✅ Implemented entity extraction from articles
@@ -20,6 +21,12 @@
 - ✅ Added headline analysis
 - ✅ Built historical data aggregation
 
+### Content Acquisition
+- ✅ Implemented RSS feed scraping and processing
+- ✅ Added Apify web scraping integration
+- ✅ Created CLI commands for interacting with Apify API
+- ✅ Built workflow for processing scraped content into articles
+
 ### Web Interface
 - ✅ Implemented FastAPI server with basic routes
 - ✅ Created Jinja2 templates for web interface
@@ -27,6 +34,13 @@
 - ✅ Fixed SQLModel parameter binding issue in database queries
   - Updated system.py to use correct query parameter binding method
   - Changed from `session.exec(query, params)` to `session.exec(query.bindparams(...))`
+
+### System Structure
+- ✅ Implemented dependency injection container for better management of component relationships
+- ✅ Fixed circular import dependencies between modules
+- ✅ Standardized tool, service, and flow registrations
+- ✅ Improved session management to avoid "Instance is not bound to a Session" errors
+- ✅ Switched from PostgreSQL to Redis for Celery broker and result backend
 
 ## Current Status
 - Web app is running successfully locally
@@ -37,6 +51,10 @@
   - Created extensive tests for RSS feed service (98% coverage, up from 27%)
   - Added tests for API tasks router
   - Fixed test mocking approach to better isolate database operations
+- ✅ Apify integration is complete and functional
+  - Models and database migrations created
+  - Service class for API interaction implemented
+  - CLI commands for testing and operations added
 
 ## Next Steps
 
@@ -51,6 +69,7 @@
 - Improve entity resolution accuracy
 - Add user authentication for admin functions
 - Implement scheduled scraping and analysis
+- Enhance Apify integration with automatic article processing
 
 ## Known Issues
 - ✅ Fixed: NoneType error during RSS feed processing with CLI commands
@@ -84,3 +103,5 @@
 - Railway deployment requires environment variables for database connection
 - Application is configured to use PostgreSQL for production
 - Both railway.json and Procfile are properly configured
+- Celery requires Redis for message broker and result backend
+- Apify integration requires an API token to be set
