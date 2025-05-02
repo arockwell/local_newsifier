@@ -184,7 +184,8 @@ The application is configured for Railway deployment using:
    - POSTGRES_HOST
    - POSTGRES_PORT
    - POSTGRES_DB
-   - REDIS_URL (for Celery broker and backend)
+   - CELERY_BROKER_URL (for Celery broker)
+   - CELERY_RESULT_BACKEND (for Celery backend)
    - APIFY_TOKEN (for Apify web scraping integration)
 
 ## Apify Integration
@@ -205,14 +206,14 @@ The Local Newsifier integrates with the Apify web scraping platform to automate 
 ### CLI Commands
 ```bash
 # Test Apify API connection
-poetry run python -m local_newsifier.cli.main apify test
+nf apify test
 
 # Run an Apify actor
-poetry run python -m local_newsifier.cli.main apify run-actor apify/web-scraper --input input.json
+nf apify run-actor apify/web-scraper --input input.json
 
 # Get data from an Apify dataset
-poetry run python -m local_newsifier.cli.main apify get-dataset DATASET_ID
+nf apify get-dataset DATASET_ID
 
 # Scrape content from a URL
-poetry run python -m local_newsifier.cli.main apify scrape-content https://example.com
+nf apify scrape-content https://example.com
 ```
