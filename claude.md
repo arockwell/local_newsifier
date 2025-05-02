@@ -9,14 +9,15 @@
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Common Commands
-- `poetry run python scripts/run_pipeline.py --url <URL>`: Process a single article
-- `poetry run python scripts/demo_headline_trends.py --days 30 --interval day`: Analyze recent headlines
-- `poetry run python scripts/demo_entity_tracking.py`: View entity tracking dashboard
-- `poetry run python scripts/demo_sentiment_analysis.py`: Run sentiment analysis demo
-- `poetry run python -m local_newsifier.cli.main feeds list`: List configured RSS feeds
-- `poetry run python -m local_newsifier.cli.main feeds fetch`: Fetch articles from feeds
-- `poetry run python -m local_newsifier.cli.main apify test`: Test Apify API connection
-- `poetry run python -m local_newsifier.cli.main apify scrape-content <URL>`: Scrape content using Apify
+- `nf help`: Show available commands and options
+- `nf run-pipeline --url <URL>`: Process a single article
+- `nf demo-headline-trends --days 30 --interval day`: Analyze recent headlines
+- `nf demo-entity-tracking`: View entity tracking dashboard
+- `nf demo-sentiment-analysis`: Run sentiment analysis demo
+- `nf feeds list`: List configured RSS feeds
+- `nf feeds fetch`: Fetch articles from feeds
+- `nf apify test`: Test Apify API connection
+- `nf apify scrape-content <URL>`: Scrape content using Apify
 - `poetry run pytest`: Run all tests
 - `poetry run pytest --cov=src/local_newsifier`: Run tests with coverage
 - `poetry run python -m spacy download en_core_web_lg`: Download required spaCy model
@@ -221,7 +222,8 @@ def test_component_success(mock_component):
   - beat: Celery beat for scheduled tasks
 - Required environment variables:
   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB
-  - REDIS_URL (for Celery broker and backend)
+  - CELERY_BROKER_URL (Redis URL for Celery broker)
+  - CELERY_RESULT_BACKEND (Redis URL for Celery results)
   - APIFY_TOKEN (for Apify web scraping)
 
 ## Known Issues & Gotchas
