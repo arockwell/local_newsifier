@@ -1,136 +1,291 @@
-# FastAPI-Injectable Migration Plan
+# Migration Guide: Custom DI Container to fastapi-injectable
 
-## Research and Analysis
+This guide documents the process of migrating from Local Newsifier's custom DI container to fastapi-injectable.
 
-### Initial Findings
+## Table of Contents
 
-1. **Dependency Conflict**:
-   - Local Newsifier uses FastAPI 0.110.0
-   - fastapi-injectable requires FastAPI >=0.112.4
-   - This will require updating the FastAPI version
+1. [Background](#background)
+2. [Migration Phases](#migration-phases)
+3. [Step 1: Project Setup](#step-1-project-setup)
+4. [Step 2: Defining Providers](#step-2-defining-providers)
+5. [Step 3: Migrating Services](#step-3-migrating-services)
+6. [Step 4: Testing with Injectable](#step-4-testing-with-injectable)
+7. [Best Practices](#best-practices)
+8. [Common Issues](#common-issues)
 
-2. **Current DI System**:
-   - Custom `DIContainer` in `src/local_newsifier/di_container.py`
-   - Container singleton in `src/local_newsifier/container.py`
-   - FastAPI dependencies in `src/local_newsifier/api/dependencies.py`
-   - Services registered with factory methods
+## Background
 
-3. **API Integration**:
-   - Current endpoints use `Depends(get_session)` and similar dependency functions
-   - Session management is handled via a session factory from the container
-   - Services are retrieved from the container in dependency functions
+Local Newsifier previously used a custom DI container implementation that had some limitations:
 
-### About fastapi-injectable
+1. **Inconsistent Patterns**: Different approaches to accessing dependencies across the codebase
+2. **Testing Complexity**: Each test required custom mocking strategies
+3. **Manual Resolution**: Flow and service classes had to manually resolve dependencies
+4. **Direct Container References**: Many components referenced the container directly
 
-fastapi-injectable is a dependency injection library for FastAPI that:
+The migration to fastapi-injectable provides these benefits:
 
-- Uses decorators to mark injectable components
-- Provides scoped lifetimes (singleton, transient, request)
-- Supports auto-discovery of injectable components
-- Integrates directly with FastAPI's dependency system
-- Handles circular dependencies
+1. **Simplified Dependencies**: Consistent `Depends()` pattern for all components
+2. **Better Testing**: Easier to override dependencies for testing
+3. **Type Safety**: Better type hints with `Annotated` types
+4. **Less Boilerplate**: Automatic dependency resolution with decorators
 
-### Key Differences
+## Migration Phases
 
-| Feature | Current DIContainer | fastapi-injectable |
-|---------|---------------------|-------------------|
-| Registration | Explicit registration with container.register() | Decorator-based (@injectable) |
-| Resolution | container.get("service_name") | Direct injection via type hints |
-| Scopes | SINGLETON, TRANSIENT, SCOPED | SINGLETON, TRANSIENT, REQUEST |
-| Integration | Manual integration with FastAPI dependencies | Direct FastAPI integration |
-| Discovery | Manual registration | Auto-discovery with scanning |
+The migration follows a phased approach:
 
-## Migration Strategy
+1. **Foundation (Current Phase)**:
+   - Set up basic infrastructure
+   - Create provider functions for core dependencies
+   - Configure testing utilities
 
-### 1. Update Dependencies
+2. **Gradual Migration**:
+   - Migrate individual services incrementally
+   - Update tests to use the new pattern
+   - Keep both systems working during transition
 
-- Update FastAPI to required version (>=0.112.4)
-- Add fastapi-injectable
-- Test core application functionality after updates
+3. **Complete Migration**:
+   - Fully migrate all components
+   - Remove the legacy DI container
+   - Update documentation
 
-### 2. Create Adapter Layer
+## Step 1: Project Setup
 
-- Create an adapter pattern to bridge between systems during migration
-- Allow both DI systems to coexist during transition
-- Gradually migrate components from DIContainer to fastapi-injectable
+### Installing Dependencies
 
-### 3. Injectable Service Pattern
+fastapi-injectable is already included in the project dependencies:
 
-Convert services to use the injectable pattern:
-
-```python
-from fastapi_injectable import injectable, Scope
-
-@injectable(scope=Scope.SINGLETON)
-class EntityService:
-    def __init__(self, entity_crud: EntityCRUD, session_factory: SessionFactory):
-        self.entity_crud = entity_crud
-        self.session_factory = session_factory
+```toml
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+# Other dependencies...
+fastapi-injectable = "^0.7.0"
 ```
 
-### 4. Update API Dependencies
+### DI Configuration Module
 
-Replace current dependency functions with injectable versions:
+We've created a dedicated module for DI configuration:
 
 ```python
-# Current approach
-def get_article_service() -> ArticleService:
-    return container.get("article_service")
+# src/local_newsifier/config/di.py
+from fastapi_injectable import configure_logging, setup_graceful_shutdown
 
-# New approach with fastapi-injectable
-from fastapi_injectable import Inject
+# Configure logging
+configure_logging(level=logging.INFO)
 
-def get_article_service(service: ArticleService = Inject()):
-    return service
+# Enable graceful shutdown
+setup_graceful_shutdown()
+
+# Scope converter function
+def scope_converter(scope: str) -> Scope:
+    """Convert DIContainer scope to fastapi-injectable scope."""
+    scope_map = {
+        DIContainerScope.SINGLETON.value: Scope.SINGLETON,
+        DIContainerScope.TRANSIENT.value: Scope.TRANSIENT,
+        DIContainerScope.SCOPED.value: Scope.REQUEST,  # Map scoped to request
+    }
+    return scope_map.get(scope.lower(), Scope.SINGLETON)
 ```
 
-### 5. Session Management Updates
+## Step 2: Defining Providers
 
-Update session management to use fastapi-injectable's request scope:
+Provider functions expose dependencies to be used by components:
 
 ```python
+# src/local_newsifier/di/providers.py
+from typing import Annotated, Generator
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
+
 @injectable(scope=Scope.REQUEST)
-class RequestSession:
-    def __init__(self, session_factory: SessionFactory):
-        self.session = session_factory()
-        
-    def __del__(self):
-        if self.session:
-            self.session.close()
-```
+def get_session() -> Generator[Session, None, None]:
+    """Provide a database session."""
+    from local_newsifier.database.engine import get_session as get_db_session
+    
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
 
-### 6. CRUD Modules Conversion
-
-Convert CRUD modules to use injectable pattern:
-
-```python
 @injectable(scope=Scope.SINGLETON)
-class EntityCRUD:
-    def get(self, session: Session, id: int):
-        # Implementation
+def get_article_crud():
+    """Provide the article CRUD component."""
+    from local_newsifier.crud.article import article
+    return article
+
+# Service providers
+@injectable(scope=Scope.SINGLETON)
+def get_article_service(
+    article_crud: Annotated[ArticleCRUD, Depends(get_article_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the article service."""
+    from local_newsifier.services.article_service import ArticleService
+    
+    return ArticleService(
+        article_crud=article_crud,
+        session_factory=lambda: session
+    )
 ```
 
-### 7. Container Initialization
+## Step 3: Migrating Services
 
-Update application startup to use fastapi-injectable initialization:
+Services can be migrated individually using the `@injectable` decorator:
 
 ```python
-from fastapi_injectable import InjectableAPI, load_modules
+# src/local_newsifier/services/injectable_entity_service.py
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
-app = InjectableAPI()
-load_modules(["local_newsifier.services", "local_newsifier.crud"])
+@injectable
+class InjectableEntityService:
+    """Entity service using fastapi-injectable."""
+    
+    def __init__(
+        self,
+        entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
+        canonical_entity_crud: Annotated[CanonicalEntityCRUD, Depends(get_canonical_entity_crud)],
+        session: Annotated[Session, Depends(get_session)],
+    ):
+        """Initialize with injected dependencies."""
+        self.entity_crud = entity_crud
+        self.canonical_entity_crud = canonical_entity_crud
+        self.session = session
+        
+    @injectable
+    def process_entity(self, entity_id: int):
+        """Process an entity."""
+        # Implementation here
 ```
 
-## Compatibility Challenges
+## Step 4: Testing with Injectable
 
-- Current code references container directly in some places
-- State-based flows may need special handling
-- CLI commands use container directly
-- Celery tasks use container for service resolution
+Testing components that use fastapi-injectable requires overriding the dependencies:
 
-## Testing Strategy
+```python
+# tests/conftest_injectable.py
+import pytest
+from unittest.mock import Mock
 
-- Create tests for both DI systems working together
-- Verify services can be resolved through both mechanisms
-- Test FastAPI endpoints with new DI system
-- Ensure CLI commands continue working during transition
+@pytest.fixture
+def mock_entity_crud():
+    """Provide a mock entity CRUD component."""
+    mock = Mock()
+    mock.create.return_value = Mock(id=1, text="Test Entity", entity_type="PERSON")
+    return mock
+
+@pytest.fixture
+def patch_injectable_dependencies(monkeypatch):
+    """Patch injectable dependencies for non-API tests."""
+    # Create mocks
+    mock_entity_crud = Mock()
+    
+    # Patch the providers
+    monkeypatch.setattr("local_newsifier.di.providers.get_entity_crud", lambda: mock_entity_crud)
+    
+    # Return mocks for use in tests
+    return {"entity_crud": mock_entity_crud}
+
+# In your test:
+def test_service(patch_injectable_dependencies):
+    mocks = patch_injectable_dependencies
+    service = InjectableEntityService(
+        entity_crud=mocks["entity_crud"],
+        # Other dependencies...
+    )
+    # Test implementation
+```
+
+## Best Practices
+
+### Type Annotations
+
+Always use specific types instead of `Any`:
+
+```python
+# Bad
+entity_crud: Annotated[Any, Depends(get_entity_crud)]
+
+# Good
+entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)]
+```
+
+### Method Injection
+
+Methods can also be decorated to inject dependencies:
+
+```python
+@injectable
+def process_article(
+    self,
+    article_id: int,
+    article_service: Annotated[ArticleService, Depends(get_article_service)]
+):
+    """Process with injected dependencies."""
+    return article_service.get_article(article_id)
+```
+
+### Circular Dependencies
+
+Handle circular imports with string type annotations:
+
+```python
+# When you have circular imports
+entity_service: Annotated["EntityService", Depends(get_entity_service)]
+
+# With TYPE_CHECKING
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from local_newsifier.services.entity_service import EntityService
+```
+
+### Scopes
+
+Match dependency scopes to their usage patterns:
+
+- `Scope.SINGLETON`: Use for stateless components (most services, tools)
+- `Scope.TRANSIENT`: Use for components that should be recreated on each use
+- `Scope.REQUEST`: Use for request-scoped resources (database sessions)
+
+## Common Issues
+
+### Multiple Session Handling
+
+Be careful with database sessions to prevent "Session is not bound" errors:
+
+```python
+# Issue: Using session across boundaries
+@injectable
+def process_with_session(self, article_id: int):
+    article = self.article_crud.get(self.session, id=article_id)
+    # Don't return the article object directly if it will be used after
+    # this function returns! Instead, return IDs or processed data
+    return {"id": article.id, "title": article.title}  # Safe
+```
+
+### Dependency Override Cleanup
+
+Always clean up dependency overrides in tests:
+
+```python
+@pytest.fixture
+def test_client_with_mocks():
+    app = FastAPI()
+    app.dependency_overrides = {...}  # Set overrides
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides = {}  # Clean up
+```
+
+### Type Checking
+
+Use `TYPE_CHECKING` for circular imports:
+
+```python
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from local_newsifier.services.entity_service import EntityService
+```
