@@ -98,13 +98,79 @@ class ApifyService:
 
             # Try dict-like access if the object supports it
             elif hasattr(list_page, "get") and callable(list_page.get):
-                items = list_page.get("items")
-                if items is not None:
-                    return {"items": items}
+                try:
+                    # Enhanced check: verify if it's a true dict-like object by checking
+                    # for common mapping protocol methods
+                    is_mapping_like = hasattr(list_page, "__getitem__") and (
+                        hasattr(list_page, "keys") or hasattr(list_page, "__contains__")
+                    )
+
+                    # Try to inspect the signature of get() to verify it accepts arguments
+                    accepts_args = False
+                    try:
+                        import inspect
+
+                        sig = inspect.signature(list_page.get)
+                        # Count required parameters (excluding self for instance methods)
+                        min_args = sum(
+                            1
+                            for p in sig.parameters.values()
+                            if p.default == inspect.Parameter.empty and
+                            p.kind not in (
+                                inspect.Parameter.VAR_POSITIONAL,
+                                inspect.Parameter.VAR_KEYWORD,
+                            )
+                        )
+
+                        # Subtract 'self' parameter for bound methods
+                        if hasattr(list_page.get, "__self__"):
+                            min_args = max(0, min_args - 1)
+
+                        accepts_args = (
+                            min_args <= 1
+                        )  # Should accept at most one required arg
+                    except (TypeError, ValueError):
+                        # If we can't inspect the signature, we'll rely on the is_mapping_like check
+                        pass
+
+                    # Only try to call get() if it's likely to work
+                    if is_mapping_like or accepts_args:
+                        # Try various common key names used by different APIs
+                        for key in ["items", "data", "results", "content"]:
+                            try:
+                                items = list_page.get(key)
+                                if items is not None:
+                                    return {"items": items}
+                            except Exception as e:
+                                import logging
+
+                                logging.debug(f"Exception when accessing get('{key}'): {str(e)}")
+                                # Continue to next key
+                except TypeError as e:
+                    # Specifically catch TypeError which happens when get() doesn't accept a string argument
+                    # Log and continue to other methods
+                    import logging
+
+                    logging.debug(f"TypeError when calling get() method: {str(e)}")
+                except Exception as e:
+                    # Catch any other exceptions from the get() call and continue to other methods
+                    import logging
+
+                    logging.debug(f"Error when using get() method: {str(e)}")
 
             # Try data attribute if it exists
             elif hasattr(list_page, "data") and list_page.data is not None:
                 return {"items": list_page.data}
+
+            # Try items attribute directly (common in many APIs and our test cases)
+            elif hasattr(list_page, "items") and list_page.items is not None:
+                # This case is already handled above, but we add it here as a fallback
+                # in case the earlier check is skipped due to the control flow
+                items = list_page.items
+                # Handle non-list items attribute (could be a property or method)
+                if callable(items):
+                    items = items()
+                return {"items": items}
 
             # Try accessing an "_items" private attribute (common in some APIs)
             elif hasattr(list_page, "_items") and list_page._items is not None:
@@ -137,7 +203,36 @@ class ApifyService:
                     # More specific error for JSON parsing issues
                     raise ValueError(f"Failed to parse ListPage as JSON: {json_err}")
         except Exception as e:
-            # If all else fails, return empty items list with detailed error
+            # If all else fails, try directly accessing attributes without property wrappers
+            # Check all attributes for anything that looks like an item list
+            try:
+                # Iterate through all attributes of the object
+                for attr_name in dir(list_page):
+                    # Skip private attributes and methods
+                    if attr_name.startswith("_") and attr_name != "_items":
+                        continue
+
+                    # Skip methods and built-in attributes
+                    if callable(getattr(list_page, attr_name, None)) or attr_name in (
+                        "__dict__",
+                        "__class__",
+                    ):
+                        continue
+
+                    # Try to get the attribute
+                    try:
+                        attr_value = getattr(list_page, attr_name)
+                        # If it's a list-like object, return it as items
+                        if isinstance(attr_value, (list, tuple)) and attr_value:
+                            return {"items": attr_value}
+                    except Exception:
+                        # Skip attributes that raise exceptions
+                        continue
+            except Exception:
+                # If direct attribute inspection fails, continue to fallback
+                pass
+
+            # Last resort fallback: empty items with error
             import traceback
 
             error_message = str(e)
