@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test script for fastapi-injectable adapter
+# Unified test script for fastapi-injectable integration
 
 # Set environment variables for test
 export POSTGRES_USER=postgres
@@ -22,42 +22,65 @@ if ! poetry run pip list | grep -q fastapi-injectable; then
     poetry add fastapi-injectable
 fi
 
-# First, test the standalone script
-echo "Testing standalone fastapi-injectable script..."
-poetry run python scripts/test_fastapi_injectable.py &
-PID1=$!
+# Parse command line arguments
+FULL_TEST=true
+RUN_SERVER=false
+API_INTEGRATION=false
 
-# Wait for server to start
-sleep 5
+while [ "$1" != "" ]; do
+    case $1 in
+        --server)
+            RUN_SERVER=true
+            FULL_TEST=false
+            ;;
+        --api-integration)
+            API_INTEGRATION=true
+            FULL_TEST=false
+            ;;
+        --all)
+            FULL_TEST=true
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Available options: --server, --api-integration, --all"
+            exit 1
+            ;;
+    esac
+    shift
+done
 
-# Test the endpoints
-echo "Testing standalone endpoints..."
-curl -v http://localhost:8000/test/di 2>&1 | grep -v "curl: " || echo "Failed to connect to standalone server"
-curl -v http://localhost:8000/test/article-service 2>&1 | grep -v "curl: " || echo "Failed to connect to standalone server"
-curl -v http://localhost:8000/test/container 2>&1 | grep -v "curl: " || echo "Failed to connect to standalone server"
+# Run the appropriate test mode
+if [ "$FULL_TEST" = true ]; then
+    echo "Running full test suite"
+    poetry run python scripts/test_fastapi_injectable.py
+elif [ "$RUN_SERVER" = true ]; then
+    echo "Running standalone test server"
+    poetry run python scripts/test_fastapi_injectable.py --server
+elif [ "$API_INTEGRATION" = true ]; then
+    echo "Running API integration tests"
+    # First run the automated tests
+    poetry run python scripts/test_fastapi_injectable.py --api-integration
+    
+    # Then start the API server for manual testing
+    echo "Starting API server for manual tests..."
+    cd "$ROOT_DIR/src" && poetry run uvicorn local_newsifier.api.main:app --reload &
+    PID=$!
+    
+    # Wait for server to start
+    sleep 5
+    
+    # Print test instructions
+    echo ""
+    echo "API server is running. Test the following endpoints:"
+    echo "- http://localhost:8000/injectable/info"
+    echo "- http://localhost:8000/injectable/stats"
+    echo "- http://localhost:8000/health"
+    echo "- http://localhost:8000/config"
+    echo ""
+    echo "Press Ctrl+C to stop the API server"
+    
+    # Wait for user to press Ctrl+C
+    wait $PID
+fi
 
-# Kill the standalone server
-echo "Stopping standalone server..."
-kill $PID1 2>/dev/null || true
-
-# Now test with the full API
-echo "Testing integration with main API..."
-cd "$ROOT_DIR/src" && poetry run uvicorn local_newsifier.api.main:app --reload &
-PID2=$!
-
-# Wait for server to start
-sleep 5
-
-# Test the injectable endpoints
-echo "Testing injectable API endpoints..."
-curl -v http://localhost:8000/injectable/info 2>&1 | grep -v "curl: " || echo "Failed to connect to API server"
-curl -v http://localhost:8000/injectable/stats 2>&1 | grep -v "curl: " || echo "Failed to connect to API server"
-
-# Test regular endpoints still work
-echo "Testing regular API endpoints still work..."
-curl -v http://localhost:8000/health 2>&1 | grep -v "curl: " || echo "Failed to connect to API server"
-curl -v http://localhost:8000/config 2>&1 | grep -v "curl: " || echo "Failed to connect to API server"
-
-# Done
-echo "Press Ctrl+C to stop the API server"
-wait $PID2
+echo "Tests completed"

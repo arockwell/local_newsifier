@@ -26,6 +26,9 @@ The API module provides a web interface for the Local Newsifier system using Fas
 ### Dependency Injection
 The API uses FastAPI's dependency injection system for common dependencies:
 
+> **IMPORTANT**: The project is migrating from a custom DIContainer to fastapi-injectable. During this transition, both dependency injection patterns will be in use. New endpoints should use the fastapi-injectable pattern described in the "Injectable Endpoints" section below.
+
+#### Legacy Pattern
 ```python
 def get_session() -> Generator[Session, None, None]:
     """Get a database session for request.
@@ -43,6 +46,23 @@ Route handlers use these dependencies:
 @router.get("/tables")
 async def get_tables(request: Request, session: Session = Depends(get_session)):
     # Use session for database operations
+    return templates.TemplateResponse(...)
+```
+
+#### Injectable Pattern
+```python
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
+from local_newsifier.di.providers import get_session
+
+@router.get("/entities/{entity_id}")
+async def get_entity(
+    entity_id: int,
+    request: Request,
+    entity_service: Annotated[EntityService, Depends()]
+):
+    entity = entity_service.get_entity(entity_id)
     return templates.TemplateResponse(...)
 ```
 
@@ -147,3 +167,66 @@ async def not_found_handler(request: Request, exc: HTTPException):
 3. Delegate business logic to services
 4. Transform response data as needed
 5. Return appropriate response (HTML or JSON)
+
+## Injectable Endpoints
+
+The project is migrating to fastapi-injectable for dependency injection. This section describes how to create FastAPI endpoints using the new pattern.
+
+### Injectable Dependency Resolution
+
+With fastapi-injectable, dependencies are automatically resolved:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
+from local_newsifier.services.injectable_entity_service import InjectableEntityService
+
+@router.get("/entities/{entity_id}")
+async def get_entity(
+    entity_id: int,
+    request: Request,
+    entity_service: Annotated[InjectableEntityService, Depends()]
+):
+    entity = entity_service.get_entity(entity_id)
+    return templates.TemplateResponse(
+        "entity_detail.html",
+        {"request": request, "entity": entity}
+    )
+```
+
+### API Endpoint with Injectable Dependencies
+
+For JSON API endpoints:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from pydantic import BaseModel
+from local_newsifier.services.injectable_entity_service import InjectableEntityService
+
+class EntityResponse(BaseModel):
+    id: int
+    name: str
+    entity_type: str
+    
+@router.get("/api/entities/{entity_id}", response_model=EntityResponse)
+async def get_entity_api(
+    entity_id: int,
+    entity_service: Annotated[InjectableEntityService, Depends()]
+):
+    return entity_service.get_entity(entity_id)
+```
+
+### Testing Injectable Endpoints
+
+Testing endpoints with injectable dependencies:
+
+```python
+def test_get_entity_endpoint(test_client_with_mocks):
+    # The client has all dependencies mocked via dependency overrides
+    response = test_client_with_mocks.get("/entities/1")
+    assert response.status_code == 200
+```
+
+For more information on the migration to fastapi-injectable, see `docs/fastapi_injectable.md`.

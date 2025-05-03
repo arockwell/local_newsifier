@@ -3,6 +3,8 @@
 ## Overview
 The services module contains business logic that coordinates between CRUD operations (database access) and tools (processing logic). Services manage transactions, implement business rules, and provide a clean API for higher-level components.
 
+> **IMPORTANT**: The project is transitioning from a custom DIContainer to fastapi-injectable. During this migration, you'll see both patterns in use. New services should use the fastapi-injectable pattern described in the "Injectable Service Pattern" section below.
+
 ## Key Service Types
 
 ### Content Services
@@ -326,3 +328,80 @@ container.register_factory_with_params(
 - Test happy paths and error cases
 - Verify database interactions
 - Test integration with tools and external APIs
+
+## Injectable Service Pattern
+
+Services are transitioning to use fastapi-injectable for dependency injection. This section describes the new pattern.
+
+### Injectable Service Definition
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
+
+@injectable
+class InjectableEntityService:
+    """Entity service using fastapi-injectable."""
+    
+    def __init__(
+        self,
+        entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
+        canonical_entity_crud: Annotated[CanonicalEntityCRUD, Depends(get_canonical_entity_crud)],
+        session: Annotated[Session, Depends(get_session)],
+    ):
+        self.entity_crud = entity_crud
+        self.canonical_entity_crud = canonical_entity_crud
+        self.session = session
+```
+
+### Session Usage in Injectable Services
+
+In injectable services, the session is typically injected directly:
+
+```python
+def process_entity(self, entity_id: int):
+    """Process an entity.
+    
+    Args:
+        entity_id: ID of the entity to process
+        
+    Returns:
+        Processed entity data
+    """
+    # Use the injected session directly
+    entity = self.entity_crud.get(self.session, entity_id)
+    if not entity:
+        raise ValueError(f"Entity not found: {entity_id}")
+        
+    # Process entity...
+    
+    # Return processed data
+    return entity.model_dump()
+```
+
+### Testing Injectable Services
+
+Injectable services can be tested by providing mock dependencies directly:
+
+```python
+def test_injectable_service(patch_injectable_dependencies):
+    # Get mocks from fixture
+    mocks = patch_injectable_dependencies
+    
+    # Create service with mock dependencies
+    service = InjectableEntityService(
+        entity_crud=mocks["entity_crud"],
+        canonical_entity_crud=mocks["canonical_entity_crud"],
+        session=mocks["session"]
+    )
+    
+    # Test the service
+    result = service.process_entity(1)
+    assert result is not None
+    
+    # Verify mock calls
+    mocks["entity_crud"].get.assert_called_once_with(mocks["session"], 1)
+```
+
+For more information on the migration to fastapi-injectable, see `docs/fastapi_injectable.md`.
