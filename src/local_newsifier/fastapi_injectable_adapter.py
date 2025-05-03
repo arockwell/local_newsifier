@@ -91,8 +91,11 @@ class ContainerAdapter:
 adapter = ContainerAdapter()
 
 
-# We must explicitly use use_cache=False to override the default True
-# This ensures we get fresh instances every time, avoiding shared state issues
+# Caching behavior control
+# use_cache=True (default): Reuses the same instance for identical dependency injection requests
+# use_cache=False: Creates a new instance for each dependency injection request
+#
+# For most components, especially those with state or DB interactions, use_cache=False is safer
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -113,18 +116,25 @@ def get_service_factory(service_name: str) -> Callable:
         "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
     
-    # Must explicitly set use_cache=False to override the default True
-    # This ensures every dependency injection gets a fresh instance
-    # and avoids any issues with shared state
+    # Determine appropriate caching behavior based on service type
+    # Components that interact with state or databases should use use_cache=False
+    # Purely functional utilities could potentially use use_cache=True for performance
+    use_cache = True  # Default to caching for performance
     
-    @injectable(use_cache=False)
+    # For stateful components or those interacting with databases, disable caching
+    for pattern in stateful_patterns:
+        if pattern in service_name:
+            use_cache = False
+            break
+    
+    @injectable(use_cache=use_cache)
     def service_factory():
         """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
     
     # Set better function name for debugging
     service_factory.__name__ = f"get_{service_name}"
-    logger.info(f"Created provider for {service_name} with use_cache=False")
+    logger.info(f"Created provider for {service_name} with use_cache={use_cache}")
     
     return service_factory
 
