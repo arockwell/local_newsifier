@@ -14,7 +14,6 @@ repos:
     -   id: debug-statements
     -   id: detect-private-key
     -   id: mixed-line-ending
-    -   id: name-tests-test
     -   id: requirements-txt-fixer
     -   id: sort-simple-yaml
 
