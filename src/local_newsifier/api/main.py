@@ -73,16 +73,6 @@ app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(tasks.router)
 
-# Include injectable test router
-try:
-    from local_newsifier.api.injectable_test import router as injectable_router
-    app.include_router(injectable_router)
-    logger.info("Injectable test router registered successfully")
-except Exception as e:
-    logger.error(f"Error registering injectable test router: {str(e)}")
-
-
-
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, templates=Depends(get_templates)):
     """Root endpoint serving home page."""
