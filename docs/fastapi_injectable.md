@@ -45,10 +45,10 @@ The migration follows a phased approach to minimize disruption while allowing bo
 
 ### 1. Core DI Configuration
 
-The `config/di.py` module establishes configuration for fastapi-injectable:
+The `fastapi_injectable_adapter.py` module establishes configuration for fastapi-injectable:
 
 ```python
-from fastapi_injectable import configure_logging, setup_graceful_shutdown, Scope
+from fastapi_injectable import configure_logging, setup_graceful_shutdown
 
 # Configure logging
 configure_logging(level=logging.INFO)
@@ -56,15 +56,21 @@ configure_logging(level=logging.INFO)
 # Enable graceful shutdown
 setup_graceful_shutdown()
 
-# Scope converter function
-def scope_converter(scope: str) -> Scope:
-    """Convert DIContainer scope to fastapi-injectable scope."""
-    scope_map = {
-        "singleton": Scope.SINGLETON,
-        "transient": Scope.TRANSIENT,
-        "scoped": Scope.REQUEST,  # Map scoped to request
-    }
-    return scope_map.get(scope.lower(), Scope.SINGLETON)
+# Note: fastapi-injectable v0.7.0 doesn't have a Scope enum
+# It only has use_cache parameter to control instance reuse
+
+# Caching strategy helper function
+def should_cache(scope: str) -> bool:
+    """Convert DIContainer scope to fastapi-injectable use_cache value.
+    
+    Args:
+        scope: DIContainer scope string ("singleton", "transient", "scoped")
+        
+    Returns:
+        Boolean indicating whether to cache the dependency
+    """
+    # Only singleton services should be cached (reused between injections)
+    return scope.lower() == "singleton"
 ```
 
 ### 2. Provider Functions
@@ -74,19 +80,27 @@ Provider functions in `di/providers.py` expose dependencies to be injected:
 ```python
 from typing import Annotated
 from fastapi import Depends
-from fastapi_injectable import injectable, Scope
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
-@injectable(scope=Scope.REQUEST)
-def get_session() -> Session:
+@injectable(use_cache=False)  # Create a new session for each injection
+def get_session() -> Generator[Session, None, None]:
     """Provide a database session."""
     from local_newsifier.database.engine import get_session as get_db_session
     
-    return next(get_db_session())
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)  # Create new instances for data access components
 def get_entity_crud():
-    """Provide the entity CRUD component."""
+    """Provide the entity CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD
+    components interact with the database and should not share state.
+    """
     from local_newsifier.crud.entity import entity
     return entity
 ```
@@ -96,16 +110,32 @@ def get_entity_crud():
 The adapter `fastapi_injectable_adapter.py` bridges between systems:
 
 ```python
-def register_with_injectable(service_name: str, factory_func):
-    """Register a DIContainer service with fastapi-injectable."""
-    di_scope = di_container._scopes.get(service_name, "singleton")
-    injectable_scope = scope_converter(di_scope)
+def get_service_factory(service_name: str) -> Callable:
+    """Create a factory function that gets a service from DIContainer."""
+    # These patterns indicate components that should not be cached
+    stateful_patterns = [
+        "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
+    ]
     
-    @injectable(scope=injectable_scope)
-    def provider_func():
+    # Determine appropriate caching behavior based on service type
+    use_cache = True  # Default to caching for performance
+    
+    # For stateful components or those interacting with databases, disable caching
+    for pattern in stateful_patterns:
+        if pattern in service_name:
+            use_cache = False
+            break
+    
+    @injectable(use_cache=use_cache)
+    def service_factory():
+        """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
     
-    return provider_func
+    # Set better function name for debugging
+    service_factory.__name__ = f"get_{service_name}"
+    logger.info(f"Created provider for {service_name} with use_cache={use_cache}")
+    
+    return service_factory
 ```
 
 ### 4. Service Migration Pattern
@@ -199,11 +229,12 @@ def get_article_service(
 Convert services to use the `@injectable` decorator with appropriate scope:
 
 ```python
-@injectable(scope=Scope.TRANSIENT)  # Explicit scope for clarity
+@injectable(use_cache=False)  # Prevent caching to ensure fresh instances
 class InjectableEntityService:
     """Injectable entity service with explicitly defined dependencies.
     
-    Uses TRANSIENT scope to ensure isolated instances for each usage.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     """
     def __init__(
         self,
@@ -295,30 +326,32 @@ def test_service(patch_injectable_dependencies):
 - Avoid circular dependencies by using provider functions
 - Keep provider functions in a central location
 
-### Scope Management
+### Instance Reuse Management
 
-When using fastapi-injectable throughout the application (not just in HTTP endpoints):
+fastapi-injectable v0.7.0 doesn't have a Scope enum or scope parameter, but it does control
+instance reuse with the `use_cache` parameter:
 
-- **Scope.SINGLETON**: 
-  - Use ONLY for completely stateless and thread-safe components
+- **use_cache=True** (default):
+  - Reuses the same instance for identical dependency requests
+  - Only safe for completely stateless and thread-safe components
   - Examples: Pure utility functions, configuration providers, constants
-  - Be extremely conservative with this scope to avoid shared state issues
+  - Be extremely conservative with this setting to avoid shared state issues
   - Never use for components that interact with the database or other external resources
 
-- **Scope.TRANSIENT**:
-  - The default and safest choice for almost all components
-  - Guarantees a fresh instance for each injection
+- **use_cache=False**:
+  - The safest choice for almost all components
+  - Creates a fresh instance for each dependency injection
   - Prevents shared state and potential leakage between operations
   - Required for services and components that interact with database
-  - Examples: CRUD components, Entity services, analysis services, processing tools
+  - Examples: CRUD components, Entity services, analysis services, processing tools, database sessions
 
-- **Scope.REQUEST**:
-  - Primarily useful in FastAPI HTTP context
-  - Creates one instance per request (or logical operation outside HTTP)
-  - Examples: Database sessions, request-specific resources
+Our strategy follows these guidelines:
+- Components that match patterns like "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
+  are automatically configured with `use_cache=False`
+- Purely functional, stateless utilities could use `use_cache=True` for performance
 
-Always prefer TRANSIENT over SINGLETON when in doubt, especially for services
-with database interaction or internal state management.
+Always prefer `use_cache=False` when in doubt, especially for services with database 
+interaction or internal state management.
 
 ### Testing
 - Create mock fixtures for common dependencies
@@ -353,7 +386,7 @@ def get_service_a(
 **Solution**: Use request-scoped session management.
 
 ```python
-@injectable(scope=Scope.REQUEST)
+@injectable(use_cache=False)  # Always create new session
 def get_session() -> Generator[Session, None, None]:
     session = next(get_db_session())
     try:
