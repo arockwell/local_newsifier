@@ -19,14 +19,17 @@ import logging
 from typing import Annotated, Any, Generator, Optional
 
 from fastapi import Depends
-from fastapi_injectable import Scope, injectable
+from fastapi_injectable import injectable
+
+# Use scope string constants from adapter
+from local_newsifier.fastapi_injectable_adapter import SCOPE_SINGLETON, SCOPE_TRANSIENT, SCOPE_REQUEST
 from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 
 # Database providers
 
-@injectable(scope=Scope.REQUEST)
+@injectable(scope=SCOPE_REQUEST)
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session.
     
@@ -47,7 +50,7 @@ def get_session() -> Generator[Session, None, None]:
 
 # CRUD providers
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_article_crud():
     """Provide the article CRUD component.
     
@@ -61,7 +64,7 @@ def get_article_crud():
     return article
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_entity_crud():
     """Provide the entity CRUD component.
     
@@ -75,7 +78,7 @@ def get_entity_crud():
     return entity
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_entity_relationship_crud():
     """Provide the entity relationship CRUD component.
     
@@ -89,7 +92,7 @@ def get_entity_relationship_crud():
     return entity_relationship
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_rss_feed_crud():
     """Provide the RSS feed CRUD component.
     
@@ -105,7 +108,7 @@ def get_rss_feed_crud():
 
 # Tool providers
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_web_scraper_tool():
     """Provide the web scraper tool.
     
@@ -118,7 +121,7 @@ def get_web_scraper_tool():
     return WebScraperTool()
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_entity_extractor():
     """Provide the entity extractor tool.
     
@@ -131,7 +134,7 @@ def get_entity_extractor():
     return EntityExtractor()
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_entity_resolver():
     """Provide the entity resolver tool.
     
@@ -144,7 +147,7 @@ def get_entity_resolver():
     return EntityResolver()
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_rss_parser():
     """Provide the RSS parser tool.
     
@@ -159,7 +162,7 @@ def get_rss_parser():
 
 # Service providers
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_article_service(
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
@@ -187,7 +190,7 @@ def get_article_service(
     )
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_entity_service(
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     entity_relationship_crud: Annotated[Any, Depends(get_entity_relationship_crud)],
@@ -215,7 +218,7 @@ def get_entity_service(
     )
 
 
-@injectable(scope=Scope.TRANSIENT)
+@injectable(scope=SCOPE_TRANSIENT)
 def get_rss_feed_service(
     rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
     rss_parser: Annotated[Any, Depends(get_rss_parser)],

@@ -13,7 +13,13 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, ca
 
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
-from fastapi_injectable import injectable, get_injected_obj, register_app, Scope
+from fastapi_injectable import injectable, get_injected_obj, register_app
+
+# fastapi-injectable 0.7.0 doesn't have a Scope enum, so we'll use string literals
+# These constants represent the scope values understood by the injectable decorator
+SCOPE_SINGLETON = "singleton"
+SCOPE_TRANSIENT = "transient"
+SCOPE_REQUEST = "request"
 
 from local_newsifier.container import container as di_container
 
@@ -88,7 +94,7 @@ class ContainerAdapter:
 adapter = ContainerAdapter()
 
 
-def scope_converter(scope: str) -> Scope:
+def scope_converter(scope: str) -> str:
     """Convert DIContainer scope to fastapi-injectable scope.
     
     Maps DIContainer scopes to fastapi-injectable scopes with a more
@@ -99,15 +105,15 @@ def scope_converter(scope: str) -> Scope:
         scope: DIContainer scope string ("singleton", "transient", "scoped")
         
     Returns:
-        Equivalent fastapi-injectable Scope enum value
+        Equivalent fastapi-injectable scope string value
     """
     scope_map = {
-        "singleton": Scope.SINGLETON,
-        "transient": Scope.TRANSIENT,
-        "scoped": Scope.REQUEST  # Map scoped to request in fastapi-injectable
+        "singleton": SCOPE_SINGLETON,
+        "transient": SCOPE_TRANSIENT,
+        "scoped": SCOPE_REQUEST  # Map scoped to request in fastapi-injectable
     }
     # Default to TRANSIENT (not SINGLETON) for safety when scope is unknown
-    return scope_map.get(scope.lower(), Scope.TRANSIENT)
+    return scope_map.get(scope.lower(), SCOPE_TRANSIENT)
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -129,7 +135,7 @@ def get_service_factory(service_name: str) -> Callable:
     ]
     
     # Default to TRANSIENT for all components that interact with state or database
-    injectable_scope = Scope.TRANSIENT
+    injectable_scope = SCOPE_TRANSIENT
     
     # Get the original scope from DIContainer but default to TRANSIENT
     di_scope = di_container._scopes.get(service_name, "transient")
@@ -139,7 +145,7 @@ def get_service_factory(service_name: str) -> Callable:
     # This is a safety measure to prevent shared state issues
     for pattern in stateful_patterns:
         if pattern in service_name:
-            injectable_scope = Scope.TRANSIENT
+            injectable_scope = SCOPE_TRANSIENT
             break
             
     # Truly stateless utilities might be singletons, but this should be rare
@@ -152,7 +158,7 @@ def get_service_factory(service_name: str) -> Callable:
     
     # Set better function name for debugging
     service_factory.__name__ = f"get_{service_name}"
-    logger.info(f"Created provider for {service_name} with scope {injectable_scope.name}")
+    logger.info(f"Created provider for {service_name} with scope {injectable_scope}")
     
     return service_factory
 
@@ -288,22 +294,13 @@ async def migrate_container_services(app: FastAPI) -> None:
     # Register the FastAPI app with fastapi-injectable
     await register_app(app)
     
-    # Track scope statistics for logging
-    scope_counts = {
-        "singleton": 0,
-        "transient": 0,
-        "request": 0
-    }
-    
     # Register direct service instances
     for name, service in di_container._services.items():
         if service is not None:
             try:
                 service_class = service.__class__
                 factory = get_service_factory(name)  # This handles scope selection
-                scope_name = factory.__injectable_scope__.name.lower()
-                scope_counts[scope_name] += 1
-                logger.info(f"Registered service {name} with fastapi-injectable using {scope_name} scope")
+                logger.info(f"Registered service {name} with fastapi-injectable")
             except (AttributeError, TypeError) as e:
                 logger.error(f"Type error registering service {name}: {str(e)}")
             except ValueError as e:
@@ -320,10 +317,8 @@ async def migrate_container_services(app: FastAPI) -> None:
             service = di_container.get(name)
             if service is not None:
                 provider_factory = get_service_factory(name)  # This handles scope selection
-                scope_name = provider_factory.__injectable_scope__.name.lower()
-                scope_counts[scope_name] += 1
                 registered_factories += 1
-                logger.info(f"Registered factory service {name} with fastapi-injectable using {scope_name} scope")
+                logger.info(f"Registered factory service {name} with fastapi-injectable")
         except (AttributeError, TypeError) as e:
             logger.warning(f"Type error registering factory {name}: {str(e)}")
         except ValueError as e:
@@ -331,12 +326,8 @@ async def migrate_container_services(app: FastAPI) -> None:
         except Exception as e:
             logger.warning(f"Could not register factory {name}: {str(e)}")
     
-    # Log comprehensive summary
-    total = sum(scope_counts.values())
-    logger.info(f"Migration complete. Registered {total} services with the following scopes:")
-    logger.info(f"  - SINGLETON: {scope_counts['singleton']} services")
-    logger.info(f"  - TRANSIENT: {scope_counts['transient']} services")
-    logger.info(f"  - REQUEST: {scope_counts['request']} services")
+    # Log summary
+    logger.info(f"Migration complete. Registered services with fastapi-injectable.")
     
     
 @asynccontextmanager
