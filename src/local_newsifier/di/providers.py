@@ -5,13 +5,11 @@ This module contains provider functions for all core dependencies
 that can be used with fastapi-injectable. These providers gradually
 replace the DIContainer factories with injectable providers.
 
-Instance reuse guidelines:
-- use_cache=True: Used only for completely stateless utilities with no dependencies
-- use_cache=False: Used for services with state or database interactions (default)
-
-The use_cache=False setting is the safest default as it provides isolated instances
-for each usage, preventing potential state leakage between operations especially
-in non-HTTP contexts like CLI commands and background tasks.
+Dependency injection approach:
+- We use use_cache=False for all injectable components for simplicity and safety
+- This ensures every dependency injection gets a new instance
+- Prevents any issues with state leakage between operations
+- Particularly important for services, database interactions, and in non-HTTP contexts
 """
 
 import logging

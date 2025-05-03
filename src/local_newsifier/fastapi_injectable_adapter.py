@@ -91,21 +91,8 @@ class ContainerAdapter:
 adapter = ContainerAdapter()
 
 
-def should_cache(scope: str) -> bool:
-    """Convert DIContainer scope to fastapi-injectable use_cache value.
-    
-    Maps DIContainer scopes to fastapi-injectable use_cache with a more
-    conservative approach, defaulting to use_cache=False for safety when
-    the scope is unknown.
-    
-    Args:
-        scope: DIContainer scope string ("singleton", "transient", "scoped")
-        
-    Returns:
-        Boolean indicating whether to cache the dependency
-    """
-    # Only singleton services should be cached (reused between injections)
-    return scope.lower() == "singleton"
+# Always use use_cache=False for safety and simplicity
+# This avoids potential issues with shared state
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -126,21 +113,11 @@ def get_service_factory(service_name: str) -> Callable:
         "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
     
-    # Get the original scope from DIContainer but default to transient
-    di_scope = di_container._scopes.get(service_name, "transient")
-    use_cache = should_cache(di_scope)
+    # Always use use_cache=False for simplicity and safety
+    # This ensures every dependency injection gets a fresh instance
+    # and avoids any issues with shared state
     
-    # For stateful components, never cache (always create fresh instances)
-    # This is a safety measure to prevent shared state issues
-    for pattern in stateful_patterns:
-        if pattern in service_name:
-            use_cache = False
-            break
-            
-    # Only truly stateless utilities should be cached (reused between calls)
-    # This should be rare and explicitly documented when used
-    
-    @injectable(use_cache=use_cache)
+    @injectable(use_cache=False)
     def service_factory():
         """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
