@@ -47,11 +47,12 @@ def get_session() -> Generator[Session, None, None]:
 
 # CRUD providers
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_article_crud():
     """Provide the article CRUD component.
     
-    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    Uses TRANSIENT scope as CRUD components interact with the database
+    and should not share state between operations.
     
     Returns:
         ArticleCRUD instance
@@ -60,11 +61,12 @@ def get_article_crud():
     return article
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_entity_crud():
     """Provide the entity CRUD component.
     
-    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    Uses TRANSIENT scope as CRUD components interact with the database
+    and should not share state between operations.
     
     Returns:
         EntityCRUD instance
@@ -73,11 +75,12 @@ def get_entity_crud():
     return entity
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_entity_relationship_crud():
     """Provide the entity relationship CRUD component.
     
-    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    Uses TRANSIENT scope as CRUD components interact with the database
+    and should not share state between operations.
     
     Returns:
         EntityRelationshipCRUD instance
@@ -86,11 +89,12 @@ def get_entity_relationship_crud():
     return entity_relationship
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_rss_feed_crud():
     """Provide the RSS feed CRUD component.
     
-    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    Uses TRANSIENT scope as CRUD components interact with the database
+    and should not share state between operations.
     
     Returns:
         RSSFeedCRUD instance

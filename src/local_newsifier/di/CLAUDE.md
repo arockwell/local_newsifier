@@ -32,13 +32,15 @@ fastapi-injectable uses three scopes with the following guidelines for Local New
 
 - `Scope.SINGLETON`: 
   - Use ONLY for completely stateless and thread-safe components
-  - Examples: CRUD components, pure utility functions
+  - Examples: Configuration providers, constants, pure utility functions
   - Use with extreme caution to avoid shared state issues
+  - Never use for components that interact with database
 
 - `Scope.TRANSIENT`: 
-  - **Default choice** for most services, especially those with state
+  - **Default choice** for almost all components
   - Creates a fresh instance every time the dependency is injected
-  - Examples: Entity services, analysis services, processing tools
+  - Required for all components that interact with database
+  - Examples: CRUD components, entity services, analysis services, processing tools
   
 - `Scope.REQUEST`: 
   - Used for request-scoped resources in HTTP context

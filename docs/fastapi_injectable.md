@@ -153,8 +153,15 @@ init_injection_dependency(app)
 Create provider functions for commonly used dependencies:
 
 ```python
-# For stateless components (like CRUD objects), SINGLETON is appropriate
+# For simple utility functions with no state, SINGLETON might be appropriate
 @injectable(scope=Scope.SINGLETON)
+def get_config_provider():
+    """Provide application configuration."""
+    from local_newsifier.config.settings import get_settings
+    return get_settings()
+
+# For CRUD components that interact with database, TRANSIENT is required
+@injectable(scope=Scope.TRANSIENT)
 def get_article_crud():
     """Provide the article CRUD component."""
     from local_newsifier.crud.article import article
@@ -294,15 +301,16 @@ When using fastapi-injectable throughout the application (not just in HTTP endpo
 
 - **Scope.SINGLETON**: 
   - Use ONLY for completely stateless and thread-safe components
-  - Examples: CRUD classes, pure utility functions, configuration providers
-  - Be very conservative with this scope to avoid shared state issues
+  - Examples: Pure utility functions, configuration providers, constants
+  - Be extremely conservative with this scope to avoid shared state issues
+  - Never use for components that interact with the database or other external resources
 
 - **Scope.TRANSIENT**:
-  - The default and safest choice for most services
+  - The default and safest choice for almost all components
   - Guarantees a fresh instance for each injection
   - Prevents shared state and potential leakage between operations
-  - Best for services that work with database or have internal state
-  - Examples: Entity services, analysis services, processing tools
+  - Required for services and components that interact with database
+  - Examples: CRUD components, Entity services, analysis services, processing tools
 
 - **Scope.REQUEST**:
   - Primarily useful in FastAPI HTTP context

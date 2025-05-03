@@ -124,28 +124,26 @@ def get_service_factory(service_name: str) -> Callable:
         Factory function that returns the service
     """
     # Determine the appropriate scope based on service type
-    stateful_service_patterns = [
-        "_service", "tool", "analyzer", "parser", "extractor", "resolver"
+    stateful_patterns = [
+        "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
     
-    # Default to TRANSIENT for services and tools
+    # Default to TRANSIENT for all components that interact with state or database
     injectable_scope = Scope.TRANSIENT
     
-    # Check if this is a stateless component (like CRUD)
-    if service_name.endswith("_crud"):
-        # CRUD components are generally stateless and thread-safe
-        injectable_scope = Scope.SINGLETON
-    else:
-        # Otherwise, get the scope from DIContainer but default to TRANSIENT for most services
-        di_scope = di_container._scopes.get(service_name, "transient")
-        injectable_scope = scope_converter(di_scope)
-        
-        # Override to TRANSIENT for any service-like component regardless of original scope
-        # This is a safety measure to prevent shared state issues
-        for pattern in stateful_service_patterns:
-            if pattern in service_name:
-                injectable_scope = Scope.TRANSIENT
-                break
+    # Get the original scope from DIContainer but default to TRANSIENT
+    di_scope = di_container._scopes.get(service_name, "transient")
+    injectable_scope = scope_converter(di_scope)
+    
+    # Override to TRANSIENT for any component that might have state
+    # This is a safety measure to prevent shared state issues
+    for pattern in stateful_patterns:
+        if pattern in service_name:
+            injectable_scope = Scope.TRANSIENT
+            break
+            
+    # Truly stateless utilities might be singletons, but this should be rare
+    # and explicitly documented when used
     
     @injectable(scope=injectable_scope, use_cache=True)
     def service_factory():
