@@ -5,13 +5,12 @@ This module contains provider functions for all core dependencies
 that can be used with fastapi-injectable. These providers gradually
 replace the DIContainer factories with injectable providers.
 
-Scope guidelines:
-- Scope.SINGLETON: Used only for completely stateless utilities with no dependencies
-- Scope.TRANSIENT: Used for services with state or database interactions (default)
-- Scope.REQUEST: Used primarily within FastAPI endpoint context for request-scoped resources
+Instance reuse guidelines:
+- use_cache=True: Used only for completely stateless utilities with no dependencies
+- use_cache=False: Used for services with state or database interactions (default)
 
-Transient scope is the safest default as it provides isolated instances for
-each usage, preventing potential state leakage between operations especially
+The use_cache=False setting is the safest default as it provides isolated instances
+for each usage, preventing potential state leakage between operations especially
 in non-HTTP contexts like CLI commands and background tasks.
 """
 
@@ -21,15 +20,15 @@ from typing import Annotated, Any, Generator, Optional
 from fastapi import Depends
 from fastapi_injectable import injectable
 
-# Use scope string constants from adapter
-from local_newsifier.fastapi_injectable_adapter import SCOPE_SINGLETON, SCOPE_TRANSIENT, SCOPE_REQUEST
+# Using injectable directly - no scope parameter in version 0.7.0
+# We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 
 # Database providers
 
-@injectable(scope=SCOPE_REQUEST)
+@injectable(use_cache=False)
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session.
     
@@ -50,12 +49,12 @@ def get_session() -> Generator[Session, None, None]:
 
 # CRUD providers
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_article_crud():
     """Provide the article CRUD component.
     
-    Uses TRANSIENT scope as CRUD components interact with the database
-    and should not share state between operations.
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
     
     Returns:
         ArticleCRUD instance
@@ -64,12 +63,12 @@ def get_article_crud():
     return article
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_entity_crud():
     """Provide the entity CRUD component.
     
-    Uses TRANSIENT scope as CRUD components interact with the database
-    and should not share state between operations.
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
     
     Returns:
         EntityCRUD instance
@@ -78,12 +77,12 @@ def get_entity_crud():
     return entity
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_entity_relationship_crud():
     """Provide the entity relationship CRUD component.
     
-    Uses TRANSIENT scope as CRUD components interact with the database
-    and should not share state between operations.
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
     
     Returns:
         EntityRelationshipCRUD instance
@@ -92,12 +91,12 @@ def get_entity_relationship_crud():
     return entity_relationship
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_rss_feed_crud():
     """Provide the RSS feed CRUD component.
     
-    Uses TRANSIENT scope as CRUD components interact with the database
-    and should not share state between operations.
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
     
     Returns:
         RSSFeedCRUD instance
@@ -108,7 +107,7 @@ def get_rss_feed_crud():
 
 # Tool providers
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_web_scraper_tool():
     """Provide the web scraper tool.
     
@@ -121,11 +120,12 @@ def get_web_scraper_tool():
     return WebScraperTool()
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_entity_extractor():
     """Provide the entity extractor tool.
     
-    Uses TRANSIENT scope as NLP tools may have stateful caches or models.
+    Uses use_cache=False to create new instances for each injection, as NLP 
+    tools may have stateful caches or models.
     
     Returns:
         EntityExtractor instance
@@ -134,11 +134,12 @@ def get_entity_extractor():
     return EntityExtractor()
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_entity_resolver():
     """Provide the entity resolver tool.
     
-    Uses TRANSIENT scope as this tool may have state during resolution process.
+    Uses use_cache=False to create new instances for each injection, as this tool
+    may have state during the resolution process.
     
     Returns:
         EntityResolver instance
@@ -147,11 +148,12 @@ def get_entity_resolver():
     return EntityResolver()
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_rss_parser():
     """Provide the RSS parser tool.
     
-    Uses TRANSIENT scope as parsers may maintain state during processing.
+    Uses use_cache=False to create new instances for each injection, as parsers
+    may maintain state during processing.
     
     Returns:
         RSSParser instance
@@ -162,7 +164,7 @@ def get_rss_parser():
 
 # Service providers
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_article_service(
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
@@ -170,7 +172,7 @@ def get_article_service(
 ):
     """Provide the article service.
     
-    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
@@ -190,7 +192,7 @@ def get_article_service(
     )
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_entity_service(
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     entity_relationship_crud: Annotated[Any, Depends(get_entity_relationship_crud)],
@@ -198,7 +200,7 @@ def get_entity_service(
 ):
     """Provide the entity service.
     
-    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
@@ -218,7 +220,7 @@ def get_entity_service(
     )
 
 
-@injectable(scope=SCOPE_TRANSIENT)
+@injectable(use_cache=False)
 def get_rss_feed_service(
     rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
     rss_parser: Annotated[Any, Depends(get_rss_parser)],
@@ -227,7 +229,7 @@ def get_rss_feed_service(
 ):
     """Provide the RSS feed service.
     
-    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:

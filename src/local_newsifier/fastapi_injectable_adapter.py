@@ -15,11 +15,8 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi_injectable import injectable, get_injected_obj, register_app
 
-# fastapi-injectable 0.7.0 doesn't have a Scope enum, so we'll use string literals
-# These constants represent the scope values understood by the injectable decorator
-SCOPE_SINGLETON = "singleton"
-SCOPE_TRANSIENT = "transient"
-SCOPE_REQUEST = "request"
+# fastapi-injectable 0.7.0 doesn't have a scope parameter
+# It only supports use_cache=True/False for controlling instance reuse
 
 from local_newsifier.container import container as di_container
 
@@ -94,26 +91,21 @@ class ContainerAdapter:
 adapter = ContainerAdapter()
 
 
-def scope_converter(scope: str) -> str:
-    """Convert DIContainer scope to fastapi-injectable scope.
+def should_cache(scope: str) -> bool:
+    """Convert DIContainer scope to fastapi-injectable use_cache value.
     
-    Maps DIContainer scopes to fastapi-injectable scopes with a more
-    conservative approach, defaulting to TRANSIENT for safety when
+    Maps DIContainer scopes to fastapi-injectable use_cache with a more
+    conservative approach, defaulting to use_cache=False for safety when
     the scope is unknown.
     
     Args:
         scope: DIContainer scope string ("singleton", "transient", "scoped")
         
     Returns:
-        Equivalent fastapi-injectable scope string value
+        Boolean indicating whether to cache the dependency
     """
-    scope_map = {
-        "singleton": SCOPE_SINGLETON,
-        "transient": SCOPE_TRANSIENT,
-        "scoped": SCOPE_REQUEST  # Map scoped to request in fastapi-injectable
-    }
-    # Default to TRANSIENT (not SINGLETON) for safety when scope is unknown
-    return scope_map.get(scope.lower(), SCOPE_TRANSIENT)
+    # Only singleton services should be cached (reused between injections)
+    return scope.lower() == "singleton"
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -134,24 +126,21 @@ def get_service_factory(service_name: str) -> Callable:
         "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
     
-    # Default to TRANSIENT for all components that interact with state or database
-    injectable_scope = SCOPE_TRANSIENT
-    
-    # Get the original scope from DIContainer but default to TRANSIENT
+    # Get the original scope from DIContainer but default to transient
     di_scope = di_container._scopes.get(service_name, "transient")
-    injectable_scope = scope_converter(di_scope)
+    use_cache = should_cache(di_scope)
     
-    # Override to TRANSIENT for any component that might have state
+    # For stateful components, never cache (always create fresh instances)
     # This is a safety measure to prevent shared state issues
     for pattern in stateful_patterns:
         if pattern in service_name:
-            injectable_scope = SCOPE_TRANSIENT
+            use_cache = False
             break
             
-    # Truly stateless utilities might be singletons, but this should be rare
-    # and explicitly documented when used
+    # Only truly stateless utilities should be cached (reused between calls)
+    # This should be rare and explicitly documented when used
     
-    @injectable(scope=injectable_scope, use_cache=True)
+    @injectable(use_cache=use_cache)
     def service_factory():
         """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
