@@ -4,6 +4,15 @@ Provider functions for fastapi-injectable.
 This module contains provider functions for all core dependencies
 that can be used with fastapi-injectable. These providers gradually
 replace the DIContainer factories with injectable providers.
+
+Scope guidelines:
+- Scope.SINGLETON: Used only for completely stateless utilities with no dependencies
+- Scope.TRANSIENT: Used for services with state or database interactions (default)
+- Scope.REQUEST: Used primarily within FastAPI endpoint context for request-scoped resources
+
+Transient scope is the safest default as it provides isolated instances for
+each usage, preventing potential state leakage between operations especially
+in non-HTTP contexts like CLI commands and background tasks.
 """
 
 import logging
@@ -42,6 +51,8 @@ def get_session() -> Generator[Session, None, None]:
 def get_article_crud():
     """Provide the article CRUD component.
     
+    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    
     Returns:
         ArticleCRUD instance
     """
@@ -52,6 +63,8 @@ def get_article_crud():
 @injectable(scope=Scope.SINGLETON)
 def get_entity_crud():
     """Provide the entity CRUD component.
+    
+    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
     
     Returns:
         EntityCRUD instance
@@ -64,6 +77,8 @@ def get_entity_crud():
 def get_entity_relationship_crud():
     """Provide the entity relationship CRUD component.
     
+    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    
     Returns:
         EntityRelationshipCRUD instance
     """
@@ -75,6 +90,8 @@ def get_entity_relationship_crud():
 def get_rss_feed_crud():
     """Provide the RSS feed CRUD component.
     
+    Uses SINGLETON scope as CRUD components are stateless and thread-safe.
+    
     Returns:
         RSSFeedCRUD instance
     """
@@ -84,9 +101,11 @@ def get_rss_feed_crud():
 
 # Tool providers
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_web_scraper_tool():
     """Provide the web scraper tool.
+    
+    Uses TRANSIENT scope as this tool may maintain state between operations.
     
     Returns:
         WebScraperTool instance
@@ -95,9 +114,11 @@ def get_web_scraper_tool():
     return WebScraperTool()
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_entity_extractor():
     """Provide the entity extractor tool.
+    
+    Uses TRANSIENT scope as NLP tools may have stateful caches or models.
     
     Returns:
         EntityExtractor instance
@@ -106,9 +127,11 @@ def get_entity_extractor():
     return EntityExtractor()
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_entity_resolver():
     """Provide the entity resolver tool.
+    
+    Uses TRANSIENT scope as this tool may have state during resolution process.
     
     Returns:
         EntityResolver instance
@@ -117,9 +140,11 @@ def get_entity_resolver():
     return EntityResolver()
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_rss_parser():
     """Provide the RSS parser tool.
+    
+    Uses TRANSIENT scope as parsers may maintain state during processing.
     
     Returns:
         RSSParser instance
@@ -130,13 +155,16 @@ def get_rss_parser():
 
 # Service providers
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_article_service(
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the article service.
+    
+    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    preventing state leakage between operations.
     
     Args:
         article_crud: Article CRUD component
@@ -155,13 +183,16 @@ def get_article_service(
     )
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_entity_service(
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     entity_relationship_crud: Annotated[Any, Depends(get_entity_relationship_crud)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the entity service.
+    
+    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    preventing state leakage between operations.
     
     Args:
         entity_crud: Entity CRUD component
@@ -180,7 +211,7 @@ def get_entity_service(
     )
 
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(scope=Scope.TRANSIENT)
 def get_rss_feed_service(
     rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
     rss_parser: Annotated[Any, Depends(get_rss_parser)],
@@ -188,6 +219,9 @@ def get_rss_feed_service(
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the RSS feed service.
+    
+    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    preventing state leakage between operations.
     
     Args:
         rss_feed_crud: RSS feed CRUD component

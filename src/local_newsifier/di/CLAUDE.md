@@ -28,20 +28,39 @@ def get_session() -> Session:
 
 ### Scope Management
 
-fastapi-injectable uses three scopes:
-- `Scope.SINGLETON`: One instance shared across the application
-- `Scope.TRANSIENT`: New instance created on each injection
-- `Scope.REQUEST`: Instance is scoped to the current request
+fastapi-injectable uses three scopes with the following guidelines for Local Newsifier:
+
+- `Scope.SINGLETON`: 
+  - Use ONLY for completely stateless and thread-safe components
+  - Examples: CRUD components, pure utility functions
+  - Use with extreme caution to avoid shared state issues
+
+- `Scope.TRANSIENT`: 
+  - **Default choice** for most services, especially those with state
+  - Creates a fresh instance every time the dependency is injected
+  - Examples: Entity services, analysis services, processing tools
+  
+- `Scope.REQUEST`: 
+  - Used for request-scoped resources in HTTP context
+  - Example: Database sessions in FastAPI endpoints
+
+Always prefer TRANSIENT over SINGLETON when in doubt, particularly for any component
+that interacts with databases or maintains internal state.
 
 ## Usage Patterns
 
 ### Injecting Dependencies
 
-Use the `@injectable` decorator and `Annotated` with `Depends()`:
+Use the `@injectable` decorator with scope and `Annotated` with `Depends()`:
 
 ```python
-@injectable
+@injectable(scope=Scope.TRANSIENT)  # Explicitly use TRANSIENT scope for safety
 class EntityService:
+    """Entity service with injected dependencies.
+    
+    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+    preventing state leakage between operations.
+    """
     def __init__(
         self,
         entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],

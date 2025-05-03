@@ -153,11 +153,32 @@ init_injection_dependency(app)
 Create provider functions for commonly used dependencies:
 
 ```python
+# For stateless components (like CRUD objects), SINGLETON is appropriate
 @injectable(scope=Scope.SINGLETON)
+def get_article_crud():
+    """Provide the article CRUD component."""
+    from local_newsifier.crud.article import article
+    return article
+
+# For database sessions, REQUEST scope makes sense
+@injectable(scope=Scope.REQUEST)
+def get_session() -> Generator[Session, None, None]:
+    """Provide a database session."""
+    from local_newsifier.database.engine import get_session as get_db_session
+    
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
+
+# For services with state or database interaction, TRANSIENT is safest
+@injectable(scope=Scope.TRANSIENT)
 def get_article_service(
     article_crud: Annotated[ArticleCRUD, Depends(get_article_crud)],
     session: Annotated[Session, Depends(get_session)]
 ):
+    """Provide the article service."""
     from local_newsifier.services.article_service import ArticleService
     
     return ArticleService(
@@ -168,11 +189,15 @@ def get_article_service(
 
 ### Step 4: Migrate Services
 
-Convert services to use the `@injectable` decorator:
+Convert services to use the `@injectable` decorator with appropriate scope:
 
 ```python
-@injectable
+@injectable(scope=Scope.TRANSIENT)  # Explicit scope for clarity
 class InjectableEntityService:
+    """Injectable entity service with explicitly defined dependencies.
+    
+    Uses TRANSIENT scope to ensure isolated instances for each usage.
+    """
     def __init__(
         self,
         entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
@@ -264,9 +289,28 @@ def test_service(patch_injectable_dependencies):
 - Keep provider functions in a central location
 
 ### Scope Management
-- Use `scope=Scope.SINGLETON` for stateless services
-- Use `scope=Scope.REQUEST` for request-scoped dependencies (like DB sessions)
-- Use `scope=Scope.TRANSIENT` when a new instance is needed every time
+
+When using fastapi-injectable throughout the application (not just in HTTP endpoints):
+
+- **Scope.SINGLETON**: 
+  - Use ONLY for completely stateless and thread-safe components
+  - Examples: CRUD classes, pure utility functions, configuration providers
+  - Be very conservative with this scope to avoid shared state issues
+
+- **Scope.TRANSIENT**:
+  - The default and safest choice for most services
+  - Guarantees a fresh instance for each injection
+  - Prevents shared state and potential leakage between operations
+  - Best for services that work with database or have internal state
+  - Examples: Entity services, analysis services, processing tools
+
+- **Scope.REQUEST**:
+  - Primarily useful in FastAPI HTTP context
+  - Creates one instance per request (or logical operation outside HTTP)
+  - Examples: Database sessions, request-specific resources
+
+Always prefer TRANSIENT over SINGLETON when in doubt, especially for services
+with database interaction or internal state management.
 
 ### Testing
 - Create mock fixtures for common dependencies
