@@ -6,8 +6,8 @@ that can be used with fastapi-injectable. These providers gradually
 replace the DIContainer factories with injectable providers.
 
 Dependency injection approach:
-- We use use_cache=False for all injectable components for simplicity and safety
-- This ensures every dependency injection gets a new instance
+- We explicitly use use_cache=False for all injectable components (overriding the default True)
+- This ensures every dependency injection gets a fresh instance each time
 - Prevents any issues with state leakage between operations
 - Particularly important for services, database interactions, and in non-HTTP contexts
 """

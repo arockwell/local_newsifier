@@ -91,8 +91,8 @@ class ContainerAdapter:
 adapter = ContainerAdapter()
 
 
-# Always use use_cache=False for safety and simplicity
-# This avoids potential issues with shared state
+# We must explicitly use use_cache=False to override the default True
+# This ensures we get fresh instances every time, avoiding shared state issues
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -113,7 +113,7 @@ def get_service_factory(service_name: str) -> Callable:
         "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
     
-    # Always use use_cache=False for simplicity and safety
+    # Must explicitly set use_cache=False to override the default True
     # This ensures every dependency injection gets a fresh instance
     # and avoids any issues with shared state
     
@@ -124,7 +124,7 @@ def get_service_factory(service_name: str) -> Callable:
     
     # Set better function name for debugging
     service_factory.__name__ = f"get_{service_name}"
-    logger.info(f"Created provider for {service_name} with scope {injectable_scope}")
+    logger.info(f"Created provider for {service_name} with use_cache=False")
     
     return service_factory
 
