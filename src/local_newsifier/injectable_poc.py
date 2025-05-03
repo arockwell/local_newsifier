@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, Path
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from local_newsifier.di_adapter import adapter
+from local_newsifier.fastapi_injectable_adapter import adapter
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.entity_service import EntityService
 

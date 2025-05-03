@@ -1,23 +1,108 @@
-"""Adapter module for integrating fastapi-injectable with existing DIContainer.
+"""Adapter module for integrating fastapi-injectable with the DIContainer.
 
-This module provides integration between the current DIContainer and
-fastapi-injectable. It allows services to be registered with both systems
-and provides smooth transition from one to the other.
+This module provides a comprehensive adapter layer between the current DIContainer
+and fastapi-injectable, allowing both systems to coexist during migration. It includes
+utilities for registering services, resolving dependencies, and providing compatibility
+between the two DI systems.
 """
 
 import inspect
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, get_type_hints
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast, get_type_hints
 
-from fastapi import Depends, FastAPI
-from fastapi_injectable import injectable, get_injected_obj, register_app
 from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI
+from fastapi_injectable import injectable, get_injected_obj, register_app, Scope
 
 from local_newsifier.container import container as di_container
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+class ContainerAdapter:
+    """Adapter to bridge between DIContainer and fastapi-injectable.
+
+    This class provides methods to get services from the DIContainer
+    in a way that's compatible with fastapi-injectable patterns.
+    """
+
+    @staticmethod
+    def get_service(service_type: Type[T], **kwargs) -> T:
+        """Get a service from the DIContainer by type.
+
+        This method attempts to find a service in the DIContainer
+        based on the service type name, falling back to class name.
+
+        Args:
+            service_type: The type of service to retrieve
+            **kwargs: Additional parameters to pass to get()
+
+        Returns:
+            The service instance
+
+        Raises:
+            ValueError: If the service cannot be found
+        """
+        # Try with module prefix (e.g., "entity_service")
+        module_name = service_type.__module__.split(".")[-1]
+        class_name = service_type.__name__
+        
+        # Format like "entity_service" from EntityService
+        snake_case_name = "".join(
+            ["_" + c.lower() if c.isupper() else c for c in class_name]
+        ).lstrip("_")
+        
+        # Try different naming patterns
+        service_names = [
+            snake_case_name,  # entity_service
+            f"{module_name}_{snake_case_name}",  # services_entity_service
+            class_name.lower(),  # entityservice
+        ]
+        
+        # Try to get the service from the container
+        for name in service_names:
+            service = di_container.get(name, **kwargs)
+            if service is not None:
+                return cast(T, service)
+        
+        # If not found by name, try to find by type
+        for name, service in di_container._services.items():
+            if isinstance(service, service_type):
+                return cast(T, service)
+                
+        # Last resort: check factories and try to create the service
+        for name, factory in di_container._factories.items():
+            try:
+                service = di_container._create_service(name, **kwargs)
+                if isinstance(service, service_type):
+                    return cast(T, service)
+            except Exception:
+                pass
+                
+        raise ValueError(f"Service of type {service_type.__name__} not found in container")
+
+
+# Create an instance for easy importing
+adapter = ContainerAdapter()
+
+
+def scope_converter(scope: str) -> Scope:
+    """Convert DIContainer scope to fastapi-injectable scope.
+    
+    Args:
+        scope: DIContainer scope string ("singleton", "transient", "scoped")
+        
+    Returns:
+        Equivalent fastapi-injectable Scope enum value
+    """
+    scope_map = {
+        "singleton": Scope.SINGLETON,
+        "transient": Scope.TRANSIENT,
+        "scoped": Scope.REQUEST  # Map scoped to request in fastapi-injectable
+    }
+    return scope_map.get(scope.lower(), Scope.SINGLETON)
 
 
 def get_service_factory(service_name: str) -> Callable:
@@ -29,7 +114,11 @@ def get_service_factory(service_name: str) -> Callable:
     Returns:
         Factory function that returns the service
     """
-    @injectable(use_cache=True)
+    # Get the scope from DIContainer
+    di_scope = di_container._scopes.get(service_name, "singleton")
+    injectable_scope = scope_converter(di_scope)
+    
+    @injectable(scope=injectable_scope, use_cache=True)
     def service_factory():
         """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
@@ -92,14 +181,14 @@ def inject_adapter(func: Callable) -> Callable:
         return sync_wrapper
 
 
-def register_container_service(service_name: str) -> Callable:
+def register_container_service(service_name: str) -> Union[Callable, None]:
     """Register a single DIContainer service with fastapi-injectable.
     
     Args:
         service_name: Name of the service in DIContainer
         
     Returns:
-        Factory function for the service
+        Factory function for the service, or None if registration failed
     """
     try:
         service = di_container.get(service_name)
@@ -138,6 +227,24 @@ def register_bulk_services(service_names: List[str]) -> Dict[str, Callable]:
             factories[service_name] = factory
     
     return factories
+
+
+def get_service_by_type(service_type: Type[T], **kwargs) -> T:
+    """Get a service from DIContainer by type.
+    
+    This is a convenience function that delegates to ContainerAdapter.get_service.
+    
+    Args:
+        service_type: Type of service to retrieve
+        **kwargs: Additional parameters to pass to the container
+        
+    Returns:
+        Service instance
+        
+    Raises:
+        ValueError: If service not found
+    """
+    return adapter.get_service(service_type, **kwargs)
 
 
 async def migrate_container_services(app: FastAPI) -> None:
