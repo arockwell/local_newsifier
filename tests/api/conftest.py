@@ -10,10 +10,12 @@ from local_newsifier.api.routers import articles
 @pytest.fixture
 def client():
     """Return a FastAPI TestClient for API testing."""
-    # Ensure the articles router is mounted
-    # Check if articles router is already included by looking for its routes
-    article_routes_exist = any("/articles/" in str(r) for r in app.routes)
-    if not article_routes_exist:
+    # Always include the articles router to ensure it's available
+    # This is safer than trying to check if it's already included
+    try:
         app.include_router(articles.router)
+    except Exception:
+        # Router might already be registered, that's fine
+        pass
 
     return TestClient(app)

@@ -200,11 +200,27 @@ async def get_article_by_url(
     Raises:
         HTTPException: 404 if article not found, with standardized error format
     """
-    # Validate the URL string is a valid URL
+    # Handle potential decoding issues - the URL might be partially encoded
+    import urllib.parse
+    
+    # Attempt to normalize the URL by first unquoting it in case it's already encoded
+    # then encoding it properly for comparison with database values
     try:
-        validated_url = HttpUrl(url)
-        return error_handled_article.get_by_url(db, url=str(validated_url))
+        # First try to decode in case it's already URL-encoded
+        unquoted_url = urllib.parse.unquote(url)
+        
+        # Validate that it's a proper URL
+        try:
+            validated_url = HttpUrl(unquoted_url)
+            # Use the validated URL string for the lookup
+            return error_handled_article.get_by_url(db, url=str(validated_url))
+        except ValueError:
+            # If the unquoted URL is not valid, try with the original URL
+            validated_url = HttpUrl(url)
+            return error_handled_article.get_by_url(db, url=str(validated_url))
+            
     except ValueError:
+        # If both attempts fail, it's truly an invalid URL
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid URL format: {url}"
