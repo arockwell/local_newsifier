@@ -905,10 +905,10 @@ def test_process_feed_parse_error(mock_parse_rss_feed, mock_db_session, mock_ses
         session_factory=mock_session_factory
     )
     
-    # Act
-    result = service.process_feed(feed_id)
+    # Act & Assert
+    with pytest.raises(ServiceError, match="Mock parsing error"):
+        service.process_feed(feed_id)
     
-    # Assert
     mock_parse_rss_feed.assert_called_once_with(mock_feed.url)
     mock_feed_processing_log_crud.update_processing_completed.assert_called_once_with(
         mock_db_session,
@@ -916,10 +916,6 @@ def test_process_feed_parse_error(mock_parse_rss_feed, mock_db_session, mock_ses
         status="error",
         error_message="Mock parsing error",
     )
-    
-    assert result["status"] == "error"
-    assert result["feed_id"] == feed_id
-    assert "Mock parsing error" in result["message"]
 
 
 def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
