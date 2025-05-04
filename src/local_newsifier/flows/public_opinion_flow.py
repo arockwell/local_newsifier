@@ -32,7 +32,6 @@ from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class PublicOpinionFlow(Flow):
     """Flow for analyzing public opinion and sentiment in news articles."""
 

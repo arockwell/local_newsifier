@@ -72,7 +72,6 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
-@injectable(use_cache=False)
 class NewsTrendAnalysisFlow(Flow):
     """Flow for detecting and analyzing trends in local news coverage."""
 

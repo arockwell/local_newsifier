@@ -25,7 +25,6 @@ from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
 
-@injectable(use_cache=False)
 class EntityTrackingFlow(Flow):
     """Flow for tracking entities across news articles using state-based pattern."""
 
