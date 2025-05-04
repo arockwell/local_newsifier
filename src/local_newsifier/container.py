@@ -420,7 +420,6 @@ def register_services(container):
             article_crud=c.get("article_crud"),
             analysis_result_crud=c.get("analysis_result_crud"),
             entity_service=c.get("entity_service"),  # Will be lazily loaded
-            session_factory=c.get("session_factory"),
             container=c  # Inject the container itself
         )
     )
@@ -476,7 +475,7 @@ def register_flows(container):
                 entity_extractor=c.get("entity_extractor_tool"),
                 context_analyzer=c.get("context_analyzer_tool"),
                 entity_resolver=c.get("entity_resolver_tool"),
-                session_factory=c.get("session_factory")
+                container=c  # Inject the container itself instead of session_factory
             ),
             scope=Scope.SINGLETON
         )
@@ -557,7 +556,7 @@ def register_flows(container):
                     article_service=c.get("article_service"),
                     trend_analyzer=c.get("trend_analyzer_tool"),
                     trend_reporter=c.get("trend_reporter_tool"),
-                    session_factory=c.get("session_factory")
+                    container=c  # Inject the container itself instead of session_factory
                 ),
                 scope=Scope.SINGLETON
             )

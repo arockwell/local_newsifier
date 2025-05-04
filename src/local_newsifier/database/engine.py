@@ -4,6 +4,7 @@ import logging
 import traceback
 import time
 import warnings
+import functools
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -274,5 +275,23 @@ def with_session(func: F) -> F:
         stacklevel=2
     )
     
-    # Use the new standardized approach internally
-    return with_db_session(func)
+    # Maintain original implementation for backward compatibility
+    # This is specifically needed for test_with_session_decorator_new_session
+    @functools.wraps(func)
+    def wrapper(*args, session=None, **kwargs):
+        if session is not None:
+            # If session is provided, just use it directly
+            return func(*args, session=session, **kwargs)
+        else:
+            # Otherwise, create a new session using SessionManager
+            with SessionManager() as new_session:
+                if new_session is None:
+                    return None
+                try:
+                    return func(*args, session=new_session, **kwargs)
+                except Exception as e:
+                    logger.error(f"Error in with_session: {e}")
+                    # Let the exception propagate for testing
+                    raise
+    
+    return wrapper
