@@ -8,8 +8,9 @@ from typing import Dict, Any, Callable, Optional, cast
 import functools
 import re
 
-from .handlers import create_service_handler, handle_cli_errors
-from .error import ServiceError
+from .handlers import create_service_handler
+from .cli import handle_cli_errors
+from .error import ServiceError, ERROR_TYPES
 
 
 # RSS-specific error types
