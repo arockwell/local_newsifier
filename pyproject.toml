@@ -48,11 +48,24 @@ flake8 = "^7.0.0"
 flake8-docstrings = "^1.7.0"
 
 # Add pytest warning filters and configuration
+pytest-profiling = "^1.8.1"
+pytest-xdist = "^3.6.1"
 [tool.pytest.ini_options]
 # Don't collect scripts directory or loose test files at project root
 testpaths = ["tests"]
 norecursedirs = ["scripts"]
 python_files = ["test_*.py", "*_test.py"]
+
+# Configure parallel test execution with xdist
+# Run tests in parallel by default (auto-detect CPU count)
+addopts = "-xvs -n auto"
+
+# Define custom markers for test categorization
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "db: marks tests that require database connection",
+    "fast: marks tests that should run quickly"
+]
 
 filterwarnings = [
     # Pydantic V2 deprecation warning about class-based config

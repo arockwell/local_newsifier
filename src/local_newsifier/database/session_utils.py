@@ -7,6 +7,7 @@ across the application via the dependency injection container.
 
 import logging
 import functools
+import sys
 from typing import TypeVar, Callable, Any, Optional, Dict
 
 from sqlmodel import Session
@@ -21,7 +22,7 @@ F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_container_session(container=None, **kwargs):
+def get_container_session(container=None, test_mode: bool = False, **kwargs):
     """Get a session from the container's session factory.
     
     This function obtains the session factory from the container
@@ -29,6 +30,7 @@ def get_container_session(container=None, **kwargs):
     
     Args:
         container: The DI container instance (optional, will be imported if not provided)
+        test_mode: If True, use optimized settings for tests
         **kwargs: Additional parameters to pass to the session factory
         
     Returns:
@@ -43,7 +45,12 @@ def get_container_session(container=None, **kwargs):
     if session_factory is None:
         logger.error("Session factory not available in container")
         raise ValueError("Session factory not available in container")
-    return session_factory()
+    
+    # Detect if we're running in a test environment
+    if 'pytest' in sys.modules:
+        test_mode = True
+        
+    return session_factory(test_mode=test_mode)
 
 
 def with_container_session(func: F = None, *, container=None) -> F:
