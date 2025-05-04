@@ -40,6 +40,30 @@ class ErrorDetails(BaseModel):
     type: str
     message: str
     traceback_snippet: Optional[str] = None
+    
+    
+def extract_error_details(error: Exception) -> tuple:
+    """Extract error details from an exception, unwrapping ServiceError if needed.
+    
+    Args:
+        error: The exception to extract details from
+        
+    Returns:
+        Tuple of (error_type, message, traceback_snippet)
+    """
+    # Extract original error message if it's a ServiceError, otherwise use as is
+    if hasattr(error, 'original') and error.original:
+        # Unwrap the ServiceError to get the original exception
+        error_type = error.original.__class__.__name__
+        message = str(error.original)
+        traceback_snippet = str(error.original.__traceback__)
+    else:
+        # Use the provided exception as is
+        error_type = error.__class__.__name__
+        message = str(error)
+        traceback_snippet = str(error.__traceback__)
+        
+    return error_type, message, traceback_snippet
 
 
 class NewsAnalysisState(BaseModel):
@@ -138,16 +162,7 @@ class EntityTrackingState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
-        # Extract original error message if it's a ServiceError, otherwise use as is
-        if hasattr(error, 'original') and error.original:
-            error_type = error.original.__class__.__name__
-            message = str(error.original)
-            traceback_snippet = str(error.original.__traceback__)
-        else:
-            error_type = error.__class__.__name__
-            message = str(error)
-            traceback_snippet = str(error.__traceback__)
-            
+        error_type, message, traceback_snippet = extract_error_details(error)
         self.error_details = ErrorDetails(
             task=task,
             type=error_type,
@@ -200,16 +215,7 @@ class EntityBatchTrackingState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
-        # Extract original error message if it's a ServiceError, otherwise use as is
-        if hasattr(error, 'original') and error.original:
-            error_type = error.original.__class__.__name__
-            message = str(error.original)
-            traceback_snippet = str(error.original.__traceback__)
-        else:
-            error_type = error.__class__.__name__
-            message = str(error)
-            traceback_snippet = str(error.__traceback__)
-            
+        error_type, message, traceback_snippet = extract_error_details(error)
         self.error_details = ErrorDetails(
             task=task,
             type=error_type,
@@ -268,16 +274,7 @@ class EntityDashboardState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
-        # Extract original error message if it's a ServiceError, otherwise use as is
-        if hasattr(error, 'original') and error.original:
-            error_type = error.original.__class__.__name__
-            message = str(error.original)
-            traceback_snippet = str(error.original.__traceback__)
-        else:
-            error_type = error.__class__.__name__
-            message = str(error)
-            traceback_snippet = str(error.__traceback__)
-            
+        error_type, message, traceback_snippet = extract_error_details(error)
         self.error_details = ErrorDetails(
             task=task,
             type=error_type,
@@ -328,16 +325,7 @@ class EntityRelationshipState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
-        # Extract original error message if it's a ServiceError, otherwise use as is
-        if hasattr(error, 'original') and error.original:
-            error_type = error.original.__class__.__name__
-            message = str(error.original)
-            traceback_snippet = str(error.original.__traceback__)
-        else:
-            error_type = error.__class__.__name__
-            message = str(error)
-            traceback_snippet = str(error.__traceback__)
-            
+        error_type, message, traceback_snippet = extract_error_details(error)
         self.error_details = ErrorDetails(
             task=task,
             type=error_type,

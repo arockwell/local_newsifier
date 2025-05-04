@@ -245,27 +245,29 @@ def _classify_database_error(error: Exception) -> tuple:
     error_name = type(error).__name__
     error_str = str(error).lower()
     
-    # Handle SQLAlchemy-specific errors with better pattern matching
-    if "NoResultFound" in error_name:
-        return "not_found", f"Record not found in the database"
-        
-    if "MultipleResultsFound" in error_name:
-        return "multiple", f"Multiple records found where only one was expected"
+    # Use dictionary mapping for common error types (more efficient than multiple if-statements)
+    error_mappings = {
+        "NoResultFound": ("not_found", f"Record not found in the database"),
+        "MultipleResultsFound": ("multiple", f"Multiple records found where only one was expected"),
+        "DisconnectionError": ("connection", f"Database connection error: {error}"),
+        "DBAPIError": ("connection", f"Database operational error: {error}"),
+        "TimeoutError": ("timeout", f"Database query timeout: {error}"),
+        "DataError": ("validation", f"Database data validation error: {error}"),
+        "StatementError": ("validation", f"Database data validation error: {error}"),
+        "TransactionError": ("transaction", f"Database transaction error: {error}"),
+        "InvalidRequestError": ("transaction", f"Database transaction error: {error}")
+    }
     
-    # Check by error class name first (more reliable than string parsing)
+    # Check for direct class name matches
+    for cls_name, (error_type, message) in error_mappings.items():
+        if cls_name in error_name:
+            return error_type, message
+    
+    # Special case handling for common errors needing message inspection
     if "OperationalError" in error_name:
-        # Look for specific error patterns in the message
-        if any(term in error_str for term in ["timeout", "timed out"]):
-            return "timeout", f"Database query timeout: {error}"
-        # Default to connection error for all operational errors
-        return "connection", f"Database connection error: {error}"
-    
-    if "DisconnectionError" in error_name:
-        return "connection", f"Database connection error: {error}"
-        
-    if "DBAPIError" in error_name:
-        return "connection", f"Database operational error: {error}"
-    
+        return "timeout" if any(term in error_str for term in ["timeout", "timed out"]) else "connection", \
+               f"Database {'timeout' if any(term in error_str for term in ['timeout', 'timed out']) else 'connection'} error: {error}"
+               
     if "IntegrityError" in error_name:
         if "unique constraint" in error_str:
             return "integrity", f"Unique constraint violation: {error}"
@@ -273,29 +275,15 @@ def _classify_database_error(error: Exception) -> tuple:
             return "integrity", f"Foreign key constraint violation: {error}"
         return "integrity", f"Database integrity error: {error}"
     
-    if "TimeoutError" in error_name:
-        return "timeout", f"Database query timeout: {error}"
-    
-    if any(err in error_name for err in ["DataError", "StatementError"]):
-        return "validation", f"Database data validation error: {error}"
-        
-    if any(err in error_name for err in ["TransactionError", "InvalidRequestError"]):
-        return "transaction", f"Database transaction error: {error}"
-    
-    # Check if it's any SQLAlchemy error by presence of these terms in the string representation
+    # Generic SQL error detection
     if any(term in error_str for term in ["sql:", "[sql:", "sqlalchemy"]):
-        # General pattern matching on error message for SQLAlchemy errors
-        if any(term in error_str for term in ["timeout", "timed out"]):
-            return "timeout", f"Database query timeout: {error}"
-        if any(term in error_str for term in ["connection", "connect", "disconnected"]):
-            return "connection", f"Database connection error: {error}"
-        if any(term in error_str for term in ["constraint", "duplicate", "unique"]):
-            return "integrity", f"Database constraint violation: {error}"
-        
-        # Generic SQLAlchemy error
+        for pattern, err_type in [("timeout", "timeout"), ("timed out", "timeout"), 
+                               ("connection", "connection"), ("connect", "connection"),
+                               ("constraint", "integrity"), ("duplicate", "integrity")]:
+            if pattern in error_str:
+                return err_type, f"Database {err_type} error: {error}"
         return "connection", f"Database error: {error}"
     
-    # Generic error (should not reach here if properly filtered by caller)
     return "unknown", f"Unknown database error: {error}"
 
 
