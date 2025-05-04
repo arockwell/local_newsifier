@@ -190,12 +190,39 @@ class TestErrorHandledRSSFeedCRUD:
 
         # Verify the feed was updated
         assert updated_feed is not None
-        assert updated_feed.last_fetched_at > initial_last_fetched
-        assert updated_feed.updated_at > initial_updated_at
+        
+        # Handle timezone differences in datetime comparisons
+        latest_fetched = updated_feed.last_fetched_at
+        if latest_fetched.tzinfo is None:
+            latest_fetched = latest_fetched.replace(tzinfo=timezone.utc)
+            
+        initial_fetched = initial_last_fetched
+        if initial_fetched.tzinfo is None:
+            initial_fetched = initial_fetched.replace(tzinfo=timezone.utc)
+            
+        latest_updated = updated_feed.updated_at
+        if latest_updated.tzinfo is None:
+            latest_updated = latest_updated.replace(tzinfo=timezone.utc)
+            
+        initial_updated = initial_updated_at
+        if initial_updated.tzinfo is None:
+            initial_updated = initial_updated.replace(tzinfo=timezone.utc)
+        
+        # Use timestamp comparison for more reliable results
+        assert latest_fetched.timestamp() > initial_fetched.timestamp()
+        assert latest_updated.timestamp() > initial_updated.timestamp()
 
         # Verify in the database
         db_feed = db_session.get(RSSFeed, feed_id)
-        assert db_feed.last_fetched_at > old_time
+        db_fetched = db_feed.last_fetched_at
+        if db_fetched.tzinfo is None:
+            db_fetched = db_fetched.replace(tzinfo=timezone.utc)
+            
+        old_time_aware = old_time
+        if old_time_aware.tzinfo is None:
+            old_time_aware = old_time_aware.replace(tzinfo=timezone.utc)
+            
+        assert db_fetched.timestamp() > old_time_aware.timestamp()
 
     def test_update_last_fetched_not_found(self, db_session):
         """Test updating the last_fetched_at timestamp for a non-existent feed."""
