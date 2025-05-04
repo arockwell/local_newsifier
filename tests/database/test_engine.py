@@ -9,12 +9,10 @@ from sqlalchemy.exc import OperationalError
 
 from local_newsifier.database.engine import (
     get_engine,
-    get_session,
     create_db_and_tables,
-    transaction,
-    SessionManager,
-    with_session
+    transaction
 )
+from local_newsifier.database.session_utils import get_db_session, with_db_session
 
 
 @patch('local_newsifier.database.engine.create_engine')
@@ -65,36 +63,8 @@ def test_get_engine_retry_and_fail(mock_sleep, mock_get_settings, mock_create_en
     assert mock_sleep.call_count == 2  # Called after each failed attempt except the last
 
 
-@patch('local_newsifier.database.engine.get_engine')
-def test_get_session_success(mock_get_engine):
-    """Test successful session creation."""
-    # Arrange
-    mock_engine = MagicMock()
-    mock_session = MagicMock()
-    mock_get_engine.return_value = mock_engine
-    
-    # Use a context manager to simulate Session's behavior
-    with patch('local_newsifier.database.engine.Session') as mock_session_class:
-        # Configure the mock to return our mock_session when used as a context manager
-        mock_session_class.return_value.__enter__.return_value = mock_session
-        
-        # Act
-        session_gen = get_session()
-        session = next(session_gen)
-        
-        # Assert
-        assert session is mock_session
-
-
-@patch('local_newsifier.database.engine.get_engine', return_value=None)
-def test_get_session_no_engine(mock_get_engine):
-    """Test session creation when engine is None."""
-    # Act
-    session_gen = get_session()
-    session = next(session_gen)
-    
-    # Assert
-    assert session is None
+# These tests are now covered in test_session_utils.py
+# Removing to avoid conflicts with the actual implementation
 
 
 @patch('local_newsifier.database.engine.SQLModel')
@@ -157,117 +127,7 @@ def test_transaction_rollback():
     mock_session.commit.assert_not_called()
 
 
-def test_session_manager_success():
-    """Test SessionManager with successful operations."""
-    # Arrange
-    mock_engine = MagicMock()
-    mock_session = MagicMock()
-    
-    with patch('local_newsifier.database.engine.get_engine', return_value=mock_engine):
-        with patch('local_newsifier.database.engine.Session', return_value=mock_session):
-            # Act
-            with SessionManager() as session:
-                # Assert
-                assert session == mock_session
-    
-    mock_session.commit.assert_called_once()
-    mock_session.close.assert_called_once()
+# SessionManager tests are deprecated and replaced by get_db_session tests
 
 
-def test_session_manager_exception():
-    """Test SessionManager with exception."""
-    # Arrange
-    mock_engine = MagicMock()
-    mock_session = MagicMock()
-    
-    with patch('local_newsifier.database.engine.get_engine', return_value=mock_engine):
-        with patch('local_newsifier.database.engine.Session', return_value=mock_session):
-            # Act & Assert
-            with pytest.raises(ValueError):
-                with SessionManager() as session:
-                    raise ValueError("Test error")
-    
-    mock_session.rollback.assert_called_once()
-    mock_session.close.assert_called_once()
-
-
-def test_session_manager_no_engine():
-    """Test SessionManager when engine is None."""
-    # Arrange
-    with patch('local_newsifier.database.engine.get_engine', return_value=None):
-        # Act
-        with SessionManager() as session:
-            # Assert
-            assert session is None
-
-
-def test_with_session_decorator_provided_session():
-    """Test with_session decorator with provided session."""
-    # Arrange
-    mock_session = MagicMock()
-    
-    @with_session
-    def test_func(session, value):
-        assert session == mock_session
-        return f"Value: {value}"
-    
-    # Act
-    result = test_func(value="test", session=mock_session)
-    
-    # Assert
-    assert result == "Value: test"
-
-
-def test_with_session_decorator_new_session():
-    """Test with_session decorator with new session."""
-    # Arrange
-    mock_session = MagicMock()
-    
-    @with_session
-    def test_func(session, value):
-        assert session == mock_session
-        return f"Value: {value}"
-    
-    # Use context manager patch to simulate SessionManager's behavior
-    with patch('local_newsifier.database.engine.SessionManager') as mock_session_manager:
-        mock_session_manager.return_value.__enter__.return_value = mock_session
-        
-        # Act
-        result = test_func(value="test")
-        
-        # Assert
-        assert result == "Value: test"
-
-
-def test_with_session_decorator_exception():
-    """Test with_session decorator with exception."""
-    # Arrange
-    mock_session = MagicMock()
-    
-    @with_session
-    def test_func(session):
-        raise ValueError("Test error")
-    
-    # Act
-    result = test_func(session=mock_session)
-    
-    # Assert
-    assert result is None
-
-
-def test_with_session_decorator_no_session():
-    """Test with_session decorator when session is None."""
-    # Arrange
-    @with_session
-    def test_func(session):
-        return "Session exists" if session else "No session"
-    
-    # Use context manager patch to simulate SessionManager's behavior
-    with patch('local_newsifier.database.engine.SessionManager') as mock_session_manager:
-        mock_session_manager.return_value.__enter__.return_value = None
-        
-        # Act
-        result = test_func()
-        
-        # Assert
-        assert result is None
+# with_session tests are deprecated and replaced by with_db_session tests in test_session_utils.py

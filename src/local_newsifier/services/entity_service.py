@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
-from local_newsifier.database.engine import SessionManager
+from local_newsifier.database.session_utils import get_db_session
 from local_newsifier.errors import handle_database
 
 class EntityService:
@@ -22,7 +22,7 @@ class EntityService:
         entity_extractor,
         context_analyzer,
         entity_resolver,
-        session_factory=None
+        container=None
     ):
         """Initialize with dependencies.
         
@@ -35,7 +35,7 @@ class EntityService:
             entity_extractor: Tool for extracting entities from text
             context_analyzer: Tool for analyzing entity contexts
             entity_resolver: Tool for resolving entities to canonical forms
-            session_factory: Factory for database sessions
+            container: DI container for resolving dependencies
         """
         self.entity_crud = entity_crud
         self.canonical_entity_crud = canonical_entity_crud
@@ -45,7 +45,7 @@ class EntityService:
         self.entity_extractor = entity_extractor
         self.context_analyzer = context_analyzer
         self.entity_resolver = entity_resolver
-        self.session_factory = session_factory or SessionManager
+        self.container = container
     
     @handle_database
     def process_article_entities(
@@ -74,8 +74,8 @@ class EntityService:
         
         processed_entities = []
         
-        # Use the provided session_factory instead of creating a new SessionManager
-        with self.session_factory() as session:
+        # Use the standardized session management approach
+        with get_db_session(container=self.container) as session:
             # Get existing canonical entities for resolution
             existing_entities = [
                 {
@@ -174,7 +174,7 @@ class EntityService:
             state.add_log(f"Successfully processed {len(processed_entities)} entities")
             
             # Update article status if session is available
-            with self.session_factory() as session:
+            with get_db_session(container=self.container) as session:
                 self.article_crud.update_status(
                     session, 
                     article_id=state.article_id, 
@@ -202,7 +202,7 @@ class EntityService:
             state.add_log(f"Starting batch processing with status filter: {state.status_filter}")
             
             # Get articles with the specified status
-            with self.session_factory() as session:
+            with get_db_session(container=self.container) as session:
                 articles = self.article_crud.get_by_status(session, status=state.status_filter)
                 state.total_articles = len(articles)
                 state.add_log(f"Found {state.total_articles} articles to process")
@@ -285,7 +285,7 @@ class EntityService:
             state.end_date = datetime.now(timezone.utc)
             state.start_date = state.end_date - timedelta(days=state.days)
             
-            with self.session_factory() as session:
+            with get_db_session(container=self.container) as session:
                 # Get all canonical entities of the specified type
                 entities = self.canonical_entity_crud.get_by_type(session, entity_type=state.entity_type)
                 
@@ -357,7 +357,7 @@ class EntityService:
             state.end_date = datetime.now(timezone.utc)
             state.start_date = state.end_date - timedelta(days=state.days)
             
-            with self.session_factory() as session:
+            with get_db_session(container=self.container) as session:
                 # Get entity name and articles
                 entity = self.canonical_entity_crud.get(session, id=state.entity_id)
                 

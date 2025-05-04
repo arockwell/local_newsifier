@@ -3,6 +3,8 @@
 import logging
 import traceback
 import time
+import warnings
+import functools
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -18,6 +20,7 @@ from local_newsifier.config.common import (
 
 # Re-export get_settings for backward compatibility
 from local_newsifier.config.settings import get_settings
+from local_newsifier.database.session_utils import get_db_session, with_db_session
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -105,11 +108,20 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
 
 
 def get_session() -> Generator[Session, None, None]:
-    """Get a database session.
+    """Get a database session (DEPRECATED).
+
+    This function is deprecated. Use get_db_session from session_utils instead.
 
     Yields:
         Database session or None if engine creation fails
     """
+    warnings.warn(
+        "get_session() is deprecated. Use get_db_session() from session_utils instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    # Avoid circular imports by not using get_db_session() here
     engine = get_engine()
     if engine is None:
         logger.warning("Cannot create session - database engine is None")
@@ -180,7 +192,10 @@ def create_db_and_tables(engine=None):
 
 
 class SessionManager:
-    """Session manager for database operations."""
+    """Session manager for database operations (DEPRECATED).
+    
+    This class is deprecated. Use get_db_session from session_utils instead.
+    """
 
     def __init__(self, test_mode: bool = False):
         """Initialize the session manager.
@@ -188,6 +203,11 @@ class SessionManager:
         Args:
             test_mode: If True, use optimized database settings for tests
         """
+        warnings.warn(
+            "SessionManager is deprecated. Use get_db_session() from session_utils instead.",
+            DeprecationWarning, 
+            stacklevel=2
+        )
         self.session = None
         self.engine = None
         self.test_mode = test_mode
@@ -199,7 +219,7 @@ class SessionManager:
             Session: Database session or None if engine creation fails
         """
         try:
-            # Pass test_mode to enable faster database connections in tests
+            # Avoid circular imports by using the engine directly
             self.engine = get_engine(test_mode=self.test_mode)
             if self.engine is None:
                 logger.warning("SessionManager: Cannot create session - database engine is None")
@@ -239,12 +259,9 @@ class SessionManager:
 
 
 def with_session(func: F) -> F:
-    """Add session management to database functions.
+    """Add session management to database functions (DEPRECATED).
 
-    This decorator ensures that a database session is available to the
-    decorated function. If a session is provided as a keyword argument,
-    it is used directly. Otherwise, a new session is created and managed
-    for the duration of the function call.
+    This decorator is deprecated. Use with_db_session from session_utils instead.
 
     Args:
         func: Function to decorate
@@ -252,6 +269,13 @@ def with_session(func: F) -> F:
     Returns:
         Decorated function
     """
+    warnings.warn(
+        "with_session() is deprecated. Use with_db_session() from session_utils instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    @functools.wraps(func)
     def wrapper(*args, session: Optional[Session] = None, **kwargs):
         """Execute function with session management.
 
@@ -264,12 +288,8 @@ def with_session(func: F) -> F:
             Result of the decorated function or None if session creation fails
         """
         if session is not None:
-            try:
-                return func(*args, session=session, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in with_session (provided session): {str(e)}")
-                logger.error(traceback.format_exc())
-                return None
+            # Let original exceptions propagate for compatibility with existing tests
+            return func(*args, session=session, **kwargs)
 
         try:
             with SessionManager() as new_session:

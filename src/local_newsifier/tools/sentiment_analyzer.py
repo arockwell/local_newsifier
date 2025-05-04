@@ -10,7 +10,7 @@ from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 
-from local_newsifier.database.engine import with_session
+from local_newsifier.database.session_utils import with_db_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.models.article import Article
@@ -193,7 +193,7 @@ class SentimentAnalysisTool:
 
         return state
 
-    @with_session
+    @with_db_session
     def analyze_article(
         self, article_id: int, *, session: Optional[Session] = None
     ) -> Dict[str, Any]:
@@ -230,7 +230,7 @@ class SentimentAnalysisTool:
             return {}
         return state.analysis_results.get("sentiment", {})
 
-    @with_session
+    @with_db_session
     def analyze_article_sentiment(self, article_id: int, *, session: Optional[Session] = None) -> AnalysisResult:
         """
         Analyze sentiment of an article and save results to database.

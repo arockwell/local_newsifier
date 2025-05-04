@@ -326,34 +326,41 @@ class NewsPipeline:
         return article
 ```
 
-### Context Managers for Sessions
+### Standardized Database Session Management
 
-Database sessions are managed using context managers:
-
-```python
-class SessionManager:
-    def __enter__(self):
-        engine = get_engine()
-        self.session = Session(engine)
-        return self.session
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            if exc_type:
-                self.session.rollback()
-            else:
-                self.session.commit()
-            self.session.close()
-```
-
-Services use this pattern for transaction management:
+Database sessions are managed using a standardized container-based approach:
 
 ```python
-with self.session_factory() as session:
+from local_newsifier.database.session_utils import get_db_session
+
+with get_db_session() as session:
     # Database operations
     # If an exception occurs, session will be rolled back
     # Otherwise, session will be committed
 ```
+
+For functions that need session management, a decorator is provided:
+
+```python
+from local_newsifier.database.session_utils import with_db_session
+
+@with_db_session
+def my_function(session=None):
+    # Use session for database operations
+    return result
+```
+
+This standardized approach provides several benefits:
+- Centralized configuration of session parameters
+- Consistent error handling and transaction management
+- Better testability through easier mocking
+- Integration with the dependency injection container
+
+The implementation is in `local_newsifier.database.session_utils` and includes:
+- `get_db_session()`: Gets a session from the container
+- `with_db_session`: Decorator that provides a session to a function
+
+Legacy session management methods (`SessionManager`, `get_session()`, and `with_session`) are still available but marked as deprecated with warnings.
 
 ## Core Implementation Patterns
 
@@ -497,10 +504,10 @@ src/local_newsifier/api/
 
 ### Dependency Injection
 
-FastAPI's dependency injection system is used for database sessions:
+FastAPI's dependency injection system is used for database sessions, now using our standardized approach:
 
 ```python
-def get_session() -> Generator[Session, None, None]:
+def get_api_session() -> Generator[Session, None, None]:
     """Get a database session.
     This dependency provides a database session to route handlers.
     The session is automatically closed when the request is complete.
@@ -513,7 +520,7 @@ Route handlers use this dependency:
 
 ```python
 @router.get("/tables")
-async def get_tables(request: Request, session: Session = Depends(get_session)):
+async def get_tables(request: Request, session: Session = Depends(get_api_session)):
     # Use session for database operations
     # ...
 ```
@@ -587,16 +594,43 @@ def test_process_method():
     assert result is mock_result_state
 ```
 
-### Context Manager Mocking
+### Session Mocking for Tests
 
-Properly mocking context managers for session handling:
+Properly mocking the standardized session management:
 
 ```python
-# Setup session context manager mock properly
-mock_context_manager = MagicMock()
-mock_context_manager.__enter__.return_value = mock_session
-mock_context_manager.__exit__.return_value = None
-mock_entity_service.session_factory.return_value = mock_context_manager
+def test_entity_service(mocker):
+    # Mock the session
+    mock_session = mocker.MagicMock()
+    
+    # Mock get_db_session to return the mock session
+    mock_context = mocker.MagicMock()
+    mock_context.__enter__.return_value = mock_session
+    mock_context.__exit__.return_value = None
+    
+    mocker.patch('local_newsifier.database.session_utils.get_db_session', return_value=mock_context)
+    
+    # Test code that uses sessions
+    # ...
+```
+
+For testing functions that use the session decorator:
+
+```python
+@with_db_session
+def function_to_test(session=None):
+    # Function implementation
+    
+def test_decorated_function(mocker):
+    # Create a mock session
+    mock_session = mocker.MagicMock()
+    
+    # Call the function with the mock session
+    result = function_to_test(session=mock_session)
+    
+    # Assert that the function used the session correctly
+    mock_session.query.assert_called_once()
+    # ...
 ```
 
 ### Fixtures for Common Objects

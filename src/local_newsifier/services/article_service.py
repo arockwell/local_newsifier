@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.database.engine import SessionManager
+from local_newsifier.database.session_utils import get_db_session
 from local_newsifier.errors import handle_database
 
 
@@ -17,7 +17,6 @@ class ArticleService:
         article_crud,
         analysis_result_crud,
         entity_service=None,
-        session_factory=None,
         container=None
     ):
         """Initialize with dependencies.
@@ -26,13 +25,11 @@ class ArticleService:
             article_crud: CRUD for articles
             analysis_result_crud: CRUD for analysis results
             entity_service: Service for entity operations
-            session_factory: Factory for database sessions
             container: DI container for resolving dependencies
         """
         self.article_crud = article_crud
         self.analysis_result_crud = analysis_result_crud
         self.entity_service = entity_service
-        self.session_factory = session_factory
         self.container = container
     
     def _get_entity_service(self):
@@ -67,7 +64,7 @@ class ArticleService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        with SessionManager() as session:
+        with get_db_session(container=self.container) as session:
             # Extract domain as source if not provided
             from urllib.parse import urlparse
             parsed_url = urlparse(url)
@@ -147,7 +144,7 @@ class ArticleService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        with SessionManager() as session:
+        with get_db_session(container=self.container) as session:
             article = self.article_crud.get(session, id=article_id)
             
             if not article:
@@ -224,7 +221,7 @@ class ArticleService:
         elif "summary" in entry:
             content = entry.get("summary", "")
         
-        with self.session_factory() as session:
+        with get_db_session(container=self.container) as session:
             # Create article object with source
             article_data = Article(
                 title=title,

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from local_newsifier.services.article_service import ArticleService
-from local_newsifier.database.engine import SessionManager
+from local_newsifier.database.session_utils import get_db_session
 
 
 class NewsPipelineService:
@@ -28,7 +28,7 @@ class NewsPipelineService:
         self.article_service = article_service
         self.web_scraper = web_scraper
         self.file_writer = file_writer
-        self.session_factory = session_factory
+        self.session_factory = session_factory or get_db_session
     
     def process_url(self, url: str) -> Dict[str, Any]:
         """Process a news article from a URL.

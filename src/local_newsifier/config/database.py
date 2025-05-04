@@ -1,5 +1,6 @@
 """Database configuration and connection management."""
 
+import warnings
 from typing import Any, Optional
 
 from sqlmodel import Session
@@ -12,6 +13,7 @@ from local_newsifier.config.common import (
 
 # Re-export get_settings for backward compatibility
 from local_newsifier.config.settings import get_settings
+from local_newsifier.database.session_utils import get_db_session as get_standardized_db_session
 
 
 class DatabaseSettings:
@@ -85,13 +87,22 @@ def get_database_settings() -> DatabaseSettings:
 
 
 def get_db_session() -> Session:
-    """Get a new database session.
+    """Get a new database session (DEPRECATED).
+    
+    This function is deprecated. Use get_db_session from session_utils instead.
     
     Returns:
         Session: Database session
     """
-    engine = get_database()
-    return Session(engine)
+    warnings.warn(
+        "get_db_session() in config/database.py is deprecated. Use get_db_session() from database/session_utils instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    # Use the standardized approach internally
+    session_ctx = get_standardized_db_session()
+    return session_ctx.__enter__()
 
 
 def get_database_url_from_components(

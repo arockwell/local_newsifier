@@ -4,19 +4,28 @@
 - Web interface functionality with correct database interaction
 - Deployment configuration for Railway
 - Database schema management with Alembic
-- SQLAlchemy session management in asynchronous tasks
+- Standardized database session management approach
 - Resolving circular dependencies with dependency injection
 - Standardizing all tool, service, and flow registrations in the dependency injection container
 - Apify integration for automated web scraping
 
 ## Recent Changes
+- Standardized database session management approach (Issue #71)
+  - Created a single source of truth for database session management in `session_utils.py`
+  - Implemented `get_db_session()` as the standard way to obtain a database session
+  - Added `with_db_session` decorator for functions that need session management
+  - Added deprecation warnings to legacy session management methods
+  - Updated services to use the standardized approach
+  - Created comprehensive documentation in `docs/database_session_management.md`
+  - Added tests for the new session management utilities
+  - Updated `systemPatterns.md` to document the standardized approach
+
 - Added Apify integration for web scraping (PR #147)
   - Created SQLModel models for Apify data (source configs, jobs, dataset items)
   - Added Alembic migration for new tables
   - Implemented ApifyService for interacting with the Apify API
   - Created CLI commands for Apify operations (test, run-actor, get-dataset, etc.)
   - Added scrape-content command for easy website scraping
-
 - Fixed circular import dependencies between config and database modules (Issue #72)
   - Created a new common.py module in the config package to hold shared constants and functions
   - Updated settings.py to import from common.py instead of defining the shared constants directly

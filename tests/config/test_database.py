@@ -128,16 +128,28 @@ class TestDatabaseConfig:
             "postgresql://testuser:testpass@testhost:5432/testdb"
         )
 
-    @patch("local_newsifier.config.database.get_database")
-    def test_get_db_session(self, mock_get_database):
-        """Test getting database session."""
+    @patch("local_newsifier.database.engine.get_engine")
+    @patch("local_newsifier.container.container.get")
+    def test_get_db_session(self, mock_container_get, mock_get_engine):
+        """Test getting database session from session_utils."""
         # Mock engine
         mock_engine = MagicMock()
-        mock_get_database.return_value = mock_engine
+        mock_get_engine.return_value = mock_engine
+        
+        # Mock session factory
+        mock_session_factory = MagicMock()
+        mock_session = MagicMock()
+        mock_session_ctx = MagicMock()
+        mock_session_ctx.__enter__ = MagicMock(return_value=mock_session)
+        mock_session_ctx.__exit__ = MagicMock(return_value=None)
+        mock_session_factory.return_value = mock_session_ctx
+        mock_container_get.return_value = mock_session_factory
 
         # Get session
-        session = get_db_session()
+        from local_newsifier.database.session_utils import get_db_session
+        session_ctx = get_db_session()
+        session = session_ctx.__enter__()
 
         # Verify session
-        assert isinstance(session, Session)
-        mock_get_database.assert_called_once()
+        assert session is mock_session
+        mock_container_get.assert_called_once_with("session_factory")

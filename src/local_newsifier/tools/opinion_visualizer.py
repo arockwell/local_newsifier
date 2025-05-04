@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any, Tuple, Union
 
 from sqlmodel import Session, select
 
-from local_newsifier.database.engine import with_session
+from local_newsifier.database.session_utils import with_db_session
 from local_newsifier.models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class OpinionVisualizerTool:
         """
         self.session = session
 
-    @with_session
+    @with_db_session
     def prepare_timeline_data(
         self,
         topic: str,
@@ -129,7 +129,7 @@ class OpinionVisualizerTool:
             },
         )
 
-    @with_session
+    @with_db_session
     def prepare_comparison_data(
         self,
         topics: List[str],
