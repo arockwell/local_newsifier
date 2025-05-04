@@ -20,10 +20,18 @@ class TestArticleRouter:
             "source": "test_source",
             "status": "new",
             # Use current date in ISO format for published_at
-            "published_at": datetime.now(timezone.utc).isoformat()
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            # Add scraped_at which is required but not in the model defaults
+            "scraped_at": datetime.now(timezone.utc).isoformat()
         }
 
+        # Try with debug output for better error messages
         response = client.post("/articles/", json=article_data)
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"CREATE ARTICLE ERROR: {response.status_code}")
+            print(f"CREATE ARTICLE ERROR CONTENT: {response.content.decode('utf-8')}")
+            print(f"CREATE ARTICLE DATA: {article_data}")
+        
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["title"] == article_data["title"]
