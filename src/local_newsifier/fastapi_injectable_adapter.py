@@ -75,15 +75,15 @@ class ContainerAdapter:
         
         # If not found by name, try to find by type
         # TODO: Test coverage needed for type-based lookup path
-        for name, service in di_container._services.items():
+        for name, service in di_container.get_all_services().items():
             if isinstance(service, service_type):
                 return cast(T, service)
                 
         # Last resort: check factories and try to create the service
         # TODO: Test coverage needed for factory-based service creation
-        for name, factory in di_container._factories.items():
+        for name, factory in di_container.get_all_factories().items():
             try:
-                service = di_container._create_service(name, **kwargs)
+                service = di_container.get(name, **kwargs)
                 if isinstance(service, service_type):
                     return cast(T, service)
             except Exception:
@@ -283,7 +283,7 @@ async def migrate_container_services(app: FastAPI) -> None:
     await register_app(app)
     
     # Register direct service instances
-    for name, service in di_container._services.items():
+    for name, service in di_container.get_all_services().items():
         if service is not None:
             try:
                 service_class = service.__class__
@@ -301,7 +301,7 @@ async def migrate_container_services(app: FastAPI) -> None:
     
     # Register factory-created services
     registered_factories = 0
-    for name, factory in di_container._factories.items():
+    for name, factory in di_container.get_all_factories().items():
         # Try to determine the return type from factory signature
         try:
             # Try to get a service instance to determine type
