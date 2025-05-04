@@ -1,1 +1,1 @@
-"""Tests for error handling modules."""
+"""Tests for the error handling module."""
