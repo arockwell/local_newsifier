@@ -19,7 +19,8 @@ class TestArticleRouter:
             "url": "https://example.com/test-article",
             "source": "test_source",
             "status": "new",
-            "published_at": "2025-05-04T05:24:49.629885Z",  # Add published_at field
+            # Use current date in ISO format for published_at
+            "published_at": datetime.now(timezone.utc).isoformat()
         }
 
         response = client.post("/articles/", json=article_data)
