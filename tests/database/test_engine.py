@@ -51,19 +51,23 @@ def test_get_engine_success(mock_get_settings, mock_create_engine, mock_environ_
     assert result == mock_engine
 
 
+@patch('local_newsifier.database.engine.os.environ.get')
 @patch('local_newsifier.database.engine.create_engine', side_effect=OperationalError("statement", {}, None))
 @patch('local_newsifier.database.engine.get_settings')
 @patch('local_newsifier.database.engine.time.sleep')
-def test_get_engine_retry_and_fail(mock_sleep, mock_get_settings, mock_create_engine):
+def test_get_engine_retry_and_fail(mock_sleep, mock_get_settings, mock_create_engine, mock_environ_get):
     """Test engine creation with retries that eventually fail."""
     # Arrange
+    # Ensure the test doesn't detect we're in test mode
+    mock_environ_get.return_value = None
+    
     mock_settings = MagicMock()
     mock_settings.DATABASE_URL = "postgresql://user:pass@localhost/db"
     mock_settings.POSTGRES_PASSWORD = "pass"
     mock_get_settings.return_value = mock_settings
     
-    # Act
-    result = get_engine(max_retries=2, retry_delay=0.1)
+    # Act - Explicitly set test_mode=False to avoid SQLite in-memory fallback
+    result = get_engine(max_retries=2, retry_delay=0.1, test_mode=False)
     
     # Assert
     assert result is None
