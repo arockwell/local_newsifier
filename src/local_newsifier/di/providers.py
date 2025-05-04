@@ -377,36 +377,6 @@ def get_analysis_service(
         session_factory=lambda: session
     )
 
-@injectable(use_cache=False)
-def get_article_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
-    entity_service: Annotated[Any, Depends(get_entity_service)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the article service.
-    
-    Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations.
-    
-    Args:
-        article_crud: Article CRUD component
-        analysis_result_crud: Analysis result CRUD component
-        entity_service: Entity service
-        session: Database session
-        
-    Returns:
-        ArticleService instance
-    """
-    from local_newsifier.services.article_service import ArticleService
-    
-    return ArticleService(
-        article_crud=article_crud,
-        analysis_result_crud=analysis_result_crud,
-        entity_service=entity_service,
-        session_factory=lambda: session
-    )
-
 
 @injectable(use_cache=False)
 def get_entity_service(
@@ -450,6 +420,37 @@ def get_entity_service(
         entity_extractor=entity_extractor,
         context_analyzer=context_analyzer,
         entity_resolver=entity_resolver,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_article_service(
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the article service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_crud: Article CRUD component
+        analysis_result_crud: Analysis result CRUD component
+        entity_service: Entity service
+        session: Database session
+        
+    Returns:
+        ArticleService instance
+    """
+    from local_newsifier.services.article_service import ArticleService
+    
+    return ArticleService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        entity_service=entity_service,
         session_factory=lambda: session
     )
 
