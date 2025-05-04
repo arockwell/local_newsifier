@@ -36,6 +36,18 @@ ERROR_TYPES = {
     # Server-side errors
     "server": {"transient": True, "retry": True, "exit_code": 9},
     
+    # Database connection issues
+    "connection": {"transient": True, "retry": True, "exit_code": 10},
+    
+    # Database integrity errors (constraints, etc.)
+    "integrity": {"transient": False, "retry": False, "exit_code": 11},
+    
+    # Multiple results where one expected
+    "multiple": {"transient": False, "retry": False, "exit_code": 12},
+    
+    # Transaction errors
+    "transaction": {"transient": True, "retry": True, "exit_code": 13},
+    
     # Unknown/unexpected errors
     "unknown": {"transient": False, "retry": False, "exit_code": 1}
 }
@@ -231,6 +243,44 @@ def _classify_error(error: Exception, service: str) -> tuple:
     Returns:
         Tuple of (error_type, error_message)
     """
+    # Import SQLAlchemy exceptions here to avoid requiring SQLAlchemy for non-database use cases
+    # Check for database-specific errors
+    error_name = type(error).__name__
+    error_module = getattr(error, "__module__", "")
+    
+    # Detect SQLAlchemy and SQLModel errors
+    if "sqlalchemy" in error_module or "sqlmodel" in error_module:
+        # Check for specific SQLAlchemy exception types
+        if "IntegrityError" in error_name:
+            # Check for unique constraint or foreign key violations
+            error_str = str(error).lower()
+            if "unique constraint" in error_str or "unique violation" in error_str:
+                return "integrity", f"Unique constraint violation: {error}"
+            elif "foreign key constraint" in error_str:
+                return "integrity", f"Foreign key constraint violation: {error}"
+            return "integrity", f"Database integrity error: {error}"
+        
+        elif "NoResultFound" in error_name:
+            return "not_found", "Record not found in the database"
+        
+        elif "MultipleResultsFound" in error_name:
+            return "multiple", "Multiple records found where one was expected"
+        
+        elif "DisconnectionError" in error_name or ("OperationalError" in error_name and "connection" in str(error).lower()):
+            return "connection", f"Database connection error: {error}"
+        
+        elif "TimeoutError" in error_name:
+            return "timeout", f"Database operation timed out: {error}"
+        
+        elif any(x in error_name for x in ["DataError", "InvalidRequestError", "ProgrammingError"]):
+            return "validation", f"Invalid database request: {error}"
+        
+        elif "DatabaseError" in error_name:
+            return "transaction", f"Database transaction error: {error}"
+        
+        # Generic SQLAlchemy error
+        return "unknown", f"Database error: {error}"
+    
     # Check for HTTP status code
     if hasattr(error, 'response') and hasattr(error.response, 'status_code'):
         status = error.response.status_code
@@ -245,9 +295,7 @@ def _classify_error(error: Exception, service: str) -> tuple:
         elif status >= 400:
             return "validation", f"Request validation failed: {error}"
     
-    # Check exception type
-    error_name = type(error).__name__
-    
+    # Check general exception types
     if "Timeout" in error_name or "TimeoutError" in error_name:
         return "timeout", f"Request timed out: {error}"
     
