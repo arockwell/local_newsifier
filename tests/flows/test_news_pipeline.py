@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase as NewsPipelineFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.web_scraper import WebScraperTool
 
@@ -83,11 +83,8 @@ def mock_pipeline_service():
 @pytest.fixture(scope="session")
 def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline_service):
     """Create a pipeline instance with mocked components."""
-    # Create mock entity service and tools as needed by constructor
+    # Create mock entity service and session factory
     mock_entity_service = Mock()
-    mock_entity_extractor = Mock()
-    mock_context_analyzer = Mock()
-    mock_entity_resolver = Mock()
     mock_session_factory = Mock()
     
     pipeline = NewsPipelineFlow(
@@ -96,11 +93,7 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
         article_service=mock_article_service,
         pipeline_service=mock_pipeline_service,
         entity_service=mock_entity_service,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory,
-        output_dir="test_output"
+        session_factory=mock_session_factory
     )
     return pipeline
 

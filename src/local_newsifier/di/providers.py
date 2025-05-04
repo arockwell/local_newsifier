@@ -580,3 +580,126 @@ def get_opinion_visualizer(session: Annotated[Session, Depends(get_session)] = N
 def get_file_writer(output_dir: str = "output"):
     """Alias for get_file_writer_tool."""
     return get_file_writer_tool(output_dir=output_dir)
+
+
+# Flow providers
+
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    entity_tracker: Annotated[Any, Depends(get_entity_tracker_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity tracking flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        entity_service: Entity service instance
+        entity_tracker: Entity tracker tool
+        session: Database session
+        
+    Returns:
+        EntityTrackingFlow instance
+    """
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    
+    return EntityTrackingFlow(
+        entity_service=entity_service,
+        entity_tracker=entity_tracker,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_news_pipeline_flow(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
+    file_writer: Annotated[Any, Depends(get_file_writer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news pipeline flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_service: Article service instance
+        entity_service: Entity service instance
+        web_scraper: Web scraper tool
+        file_writer: File writer tool
+        session: Database session
+        
+    Returns:
+        NewsPipelineFlow instance
+    """
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    
+    return NewsPipelineFlow(
+        article_service=article_service,
+        entity_service=entity_service,
+        web_scraper=web_scraper,
+        file_writer=file_writer,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_public_opinion_flow(
+    sentiment_analyzer: Annotated[Any, Depends(get_sentiment_analyzer_tool)],
+    sentiment_tracker: Annotated[Any, Depends(get_sentiment_tracker_tool)],
+    opinion_visualizer: Annotated[Any, Depends(get_opinion_visualizer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the public opinion flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        sentiment_analyzer: Sentiment analyzer tool
+        sentiment_tracker: Sentiment tracker tool
+        opinion_visualizer: Opinion visualizer tool
+        session: Database session
+        
+    Returns:
+        PublicOpinionFlow instance
+    """
+    from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+    
+    return PublicOpinionFlow(
+        sentiment_analyzer=sentiment_analyzer,
+        sentiment_tracker=sentiment_tracker,
+        opinion_visualizer=opinion_visualizer,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_trend_analysis_flow(
+    analysis_service: Annotated[Any, Depends(get_analysis_service)],
+    trend_reporter: Annotated[Any, Depends(get_trend_reporter_tool)],
+    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)]
+):
+    """Provide the trend analysis flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        analysis_service: Analysis service instance
+        trend_reporter: Trend reporter tool
+        trend_analyzer: Trend analyzer tool
+        
+    Returns:
+        NewsTrendAnalysisFlow instance
+    """
+    from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    
+    return NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )

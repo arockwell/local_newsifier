@@ -3,6 +3,7 @@ from typing import Optional, Annotated
 
 from crewai import Flow
 from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
@@ -17,16 +18,20 @@ from local_newsifier.di.providers import (
 )
 
 
-class NewsPipelineFlow(Flow):
-    """Flow for processing news articles with NER analysis."""
+# Base class without DI for testing
+class NewsPipelineFlowBase(Flow):
+    """Base flow for processing news articles with NER analysis.
+    
+    This non-injectable version is used for testing.
+    """
 
     def __init__(
         self, 
-        article_service: Annotated[ArticleService, Depends(get_article_service)] = None,
-        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
-        web_scraper: Annotated[WebScraperTool, Depends(get_web_scraper_tool)] = None,
-        file_writer: Annotated[FileWriterTool, Depends(get_file_writer_tool)] = None,
-        session: Annotated[Session, Depends(get_session)] = None,
+        article_service: Optional[ArticleService] = None,
+        entity_service: Optional[EntityService] = None,
+        web_scraper: Optional[WebScraperTool] = None,
+        file_writer: Optional[FileWriterTool] = None,
+        session: Optional[Session] = None,
         session_factory: Optional[callable] = None,
         pipeline_service: Optional[NewsPipelineService] = None
     ):
@@ -56,14 +61,16 @@ class NewsPipelineFlow(Flow):
         # Create or use provided pipeline service
         if pipeline_service:
             self.pipeline_service = pipeline_service
-        else:
+        elif article_service and web_scraper and file_writer:
             self.pipeline_service = NewsPipelineService(
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
                 session_factory=self._session_factory
             )
-
+        else:
+            self.pipeline_service = None
+            
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """Task for scraping article content."""
         return self.scraper.scrape(state)
@@ -218,3 +225,42 @@ class NewsPipelineFlow(Flow):
             Dictionary with processing results
         """
         return self.pipeline_service.process_url(url)
+
+
+@injectable(use_cache=False)
+class NewsPipelineFlow(NewsPipelineFlowBase):
+    """Flow for processing news articles with NER analysis.
+    
+    This version uses dependency injection.
+    """
+
+    def __init__(
+        self, 
+        article_service: Annotated[ArticleService, Depends(get_article_service)] = None,
+        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
+        web_scraper: Annotated[WebScraperTool, Depends(get_web_scraper_tool)] = None,
+        file_writer: Annotated[FileWriterTool, Depends(get_file_writer_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
+        session_factory: Optional[callable] = None,
+        pipeline_service: Optional[NewsPipelineService] = None
+    ):
+        """Initialize the pipeline flow.
+        
+        Args:
+            article_service: Service for article operations
+            entity_service: Service for entity operations
+            web_scraper: Tool for scraping web content
+            file_writer: Tool for writing files
+            session: Database session
+            session_factory: Function to create database sessions
+            pipeline_service: Service for news pipeline operations
+        """
+        super().__init__(
+            article_service=article_service,
+            entity_service=entity_service,
+            web_scraper=web_scraper,
+            file_writer=file_writer,
+            session=session,
+            session_factory=session_factory,
+            pipeline_service=pipeline_service
+        )

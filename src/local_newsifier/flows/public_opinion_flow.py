@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Any, Tuple, Annotated
 
 from crewai import Flow
 from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.database.engine import with_session
@@ -35,15 +36,19 @@ from local_newsifier.di.providers import (
 logger = logging.getLogger(__name__)
 
 
-class PublicOpinionFlow(Flow):
-    """Flow for analyzing public opinion and sentiment in news articles."""
+# Base class without DI for testing
+class PublicOpinionFlowBase(Flow):
+    """Base flow for analyzing public opinion and sentiment in news articles.
+    
+    This non-injectable version is used for testing.
+    """
 
     def __init__(
         self, 
-        sentiment_analyzer: Annotated[SentimentAnalysisTool, Depends(get_sentiment_analyzer_tool)] = None,
-        sentiment_tracker: Annotated[SentimentTracker, Depends(get_sentiment_tracker_tool)] = None,
-        opinion_visualizer: Annotated[OpinionVisualizerTool, Depends(get_opinion_visualizer_tool)] = None,
-        session: Annotated[Session, Depends(get_session)] = None,
+        sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
+        sentiment_tracker: Optional[SentimentTracker] = None,
+        opinion_visualizer: Optional[OpinionVisualizerTool] = None,
+        session: Optional[Session] = None,
         session_factory: Optional[callable] = None
     ):
         """
@@ -67,7 +72,7 @@ class PublicOpinionFlow(Flow):
         # If session_factory was provided, use it; otherwise create a simple
         # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
-
+    
     @with_session
     def analyze_articles(
         self, article_ids: Optional[List[int]] = None, *, session: Optional[Session] = None
@@ -441,3 +446,37 @@ class PublicOpinionFlow(Flow):
         except Exception as e:
             logger.error(f"Error generating comparison report: {str(e)}")
             return f"Error generating comparison report: {str(e)}"
+
+
+@injectable(use_cache=False)
+class PublicOpinionFlow(PublicOpinionFlowBase):
+    """Flow for analyzing public opinion and sentiment in news articles.
+    
+    This version uses dependency injection.
+    """
+
+    def __init__(
+        self, 
+        sentiment_analyzer: Annotated[SentimentAnalysisTool, Depends(get_sentiment_analyzer_tool)] = None,
+        sentiment_tracker: Annotated[SentimentTracker, Depends(get_sentiment_tracker_tool)] = None,
+        opinion_visualizer: Annotated[OpinionVisualizerTool, Depends(get_opinion_visualizer_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
+        session_factory: Optional[callable] = None
+    ):
+        """
+        Initialize the public opinion analysis flow.
+
+        Args:
+            sentiment_analyzer: Tool for sentiment analysis
+            sentiment_tracker: Tool for tracking sentiment over time
+            opinion_visualizer: Tool for generating visualizations
+            session: SQLModel session
+            session_factory: Factory function for creating database sessions
+        """
+        super().__init__(
+            sentiment_analyzer=sentiment_analyzer,
+            sentiment_tracker=sentiment_tracker,
+            opinion_visualizer=opinion_visualizer,
+            session=session,
+            session_factory=session_factory
+        )

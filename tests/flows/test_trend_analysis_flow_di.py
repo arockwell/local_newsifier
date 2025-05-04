@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi_injectable import injectable
 from sqlmodel import Session
 
-from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
+from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlowBase as NewsTrendAnalysisFlow,
                                                     TrendAnalysisState,
                                                     ReportFormat)
 from local_newsifier.models.state import AnalysisStatus
@@ -226,14 +226,24 @@ def test_flow_di_fallbacks(mock_di_providers, sample_trends):
     """Test that DI flow uses fallbacks appropriately when needed."""
     # Setup special case where trend_detector doesn't have required methods
     # This tests the fallback to analysis_service
-    mock_di_providers["trend_analyzer"].detect_entity_trends = None  # Remove the method
+    mock_trend_analyzer = mock_di_providers["trend_analyzer"]
+    
+    # Need to update how we simulate missing methods - retain the instance but make detect_entity_trends check work
+    # Instead of removing the method entirely, create a new instance that behaves differently
+    class ModifiedMockAnalyzer:
+        def __init__(self):
+            pass
+            
+    # Use this mock which has no detect_entity_trends method
+    modified_analyzer = ModifiedMockAnalyzer()
+    
     mock_di_providers["analysis_service"].detect_entity_trends.return_value = sample_trends
     
     # Create a flow instance directly with mocked dependencies
     flow = NewsTrendAnalysisFlow(
         analysis_service=mock_di_providers["analysis_service"],
         trend_reporter=mock_di_providers["trend_reporter"],
-        trend_analyzer=mock_di_providers["trend_analyzer"]
+        trend_analyzer=modified_analyzer
     )
     
     # Create a state and run trend detection

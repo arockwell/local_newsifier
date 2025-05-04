@@ -4,10 +4,11 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from unittest.mock import patch
 
-from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
-                                                         ReportFormat,
-                                                         TrendAnalysisState)
+from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlowBase as NewsTrendAnalysisFlow,
+                                                       ReportFormat,
+                                                       TrendAnalysisState)
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
                                             TrendAnalysisConfig, TrendStatus,

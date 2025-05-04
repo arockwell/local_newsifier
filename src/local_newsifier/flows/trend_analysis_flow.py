@@ -21,6 +21,9 @@ from local_newsifier.models.trend import (
 )
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+from local_newsifier.di.providers import (
+    get_analysis_service, get_trend_reporter_tool, get_trend_analyzer_tool
+)
 
 # Global logger
 logger = logging.getLogger(__name__)
@@ -71,15 +74,18 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
-@injectable(use_cache=False)
-class NewsTrendAnalysisFlow(Flow):
-    """Flow for detecting and analyzing trends in local news coverage."""
-
+# Base class without DI for testing
+class NewsTrendAnalysisFlowBase(Flow):
+    """Base flow for detecting and analyzing trends in local news coverage.
+    
+    This non-injectable version is used for testing.
+    """
+    
     def __init__(
         self,
         analysis_service: AnalysisService,
         trend_reporter: TrendReporter,
-        trend_analyzer: Optional[Any] = None,
+        trend_analyzer: Any,
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
         config: Optional[TrendAnalysisConfig] = None,
@@ -294,3 +300,39 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log("Completed trend analysis flow with errors")
 
         return state
+
+@injectable(use_cache=False)
+class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
+    """Flow for detecting and analyzing trends in local news coverage.
+    
+    This version uses dependency injection.
+    """
+    
+    def __init__(
+        self,
+        analysis_service: Annotated[AnalysisService, Depends(get_analysis_service)],
+        trend_reporter: Annotated[TrendReporter, Depends(get_trend_reporter_tool)],
+        trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+        data_aggregator: Optional[Any] = None,
+        topic_analyzer: Optional[Any] = None,
+        config: Optional[TrendAnalysisConfig] = None,
+    ):
+        """
+        Initialize the trend analysis flow.
+
+        Args:
+            analysis_service: Service for analysis operations (injected)
+            trend_reporter: Tool for generating trend reports (injected)
+            trend_analyzer: Tool for analyzing trends (injected)
+            data_aggregator: Tool for aggregating data (for backwards compatibility)
+            topic_analyzer: Tool for analyzing topics (for backwards compatibility)
+            config: Configuration for trend analysis
+        """
+        super().__init__(
+            analysis_service=analysis_service,
+            trend_reporter=trend_reporter,
+            trend_analyzer=trend_analyzer,
+            data_aggregator=data_aggregator,
+            topic_analyzer=topic_analyzer,
+            config=config
+        )

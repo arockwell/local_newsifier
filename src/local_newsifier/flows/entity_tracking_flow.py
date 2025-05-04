@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Annotated
 
 from crewai import Flow
 from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article as article_crud
@@ -20,14 +21,18 @@ from local_newsifier.di.providers import (
 )
 
 
-class EntityTrackingFlow(Flow):
-    """Flow for tracking entities across news articles using state-based pattern."""
+# Base class without DI for testing
+class EntityTrackingFlowBase(Flow):
+    """Base flow for tracking entities across news articles using state-based pattern.
+    
+    This non-injectable version is used for testing.
+    """
 
     def __init__(
         self, 
-        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
-        entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)] = None,
-        session: Annotated[Session, Depends(get_session)] = None,
+        entity_service: Optional[EntityService] = None,
+        entity_tracker: Optional[EntityTracker] = None,
+        session: Optional[Session] = None,
         session_factory: Optional[callable] = None
     ):
         """Initialize the entity tracking flow.
@@ -46,7 +51,7 @@ class EntityTrackingFlow(Flow):
         # If session_factory was provided, use it; otherwise create a simple
         # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
-
+        
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
         
@@ -157,3 +162,33 @@ class EntityTrackingFlow(Flow):
         
         # Return relationship data
         return result_state.relationship_data
+
+
+@injectable(use_cache=False)
+class EntityTrackingFlow(EntityTrackingFlowBase):
+    """Flow for tracking entities across news articles using state-based pattern.
+    
+    This version uses dependency injection.
+    """
+
+    def __init__(
+        self, 
+        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
+        entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
+        session_factory: Optional[callable] = None
+    ):
+        """Initialize the entity tracking flow.
+        
+        Args:
+            entity_service: Service for entity operations
+            entity_tracker: Service for tracking entities
+            session: Database session
+            session_factory: Function to create database sessions
+        """
+        super().__init__(
+            entity_service=entity_service,
+            entity_tracker=entity_tracker,
+            session=session,
+            session_factory=session_factory
+        )
