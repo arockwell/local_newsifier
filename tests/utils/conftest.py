@@ -35,6 +35,9 @@ def patched_container(test_container):
     This fixture temporarily replaces the application container with a test container,
     allowing tests to control the behavior of components that directly use the container.
     """
+    # Add a special attribute to test_container for our CLI detection
+    test_container.patched_for_testing = True
+    
     with patch('local_newsifier.container.container', test_container):
         with patch('local_newsifier.cli.commands.feeds.container', test_container):
             yield test_container

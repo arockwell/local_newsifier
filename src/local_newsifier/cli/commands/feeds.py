@@ -14,58 +14,62 @@ import json
 import click
 from datetime import datetime
 from tabulate import tabulate
-from typing import Any
+from typing import Any, Dict
 
+# Allow direct imports from container for tests
+from local_newsifier.container import container
+
+# Import functions from di.providers for dependency injection
 from local_newsifier.di.providers import (
-    get_rss_feed_service as get_rss_feed_service_provider,
-    get_article_crud as get_article_crud_provider,
-    get_news_pipeline_flow as get_news_pipeline_flow_provider,
-    get_entity_tracking_flow as get_entity_tracking_flow_provider,
-    get_session as get_session_provider,
+    get_rss_feed_service,
+    get_article_crud,
+    get_news_pipeline_flow,
+    get_entity_tracking_flow,
+    get_session as get_db_session,
 )
-from local_newsifier.container import container  # Keep for compatibility with tests
 
-# Function wrappers to get provider instances
-def get_rss_feed_service() -> Any:
-    """Get the RSS feed service instance using the provider or container."""
+# For compatibility with tests that patch container.get
+# This is the only place we use container directly
+def get_injected_deps() -> Dict[str, Any]:
+    """Get dependencies either from providers or container.
+    
+    This function handles dependencies in both normal usage and test scenarios.
+    It supports mocking via container.get during tests while using injectable 
+    providers in normal operation.
+    
+    Returns:
+        Dict with service instances ready for use in CLI commands
+    """
+    deps = {}
+    
+    # Always try to get services from container first (for tests)
+    # then fall back to provider functions (for normal operation)
     try:
-        return get_rss_feed_service_provider()
-    except Exception:
-        # Fallback to container for compatibility with tests
-        return container.get("rss_feed_service")
-
-def get_article_crud() -> Any:
-    """Get the article CRUD instance using the provider or container."""
-    try:
-        return get_article_crud_provider()
-    except Exception:
-        # Fallback to container for compatibility with tests
-        return container.get("article_crud")
-
-def get_news_pipeline_flow() -> Any:
-    """Get the news pipeline flow instance using the provider or container."""
-    try:
-        return get_news_pipeline_flow_provider()
-    except Exception:
-        # Fallback to container for compatibility with tests
-        return container.get("news_pipeline_flow")
-
-def get_entity_tracking_flow() -> Any:
-    """Get the entity tracking flow instance using the provider or container."""
-    try:
-        return get_entity_tracking_flow_provider()
-    except Exception:
-        # Fallback to container for compatibility with tests
-        return container.get("entity_tracking_flow")
-
-def get_session() -> Any:
-    """Get a database session using the provider or container."""
-    try:
-        return next(get_session_provider())
-    except Exception:
-        # Fallback to container for compatibility with tests
+        deps["rss_feed_service"] = container.get("rss_feed_service")
+        deps["article_crud"] = container.get("article_crud") 
+        deps["news_pipeline_flow"] = container.get("news_pipeline_flow")
+        deps["entity_tracking_flow"] = container.get("entity_tracking_flow")
+        
+        # Handle session carefully to avoid "not callable" errors
         session_factory = container.get("session_factory")
-        return next(session_factory())
+        if callable(session_factory):
+            session = session_factory()
+            if hasattr(session, "__next__"):
+                deps["session"] = next(session)
+            else:
+                deps["session"] = session
+        else:
+            # Fall back to provider function
+            deps["session"] = next(get_db_session())
+    except Exception as e:
+        # Fall back to provider functions
+        deps["rss_feed_service"] = get_rss_feed_service() 
+        deps["article_crud"] = get_article_crud()
+        deps["news_pipeline_flow"] = get_news_pipeline_flow()
+        deps["entity_tracking_flow"] = get_entity_tracking_flow()
+        deps["session"] = next(get_db_session())
+        
+    return deps
 
 
 @click.group(name="feeds")
@@ -86,8 +90,9 @@ def list_feeds(
     skip
 ):
     """List all feeds with optional filtering."""
-    # Get the service using the provider function
-    rss_feed_service = get_rss_feed_service()
+    # Get dependencies 
+    deps = get_injected_deps()
+    rss_feed_service = deps["rss_feed_service"]
     feeds = rss_feed_service.list_feeds(skip=skip, limit=limit, active_only=active_only)
     
     if json_output:
@@ -131,8 +136,9 @@ def add_feed(
     feed_name = name or url
     
     try:
-        # Get the service using the provider function
-        rss_feed_service = get_rss_feed_service()
+        # Get dependencies
+        deps = get_injected_deps()
+        rss_feed_service = deps["rss_feed_service"]
         feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
         click.echo(f"Feed added successfully with ID: {feed['id']}")
     except ValueError as e:
@@ -149,8 +155,9 @@ def show_feed(
     show_logs
 ):
     """Show feed details."""
-    # Get the service using the provider function
-    rss_feed_service = get_rss_feed_service()
+    # Get dependencies
+    deps = get_injected_deps()
+    rss_feed_service = deps["rss_feed_service"]
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -222,8 +229,9 @@ def remove_feed(
     force
 ):
     """Remove a feed."""
-    # Get the service using the provider function
-    rss_feed_service = get_rss_feed_service()
+    # Get dependencies
+    deps = get_injected_deps()
+    rss_feed_service = deps["rss_feed_service"]
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -254,11 +262,12 @@ def direct_process_article(article_id):
         bool: True if processing was successful, False otherwise
     """
     try:
-        # Get dependencies using provider functions
-        article_crud = get_article_crud()
-        news_pipeline_flow = get_news_pipeline_flow() 
-        entity_tracking_flow = get_entity_tracking_flow()
-        session = get_session()
+        # Get dependencies
+        deps = get_injected_deps()
+        article_crud = deps["article_crud"]
+        news_pipeline_flow = deps["news_pipeline_flow"]
+        entity_tracking_flow = deps["entity_tracking_flow"]
+        session = deps["session"]
         
         # Get the article from the database
         article = article_crud.get(session, id=article_id)
@@ -293,8 +302,9 @@ def process_feed(
     no_process
 ):
     """Process a specific feed."""
-    # Get dependencies using provider functions
-    rss_feed_service = get_rss_feed_service()
+    # Get dependencies
+    deps = get_injected_deps()
+    rss_feed_service = deps["rss_feed_service"]
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -328,8 +338,9 @@ def update_feed(
     active
 ):
     """Update feed properties."""
-    # Get dependencies using provider functions
-    rss_feed_service = get_rss_feed_service()
+    # Get dependencies
+    deps = get_injected_deps()
+    rss_feed_service = deps["rss_feed_service"]
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)

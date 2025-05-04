@@ -332,6 +332,19 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
+def get_entity_tracker_tool():
+    """Provide the entity tracker tool.
+    
+    Used by flows to track entities across documents.
+    
+    Returns:
+        EntityTracker instance
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker()
+
+
+@injectable(use_cache=False)
 def get_rss_parser():
     """Provide the RSS parser tool.
     
@@ -449,9 +462,7 @@ def get_news_pipeline_flow(
     entity_resolver_tool: Annotated[Any, Depends(get_entity_resolver_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the news pipeline flow.
-    
-    Used by CLI commands to process articles.
+    """Provide the news pipeline flow for CLI commands.
     
     Args:
         article_service: Article service
@@ -483,15 +494,13 @@ def get_news_pipeline_flow(
 @injectable(use_cache=False)
 def get_entity_tracking_flow(
     entity_service: Annotated[Any, Depends(get_entity_service)],
-    entity_tracker_tool: Annotated[Any, Depends(get_entity_extractor_tool)],
+    entity_tracker_tool: Annotated[Any, Depends(get_entity_tracker_tool)],  # Fixed dependency
     entity_extractor_tool: Annotated[Any, Depends(get_entity_extractor_tool)],
     context_analyzer_tool: Annotated[Any, Depends(get_context_analyzer_tool)],
     entity_resolver_tool: Annotated[Any, Depends(get_entity_resolver_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the entity tracking flow.
-    
-    Used by CLI commands to process entity tracking.
+    """Provide the entity tracking flow for CLI commands.
     
     Args:
         entity_service: Entity service
@@ -518,13 +527,12 @@ def get_entity_tracking_flow(
 
 @injectable(use_cache=False)
 def get_apify_service():
-    """Provide the Apify service.
-    
-    Used by CLI commands to interact with Apify API.
+    """Provide the Apify service for CLI commands.
     
     Returns:
         ApifyService instance
     """
     from local_newsifier.services.apify_service import ApifyService
+    from local_newsifier.config.settings import settings
     
-    return ApifyService()
+    return ApifyService(settings.APIFY_TOKEN)
