@@ -22,9 +22,8 @@ class TestDatabaseErrors:
         """Test error classification for different database errors."""
         
         # Integrity error with unique constraint violation
-        mock_integrity_error = Mock(spec=IntegrityError)
-        mock_integrity_error.__str__.return_value = "unique constraint violation"
-        error_type, message = classify_database_error(mock_integrity_error)
+        real_integrity_error = IntegrityError("statement", {}, "unique constraint violation")
+        error_type, message = classify_database_error(real_integrity_error)
         assert error_type == "integrity"
         
         # No result found
@@ -76,18 +75,21 @@ class TestDatabaseErrors:
     def test_crud_base_error_handling(self):
         """Test error handling in CRUD base class."""
         
-        # Mock model and session
-        model_cls = Mock()
-        db = Mock()
-        db.exec.side_effect = IntegrityError(None, None, "unique constraint violation")
-        
-        # Create CRUD class
-        crud = ErrorHandledCRUDBase(model_cls)
-        
-        # Test create method raises proper ServiceError
-        with pytest.raises(ServiceError) as excinfo:
-            crud.create(db, obj_in={})
+        # Mock the CRUDBase.create method to raise an IntegrityError
+        with patch('local_newsifier.crud.base.CRUDBase.create', 
+                   side_effect=IntegrityError("statement", {}, "unique constraint violation")):
             
-        error = excinfo.value
-        assert error.service == "database"
-        assert error.error_type == "integrity"
+            # Create CRUD class with a mock model
+            model_cls = Mock()
+            crud = ErrorHandledCRUDBase(model_cls)
+            
+            # Mock session
+            db = Mock()
+            
+            # Test create method raises proper ServiceError
+            with pytest.raises(ServiceError) as excinfo:
+                crud.create(db, obj_in={})
+                
+            error = excinfo.value
+            assert error.service == "database"
+            assert error.error_type == "integrity"

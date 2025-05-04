@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union, Generic
 
 from sqlmodel import SQLModel, Session, select
 
-from local_newsifier.errors import handle_database
+from local_newsifier.errors.database import handle_database
 from .base import CRUDBase, ModelType
 
 

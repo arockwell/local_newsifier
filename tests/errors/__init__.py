@@ -1,1 +1,1 @@
-"""Tests for error handling functionality."""
+"""Test package for error handling framework."""

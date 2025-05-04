@@ -83,7 +83,7 @@ def create_service_handler(
 handle_apify = create_service_handler("apify")
 handle_rss = create_service_handler("rss")
 handle_web_scraper = create_service_handler("web_scraper")
-handle_database = create_service_handler("database")
+# Database handler is defined in database.py to avoid circular imports
 
 
 def get_error_message(service: str, error_type: str) -> str:
