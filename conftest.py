@@ -11,6 +11,10 @@ from datetime import datetime, timezone
 from typing import Generator
 import uuid
 
+# Set environment variable to indicate we're running in test mode
+# Set this as early as possible to ensure it's available during imports
+os.environ["LOCAL_NEWSIFIER_TEST_MODE"] = "true"
+
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, text, select
 
@@ -51,15 +55,44 @@ from local_newsifier.models.apify import (
     ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
 )
 
-@pytest.fixture(scope="session")
+# Global variable to store the test engine for sharing between tests
+_shared_test_engine = None
+
+# Create a pytest plugin hook that allows access to the test engine
+@pytest.hookimpl(hookwrapper=True)
+def pytest_configure(config):
+    """Register a plugin that provides access to the test engine.
+    
+    This allows engine.py to access the test engine via pytest's plugin system,
+    which is more reliable than sys.modules.
+    """
+    # Run all other pytest_configure hooks
+    yield
+    
+    # Register a function that can access our module-level variable
+    class TestEnginePlugin:
+        @staticmethod
+        def get_engine():
+            return _shared_test_engine
+    
+    # Register the plugin with pytest
+    config.pluginmanager.register(TestEnginePlugin(), "test_engine_plugin")
+
+@pytest.fixture(scope="session", autouse=True)
 def test_engine():
     """Create a test database engine using SQLite in-memory.
     
     This fixture:
     1. Creates an in-memory SQLite database
     2. Creates all tables
-    3. Yields the engine for tests
+    3. Makes the engine available to the test_db_engine plugin
+    4. Yields the engine for tests that need direct access
+    
+    The autouse=True parameter ensures this fixture runs for all tests,
+    even when not explicitly requested, ensuring the test database is always set up.
     """
+    global _shared_test_engine
+    
     # Create SQLite in-memory engine for tests
     engine = create_engine(
         "sqlite:///:memory:",
@@ -98,11 +131,18 @@ def test_engine():
         session.delete(result)
         session.commit()
     
+    # Store the engine for use by other code
+    _shared_test_engine = engine
+    
+    # Set environment variable indicating test database is ready
+    os.environ["TEST_DB_INITIALIZED"] = "true"
+    
     # Yield the engine for tests to use
     yield engine
     
     # No cleanup needed for in-memory database
     engine.dispose()
+    _shared_test_engine = None
 
 @pytest.fixture
 def db_session(test_engine) -> Generator[Session, None, None]:

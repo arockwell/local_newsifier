@@ -1,6 +1,7 @@
 """Database engine and session management using SQLModel."""
 
 import logging
+import os
 import traceback
 import time
 from contextlib import contextmanager
@@ -40,6 +41,35 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     Returns:
         SQLModel engine or None if connection fails after retries
     """
+    # Check if we're running in test mode
+    if test_mode or os.environ.get("LOCAL_NEWSIFIER_TEST_MODE") == "true":
+        logger.info("Running in test mode, using SQLite in-memory database")
+        
+        # Try to get the shared test engine from pytest plugin system
+        try:
+            import pytest
+            if hasattr(pytest, "test_engine_plugin"):
+                engine = pytest.test_engine_plugin.get_engine()
+                if engine:
+                    logger.info("Using shared test engine from pytest plugin")
+                    return engine
+        except (ImportError, AttributeError):
+            # We're not running under pytest or plugin isn't registered
+            pass
+        
+        # If we couldn't get a shared engine, create a new in-memory SQLite database
+        logger.info("Creating new SQLite in-memory test database")
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=False,
+            pool_recycle=-1,
+        )
+        
+        # Always create all tables for test databases
+        SQLModel.metadata.create_all(engine)
+        return engine
+    
     # Use faster retry for tests
     if test_mode:
         retry_delay = 0.01  # Use milliseconds instead of seconds for tests
