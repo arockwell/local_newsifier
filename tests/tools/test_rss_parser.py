@@ -274,19 +274,36 @@ class TestRSSParser:
         """Test parsing a feed with error."""
         mock_get.side_effect = Exception("Failed to fetch feed")
 
-        items = self.parser.parse_feed("http://example.com/feed")
-        assert len(items) == 0
+        # With the new error handling approach, we expect a ServiceError to be raised
+        # instead of returning an empty list
+        from local_newsifier.errors.error import ServiceError
+        
+        with pytest.raises(ServiceError) as excinfo:
+            self.parser.parse_feed("http://example.com/feed")
+            
+        # Verify error attributes
+        assert excinfo.value.service == "rss"
+        assert excinfo.value.error_type == "unknown"  # Default classification for generic Exception
 
     @patch("requests.get")
     def test_parse_malformed_xml(self, mock_get):
         """Test parsing malformed XML."""
         mock_response = Mock()
         mock_response.content = MALFORMED_XML.encode("utf-8")
+        mock_response.raise_for_status = Mock()  # Ensure this doesn't raise
         mock_get.return_value = mock_response
 
-        # Should not raise an exception, but return empty list
-        items = self.parser.parse_feed("http://example.com/malformed")
-        assert len(items) == 0
+        # With the new error handling approach, we expect a ServiceError to be raised
+        # with a specific error type for XML parsing issues
+        from local_newsifier.errors.error import ServiceError
+        
+        with pytest.raises(ServiceError) as excinfo:
+            self.parser.parse_feed("http://example.com/malformed")
+            
+        # Verify error attributes
+        assert excinfo.value.service == "rss"
+        # The error might be classified as either "xml_parse" or "validation" depending on implementation
+        assert excinfo.value.error_type in ["xml_parse", "validation", "parse"]
 
     @patch("requests.get")
     def test_parse_incomplete_rss(self, mock_get):
@@ -371,20 +388,28 @@ class TestRSSParser:
     @patch("requests.get")
     def test_network_error_handling(self, mock_get, mock_response):
         """Test handling of network errors."""
+        from local_newsifier.errors.error import ServiceError
+        
         # Test connection error
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
-        items = self.parser.parse_feed("http://example.com/connection-error")
-        assert len(items) == 0
+        with pytest.raises(ServiceError) as excinfo:
+            self.parser.parse_feed("http://example.com/connection-error")
+        assert excinfo.value.service == "rss"
+        assert excinfo.value.error_type == "network"
         
         # Test timeout error
         mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
-        items = self.parser.parse_feed("http://example.com/timeout")
-        assert len(items) == 0
+        with pytest.raises(ServiceError) as excinfo:
+            self.parser.parse_feed("http://example.com/timeout")
+        assert excinfo.value.service == "rss"
+        assert excinfo.value.error_type == "timeout"
         
         # Test HTTP error
         mock_get.side_effect = requests.exceptions.HTTPError("404 Client Error")
-        items = self.parser.parse_feed("http://example.com/http-error")
-        assert len(items) == 0
+        with pytest.raises(ServiceError) as excinfo:
+            self.parser.parse_feed("http://example.com/http-error")
+        assert excinfo.value.service == "rss"
+        assert excinfo.value.error_type == "not_found"  # HTTP 404 maps to not_found error type
 
     @patch("requests.get")
     def test_get_new_urls(self, mock_get):
@@ -505,13 +530,13 @@ class TestRSSParser:
         """Test error handling in the global parse_rss_feed function."""
         mock_get.side_effect = Exception("Test error")
         
-        result = parse_rss_feed("http://example.com/error")
+        # The global function should now raise ServiceError
+        from local_newsifier.errors.error import ServiceError
         
-        assert isinstance(result, dict)
-        assert "title" in result
-        assert "feed_url" in result
-        assert "entries" in result
+        with pytest.raises(ServiceError) as excinfo:
+            parse_rss_feed("http://example.com/error")
         
-        # The implementation might not include an error field, but should have empty entries
-        assert len(result["entries"]) == 0
-        assert result["feed_url"] == "http://example.com/error"
+        # Verify error attributes
+        assert excinfo.value.service == "rss"
+        # For a general exception, it will likely be classified as "unknown"
+        assert excinfo.value.error_type in ["unknown", "parse"]  # Accept either classification
