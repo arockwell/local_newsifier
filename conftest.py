@@ -64,6 +64,9 @@ def test_engine():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        # Speed up SQLite for tests
+        pool_pre_ping=False,  # Disable pre-ping for tests
+        pool_recycle=-1,  # Disable connection recycling
     )
     
     # Create all tables
