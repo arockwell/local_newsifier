@@ -60,14 +60,20 @@ def get_injected_deps() -> Dict[str, Any]:
                 deps["session"] = session
         else:
             # Fall back to provider function
-            deps["session"] = next(get_db_session())
+            db_session = get_db_session()
+            if db_session is not None:
+                deps["session"] = next(db_session)
     except Exception as e:
         # Fall back to provider functions
         deps["rss_feed_service"] = get_rss_feed_service() 
         deps["article_crud"] = get_article_crud()
         deps["news_pipeline_flow"] = get_news_pipeline_flow()
         deps["entity_tracking_flow"] = get_entity_tracking_flow()
-        deps["session"] = next(get_db_session())
+        
+        # Safely get session
+        db_session = get_db_session()
+        if db_session is not None:
+            deps["session"] = next(db_session)
         
     return deps
 
