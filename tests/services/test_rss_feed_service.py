@@ -322,7 +322,8 @@ def test_create_feed_already_exists(mock_db_session, mock_session_factory):
     )
     
     # Act & Assert
-    with pytest.raises(ValueError, match=f"Feed with URL '{url}' already exists"):
+    from local_newsifier.errors.rss_error import RSSError
+    with pytest.raises(RSSError, match=f"Feed with URL '{url}' already exists"):
         service.create_feed(url=url, name=name, description=description)
     
     mock_rss_feed_crud.get_by_url.assert_called_once_with(mock_db_session, url=url)
@@ -864,14 +865,12 @@ def test_process_feed_feed_not_found(mock_db_session, mock_session_factory):
         session_factory=mock_session_factory
     )
     
-    # Act
-    result = service.process_feed(feed_id)
+    # Act & Assert
+    from local_newsifier.errors.rss_error import RSSError
+    with pytest.raises(RSSError, match=f"Feed with ID {feed_id} not found"):
+        service.process_feed(feed_id)
     
-    # Assert
     mock_rss_feed_crud.get.assert_called_once_with(mock_db_session, id=feed_id)
-    
-    assert result["status"] == "error"
-    assert f"Feed with ID {feed_id} not found" in result["message"]
 
 
 @patch('local_newsifier.services.rss_feed_service.parse_rss_feed', side_effect=Exception("Mock parsing error"))
