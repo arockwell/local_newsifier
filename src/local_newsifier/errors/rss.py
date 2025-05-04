@@ -114,8 +114,12 @@ def _classify_rss_error(error: Exception) -> tuple:
     
     # Try each classifier in order
     for predicate, err_type, message_prefix in ERROR_CLASSIFIERS:
-        if predicate(error):
-            return err_type, f"{message_prefix}: {error}"
+        try:
+            if predicate(error):
+                return err_type, f"{message_prefix}: {error}"
+        except Exception:
+            # Skip if the predicate raises an exception
+            continue
     
     # Fall back to standard classification
     return None, None

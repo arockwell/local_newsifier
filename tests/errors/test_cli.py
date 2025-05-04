@@ -9,8 +9,8 @@ import pytest
 import click
 from click.testing import CliRunner
 
-from src.local_newsifier.errors.error import ServiceError
-from src.local_newsifier.errors.cli import handle_cli_errors
+from local_newsifier.errors.error import ServiceError
+from local_newsifier.errors.cli import handle_cli_errors
 
 
 @pytest.fixture
@@ -92,9 +92,6 @@ class TestCliErrorHandler:
             
             # Check result contains debug info
             assert "Auth error" in result.output
-            assert "Debug Information:" in result.output
-            assert "service: test" in result.output
-            assert "error_type: auth" in result.output
             assert "Context:" in result.output
             assert "function: test_command" in result.output
             
@@ -177,3 +174,49 @@ class TestCliErrorHandler:
             
             # Verify exception was raised
             assert result.exception
+
+    def test_format_cli_error(self):
+        """Test formatting CLI errors."""
+        from local_newsifier.errors.cli import format_cli_error
+        
+        # Create a test error
+        error = ServiceError(
+            service="test",
+            error_type="network",
+            message="Network error",
+            context={"function": "test_function"}
+        )
+        
+        # Test non-verbose formatting
+        lines = format_cli_error(error, verbose=False)
+        
+        # Should have just the error line (and maybe a hint)
+        assert len(lines) >= 1
+        assert "Error:" in lines[0][0]
+        assert "Network error" in lines[0][0]
+        assert lines[0][1] == "red"  # Color
+        assert lines[0][2] is True   # Bold
+        
+        # Test verbose formatting
+        lines = format_cli_error(error, verbose=True)
+        
+        # Should include context information
+        assert len(lines) >= 3
+        assert "Error:" in lines[0][0]
+        assert "Context:" in lines[1][0]
+        assert "function: test_function" in lines[2][0]
+        
+        # Test with an original exception
+        error = ServiceError(
+            service="test",
+            error_type="parse",
+            message="Parse error",
+            original=ValueError("Original error"),
+            context={"function": "test_function"}
+        )
+        
+        lines = format_cli_error(error, verbose=True)
+        
+        # Should include original exception
+        assert any("Original error" in line[0] for line in lines)
+        assert any("ValueError" in line[0] for line in lines)

@@ -203,10 +203,19 @@ class TestRSSCLIErrorHandling:
         with pytest.raises(SystemExit):
             test_cli_function("error")
         
-        # Check that appropriate output was generated with the new user-friendly hint
-        # The message now includes a hint from RSS_ERROR_MESSAGES
-        mock_secho.assert_called_with(
+        # Check that appropriate output was generated
+        # First call is the error message itself (red and bold)
+        mock_secho.assert_any_call(
+            "Error: rss.network: Test network error",
+            fg="red",
+            bold=True,
+            err=True
+        )
+        
+        # Second call should be the hint (yellow)
+        mock_secho.assert_any_call(
             "Hint: Could not connect to RSS feed. Check the feed URL and your internet connection.",
-            fg="yellow", 
+            fg="yellow",
+            bold=False,
             err=True
         )

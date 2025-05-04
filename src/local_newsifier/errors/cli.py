@@ -74,9 +74,13 @@ def format_cli_error(
     hint = None
     if hasattr(error, "service") and error.service == "rss":
         # Import here to avoid circular import
-        from .rss import get_rss_error_message
-        if error.error_type in get_rss_error_message.__globals__.get("RSS_ERROR_MESSAGES", {}):
-            hint = get_rss_error_message(error.error_type)
+        try:
+            from .rss import get_rss_error_message, RSS_ERROR_MESSAGES
+            if error.error_type in RSS_ERROR_MESSAGES:
+                hint = get_rss_error_message(error.error_type)
+        except (ImportError, AttributeError):
+            # Fallback if import fails or attribute doesn't exist
+            pass
     
     # Add hint if available
     if hint:

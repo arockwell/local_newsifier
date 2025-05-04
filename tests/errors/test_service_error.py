@@ -3,13 +3,14 @@ Tests for ServiceError class and core error handling.
 """
 
 import re
+import logging
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
 import requests
 
-from src.local_newsifier.errors.error import (
+from local_newsifier.errors.error import (
     ServiceError, 
     handle_service_error,
     with_retry,
@@ -74,6 +75,62 @@ class TestServiceError:
         assert error_dict["transient"] is True
         assert error_dict["context"] == {"test": "value"}
         assert error_dict["original"] == "Original error"
+    
+    @patch("logging.Logger.log")
+    @patch("logging.Logger.debug")
+    def test_log_error(self, mock_debug, mock_log):
+        """Test logging error with appropriate severity."""
+        # Test with transient error (should log as WARNING)
+        error = ServiceError(
+            service="test",
+            error_type="network",
+            message="Network error",
+            original=ValueError("Original error"),
+            context={"test": "value"}
+        )
+        
+        # Transient error should be logged at warning level
+        error.log_error()
+        
+        # Check log call arguments
+        mock_log.assert_called_once()
+        level, message = mock_log.call_args[0]
+        assert level == logging.WARNING  # Check log level
+        assert "test.network" in message  # Check log message
+        
+        # Check extra context
+        extra = mock_log.call_args[1]["extra"]
+        assert extra["service"] == "test"
+        assert extra["error_type"] == "network"
+        assert extra["transient"] is True
+        
+        # Test original exception logging at debug level
+        mock_debug.assert_called_once()
+        debug_message = mock_debug.call_args[0][0]
+        assert "Original exception" in debug_message
+        assert "ValueError" in debug_message
+        
+        # Reset mocks
+        mock_log.reset_mock()
+        mock_debug.reset_mock()
+        
+        # Test with non-transient error (should log as ERROR)
+        error = ServiceError(
+            service="test",
+            error_type="validation",
+            message="Validation error",
+            original=None,
+            context={"test": "value"}
+        )
+        
+        # Non-transient error should be logged at error level
+        error.log_error()
+        
+        # Check log call arguments
+        mock_log.assert_called_once()
+        level, message = mock_log.call_args[0]
+        assert level == logging.ERROR  # Check log level
+        assert "test.validation" in message  # Check log message
 
 
 class TestErrorClassifier:
