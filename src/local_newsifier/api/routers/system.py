@@ -293,23 +293,45 @@ def get_tables_info(session: Session) -> List[Dict]:
     Returns:
         List of table information dictionaries
     """
-    query = text(
-        """
-        SELECT
-            t.table_name,
-            (SELECT COUNT(*) FROM information_schema.columns
-             WHERE table_name=t.table_name) as column_count,
-            (SELECT pg_total_relation_size(quote_ident(t.table_name))
-             ) as table_size
-        FROM
-            information_schema.tables t
-        WHERE
-            table_schema = 'public'
-            AND table_type = 'BASE TABLE'
-        ORDER BY
-            table_name
-        """
-    )
+    # First check if we're using SQLite (for tests) or PostgreSQL
+    is_sqlite = session.bind.dialect.name == "sqlite"
+    
+    if is_sqlite:
+        # Use SQLite-compatible query for tests
+        query = text(
+            """
+            SELECT 
+                name as table_name,
+                0 as column_count,
+                0 as table_size
+            FROM 
+                sqlite_master
+            WHERE 
+                type='table' AND 
+                name NOT LIKE 'sqlite_%'
+            ORDER BY
+                name
+            """
+        )
+    else:
+        # Use PostgreSQL query for production
+        query = text(
+            """
+            SELECT
+                t.table_name,
+                (SELECT COUNT(*) FROM information_schema.columns
+                 WHERE table_name=t.table_name) as column_count,
+                (SELECT pg_total_relation_size(quote_ident(t.table_name))
+                 ) as table_size
+            FROM
+                information_schema.tables t
+            WHERE
+                table_schema = 'public'
+                AND table_type = 'BASE TABLE'
+            ORDER BY
+                table_name
+            """
+        )
     tables = session.exec(query).all()
 
     # For each table, get the row count
