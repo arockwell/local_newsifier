@@ -25,6 +25,11 @@ from fastapi_injectable import injectable
 # We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
 
+from local_newsifier.tools.entity_tracker_service import EntityTracker
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
 logger = logging.getLogger(__name__)
 
 # Database providers
@@ -234,6 +239,20 @@ def get_sentiment_tracker_tool():
 
 
 @injectable(use_cache=False)
+def get_opinion_visualizer_tool():
+    """Provide the opinion visualizer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with database and maintains state during visualization generation.
+    
+    Returns:
+        OpinionVisualizerTool instance
+    """
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+    return OpinionVisualizerTool()
+
+
+@injectable(use_cache=False)
 def get_trend_analyzer_tool():
     """Provide the trend analyzer tool.
     
@@ -332,6 +351,20 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
+def get_entity_tracker_tool():
+    """Provide the entity tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during the entity tracking process.
+    
+    Returns:
+        EntityTracker instance
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker()
+
+
+@injectable(use_cache=False)
 def get_rss_parser():
     """Provide the RSS parser tool.
     
@@ -343,6 +376,20 @@ def get_rss_parser():
     """
     from local_newsifier.tools.rss_parser import RSSParser
     return RSSParser()
+
+
+@injectable(use_cache=False)
+def get_file_writer_tool():
+    """Provide the file writer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during file writing operations.
+    
+    Returns:
+        FileWriterTool instance
+    """
+    from local_newsifier.tools.file_writer import FileWriterTool
+    return FileWriterTool(output_dir="output")
 
 
 # Service providers
@@ -431,4 +478,211 @@ def get_rss_feed_service(
         rss_parser=rss_parser,
         article_service=article_service,
         session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_analysis_service(
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
+    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the analysis service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_crud: Article CRUD component
+        analysis_result_crud: Analysis result CRUD component
+        trend_analyzer: Trend analyzer tool
+        session: Database session
+        
+    Returns:
+        AnalysisService instance
+    """
+    from local_newsifier.services.analysis_service import AnalysisService
+    
+    return AnalysisService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        trend_analyzer=trend_analyzer,
+        session_factory=lambda: session
+    )
+
+
+# Flow providers
+
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)],
+    entity_extractor: Annotated[EntityExtractor, Depends(get_entity_extractor_tool)],
+    context_analyzer: Annotated[ContextAnalyzer, Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated[EntityResolver, Depends(get_entity_resolver_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity tracking flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        entity_service: Entity service
+        entity_tracker: Entity tracker tool
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
+        session: Database session
+        
+    Returns:
+        EntityTrackingFlow instance
+    """
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    
+    return EntityTrackingFlow(
+        entity_service=entity_service,
+        entity_tracker=entity_tracker,
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_news_pipeline_flow(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
+    file_writer: Annotated[Any, Depends(get_file_writer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news pipeline flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_service: Article service
+        entity_service: Entity service
+        web_scraper: Web scraper tool
+        file_writer: File writer tool
+        session: Database session
+        
+    Returns:
+        NewsPipelineFlow instance
+    """
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    
+    # Create pipeline service
+    pipeline_service = NewsPipelineService(
+        article_service=article_service,
+        web_scraper=web_scraper,
+        file_writer=file_writer,
+        session_factory=lambda: session
+    )
+    
+    return NewsPipelineFlow(
+        article_service=article_service,
+        entity_service=entity_service,
+        pipeline_service=pipeline_service,
+        web_scraper=web_scraper,
+        file_writer=file_writer,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_trend_analysis_flow(
+    analysis_service: Annotated[Any, Depends(get_analysis_service)],
+    trend_reporter: Annotated[Any, Depends(get_trend_reporter_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news trend analysis flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        analysis_service: Analysis service
+        trend_reporter: Trend reporter tool
+        session: Database session
+        
+    Returns:
+        NewsTrendAnalysisFlow instance
+    """
+    from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    from local_newsifier.models.trend import TrendAnalysisConfig
+    
+    return NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        session=session,
+        config=TrendAnalysisConfig()
+    )
+
+
+@injectable(use_cache=False)
+def get_public_opinion_flow(
+    sentiment_analyzer: Annotated[Any, Depends(get_sentiment_analyzer_tool)],
+    sentiment_tracker: Annotated[Any, Depends(get_sentiment_tracker_tool)],
+    opinion_visualizer: Annotated[Any, Depends(get_opinion_visualizer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the public opinion flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        sentiment_analyzer: Sentiment analyzer tool
+        sentiment_tracker: Sentiment tracker tool
+        opinion_visualizer: Opinion visualizer tool
+        session: Database session
+        
+    Returns:
+        PublicOpinionFlow instance
+    """
+    from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+    
+    return PublicOpinionFlow(
+        sentiment_analyzer=sentiment_analyzer,
+        sentiment_tracker=sentiment_tracker,
+        opinion_visualizer=opinion_visualizer,
+        session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_rss_scraping_flow(
+    rss_feed_service: Annotated[Any, Depends(get_rss_feed_service)],
+    article_service: Annotated[Any, Depends(get_article_service)],
+    rss_parser: Annotated[Any, Depends(get_rss_parser)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)]
+):
+    """Provide the RSS scraping flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        rss_feed_service: RSS feed service
+        article_service: Article service
+        rss_parser: RSS parser tool
+        web_scraper: Web scraper tool
+        
+    Returns:
+        RSSScrapingFlow instance
+    """
+    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
+    
+    return RSSScrapingFlow(
+        rss_feed_service=rss_feed_service,
+        article_service=article_service,
+        rss_parser=rss_parser,
+        web_scraper=web_scraper,
+        cache_dir="cache"
     )

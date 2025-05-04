@@ -3,11 +3,14 @@
 from datetime import datetime, timezone, timedelta
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Annotated
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
@@ -69,44 +72,36 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
+@injectable(use_cache=False)
 class NewsTrendAnalysisFlow(Flow):
     """Flow for detecting and analyzing trends in local news coverage."""
 
     def __init__(
         self,
-        analysis_service: Optional[AnalysisService] = None,
-        trend_reporter: Optional[TrendReporter] = None,
-        data_aggregator: Optional[Any] = None,
-        topic_analyzer: Optional[Any] = None,
-        trend_detector: Optional[Any] = None,
-        config: Optional[TrendAnalysisConfig] = None,
-        output_dir: str = "trend_output",
+        analysis_service: AnalysisService,
+        trend_reporter: TrendReporter,
+        session: Session,
+        config: Optional[TrendAnalysisConfig] = None
     ):
         """
-        Initialize the trend analysis flow.
+        Initialize the trend analysis flow with injected dependencies.
 
         Args:
             analysis_service: Service for analysis operations
             trend_reporter: Tool for generating trend reports
-            data_aggregator: Tool for aggregating data (for backwards compatibility)
-            topic_analyzer: Tool for analyzing topics (for backwards compatibility)
-            trend_detector: Tool for detecting trends (for backwards compatibility)
+            session: Database session
             config: Configuration for trend analysis
-            output_dir: Directory for report output
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
-        
-        # Initialize reporter
-        self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
-        
-        # Use analysis service for all trend analysis operations 
-        self.analysis_service = analysis_service or AnalysisService()
+        self.reporter = trend_reporter
+        self.analysis_service = analysis_service
+        self.session = session
         
         # For backwards compatibility with tests
-        self.data_aggregator = data_aggregator or MagicMock()
-        self.topic_analyzer = topic_analyzer or MagicMock()
-        self.trend_detector = trend_detector or MagicMock()
+        self.data_aggregator = MagicMock()
+        self.topic_analyzer = MagicMock()
+        self.trend_detector = MagicMock()
         
     def aggregate_historical_data(
         self, state: TrendAnalysisState

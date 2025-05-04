@@ -5,7 +5,10 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Annotated
+
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem, RSSParser
@@ -16,19 +19,20 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class RSSScrapingFlow:
     """Flow for processing RSS feeds and scraping their content."""
 
     def __init__(
         self, 
-        rss_feed_service: Optional[RSSFeedService] = None,
-        article_service: Optional[ArticleService] = None,
-        rss_parser: Optional[RSSParser] = None,
-        web_scraper: Optional[WebScraperTool] = None,
+        rss_feed_service: RSSFeedService,
+        article_service: ArticleService,
+        rss_parser: RSSParser,
+        web_scraper: WebScraperTool,
         cache_dir: Optional[str] = None
     ):
         """
-        Initialize the RSS scraping flow.
+        Initialize the RSS scraping flow with injected dependencies.
 
         Args:
             rss_feed_service: Service for RSS feed operations
@@ -40,13 +44,8 @@ class RSSScrapingFlow:
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.rss_feed_service = rss_feed_service
         self.article_service = article_service
-
-        # Initialize or use provided tools
-        cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
-        self.rss_parser = rss_parser or RSSParser(
-            cache_file=str(cache_file) if cache_file else None
-        )
-        self.web_scraper = web_scraper or WebScraperTool()
+        self.rss_parser = rss_parser
+        self.web_scraper = web_scraper
 
     def process_feed(self, feed_url: str) -> List[NewsAnalysisState]:
         """
