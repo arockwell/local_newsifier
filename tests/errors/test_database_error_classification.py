@@ -28,7 +28,9 @@ def create_db_error(error_class, message, optional_orig=None):
     elif error_class == DBAPIError:
         return DBAPIError(f"SQL: select 1\nDetails: {message}", {}, optional_orig)
     elif error_class == StatementError:
-        return StatementError(f"SQL: select 1\nDetails: {message}", {}, optional_orig, "error")
+        # StatementError requires 'orig' parameter and changed order in SQLAlchemy 2.0+
+        exception_orig = optional_orig if optional_orig is not None else Exception("Original exception")
+        return StatementError(f"SQL: select 1\nDetails: {message}", {}, exception_orig)
     elif error_class == TimeoutError:
         return TimeoutError(message)
     elif error_class == InvalidRequestError:
