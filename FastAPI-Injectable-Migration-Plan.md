@@ -1,168 +1,201 @@
 # FastAPI-Injectable Migration Plan
 
-This document outlines the plan and implementation details for migrating the Local Newsifier project from the custom DIContainer to the fastapi-injectable framework.
+## Overview
 
-## Migration Goals
+This document outlines a comprehensive plan for migrating from our custom DI container to fastapi-injectable throughout the Local Newsifier project. It incorporates existing documentation with a prioritized implementation plan, testing strategy, and success criteria.
 
-1. Provide a smooth transition path from our custom DIContainer to fastapi-injectable
-2. Maintain backward compatibility during the migration phase
-3. Ensure proper lifecycle management for all components
-4. Simplify the dependency injection system
-5. Improve compatibility with FastAPI's built-in dependency injection
+## Current Status
 
-## Implementation Strategy
+We have successfully implemented the foundation for migration to fastapi-injectable:
 
-The migration is being implemented in phases:
+- The adapter layer is in place to bridge between DIContainer and fastapi-injectable
+- Core provider functions are defined for fundamental dependencies
+- Documentation is complete with examples and best practices
+- FastAPI integration is working with proper session management
 
-### Phase 1: Foundation (Current Phase)
+## Migration Phases
 
-- Create an adapter layer between DIContainer and fastapi-injectable
-- Establish patterns for provider function implementation
-- Set up appropriate caching behavior for different component types
-- Update documentation and service definitions
+### Phase 1: Foundation (Completed)
 
-### Phase 2: Component Migration
+- ✅ Set up basic infrastructure
+- ✅ Create provider functions for core dependencies
+- ✅ Configure testing utilities
+- ✅ Implement adapter layer for compatibility
+- ✅ Update documentation
+- ✅ Fix issues related to instance caching (use_cache=False/True)
 
-- Gradually migrate individual components to native fastapi-injectable providers
-- Update service tests to work with both systems
-- Refactor endpoints to use the new injection patterns
+### Phase 2: Gradual Migration (In Progress)
 
-### Phase 3: Complete Migration
+The migration will proceed in a layered approach, moving from the data layer toward UI layers:
 
-- Remove the adapter layer when no longer needed
-- Fully transition to fastapi-injectable native patterns
-- Remove the custom DIContainer
+1. **CRUD Layer Migration**
+   - Define provider functions for all CRUD components
+   - Update test fixtures for CRUD components
+   - Standardize access patterns for database sessions
 
-## Key Components
+2. **Services Layer Migration**
+   - Convert key services to use `@injectable` pattern
+   - Update service constructor signatures to use `Annotated[Type, Depends()]`
+   - Develop and document best practices for service testing
 
-### Adapter Layer
+3. **Tools Layer Migration**
+   - Migrate analysis and extraction tools
+   - Update entity tracking tools
+   - Standardize tool initialization patterns
 
-The `fastapi_injectable_adapter.py` file serves as the bridge between our custom DIContainer and fastapi-injectable. It:
+4. **Flows Layer Migration**
+   - Convert entity tracking flow
+   - Migrate pipeline flows
+   - Ensure proper session handling in flows
 
-1. Registers DIContainer services with fastapi-injectable
-2. Provides compatibility functions for both systems
-3. Manages lifecycle appropriately through caching settings
+### Phase 3: API Integration (Planned)
 
-### Service Provider Functions
+1. **API Dependencies**
+   - Convert API dependency functions to use fastapi-injectable
+   - Update request scoping for proper session management
+   - Implement enhanced error handling
 
-Provider functions in `di/providers.py` follow these patterns:
+2. **API Endpoints**
+   - Update endpoint definitions to use injected dependencies
+   - Standardize response models and error handling
+   - Optimize dependency chains for performance
 
-```python
-@injectable(use_cache=False)  # For stateful components or those with DB interactions
-def get_article_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    entity_crud: Annotated[Any, Depends(get_entity_crud)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the article service."""
-    from local_newsifier.services.article_service import ArticleService
-    
-    return ArticleService(
-        article_crud=article_crud,
-        entity_crud=entity_crud,
-        session_factory=lambda: session
-    )
-```
+### Phase 4: CLI Integration (Planned)
 
-### Caching Strategy
+1. **Command Infrastructure**
+   - Adapt CLI commands to use injected dependencies
+   - Provide proper session management for CLI contexts
+   - Ensure command isolation
 
-fastapi-injectable v0.7.0 doesn't have a Scope enum or scope parameter, but it does have the `use_cache` parameter that controls instance reuse:
+2. **Integration Testing**
+   - Update fixtures for CLI testing
+   - Add integration tests for end-to-end flows
 
-- `use_cache=True` (default): Dependencies are cached and reused
-- `use_cache=False`: New instances are created for each dependency request
+### Phase 5: Complete Migration (Planned)
 
-Our strategy:
-- `use_cache=False` for:
-  - CRUD components (interact with database)
-  - Services (maintain state)
-  - Tools (parsers, analyzers, etc. with potential state)
-- `use_cache=True` (default) could be used for:
-  - Purely functional utilities with no state
-  - Transformation functions that just convert inputs to outputs
+1. **Cleanup**
+   - Remove legacy DI container dependencies
+   - Standardize all components on fastapi-injectable pattern
+   - Deprecate and remove adapter layer
 
-For safety, we bias toward `use_cache=False` for most components to prevent potential state leakage issues.
+2. **Performance Optimization**
+   - Review dependency chains for performance
+   - Optimize caching strategies
+   - Implement benchmarking for critical paths
 
-### Component Registration
+## Implementation Priority
 
-The migration process automatically registers existing DIContainer services with fastapi-injectable for compatibility:
+Based on the analysis of current issues and PRs, the following items are prioritized:
 
-```python
-# Register app with fastapi-injectable
-await register_app(app)
+### High Priority
 
-# Register all services in DIContainer with fastapi-injectable
-await migrate_container_services(app)
-```
+1. **Testing Infrastructure** (Issue #179)
+   - Develop standardized testing approach for injectable components
+   - Create reusable fixtures for dependency overrides
+   - Document testing patterns to ensure consistency
 
-## Implementation Details
+2. **Caching Strategy Refinement** (Issue #183)
+   - Review current string-based pattern matching for caching decisions
+   - Implement more principled approach to determine caching behavior
+   - Add monitoring to detect incorrect caching that could lead to bugs
 
-### Detecting Component Types
+3. **Clean Public API** (Issue #184)
+   - Design a clean, stable public API for the DI system
+   - Hide implementation details from consumers
+   - Provide forward-compatible migration path
 
-The adapter automatically detects component types to determine appropriate caching behavior:
+### Medium Priority
 
-```python
-stateful_patterns = [
-    "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
-]
+1. **Logging and Monitoring** (Issue #185)
+   - Enhance logging to provide visibility into dependency resolution
+   - Add metrics for dependency resolution performance
+   - Implement detection of circular dependencies
 
-use_cache = True  # Default to caching for performance
-    
-# For stateful components or those interacting with databases, disable caching
-for pattern in stateful_patterns:
-    if pattern in service_name:
-        use_cache = False
-        break
-```
+2. **Session Management**
+   - Standardize session handling across the application
+   - Ensure proper cleanup of database resources
+   - Prevent session leakage between requests
 
-### API Integration
+3. **Provider Functions**
+   - Complete provider functions for all common dependencies
+   - Document caching behavior and thread safety guarantees
+   - Implement optimization for frequent dependencies
 
-FastAPI endpoints can use both the DIContainer and fastapi-injectable:
+### Lower Priority
 
-```python
-@app.get("/entities/{entity_id}")
-async def get_entity(
-    entity_id: int,
-    entity_service: Annotated[Any, Depends(get_entity_service)]
-):
-    """Get entity by ID."""
-    return await entity_service.get_entity(entity_id)
-```
+1. **Documentation**
+   - Update all documentation to reflect fastapi-injectable patterns
+   - Create examples for common use cases
+   - Document migration patterns for custom components
 
-### Testing Strategy
+2. **Error Handling**
+   - Implement standardized error handling for dependency failures
+   - Provide clear error messages for missing dependencies
+   - Add graceful degradation for optional dependencies
 
-Tests are updated to work with both injection systems:
-- Use pytest fixtures for compatibility
-- Test with both DIContainer and fastapi-injectable
-- Ensure proper cleanup between tests
+## Testing Strategy
 
-## Best Practices
+Testing is critical to ensure the migration doesn't introduce regressions. The strategy includes:
 
-1. Always use `use_cache=False` for components that:
-   - Interact with the database
-   - Maintain state between calls
-   - Require fresh instances for each operation
+1. **Unit Testing**
+   - Test individual components in isolation
+   - Mock dependencies to control test boundaries
+   - Verify component behavior with different dependency configurations
 
-2. Provider function naming:
-   - Use `get_` prefix for clarity (e.g., `get_article_service`)
-   - Match the service name in the DIContainer
+2. **Integration Testing**
+   - Test interaction between components
+   - Verify proper session management across component boundaries
+   - Test end-to-end flows with real dependencies
 
-3. Keep dependencies explicit:
-   - Use Annotated + Depends to clearly show dependencies
-   - Avoid hiding dependencies
+3. **Performance Testing**
+   - Benchmark key operations before and after migration
+   - Identify performance bottlenecks in dependency resolution
+   - Optimize critical paths
 
-4. Session handling:
-   - Use request-scoped sessions where appropriate
-   - Pass session factory to services that need it
+## Success Criteria
 
-## Future Enhancements
+The migration will be considered successful when:
 
-1. Consider adopting more advanced scope management if added to fastapi-injectable
-2. Reduce adapter code as migration progresses
-3. Consider transitioning to fully native fastapi-injectable patterns
-4. Improve fastapi-injectable documentation and examples
+1. All components use fastapi-injectable for dependency resolution
+2. No direct references to DIContainer remain in the codebase
+3. All tests pass with the new dependency injection system
+4. Performance matches or exceeds the previous implementation
+5. Documentation is complete and up-to-date
+6. Developers can easily understand and use the new pattern
 
-## References
+## Risk Management
 
+Potential risks and mitigation strategies:
+
+1. **Session Management**
+   - Risk: Improper session handling leading to connection pool exhaustion
+   - Mitigation: Standardize session management patterns and add monitoring
+
+2. **Performance Regression**
+   - Risk: Dependency resolution becoming a performance bottleneck
+   - Mitigation: Add performance monitoring and optimize critical paths
+
+3. **Testing Coverage**
+   - Risk: Inadequate testing leading to regressions
+   - Mitigation: Increase test coverage and add specific tests for edge cases
+
+4. **Developer Adoption**
+   - Risk: Inconsistent adoption of new patterns
+   - Mitigation: Clear documentation and examples for common use cases
+
+## Timeline
+
+The migration is expected to follow this timeline:
+
+- Phase 2 (Gradual Migration): 4-6 weeks
+- Phase 3 (API Integration): 2-3 weeks
+- Phase 4 (CLI Integration): 2-3 weeks
+- Phase 5 (Complete Migration): 2-4 weeks
+
+Total expected timeline: 10-16 weeks
+
+## Resources
+
+- [FastAPI-Injectable Documentation](https://fastapi-injectable.readme.io/)
 - [FastAPI Dependency Injection](https://fastapi.tiangolo.com/tutorial/dependencies/)
-- [fastapi-injectable GitHub](https://github.com/JasperSui/fastapi-injectable)
-- [fastapi-injectable PyPI](https://pypi.org/project/fastapi-injectable/)
+- [Python Type Annotations](https://docs.python.org/3/library/typing.html)
