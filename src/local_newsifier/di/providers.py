@@ -106,6 +106,76 @@ def get_rss_feed_crud():
     return rss_feed
 
 
+@injectable(use_cache=False)
+def get_analysis_result_crud():
+    """Provide the analysis result CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        AnalysisResultCRUD instance
+    """
+    from local_newsifier.crud.analysis_result import analysis_result
+    return analysis_result
+
+
+@injectable(use_cache=False)
+def get_canonical_entity_crud():
+    """Provide the canonical entity CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        CanonicalEntityCRUD instance
+    """
+    from local_newsifier.crud.canonical_entity import canonical_entity
+    return canonical_entity
+
+
+@injectable(use_cache=False)
+def get_entity_mention_context_crud():
+    """Provide the entity mention context CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        EntityMentionContextCRUD instance
+    """
+    from local_newsifier.crud.entity_mention_context import entity_mention_context
+    return entity_mention_context
+
+
+@injectable(use_cache=False)
+def get_entity_profile_crud():
+    """Provide the entity profile CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        EntityProfileCRUD instance
+    """
+    from local_newsifier.crud.entity_profile import entity_profile
+    return entity_profile
+
+
+@injectable(use_cache=False)
+def get_feed_processing_log_crud():
+    """Provide the feed processing log CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        FeedProcessingLogCRUD instance
+    """
+    from local_newsifier.crud.feed_processing_log import feed_processing_log
+    return feed_processing_log
+
+
 # Tool providers
 
 @injectable(use_cache=False)
