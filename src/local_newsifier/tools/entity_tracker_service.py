@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from sqlmodel import Session
 
-from local_newsifier.database.engine import with_session
+from local_newsifier.database.session_utils import with_db_session
 from local_newsifier.services.entity_service import EntityService
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
@@ -15,7 +15,7 @@ from local_newsifier.crud.article import article as article_crud
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.session_utils import get_db_session
 
 
 class EntityTracker:
@@ -46,10 +46,9 @@ class EntityTracker:
             entity_extractor=EntityExtractor(),
             context_analyzer=ContextAnalyzer(),
             entity_resolver=EntityResolver(),
-            session_factory=get_session
+            session_factory=get_db_session
         )
     
-    @with_session
     def process_article(
         self, 
         article_id: int,

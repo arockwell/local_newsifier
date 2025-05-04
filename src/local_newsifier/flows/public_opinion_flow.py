@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from crewai import Flow
 from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session, with_session
+from local_newsifier.database.session_utils import get_db_session, with_db_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.models.sentiment import SentimentVisualizationData
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
@@ -58,7 +58,7 @@ class PublicOpinionFlow(Flow):
             if session_factory:
                 self.session_generator = session_factory()
             else:
-                self.session_generator = get_session()
+                self.session_generator = get_db_session()
             self.session = next(self.session_generator)
             self._owns_session = True
         else:
@@ -79,7 +79,7 @@ class PublicOpinionFlow(Flow):
                 except StopIteration:
                     pass
 
-    @with_session
+    @with_db_session
     def analyze_articles(
         self, article_ids: Optional[List[int]] = None, *, session: Optional[Session] = None
     ) -> Dict[int, Dict]:
@@ -121,7 +121,7 @@ class PublicOpinionFlow(Flow):
 
         return results
 
-    @with_session
+    @with_db_session
     def analyze_topic_sentiment(
         self, topics: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
     ) -> Dict[str, Dict]:
@@ -177,7 +177,7 @@ class PublicOpinionFlow(Flow):
 
         return results
 
-    @with_session
+    @with_db_session
     def analyze_entity_sentiment(
         self, entity_names: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
     ) -> Dict[str, Dict]:
@@ -226,7 +226,7 @@ class PublicOpinionFlow(Flow):
 
         return results
 
-    @with_session
+    @with_db_session
     def detect_opinion_shifts(
         self,
         topics: List[str],
@@ -278,7 +278,7 @@ class PublicOpinionFlow(Flow):
 
         return shifts_by_topic
 
-    @with_session
+    @with_db_session
     def correlate_topics(
         self,
         topic_pairs: List[Tuple[str, str]],
@@ -323,7 +323,7 @@ class PublicOpinionFlow(Flow):
 
         return correlations
 
-    @with_session
+    @with_db_session
     def generate_topic_report(
         self,
         topic: str,
@@ -385,7 +385,7 @@ class PublicOpinionFlow(Flow):
             logger.error(f"Error generating report: {str(e)}")
             return f"Error generating report: {str(e)}"
 
-    @with_session
+    @with_db_session
     def generate_comparison_report(
         self,
         topics: List[str],
