@@ -13,6 +13,8 @@ import requests
 from dateutil import parser as date_parser
 from pydantic import BaseModel
 
+from local_newsifier.errors.rss import handle_rss_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,6 +77,7 @@ class RSSParser:
                 return elem.text
         return None
 
+    @handle_rss_service
     def parse_feed(self, feed_url: str) -> List[RSSItem]:
         """
         Parse an RSS feed and extract items.
@@ -84,90 +87,88 @@ class RSSParser:
 
         Returns:
             List of RSSItem objects containing the feed content
+            
+        Raises:
+            ServiceError: If there's an issue with the feed
         """
+        # Fetch the feed
+        response = requests.get(feed_url, timeout=30)
+        response.raise_for_status()
+
+        # Parse the XML
         try:
-            # Fetch the feed
-            response = requests.get(feed_url)
-            response.raise_for_status()
-
-            # Parse the XML
             root = ElementTree.fromstring(response.content)
+        except ElementTree.ParseError as e:
+            # Specific error for XML parsing issues
+            raise ValueError(f"XML parsing error: {e}")
 
-            # Handle both RSS and Atom feeds
+        # Handle both RSS and Atom feeds
+        if root.tag.endswith("rss"):
+            entries = root.findall(".//item")
+        elif root.tag.endswith("feed"):  # Atom feed
+            entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+        else:
+            raise ValueError(f"Not a valid RSS or Atom feed: {feed_url}")
+
+        if not entries:
+            raise ValueError(f"No entries found in feed: {feed_url}")
+
+        items = []
+        for entry in entries:
+            # Extract title
+            title = (
+                self._get_element_text(
+                    entry, "title", "{http://www.w3.org/2005/Atom}title"
+                )
+                or "No title"
+            )
+
+            # Extract URL
+            url = None
             if root.tag.endswith("rss"):
-                entries = root.findall(".//item")
-            elif root.tag.endswith("feed"):  # Atom feed
-                entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
-            else:
-                entries = []
+                url = self._get_element_text(entry, "link")
+            else:  # Atom feed
+                link_elem = entry.find("{http://www.w3.org/2005/Atom}link")
+                if link_elem is not None:
+                    url = link_elem.get("href")
 
-            if not entries:
-                logger.error(f"No entries found in feed: {feed_url}")
-                return []
+            if not url:
+                continue  # Skip entries without URL
 
-            items = []
-            for entry in entries:
+            # Extract published date
+            published = None
+            date_text = self._get_element_text(
+                entry,
+                "pubDate",
+                "published",
+                "{http://www.w3.org/2005/Atom}published",
+            )
+            if date_text:
                 try:
-                    # Extract title
-                    title = (
-                        self._get_element_text(
-                            entry, "title", "{http://www.w3.org/2005/Atom}title"
-                        )
-                        or "No title"
-                    )
-
-                    # Extract URL
-                    url = None
-                    if root.tag.endswith("rss"):
-                        url = self._get_element_text(entry, "link")
-                    else:  # Atom feed
-                        link_elem = entry.find("{http://www.w3.org/2005/Atom}link")
-                        if link_elem is not None:
-                            url = link_elem.get("href")
-
-                    if not url:
-                        continue
-
-                    # Extract published date
-                    published = None
-                    date_text = self._get_element_text(
-                        entry,
-                        "pubDate",
-                        "published",
-                        "{http://www.w3.org/2005/Atom}published",
-                    )
-                    if date_text:
-                        try:
-                            published = date_parser.parse(date_text)
-                        except Exception as e:
-                            logger.warning(f"Could not parse date: {e}")
-
-                    # Extract description
-                    description = self._get_element_text(
-                        entry,
-                        "description",
-                        "summary",
-                        "{http://www.w3.org/2005/Atom}summary",
-                    )
-
-                    item = RSSItem(
-                        title=title,
-                        url=url,
-                        published=published,
-                        description=description,
-                    )
-
-                    items.append(item)
-
+                    published = date_parser.parse(date_text)
                 except Exception as e:
-                    logger.error(f"Error parsing entry in feed {feed_url}: {e}")
-                    continue
+                    logger.warning(f"Could not parse date: {e}")
 
-            return items
-        except Exception as e:
-            logger.error(f"Error parsing feed {feed_url}: {e}")
-            return []
+            # Extract description
+            description = self._get_element_text(
+                entry,
+                "description",
+                "summary",
+                "{http://www.w3.org/2005/Atom}summary",
+            )
 
+            item = RSSItem(
+                title=title,
+                url=url,
+                published=published,
+                description=description,
+            )
+
+            items.append(item)
+
+        return items
+
+    @handle_rss_service
     def get_new_urls(self, feed_url: str) -> List[RSSItem]:
         """
         Get only new URLs from a feed that haven't been processed before.
@@ -177,6 +178,9 @@ class RSSParser:
 
         Returns:
             List of RSSItem objects containing only new content
+            
+        Raises:
+            ServiceError: If there's an issue with the feed
         """
         items = self.parse_feed(feed_url)
         new_items = [item for item in items if item.url not in self.processed_urls]
@@ -193,6 +197,7 @@ class RSSParser:
 _parser = RSSParser()
 
 
+@handle_rss_service
 def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     """
     Parse an RSS feed and return the content in a dictionary format.
@@ -202,39 +207,33 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
         
     Returns:
         Dictionary containing feed title and entries
+        
+    Raises:
+        ServiceError: If there's an issue with the feed
     """
     logger.info(f"Parsing RSS feed: {feed_url}")
     
-    try:
-        # Use the parser to get items
-        items = _parser.parse_feed(feed_url)
+    # Use the parser to get items
+    items = _parser.parse_feed(feed_url)
+    
+    # Extract feed title (use first item's title as fallback for feed title)
+    feed_title = "Unknown Feed"
+    if items:
+        feed_title = f"Feed containing {items[0].title}"
         
-        # Extract feed title (use first item's title as fallback for feed title)
-        feed_title = "Unknown Feed"
-        if items:
-            feed_title = f"Feed containing {items[0].title}"
-            
-        # Convert items to dictionary format expected by tasks
-        entries = []
-        for item in items:
-            entry = {
-                "title": item.title,
-                "link": item.url,
-                "description": item.description or "",
-                "published": item.published.isoformat() if item.published else None,
-            }
-            entries.append(entry)
-            
-        return {
-            "title": feed_title,
-            "feed_url": feed_url,
-            "entries": entries,
+    # Convert items to dictionary format expected by tasks
+    entries = []
+    for item in items:
+        entry = {
+            "title": item.title,
+            "link": item.url,
+            "description": item.description or "",
+            "published": item.published.isoformat() if item.published else None,
         }
-    except Exception as e:
-        logger.error(f"Error parsing RSS feed {feed_url}: {str(e)}")
-        return {
-            "title": "Error parsing feed",
-            "feed_url": feed_url,
-            "entries": [],
-            "error": str(e)
-        }
+        entries.append(entry)
+        
+    return {
+        "title": feed_title,
+        "feed_url": feed_url,
+        "entries": entries,
+    }

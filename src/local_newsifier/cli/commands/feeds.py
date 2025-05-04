@@ -17,6 +17,7 @@ from tabulate import tabulate
 
 from local_newsifier.container import container
 from local_newsifier.database.engine import get_session
+from local_newsifier.errors.rss import handle_rss_cli
 
 
 @click.group(name="feeds")
@@ -30,6 +31,7 @@ def feeds_group():
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--limit", type=int, default=100, help="Maximum number of feeds to display")
 @click.option("--skip", type=int, default=0, help="Number of feeds to skip")
+@handle_rss_cli
 def list_feeds(active_only, json_output, limit, skip):
     """List all feeds with optional filtering."""
     rss_feed_service = container.get("rss_feed_service")
@@ -67,16 +69,14 @@ def list_feeds(active_only, json_output, limit, skip):
 @click.argument("url", required=True)
 @click.option("--name", help="Feed name (defaults to URL if not provided)")
 @click.option("--description", help="Feed description")
+@handle_rss_cli
 def add_feed(url, name, description):
     """Add a new feed."""
     feed_name = name or url
     
-    try:
-        rss_feed_service = container.get("rss_feed_service")
-        feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
-        click.echo(f"Feed added successfully with ID: {feed['id']}")
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+    rss_feed_service = container.get("rss_feed_service")
+    feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
+    click.echo(f"Feed added successfully with ID: {feed['id']}")
 
 
 @feeds_group.command(name="show")
@@ -172,6 +172,7 @@ def remove_feed(id, force):
         click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
 
 
+@handle_rss_cli
 def direct_process_article(article_id):
     """Process an article directly without Celery.
     
@@ -183,6 +184,9 @@ def direct_process_article(article_id):
         
     Returns:
         bool: True if processing was successful, False otherwise
+        
+    Raises:
+        ServiceError: For article processing errors
     """
     # Get all required dependencies from the container
     article_crud = container.get("article_crud")
@@ -193,41 +197,43 @@ def direct_process_article(article_id):
     entity_tracking_flow = container.get("entity_tracking_flow")
     
     with session_factory() as session:
-        try:
-            # Get the article from the database
-            article = article_crud.get(session, id=article_id)
-            if not article:
-                click.echo(f"Article with ID {article_id} not found")
-                return False
-            
-            # Process the article through the news pipeline
-            if article.url and news_pipeline_flow:
-                news_pipeline_flow.process_url_directly(article.url)
-            
-            # Process entities in the article
-            entities = None
-            if entity_tracking_flow:
-                entities = entity_tracking_flow.process_article(article.id)
-            
-            click.echo(f"Processed article {article_id}: {article.title}")
-            if entities:
-                click.echo(f"  Found {len(entities)} entities")
-            
-            return True
-        except Exception as e:
-            click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
-            return False
+        # Get the article from the database
+        article = article_crud.get(session, id=article_id)
+        if not article:
+            from local_newsifier.errors.error import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="not_found",
+                message=f"Article with ID {article_id} not found",
+                context={"article_id": article_id}
+            )
+        
+        # Process the article through the news pipeline
+        if article.url and news_pipeline_flow:
+            news_pipeline_flow.process_url_directly(article.url)
+        
+        # Process entities in the article
+        entities = None
+        if entity_tracking_flow:
+            entities = entity_tracking_flow.process_article(article.id)
+        
+        click.echo(f"Processed article {article_id}: {article.title}")
+        if entities:
+            click.echo(f"  Found {len(entities)} entities")
+        
+        return True
 
 
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@handle_rss_cli
 def process_feed(id, no_process):
     """Process a specific feed."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
+        click.echo(click.style(f"Feed with ID {id} not found", fg="red"), err=True)
         return
     
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
@@ -237,13 +243,9 @@ def process_feed(id, no_process):
     
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
-    if result["status"] == "success":
-        click.echo(click.style("Processing completed successfully!", fg="green"))
-        click.echo(f"Articles found: {result['articles_found']}")
-        click.echo(f"Articles added: {result['articles_added']}")
-    else:
-        click.echo(click.style("Processing failed.", fg="red"), err=True)
-        click.echo(click.style(f"Error: {result['message']}", fg="red"), err=True)
+    click.echo(click.style("Processing completed successfully!", fg="green"))
+    click.echo(f"Articles found: {result['articles_found']}")
+    click.echo(f"Articles added: {result['articles_added']}")
 
 
 @feeds_group.command(name="update")
@@ -251,13 +253,19 @@ def process_feed(id, no_process):
 @click.option("--name", help="New feed name")
 @click.option("--description", help="New feed description")
 @click.option("--active/--inactive", help="Set feed active or inactive")
+@handle_rss_cli
 def update_feed(id, name, description, active):
     """Update feed properties."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        from local_newsifier.errors.error import ServiceError
+        raise ServiceError(
+            service="rss",
+            error_type="not_found",
+            message=f"Feed with ID {id} not found",
+            context={"feed_id": id}
+        )
     
     # Check if at least one property to update was provided
     if name is None and description is None and active is None:
@@ -276,7 +284,5 @@ def update_feed(id, name, description, active):
     # Update feed
     updated_feed = rss_feed_service.update_feed(id, **update_params)
     
-    if updated_feed:
-        click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
-    else:
-        click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
+    # update_feed returns None if feed not found, but we already checked
+    click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
