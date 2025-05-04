@@ -70,7 +70,7 @@ class TestApifyServiceImplementation:
             service = ApifyService(
                 token="test_token",
                 session_factory=lambda: db_session,
-                source_config_crud=CRUDApifySourceConfig()
+                source_config_crud=CRUDApifySourceConfig(model=ApifySourceConfig)
             )
             return service
 
