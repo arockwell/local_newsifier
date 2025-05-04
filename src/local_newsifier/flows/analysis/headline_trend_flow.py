@@ -28,12 +28,13 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session=None):
+    def __init__(self, session=None, analysis_service=None):
         """
         Initialize the headline trend analysis flow.
 
         Args:
             session: Optional SQLModel session to use
+            analysis_service: Optional analysis service to use
         """
         super().__init__()
         
@@ -46,7 +47,18 @@ class HeadlineTrendFlow(Flow):
             self.session = get_session().__next__()
 
         # Initialize analysis service
-        self.analysis_service = AnalysisService(session_factory=lambda: self.session)
+        from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
+        
+        # Use provided analysis_service or create a new one
+        if analysis_service is not None:
+            self.analysis_service = analysis_service
+        else:
+            self.analysis_service = AnalysisService(
+                analysis_result_crud=get_analysis_result_crud(),
+                article_crud=get_article_crud(),
+                entity_crud=get_entity_crud(),
+                session_factory=lambda: self.session
+            )
 
     def __del__(self):
         """Clean up resources when the object is deleted."""

@@ -2,16 +2,22 @@
 
 import os
 import pathlib
-from typing import Generator
+from typing import Generator, Annotated
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, status, Depends
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
-from local_newsifier.container import container
 from local_newsifier.database.engine import SessionManager
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
+
+# Import provider functions from di module
+from local_newsifier.di.providers import (
+    get_article_service as get_injectable_article_service,
+    get_rss_feed_service as get_injectable_rss_feed_service,
+    get_session as get_injectable_session
+)
 
 # Get the templates directory path - works both in development and production
 # This handles different environments: local development vs Railway deployment
@@ -64,24 +70,22 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Session: SQLModel session
     """
-    session_factory = container.get("session_factory") or SessionManager
-    with session_factory() as session:
-        yield session
+    return get_injectable_session()
 
 
 def get_article_service() -> ArticleService:
-    """Get the article service from the container.
+    """Get the article service using the injectable pattern.
 
     Returns:
         ArticleService: The article service instance
     """
-    return container.get("article_service")
+    return get_injectable_article_service()
 
 
 def get_rss_feed_service() -> RSSFeedService:
-    """Get the RSS feed service from the container.
+    """Get the RSS feed service using the injectable pattern.
 
     Returns:
         RSSFeedService: The RSS feed service instance
     """
-    return container.get("rss_feed_service")
+    return get_injectable_rss_feed_service()

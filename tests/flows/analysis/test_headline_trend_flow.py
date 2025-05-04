@@ -22,12 +22,28 @@ def mock_analysis_service():
 
 
 @pytest.fixture
-def flow_with_mocks(mock_session, mock_analysis_service):
+def mock_crud_components():
+    """Create mock CRUD components needed for AnalysisService."""
+    return {
+        "analysis_result_crud": MagicMock(),
+        "article_crud": MagicMock(),
+        "entity_crud": MagicMock()
+    }
+
+
+@pytest.fixture
+def flow_with_mocks(mock_session, mock_analysis_service, mock_crud_components):
     """Create a HeadlineTrendFlow with mocked dependencies."""
-    with patch("local_newsifier.services.analysis_service.AnalysisService", return_value=mock_analysis_service):
+    # Create a patch for AnalysisService that returns our mock service when initialized with any args
+    with patch("local_newsifier.services.analysis_service.AnalysisService") as MockAnalysisService:
+        MockAnalysisService.return_value = mock_analysis_service
+        
+        # Create the flow with a session
         flow = HeadlineTrendFlow(session=mock_session)
+        
         # Override the flow's analysis_service with our mock
         flow.analysis_service = mock_analysis_service
+        
         return flow, mock_session, mock_analysis_service
 
 
@@ -41,11 +57,21 @@ def test_init_with_session(mock_session):
 @pytest.mark.skip(reason="Test requires database connection - skipped in PR #174")
 def test_init_without_session():
     """Test initialization without session."""
-    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session, \
+         patch("local_newsifier.services.analysis_service.AnalysisService") as MockAnalysisService, \
+         patch("local_newsifier.di.providers.get_analysis_result_crud") as mock_get_analysis_result_crud, \
+         patch("local_newsifier.di.providers.get_article_crud") as mock_get_article_crud, \
+         patch("local_newsifier.di.providers.get_entity_crud") as mock_get_entity_crud:
         
         mock_session = MagicMock()
-        # Fix the mock to match the actual code using __next__() instead of __enter__
+        mock_analysis_service = MagicMock()
+        
+        # Set up mocks
         mock_get_session.return_value.__next__ = MagicMock(return_value=mock_session)
+        MockAnalysisService.return_value = mock_analysis_service
+        mock_get_analysis_result_crud.return_value = MagicMock()
+        mock_get_article_crud.return_value = MagicMock()
+        mock_get_entity_crud.return_value = MagicMock()
         
         flow = HeadlineTrendFlow()
         assert flow._owns_session
@@ -185,9 +211,9 @@ def test_generate_report_with_error(flow_with_mocks):
     assert "Error: Something went wrong" in report
 
 
-def test_cleanup_on_delete(mock_session):
+def test_cleanup_on_delete(mock_session, mock_analysis_service):
     """Test that the session is closed when the flow is deleted."""
-    flow = HeadlineTrendFlow(session=mock_session)
+    flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service)
     
     # Call the destructor directly
     flow.__del__()
@@ -196,11 +222,22 @@ def test_cleanup_on_delete(mock_session):
     assert True  # No assertion needed since we're not closing externally provided sessions
     
     # Test with owned session
-    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session, \
+         patch("local_newsifier.services.analysis_service.AnalysisService") as MockAnalysisService, \
+         patch("local_newsifier.di.providers.get_analysis_result_crud") as mock_get_analysis_result_crud, \
+         patch("local_newsifier.di.providers.get_article_crud") as mock_get_article_crud, \
+         patch("local_newsifier.di.providers.get_entity_crud") as mock_get_entity_crud:
+        
+        # Set up mocks
         session_generator = MagicMock()
         mock_owned_session = MagicMock()
         session_generator.__next__.return_value = mock_owned_session
         mock_get_session.return_value = session_generator
+        
+        MockAnalysisService.return_value = mock_analysis_service
+        mock_get_analysis_result_crud.return_value = MagicMock()
+        mock_get_article_crud.return_value = MagicMock()
+        mock_get_entity_crud.return_value = MagicMock()
         
         flow = HeadlineTrendFlow()  # No session provided, so it creates its own
         # We can't actually test the __del__ method since it would close the mock
