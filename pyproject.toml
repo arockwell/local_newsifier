@@ -49,6 +49,7 @@ flake8 = "^7.0.0"
 flake8-docstrings = "^1.7.0"
 
 # Add pytest warning filters and configuration
+pytest-asyncio = "^0.26.0"
 [tool.pytest.ini_options]
 # Don't collect scripts directory or loose test files at project root
 testpaths = ["tests"]
