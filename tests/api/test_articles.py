@@ -1,5 +1,7 @@
 """Tests for the article router endpoints."""
 
+from datetime import datetime, timezone
+
 from fastapi import status
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,7 @@ class TestArticleRouter:
             "url": "https://example.com/test-article",
             "source": "test_source",
             "status": "new",
+            "published_at": "2025-05-04T05:24:49.629885Z",  # Add published_at field
         }
 
         response = client.post("/articles/", json=article_data)
@@ -34,6 +37,8 @@ class TestArticleRouter:
             url="https://example.com/test-article",
             source="test_source",
             status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
         )
         db_session.add(article)
         db_session.commit()
@@ -58,6 +63,8 @@ class TestArticleRouter:
             url=complex_url,
             source="test_source",
             status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
         )
         db_session.add(article)
         db_session.commit()
@@ -96,6 +103,8 @@ class TestArticleRouter:
             url="https://example.com/article",
             source="test_source",
             status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
         )
         db_session.add(article)
         db_session.commit()
@@ -118,6 +127,8 @@ class TestArticleRouter:
             url="https://example.com/article-to-delete",
             source="test_source",
             status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
         )
         db_session.add(article)
         db_session.commit()
