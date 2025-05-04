@@ -183,22 +183,22 @@ init_injection_dependency(app)
 Create provider functions for commonly used dependencies:
 
 ```python
-# For simple utility functions with no state, SINGLETON might be appropriate
-@injectable(scope=Scope.SINGLETON)
+# For simple utility functions with no state, caching might be appropriate
+@injectable(use_cache=True)  # Cache instance for performance
 def get_config_provider():
     """Provide application configuration."""
     from local_newsifier.config.settings import get_settings
     return get_settings()
 
-# For CRUD components that interact with database, TRANSIENT is required
-@injectable(scope=Scope.TRANSIENT)
+# For CRUD components that interact with database, no caching is required
+@injectable(use_cache=False)  # Create new instance each time
 def get_article_crud():
     """Provide the article CRUD component."""
     from local_newsifier.crud.article import article
     return article
 
-# For database sessions, REQUEST scope makes sense
-@injectable(scope=Scope.REQUEST)
+# For database sessions, never cache them
+@injectable(use_cache=False)  # Create a new session each time
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session."""
     from local_newsifier.database.engine import get_session as get_db_session
@@ -209,8 +209,8 @@ def get_session() -> Generator[Session, None, None]:
     finally:
         session.close()
 
-# For services with state or database interaction, TRANSIENT is safest
-@injectable(scope=Scope.TRANSIENT)
+# For services with state or database interaction, disable caching
+@injectable(use_cache=False)  # Create a new instance each time
 def get_article_service(
     article_crud: Annotated[ArticleCRUD, Depends(get_article_crud)],
     session: Annotated[Session, Depends(get_session)]
