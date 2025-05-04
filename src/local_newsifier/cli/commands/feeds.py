@@ -244,6 +244,57 @@ def process_feed(id, no_process):
     click.echo(f"Articles added: {result['articles_added']}")
 
 
+@feeds_group.command(name="fetch")
+@click.option("--limit", type=int, default=5, help="Maximum number of feeds to process")
+@click.option("--active-only", is_flag=True, help="Process only active feeds")
+@click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@handle_rss_cli_errors
+def fetch_feeds(limit, active_only, no_process):
+    """Fetch articles from all or active feeds."""
+    rss_feed_service = container.get("rss_feed_service")
+    feeds = rss_feed_service.list_feeds(limit=limit, active_only=active_only)
+    
+    if not feeds:
+        click.echo("No feeds found to process.")
+        return
+    
+    click.echo(f"Processing {len(feeds)} {'active ' if active_only else ''}feeds...")
+    
+    # Use direct processing function if not skipping processing
+    task_func = None if no_process else direct_process_article
+    
+    total_found = 0
+    total_added = 0
+    processed_feeds = 0
+    failed_feeds = 0
+    
+    for feed in feeds:
+        try:
+            click.echo(f"Processing feed '{feed['name']}' (ID: {feed['id']})...")
+            result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
+            
+            # Update totals
+            total_found += result["articles_found"]
+            total_added += result["articles_added"]
+            processed_feeds += 1
+            
+            click.echo(f"  Articles found: {result['articles_found']}")
+            click.echo(f"  Articles added: {result['articles_added']}")
+        except RSSError as e:
+            click.echo(click.style(f"  Error processing feed '{feed['name']}': {str(e)}", fg="red"))
+            failed_feeds += 1
+            continue
+    
+    # Summary
+    click.echo("")
+    click.echo(click.style("Fetch summary:", fg="blue", bold=True))
+    click.echo(f"Feeds processed: {processed_feeds}")
+    if failed_feeds > 0:
+        click.echo(click.style(f"Feeds failed: {failed_feeds}", fg="yellow"))
+    click.echo(f"Total articles found: {total_found}")
+    click.echo(f"Total articles added: {total_added}")
+
+
 @feeds_group.command(name="update")
 @click.argument("id", type=int, required=True)
 @click.option("--name", help="New feed name")
