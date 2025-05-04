@@ -527,7 +527,10 @@ def get_entity_tracking_flow(
 
 @injectable(use_cache=False)
 def get_apify_service():
-    """Provide the Apify service for CLI commands.
+    """Provide the Apify service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    as this service may maintain state during API interactions.
     
     Returns:
         ApifyService instance
