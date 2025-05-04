@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.errors import handle_database
 
 
 class ArticleService:
@@ -44,6 +45,7 @@ class ArticleService:
             
         return None
         
+    @handle_database
     def process_article(
         self, 
         url: str,
@@ -61,6 +63,9 @@ class ArticleService:
             
         Returns:
             Dictionary with article data and processing results
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
         """
         with SessionManager() as session:
             # Extract domain as source if not provided
@@ -129,6 +134,7 @@ class ArticleService:
                 "analysis_result": analysis_result_data
             }
     
+    @handle_database
     def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:
         """Get article data by ID.
         
@@ -137,6 +143,9 @@ class ArticleService:
             
         Returns:
             Article data or None if not found
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
         """
         with SessionManager() as session:
             article = self.article_crud.get(session, id=article_id)
@@ -160,6 +169,7 @@ class ArticleService:
                 "analysis_results": [result.results for result in analysis_results]
             }
     
+    @handle_database
     def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[int]:
         """Create a new article from an RSS feed entry.
         
@@ -168,6 +178,9 @@ class ArticleService:
             
         Returns:
             Created article or None if creation failed
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
         """
         from datetime import datetime
         

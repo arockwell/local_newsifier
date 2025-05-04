@@ -7,6 +7,7 @@ from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.errors import handle_database
 
 class EntityService:
     """Service for entity-related operations using the new refactored tools."""
@@ -46,6 +47,7 @@ class EntityService:
         self.entity_resolver = entity_resolver
         self.session_factory = session_factory or SessionManager
     
+    @handle_database
     def process_article_entities(
         self, 
         article_id: int,
@@ -63,6 +65,9 @@ class EntityService:
             
         Returns:
             List of processed entities with metadata
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
         """
         # Extract entities using the new EntityExtractor
         entities = self.entity_extractor.extract_entities(content)
@@ -262,6 +267,64 @@ class EntityService:
             
         return state
 
+    @handle_database
+    def _fetch_dashboard_data(self, entity_type: str, start_date: datetime, end_date: datetime) -> dict:
+        """Fetch dashboard data with database error handling.
+        
+        Args:
+            entity_type: Type of entities to fetch
+            start_date: Start date for dashboard
+            end_date: End date for dashboard
+            
+        Returns:
+            Dictionary containing dashboard data
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
+        """
+        with self.session_factory() as session:
+            # Get all canonical entities of the specified type
+            entities = self.canonical_entity_crud.get_by_type(session, entity_type=entity_type)
+            
+            # Get mention counts and trends for each entity
+            entity_data = []
+            for entity in entities:
+                # Get mention count
+                mention_count = self.canonical_entity_crud.get_mentions_count(session, entity_id=entity.id)
+                timeline = self.canonical_entity_crud.get_entity_timeline(
+                    session, entity_id=entity.id, start_date=start_date, end_date=end_date
+                )
+                sentiment_trend = self.entity_mention_context_crud.get_sentiment_trend(
+                    session, entity_id=entity.id, start_date=start_date, end_date=end_date
+                )
+                
+                # Add to entity data
+                entity_data.append(
+                    {
+                        "id": entity.id,
+                        "name": entity.name,
+                        "type": entity.entity_type,
+                        "mention_count": mention_count,
+                        "first_seen": entity.first_seen,
+                        "last_seen": entity.last_seen,
+                        "timeline": timeline[:5],  # Include only 5 most recent mentions
+                        "sentiment_trend": sentiment_trend,
+                    }
+                )
+            
+            # Sort entities by mention count (descending)
+            entity_data.sort(key=lambda x: x["mention_count"], reverse=True)
+            
+            # Prepare dashboard data
+            dashboard = {
+                "date_range": {"start": start_date, "end": end_date, "days": (end_date - start_date).days},
+                "entity_count": len(entity_data),
+                "total_mentions": sum(e["mention_count"] for e in entity_data),
+                "entities": entity_data[:20],  # Include only top 20 entities
+            }
+            
+            return dashboard
+
     def generate_entity_dashboard(self, state: EntityDashboardState) -> EntityDashboardState:
         """Generate dashboard data for entities.
         
@@ -280,51 +343,17 @@ class EntityService:
             state.end_date = datetime.now(timezone.utc)
             state.start_date = state.end_date - timedelta(days=state.days)
             
-            with self.session_factory() as session:
-                # Get all canonical entities of the specified type
-                entities = self.canonical_entity_crud.get_by_type(session, entity_type=state.entity_type)
-                
-                # Get mention counts and trends for each entity
-                entity_data = []
-                for entity in entities:
-                    # Get mention count
-                    mention_count = self.canonical_entity_crud.get_mentions_count(session, entity_id=entity.id)
-                    timeline = self.canonical_entity_crud.get_entity_timeline(
-                        session, entity_id=entity.id, start_date=state.start_date, end_date=state.end_date
-                    )
-                    sentiment_trend = self.entity_mention_context_crud.get_sentiment_trend(
-                        session, entity_id=entity.id, start_date=state.start_date, end_date=state.end_date
-                    )
-                    
-                    # Add to entity data
-                    entity_data.append(
-                        {
-                            "id": entity.id,
-                            "name": entity.name,
-                            "type": entity.entity_type,
-                            "mention_count": mention_count,
-                            "first_seen": entity.first_seen,
-                            "last_seen": entity.last_seen,
-                            "timeline": timeline[:5],  # Include only 5 most recent mentions
-                            "sentiment_trend": sentiment_trend,
-                        }
-                    )
-                
-                # Sort entities by mention count (descending)
-                entity_data.sort(key=lambda x: x["mention_count"], reverse=True)
-                
-                # Prepare dashboard data
-                dashboard = {
-                    "date_range": {"start": state.start_date, "end": state.end_date, "days": state.days},
-                    "entity_count": len(entity_data),
-                    "total_mentions": sum(e["mention_count"] for e in entity_data),
-                    "entities": entity_data[:20],  # Include only top 20 entities
-                }
-                
-                # Update state with dashboard data
-                state.dashboard_data = dashboard
-                state.status = TrackingStatus.SUCCESS
-                state.add_log(f"Successfully generated dashboard with {len(entity_data)} entities")
+            # Fetch dashboard data with error handling
+            dashboard = self._fetch_dashboard_data(
+                entity_type=state.entity_type,
+                start_date=state.start_date,
+                end_date=state.end_date
+            )
+            
+            # Update state with dashboard data
+            state.dashboard_data = dashboard
+            state.status = TrackingStatus.SUCCESS
+            state.add_log(f"Successfully generated dashboard with {dashboard['entity_count']} entities")
                 
         except Exception as e:
             state.set_error("dashboard_generation", e)
@@ -333,6 +362,98 @@ class EntityService:
             state.add_log(f"Error generating dashboard: {str(e)}")
             
         return state
+
+    @handle_database
+    def _fetch_relationship_data(self, entity_id: int, start_date: datetime, end_date: datetime) -> dict:
+        """Fetch relationship data with database error handling.
+        
+        Args:
+            entity_id: ID of the entity to analyze
+            start_date: Start date for analysis
+            end_date: End date for analysis
+            
+        Returns:
+            Dictionary containing relationship data
+            
+        Raises:
+            ServiceError: On database errors with appropriate error classification
+            ValueError: If entity not found
+        """
+        with self.session_factory() as session:
+            # Get entity name and articles
+            entity = self.canonical_entity_crud.get(session, id=entity_id)
+            
+            if not entity:
+                raise ValueError(f"Entity with ID {entity_id} not found")
+            
+            # Get articles mentioning this entity in the date range
+            articles = self.canonical_entity_crud.get_articles_mentioning_entity(
+                session, entity_id=entity_id, start_date=start_date, end_date=end_date
+            )
+            
+            # Find co-occurring entities
+            co_occurrences = {}
+            for article in articles:
+                # Get all entities mentioned in this article
+                article_entities = self.entity_crud.get_by_article(session, article_id=article.id)
+                
+                # Get canonical entities for these mentions
+                for article_entity in article_entities:
+                    # Skip if this is the same entity we're analyzing
+                    if article_entity.text == entity.name:
+                        continue
+                    
+                    # Get canonical entity
+                    canonical_entity = self.canonical_entity_crud.get_by_name(
+                        session, 
+                        name=article_entity.text, 
+                        entity_type=article_entity.entity_type
+                    )
+                    
+                    # Skip if no canonical entity found
+                    if not canonical_entity:
+                        continue
+                    
+                    # Skip if this is still the same entity
+                    if canonical_entity.id == entity_id:
+                        continue
+                    
+                    # Count co-occurrence
+                    if canonical_entity.id in co_occurrences:
+                        co_occurrences[canonical_entity.id]["count"] += 1
+                        co_occurrences[canonical_entity.id]["articles"].add(article.id)
+                    else:
+                        co_occurrences[canonical_entity.id] = {
+                            "entity": canonical_entity,
+                            "count": 1,
+                            "articles": {article.id},
+                        }
+            
+            # Convert to list and sort by co-occurrence count
+            relationships = []
+            for related_id, data in co_occurrences.items():
+                relationships.append(
+                    {
+                        "entity_id": related_id,
+                        "entity_name": data["entity"].name,
+                        "entity_type": data["entity"].entity_type,
+                        "co_occurrence_count": data["count"],
+                        "article_count": len(data["articles"]),
+                    }
+                )
+            
+            relationships.sort(key=lambda x: x["co_occurrence_count"], reverse=True)
+            
+            # Prepare relationship data
+            relationship_data = {
+                "entity_id": entity_id,
+                "entity_name": entity.name,
+                "date_range": {"start": start_date, "end": end_date, "days": (end_date - start_date).days},
+                "relationships": relationships[:20],  # Include only top 20 relationships
+                "total_relationships": len(relationships)
+            }
+            
+            return relationship_data
 
     def find_entity_relationships(self, state: EntityRelationshipState) -> EntityRelationshipState:
         """Find relationships between entities based on co-occurrence.
@@ -352,88 +473,17 @@ class EntityService:
             state.end_date = datetime.now(timezone.utc)
             state.start_date = state.end_date - timedelta(days=state.days)
             
-            with self.session_factory() as session:
-                # Get entity name and articles
-                entity = self.canonical_entity_crud.get(session, id=state.entity_id)
-                
-                if not entity:
-                    raise ValueError(f"Entity with ID {state.entity_id} not found")
-                
-                # Log entity name
-                state.add_log(f"Analyzing relationships for entity: {entity.name}")
-                
-                # Get articles mentioning this entity in the date range
-                articles = self.canonical_entity_crud.get_articles_mentioning_entity(
-                    session, entity_id=state.entity_id, start_date=state.start_date, end_date=state.end_date
-                )
-                
-                state.add_log(f"Found {len(articles)} articles mentioning this entity")
-                
-                # Find co-occurring entities
-                co_occurrences = {}
-                for article in articles:
-                    # Get all entities mentioned in this article
-                    article_entities = self.entity_crud.get_by_article(session, article_id=article.id)
-                    
-                    # Get canonical entities for these mentions
-                    for article_entity in article_entities:
-                        # Skip if this is the same entity we're analyzing
-                        if article_entity.text == entity.name:
-                            continue
-                        
-                        # Get canonical entity
-                        canonical_entity = self.canonical_entity_crud.get_by_name(
-                            session, 
-                            name=article_entity.text, 
-                            entity_type=article_entity.entity_type
-                        )
-                        
-                        # Skip if no canonical entity found
-                        if not canonical_entity:
-                            continue
-                        
-                        # Skip if this is still the same entity
-                        if canonical_entity.id == state.entity_id:
-                            continue
-                        
-                        # Count co-occurrence
-                        if canonical_entity.id in co_occurrences:
-                            co_occurrences[canonical_entity.id]["count"] += 1
-                            co_occurrences[canonical_entity.id]["articles"].add(article.id)
-                        else:
-                            co_occurrences[canonical_entity.id] = {
-                                "entity": canonical_entity,
-                                "count": 1,
-                                "articles": {article.id},
-                            }
-                
-                # Convert to list and sort by co-occurrence count
-                relationships = []
-                for related_id, data in co_occurrences.items():
-                    relationships.append(
-                        {
-                            "entity_id": related_id,
-                            "entity_name": data["entity"].name,
-                            "entity_type": data["entity"].entity_type,
-                            "co_occurrence_count": data["count"],
-                            "article_count": len(data["articles"]),
-                        }
-                    )
-                
-                relationships.sort(key=lambda x: x["co_occurrence_count"], reverse=True)
-                
-                # Prepare relationship data
-                relationship_data = {
-                    "entity_id": state.entity_id,
-                    "entity_name": entity.name,
-                    "date_range": {"start": state.start_date, "end": state.end_date, "days": state.days},
-                    "relationships": relationships[:20],  # Include only top 20 relationships
-                }
-                
-                # Update state with relationship data
-                state.relationship_data = relationship_data
-                state.status = TrackingStatus.SUCCESS
-                state.add_log(f"Successfully identified {len(relationships)} relationships")
+            # Fetch relationship data with error handling
+            relationship_data = self._fetch_relationship_data(
+                entity_id=state.entity_id,
+                start_date=state.start_date,
+                end_date=state.end_date
+            )
+            
+            # Update state with relationship data
+            state.relationship_data = relationship_data
+            state.status = TrackingStatus.SUCCESS
+            state.add_log(f"Successfully identified {relationship_data['total_relationships']} relationships")
                 
         except Exception as e:
             state.set_error("relationship_analysis", e)
