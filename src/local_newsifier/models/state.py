@@ -138,11 +138,21 @@ class EntityTrackingState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
+        # Extract original error message if it's a ServiceError, otherwise use as is
+        if hasattr(error, 'original') and error.original:
+            error_type = error.original.__class__.__name__
+            message = str(error.original)
+            traceback_snippet = str(error.original.__traceback__)
+        else:
+            error_type = error.__class__.__name__
+            message = str(error)
+            traceback_snippet = str(error.__traceback__)
+            
         self.error_details = ErrorDetails(
             task=task,
-            type=error.__class__.__name__,
-            message=str(error),
-            traceback_snippet=str(error.__traceback__),
+            type=error_type,
+            message=message,
+            traceback_snippet=traceback_snippet,
         )
         self.status = TrackingStatus.FAILED
         self.touch()
@@ -190,11 +200,21 @@ class EntityBatchTrackingState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
+        # Extract original error message if it's a ServiceError, otherwise use as is
+        if hasattr(error, 'original') and error.original:
+            error_type = error.original.__class__.__name__
+            message = str(error.original)
+            traceback_snippet = str(error.original.__traceback__)
+        else:
+            error_type = error.__class__.__name__
+            message = str(error)
+            traceback_snippet = str(error.__traceback__)
+            
         self.error_details = ErrorDetails(
             task=task,
-            type=error.__class__.__name__,
-            message=str(error),
-            traceback_snippet=str(error.__traceback__),
+            type=error_type,
+            message=message,
+            traceback_snippet=traceback_snippet,
         )
         self.status = TrackingStatus.FAILED
         self.touch()
@@ -248,11 +268,21 @@ class EntityDashboardState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
+        # Extract original error message if it's a ServiceError, otherwise use as is
+        if hasattr(error, 'original') and error.original:
+            error_type = error.original.__class__.__name__
+            message = str(error.original)
+            traceback_snippet = str(error.original.__traceback__)
+        else:
+            error_type = error.__class__.__name__
+            message = str(error)
+            traceback_snippet = str(error.__traceback__)
+            
         self.error_details = ErrorDetails(
             task=task,
-            type=error.__class__.__name__,
-            message=str(error),
-            traceback_snippet=str(error.__traceback__),
+            type=error_type,
+            message=message,
+            traceback_snippet=traceback_snippet,
         )
         self.status = TrackingStatus.FAILED
         self.touch()
@@ -298,11 +328,21 @@ class EntityRelationshipState(BaseModel):
     
     def set_error(self, task: str, error: Exception) -> None:
         """Set error details and update status."""
+        # Extract original error message if it's a ServiceError, otherwise use as is
+        if hasattr(error, 'original') and error.original:
+            error_type = error.original.__class__.__name__
+            message = str(error.original)
+            traceback_snippet = str(error.original.__traceback__)
+        else:
+            error_type = error.__class__.__name__
+            message = str(error)
+            traceback_snippet = str(error.__traceback__)
+            
         self.error_details = ErrorDetails(
             task=task,
-            type=error.__class__.__name__,
-            message=str(error),
-            traceback_snippet=str(error.__traceback__),
+            type=error_type,
+            message=message,
+            traceback_snippet=traceback_snippet,
         )
         self.status = TrackingStatus.FAILED
         self.touch()
