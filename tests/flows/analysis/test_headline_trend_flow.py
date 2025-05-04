@@ -4,7 +4,15 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+import sys
 
+# Import mocks before importing the actual classes
+from tests.mocks import mock_crewai
+
+# Mock the crewai module
+sys.modules["crewai"] = mock_crewai
+
+# Now import the class that depends on crewai
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
 from local_newsifier.models.article import Article
 
