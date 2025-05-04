@@ -8,9 +8,12 @@ from typing import Dict, Any, Callable, Optional, cast
 import functools
 import re
 
+# First import the core error components to avoid circular dependencies
+from .error import ServiceError, ERROR_TYPES
+
+# Then import other components that depend on the core
 from .handlers import create_service_handler
 from .cli import handle_cli_errors
-from .error import ServiceError, ERROR_TYPES
 
 
 # RSS-specific error types
@@ -57,8 +60,11 @@ def _classify_rss_error(error: Exception) -> tuple:
     error_str = str(error).lower()
     error_type = type(error).__name__
     
-    # XML parsing errors
-    if "xml" in error_str and ("parse" in error_str or "syntax" in error_str):
+    # XML parsing errors - check by type first, then by string content
+    from xml.etree.ElementTree import ParseError
+    if isinstance(error, ParseError):
+        return "xml_parse", f"XML parsing error: {error}"
+    elif "xml" in error_str and ("parse" in error_str or "syntax" in error_str):
         return "xml_parse", f"XML parsing error: {error}"
     
     # Feed format errors
@@ -77,15 +83,22 @@ def _classify_rss_error(error: Exception) -> tuple:
         return "encoding", f"Feed encoding error: {error}"
     
     # Network errors - requests lib raises ConnectionError
-    if "connectionerror" in error_type.lower() or "connection" in error_str:
+    import requests
+    if isinstance(error, requests.ConnectionError):
+        return "network", f"Could not connect to feed: {error}"
+    elif "connectionerror" in error_type.lower() or "connection" in error_str:
         return "network", f"Could not connect to feed: {error}"
     
     # Not found errors - requests raises HTTPError for 404
-    if "404" in error_str:
+    if isinstance(error, requests.HTTPError) and "404" in str(error):
+        return "not_found", f"Feed not found: {error}"
+    elif "404" in error_str:
         return "not_found", f"Feed not found: {error}"
     
     # Timeout errors
-    if "timeout" in error_str or "timed out" in error_str:
+    if isinstance(error, requests.Timeout):
+        return "timeout", f"Connection timed out: {error}"
+    elif "timeout" in error_str or "timed out" in error_str:
         return "timeout", f"Connection timed out: {error}"
     
     # Fall back to standard classification

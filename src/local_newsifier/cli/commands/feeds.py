@@ -233,8 +233,13 @@ def process_feed(id, no_process):
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Feed with ID {id} not found", fg="red"), err=True)
-        return
+        from local_newsifier.errors.error import ServiceError
+        raise ServiceError(
+            service="rss",
+            error_type="not_found",
+            message=f"Feed with ID {id} not found",
+            context={"feed_id": id}
+        )
     
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
     
