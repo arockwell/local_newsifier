@@ -7,6 +7,7 @@ from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.errors import handle_database
 
 class EntityService:
     """Service for entity-related operations using the new refactored tools."""
@@ -46,6 +47,7 @@ class EntityService:
         self.entity_resolver = entity_resolver
         self.session_factory = session_factory or SessionManager
     
+    @handle_database
     def process_article_entities(
         self, 
         article_id: int,
@@ -63,6 +65,9 @@ class EntityService:
             
         Returns:
             List of processed entities with metadata
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         # Extract entities using the new EntityExtractor
         entities = self.entity_extractor.extract_entities(content)

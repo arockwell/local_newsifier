@@ -29,24 +29,28 @@ error = ServiceError(
 
 Common error types used across all services:
 
-| Type        | Description             | Transient | Exit Code |
-|-------------|-------------------------|-----------|-----------|
-| `network`   | Network connectivity    | Yes       | 2         |
-| `timeout`   | Request timed out       | Yes       | 3         |
-| `rate_limit`| Rate limit exceeded     | Yes       | 4         |
-| `auth`      | Authentication failed   | No        | 5         |
-| `parse`     | Failed to parse response| No        | 6         |
-| `validation`| Input validation failed | No        | 7         |
-| `not_found` | Resource not found      | No        | 8         |
-| `server`    | Server-side error       | Yes       | 9         |
-| `unknown`   | Unknown error           | No        | 1         |
+| Type         | Description              | Transient | Exit Code |
+|--------------|--------------------------|-----------|-----------|
+| `network`    | Network connectivity     | Yes       | 2         |
+| `timeout`    | Request timed out        | Yes       | 3         |
+| `rate_limit` | Rate limit exceeded      | Yes       | 4         |
+| `auth`       | Authentication failed    | No        | 5         |
+| `parse`      | Failed to parse response | No        | 6         |
+| `validation` | Input validation failed  | No        | 7         |
+| `not_found`  | Resource not found       | No        | 8         |
+| `server`     | Server-side error        | Yes       | 9         |
+| `connection` | Database connection issue| Yes       | 10        |
+| `integrity`  | Database constraint issue| No        | 11        |
+| `multiple`   | Multiple results found   | No        | 12        |
+| `transaction`| Database transaction error| Yes      | 13        |
+| `unknown`    | Unknown error            | No        | 1         |
 
 ## Using Error Handling
 
 ### Service Methods
 
 ```python
-from local_newsifier.errors import handle_apify
+from local_newsifier.errors import handle_apify, handle_database
 
 class ApifyService:
     
@@ -57,20 +61,40 @@ class ApifyService:
         Errors will be automatically transformed, retried, and timed.
         """
         return self.client.actor(actor_id).call(run_input=run_input)
+
+class ArticleService:
+    
+    @handle_database
+    def get_article(self, article_id: int):
+        """Get an article with database error handling.
+        
+        Database errors like connection issues or constraint violations
+        will be properly classified and handled.
+        """
+        with self.session_factory() as session:
+            return self.article_crud.get(session, id=article_id)
 ```
 
 ### CLI Commands
 
 ```python
-from local_newsifier.errors import handle_apify_cli
+from local_newsifier.errors import handle_apify_cli, handle_database_cli
 import click
 
 @click.command()
 @handle_apify_cli
-def test_command():
-    """CLI command with error handling."""
-    # Run code that might raise exceptions
+def test_apify_command():
+    """CLI command with Apify error handling."""
+    # Run code that might raise Apify exceptions
     # Errors will be presented in user-friendly format
+    
+@click.command()
+@handle_database_cli
+def database_command():
+    """CLI command with database error handling."""
+    with session_factory() as session:
+        # Database operations with user-friendly error messages
+        results = session.exec(select(User)).all()
 ```
 
 ## Error Handling Components
@@ -120,8 +144,10 @@ except ServiceError as e:
 - `@handle_apify` - For Apify service methods
 - `@handle_rss` - For RSS feed methods
 - `@handle_web_scraper` - For web scraper methods
+- `@handle_database` - For database operations
 - `@handle_apify_cli` - For Apify CLI commands
 - `@handle_rss_cli` - For RSS CLI commands
+- `@handle_database_cli` - For database CLI commands
 
 ### Manual Usage
 

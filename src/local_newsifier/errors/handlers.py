@@ -25,6 +25,15 @@ ERROR_MESSAGES = {
         "network": "Could not connect to website. Check the URL and your internet connection.",
         "auth": "Website requires authentication or blocks automated access.",
         "parse": "Could not extract content from website. The site structure may have changed."
+    },
+    "database": {
+        "connection": "Could not connect to the database. Check database connection settings.",
+        "timeout": "Database operation timed out. The database may be overloaded.",
+        "integrity": "Database constraint violation. The operation violates database rules.",
+        "not_found": "Requested record not found in the database.",
+        "multiple": "Multiple records found where only one was expected.",
+        "validation": "Invalid database request. Check input parameters.",
+        "transaction": "Transaction error. The operation could not be completed."
     }
 }
 
@@ -74,6 +83,7 @@ def create_service_handler(
 handle_apify = create_service_handler("apify")
 handle_rss = create_service_handler("rss")
 handle_web_scraper = create_service_handler("web_scraper")
+handle_database = create_service_handler("database")
 
 
 def get_error_message(service: str, error_type: str) -> str:

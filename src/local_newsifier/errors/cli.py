@@ -78,3 +78,4 @@ def handle_cli_errors(service: str) -> Callable:
 # Pre-configured handlers for common services
 handle_apify_cli = handle_cli_errors("apify")
 handle_rss_cli = handle_cli_errors("rss")
+handle_database_cli = handle_cli_errors("database")
