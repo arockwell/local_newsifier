@@ -13,10 +13,13 @@ class TestArticleRouter:
 
     def test_create_article(self, client: TestClient, db_session):
         """Test creating a new article."""
+        from pydantic import HttpUrl
+        
+        # Set test data with valid URL
         article_data = {
             "title": "Test Article",
             "content": "This is a test article content.",
-            "url": "https://example.com/test-article",
+            "url": str(HttpUrl("https://example.com/test-article")),  # Convert through HttpUrl
             "source": "test_source",
             "status": "new",
             # Use current date in ISO format for published_at
@@ -27,16 +30,26 @@ class TestArticleRouter:
 
         # Try with debug output for better error messages
         response = client.post("/articles/", json=article_data)
+        
+        # Enhanced debug output
         if response.status_code != status.HTTP_201_CREATED:
-            print(f"CREATE ARTICLE ERROR: {response.status_code}")
             error_content = response.content.decode('utf-8')
+            print(f"CREATE ARTICLE ERROR: {response.status_code}")
             print(f"CREATE ARTICLE ERROR CONTENT: {error_content}")
             print(f"CREATE ARTICLE DATA: {article_data}")
-            # Save the response and data for inspection
+            
+            # Save detailed debug info
             with open('/tmp/error_response.txt', 'w') as f:
                 f.write(f"Status: {response.status_code}\n\n")
                 f.write(f"Response: {error_content}\n\n")
                 f.write(f"Data: {article_data}")
+                
+            # Try to parse the specific validation error
+            try:
+                error_json = response.json()
+                f.write(f"\nDetailed error: {error_json}")
+            except:
+                pass
         
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
