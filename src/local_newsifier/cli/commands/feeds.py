@@ -16,8 +16,7 @@ from datetime import datetime
 from tabulate import tabulate
 from typing import Any, Dict
 
-# Allow direct imports from container for tests
-# Import functions from di.providers for dependency injection
+# Import injectable provider functions for dependency injection
 from local_newsifier.di.providers import (
     get_rss_feed_service,
     get_article_crud,

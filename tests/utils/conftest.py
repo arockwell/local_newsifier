@@ -1,42 +1,12 @@
 """
-Test fixtures for container-based testing.
+Test fixtures for injectable-based testing.
 
-This module provides pytest fixtures that make it easier to use the dependency injection
-container in tests.
+This module provides pytest fixtures that make it easier to use injectable provider
+functions in tests.
 """
 
 import pytest
 from unittest.mock import MagicMock, patch
-
-from local_newsifier.di_container import DIContainer
-from tests.utils.test_container import create_test_container, create_mock_session_factory, mock_service
-
-
-@pytest.fixture
-def test_container():
-    """Create a test container that doesn't affect other tests."""
-    container = create_test_container()
-    yield container
-    container.clear()
-
-
-@pytest.fixture
-def mock_session(test_container):
-    """Create a mock database session for testing."""
-    mock_factory, mock_session = create_mock_session_factory()
-    test_container.register("session_factory", mock_factory)
-    return mock_session
-
-
-@pytest.fixture
-def patched_container(test_container):
-    """Patch the singleton container with our test container.
-    
-    This fixture temporarily replaces the application container with a test container
-    and patches injectable provider functions to return mocked services.
-    """
-    with patch('local_newsifier.container.container', test_container):
-        yield test_container
 
 
 @pytest.fixture
@@ -71,26 +41,25 @@ def patched_injectable():
                             "session": session_mock
                         }
 
+# Injectable-based fixture for RSS feed service
 @pytest.fixture
-def mock_rss_feed_service(patched_container):
-    """Create a mock RSSFeedService and register it with the container."""
-    mock = mock_service(patched_container, "rss_feed_service")
-    return mock
+def mock_rss_feed_service(patched_injectable):
+    """Create a mock RSSFeedService for testing using injectable."""
+    return patched_injectable["rss_feed_service"]
 
 
+# Injectable-based fixture for article CRUD
 @pytest.fixture
-def mock_article_crud(patched_container):
-    """Create a mock article CRUD and register it with the container."""
-    mock = mock_service(patched_container, "article_crud")
-    return mock
+def mock_article_crud(patched_injectable):
+    """Create a mock article CRUD for testing using injectable."""
+    return patched_injectable["article_crud"]
 
 
+# Injectable-based fixture for flow services
 @pytest.fixture
-def mock_flows(patched_container):
-    """Create mock flow services and register them with the container."""
-    news_pipeline_flow = mock_service(patched_container, "news_pipeline_flow")
-    entity_tracking_flow = mock_service(patched_container, "entity_tracking_flow")
+def mock_flows(patched_injectable):
+    """Create mock flow services for testing using injectable."""
     return {
-        "news_pipeline_flow": news_pipeline_flow,
-        "entity_tracking_flow": entity_tracking_flow
+        "news_pipeline_flow": patched_injectable["news_pipeline_flow"],
+        "entity_tracking_flow": patched_injectable["entity_tracking_flow"]
     }
