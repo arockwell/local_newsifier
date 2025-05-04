@@ -12,3 +12,5 @@ from .entity_profile import entity_profile
 from .entity_relationship import entity_relationship
 from .rss_feed import rss_feed
 from .feed_processing_log import feed_processing_log
+from .base import CRUDBase
+from .error_handled import ErrorHandledCRUDBase, create_error_handled_crud_model
