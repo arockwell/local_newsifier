@@ -27,17 +27,22 @@ F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int = 2):
+def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int = 2, 
+               test_mode: bool = False):
     """Get SQLModel engine with enhanced logging and retry logic.
 
     Args:
         url: Database URL (if None, uses settings)
         max_retries: Maximum number of connection retries
         retry_delay: Seconds to wait between retries
+        test_mode: If True, use faster retry logic for tests
 
     Returns:
         SQLModel engine or None if connection fails after retries
     """
+    # Use faster retry for tests
+    if test_mode:
+        retry_delay = 0.01  # Use milliseconds instead of seconds for tests
     
     for attempt in range(max_retries + 1):
         try:
@@ -177,10 +182,15 @@ def create_db_and_tables(engine=None):
 class SessionManager:
     """Session manager for database operations."""
 
-    def __init__(self):
-        """Initialize the session manager."""
+    def __init__(self, test_mode: bool = False):
+        """Initialize the session manager.
+        
+        Args:
+            test_mode: If True, use optimized database settings for tests
+        """
         self.session = None
         self.engine = None
+        self.test_mode = test_mode
 
     def __enter__(self):
         """Enter the context manager.
@@ -189,7 +199,8 @@ class SessionManager:
             Session: Database session or None if engine creation fails
         """
         try:
-            self.engine = get_engine()
+            # Pass test_mode to enable faster database connections in tests
+            self.engine = get_engine(test_mode=self.test_mode)
             if self.engine is None:
                 logger.warning("SessionManager: Cannot create session - database engine is None")
                 return None
