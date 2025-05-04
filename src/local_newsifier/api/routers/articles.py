@@ -179,10 +179,10 @@ async def delete_article(
     return None
 
 
-@router.get("/url/{url}", response_model=ArticleResponse)
+@router.get("/url/{url:path}", response_model=ArticleResponse)
 @handle_crud_errors
 async def get_article_by_url(
-    url: HttpUrl = Path(
+    url: str = Path(
         ..., title="Article URL", description="URL of the article to retrieve"
     ),
     db: Session = Depends(get_session),
@@ -200,7 +200,15 @@ async def get_article_by_url(
     Raises:
         HTTPException: 404 if article not found, with standardized error format
     """
-    return error_handled_article.get_by_url(db, url=str(url))
+    # Validate the URL string is a valid URL
+    try:
+        validated_url = HttpUrl(url)
+        return error_handled_article.get_by_url(db, url=str(validated_url))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid URL format: {url}"
+        )
 
 
 @router.get("/", response_model=List[ArticleResponse])
