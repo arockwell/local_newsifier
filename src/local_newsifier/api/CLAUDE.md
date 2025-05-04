@@ -3,6 +3,17 @@
 ## Overview
 The API module provides a web interface for the Local Newsifier system using FastAPI. It includes both HTML user interfaces (using Jinja2 templates) and JSON API endpoints for programmatic access.
 
+## Environment Setup
+
+This component requires Python 3.10-3.12 (3.12 recommended).
+
+For consistent development environments:
+- Use pyenv: `pyenv install 3.12.3`
+- Or Docker: `make docker-up`
+- Set environment variables in `.env`
+
+See project root `docs/python_environment_setup.md` for details.
+
 ## Key Components
 
 ### Main Application
@@ -32,7 +43,7 @@ The API uses FastAPI's dependency injection system for common dependencies:
 ```python
 def get_session() -> Generator[Session, None, None]:
     """Get a database session for request.
-    
+
     This dependency provides a database session to route handlers.
     The session is automatically closed when the request is complete.
     """
@@ -106,7 +117,7 @@ Services are retrieved from the central DI container:
 ```python
 def get_container() -> DIContainer:
     """Get the central DI container.
-    
+
     This dependency provides access to the dependency injection container.
     """
     from local_newsifier.container import container
@@ -114,7 +125,7 @@ def get_container() -> DIContainer:
 
 @router.get("/tasks")
 async def get_tasks(
-    request: Request, 
+    request: Request,
     container: DIContainer = Depends(get_container)
 ):
     task_service = container.get("task_service")
@@ -139,8 +150,8 @@ The API includes exception handlers for common errors:
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(
-        "404.html", 
-        {"request": request, "detail": exc.detail}, 
+        "404.html",
+        {"request": request, "detail": exc.detail},
         status_code=404
     )
 ```
@@ -209,7 +220,7 @@ class EntityResponse(BaseModel):
     id: int
     name: str
     entity_type: str
-    
+
 @router.get("/api/entities/{entity_id}", response_model=EntityResponse)
 async def get_entity_api(
     entity_id: int,

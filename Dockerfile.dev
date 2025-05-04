@@ -1,0 +1,43 @@
+FROM python:3.12.3-slim
+
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV POETRY_VERSION 1.7.1
+ENV POETRY_HOME /opt/poetry
+ENV POETRY_VIRTUALENVS_IN_PROJECT true
+ENV PATH ${POETRY_HOME}/bin:${PATH}
+ENV PYTHONPATH /app
+
+# Install system dependencies for PostgreSQL and other libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    gcc \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Copy project files
+COPY pyproject.toml poetry.lock* ./
+
+# Install dependencies
+RUN poetry install --no-interaction --no-ansi --with dev
+
+# Copy project files
+COPY . .
+
+# Download spaCy models
+RUN poetry run python -m spacy download en_core_web_sm && \
+    poetry run python -m spacy download en_core_web_lg
+
+# Set entrypoint to poetry run by default
+ENTRYPOINT ["poetry", "run"]
+
+# Default command to start the shell
+CMD ["bash"]

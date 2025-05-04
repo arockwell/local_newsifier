@@ -3,6 +3,17 @@
 ## Overview
 The CLI (Command Line Interface) module provides command-line tools for interacting with the Local Newsifier system. It allows users to perform various tasks without using the web interface.
 
+## Environment Setup
+
+This component requires Python 3.10-3.12 (3.12 recommended).
+
+For consistent development environments:
+- Use pyenv: `pyenv install 3.12.3`
+- Or Docker: `make docker-up`
+- Set environment variables in `.env`
+
+See project root `docs/python_environment_setup.md` and `docs/local_system_setup.md` for details.
+
 ## CLI Architecture
 
 ### Main CLI Application
@@ -46,7 +57,7 @@ def fetch_feed(feed_id):
 ```python
 @apify_group.command(name="scrape-content")
 @click.argument("url", required=True)
-@click.option("--max-pages", type=int, default=5, 
+@click.option("--max-pages", type=int, default=5,
               help="Maximum number of pages to scrape")
 @click.option("--max-depth", type=int, default=1,
               help="Maximum crawl depth from start URL")
@@ -66,10 +77,10 @@ def list_feeds():
     try:
         # Get the container
         from local_newsifier.container import container
-        
+
         # Get the RSS feed service
         feed_service = container.get("rss_feed_service")
-        
+
         # Get feeds and display them
         feeds = feed_service.list_feeds()
         # ...
@@ -121,7 +132,7 @@ from tabulate import tabulate
 def list_feeds():
     """List all configured RSS feeds."""
     # ...
-    
+
     # Format feeds as a table
     table_data = []
     for feed in feeds:
@@ -132,7 +143,7 @@ def list_feeds():
             feed.is_active,
             feed.last_fetched_at or "Never"
         ])
-    
+
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
 ```
@@ -144,7 +155,7 @@ For long-running operations, show progress:
 def process_feeds():
     """Process all feeds."""
     # ...
-    
+
     with click.progressbar(feeds, label="Processing feeds") as bar:
         for feed in bar:
             process_feed(feed.id)
@@ -158,7 +169,7 @@ CLI commands can process directly or queue tasks:
 ```python
 def process_feed(feed_id, use_queue=True):
     """Process a feed.
-    
+
     Args:
         feed_id: ID of the feed to process
         use_queue: Whether to use the task queue or process directly
@@ -180,14 +191,14 @@ Handle file input and output:
 ```python
 def export_data(data, output_file):
     """Export data to a file.
-    
+
     Args:
         data: The data to export
         output_file: Path to the output file
     """
     if output_file:
         file_extension = output_file.split(".")[-1].lower()
-        
+
         if file_extension == "json":
             with open(output_file, "w") as f:
                 json.dump(data, f, indent=2)
@@ -198,7 +209,7 @@ def export_data(data, output_file):
             # Default to JSON
             with open(output_file, "w") as f:
                 json.dump(data, f, indent=2)
-                
+
         click.echo(f"Data exported to {output_file}")
     else:
         # Print to console
