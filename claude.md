@@ -8,6 +8,22 @@
 - Uses Celery with Redis for asynchronous task processing
 - Deployed on Railway with web, worker, and scheduler processes
 
+## Environment Setup
+
+### Python Version
+This project requires Python 3.10-3.12, with Python 3.12 recommended to match CI.
+
+### Setup
+```bash
+# Install dependencies with Poetry
+make setup-poetry
+
+# Install spaCy models
+make setup-spacy
+```
+
+See `docs/python_setup.md` for more details.
+
 ## Common Commands
 
 ### CLI Commands
@@ -81,13 +97,13 @@ src/
 ```python
 class Article(SQLModel, table=True):
     __tablename__ = "articles"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     content: str
     url: str = Field(unique=True)
     # ...
-    
+
     entities: List["Entity"] = Relationship(back_populates="article")
 ```
 
@@ -129,7 +145,7 @@ def get_article_service(
     session: Annotated[Session, Depends(get_session)]
 ):
     from local_newsifier.services.article_service import ArticleService
-    
+
     return ArticleService(
         article_crud=article_crud,
         session_factory=lambda: session
@@ -146,10 +162,10 @@ def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
         articles = self.article_crud.get_by_date_range(
             session, start_date, end_date
         )
-        
+
         trend_analyzer = self.container.get("trend_analyzer_tool")
         results = trend_analyzer.extract_keywords([a.title for a in articles])
-        
+
         return {"trending_terms": results}
 ```
 
@@ -162,7 +178,7 @@ class ApifyService:
     def __init__(self, token=None):
         self._token = token
         self._client = None
-        
+
     def run_actor(self, actor_id, run_input):
         return self.client.actor(actor_id).call(run_input=run_input)
 ```
