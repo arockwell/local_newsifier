@@ -1,0 +1,1 @@
+"""Error handling package for Local Newsifier."""

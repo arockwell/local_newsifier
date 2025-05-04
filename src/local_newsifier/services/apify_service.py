@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from apify_client import ApifyClient
 
 from local_newsifier.config.settings import settings
+from local_newsifier.errors.utils import apply_full_apify_handling
 
 
 class ApifyService:
@@ -12,7 +13,7 @@ class ApifyService:
 
     def __init__(self, token: Optional[str] = None):
         """Initialize the Apify service.
-
+        
         Args:
             token: Optional token override. If not provided, uses settings.APIFY_TOKEN
         """
@@ -22,10 +23,10 @@ class ApifyService:
     @property
     def client(self) -> ApifyClient:
         """Get the Apify client.
-
+        
         Returns:
             ApifyClient: Configured Apify client
-
+            
         Raises:
             ValueError: If APIFY_TOKEN is not set
         """
@@ -34,35 +35,56 @@ class ApifyService:
             token = self._token or settings.validate_apify_token()
             self._client = ApifyClient(token)
         return self._client
-
+    
+    @apply_full_apify_handling(
+        operation_name="apify.run_actor",
+        max_attempts=3,
+        retry_network_errors=True,
+        retry_rate_limit_errors=True
+    )
     def run_actor(self, actor_id: str, run_input: Dict[str, Any]) -> Dict[str, Any]:
         """Run an Apify actor.
-
+        
         Args:
             actor_id: ID of the actor to run
             run_input: Input for the actor run
-
+            
         Returns:
             Dict[str, Any]: Actor run results
-
+            
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ApifyAuthError: If authentication fails
+            ApifyRateLimitError: If rate limit is exceeded
+            ApifyNetworkError: If network connection fails
+            ApifyActorError: If actor-specific error occurs
+            ApifyError: If other error occurs
         """
         # This will raise a clear error if token is missing via the client property
         return self.client.actor(actor_id).call(run_input=run_input)
-
+    
+    @apply_full_apify_handling(
+        operation_name="apify.get_dataset_items",
+        max_attempts=3,
+        retry_network_errors=True,
+        retry_rate_limit_errors=True
+    )
     def get_dataset_items(self, dataset_id: str, **kwargs) -> Dict[str, Any]:
         """Get items from an Apify dataset.
-
+        
         Args:
             dataset_id: ID of the dataset to get items from
             **kwargs: Additional arguments to pass to the API
-
+            
         Returns:
             Dict[str, Any]: Dataset items in format {"items": [...]}
-
+            
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ApifyAuthError: If authentication fails
+            ApifyRateLimitError: If rate limit is exceeded
+            ApifyNetworkError: If network connection fails
+            ApifyDatasetError: If dataset-specific error occurs
+            ApifyDataProcessingError: If data processing error occurs
+            ApifyError: If other error occurs
         """
         list_page = self.client.dataset(dataset_id).list_items(**kwargs)
 
@@ -145,17 +167,27 @@ class ApifyService:
             error_trace = f"Traceback: {traceback.format_exc()}"
             error_details = f"{error_message}\n{error_type}\n{error_trace}"
             return {"items": [], "error": error_details}
-
+    
+    @apply_full_apify_handling(
+        operation_name="apify.get_actor_details",
+        max_attempts=2, 
+        retry_network_errors=True,
+        retry_rate_limit_errors=True
+    )
     def get_actor_details(self, actor_id: str) -> Dict[str, Any]:
         """Get details about an Apify actor.
-
+        
         Args:
             actor_id: ID of the actor to get details for
-
+            
         Returns:
             Dict[str, Any]: Actor details
-
+            
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ApifyAuthError: If authentication fails
+            ApifyRateLimitError: If rate limit is exceeded
+            ApifyNetworkError: If network connection fails
+            ApifyActorError: If actor-specific error occurs
+            ApifyError: If other error occurs
         """
         return self.client.actor(actor_id).get()

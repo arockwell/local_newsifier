@@ -10,6 +10,9 @@ This module provides commands for interacting with the Apify API, including:
 
 import json
 import os
+import sys
+import logging
+from typing import Optional
 
 import click
 from tabulate import tabulate
@@ -17,6 +20,18 @@ from tabulate import tabulate
 # Import directly instead of using container to avoid loading flow dependencies
 from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
+from local_newsifier.errors.apify import (
+    ApifyError, 
+    ApifyAuthError,
+    ApifyRateLimitError,
+    ApifyNetworkError,
+    ApifyActorError,
+    ApifyDatasetError,
+    ApifyDataProcessingError
+)
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 @click.group(name="apify")
@@ -49,6 +64,58 @@ def _ensure_token():
     return False
 
 
+def handle_apify_error(error: Exception) -> int:
+    """Handle Apify errors with user-friendly messages.
+    
+    Args:
+        error: The exception to handle
+        
+    Returns:
+        Exit code to use (non-zero for errors)
+    """
+    if isinstance(error, ApifyAuthError):
+        click.echo(click.style(f"Authentication Error: {str(error)}", fg="red"), err=True)
+        click.echo("Please check your Apify API token and try again.")
+        return 1
+    
+    elif isinstance(error, ApifyRateLimitError):
+        click.echo(click.style(f"Rate Limit Error: {str(error)}", fg="red"), err=True)
+        if hasattr(error, "retry_after") and error.retry_after:
+            click.echo(f"Please wait {error.retry_after} seconds before trying again.")
+        else:
+            click.echo("Please wait before trying again.")
+        return 2
+    
+    elif isinstance(error, ApifyNetworkError):
+        click.echo(click.style(f"Network Error: {str(error)}", fg="red"), err=True)
+        click.echo("Please check your internet connection and try again.")
+        return 3
+    
+    elif isinstance(error, ApifyActorError):
+        click.echo(click.style(f"Actor Error: {str(error)}", fg="red"), err=True)
+        if "actor_id" in error.context:
+            click.echo(f"Actor ID: {error.context['actor_id']}")
+        return 4
+    
+    elif isinstance(error, ApifyDatasetError):
+        click.echo(click.style(f"Dataset Error: {str(error)}", fg="red"), err=True)
+        if "dataset_id" in error.context:
+            click.echo(f"Dataset ID: {error.context['dataset_id']}")
+        return 5
+    
+    elif isinstance(error, ApifyDataProcessingError):
+        click.echo(click.style(f"Data Processing Error: {str(error)}", fg="red"), err=True)
+        return 6
+    
+    elif isinstance(error, ApifyError):
+        click.echo(click.style(f"Apify Error: {str(error)}", fg="red"), err=True)
+        return 7
+    
+    else:
+        click.echo(click.style(f"Error: {str(error)}", fg="red"), err=True)
+        return 10
+
+
 @apify_group.command(name="test")
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def test_connection(token):
@@ -56,7 +123,7 @@ def test_connection(token):
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     try:
         # Create the Apify service directly
@@ -70,13 +137,10 @@ def test_connection(token):
 
         click.echo(click.style("✓ Connection to Apify API successful!", fg="green"))
         click.echo(f"Connected as: {user.get('username', 'Unknown user')}")
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error connecting to Apify API: {str(e)}", fg="red"), err=True
-        )
+        return handle_apify_error(e)
 
 
 @apify_group.command(name="run-actor")
@@ -102,7 +166,7 @@ def run_actor(actor_id, input, wait, token, output):
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     # Parse input
     run_input = {}
@@ -117,7 +181,7 @@ def run_actor(actor_id, input, wait, token, output):
                     click.style(f"Error loading input file: {str(e)}", fg="red"),
                     err=True,
                 )
-                return
+                return 1
         else:
             try:
                 run_input = json.loads(input)
@@ -125,7 +189,7 @@ def run_actor(actor_id, input, wait, token, output):
                 click.echo(
                     click.style("Error: Input must be valid JSON", fg="red"), err=True
                 )
-                return
+                return 1
 
     try:
         # Create Apify service directly
@@ -155,11 +219,11 @@ def run_actor(actor_id, input, wait, token, output):
             click.echo(f"Output saved to {output}")
         else:
             click.echo(json.dumps(result, indent=2))
+            
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(click.style(f"Error running actor: {str(e)}", fg="red"), err=True)
+        return handle_apify_error(e)
 
 
 @apify_group.command(name="get-dataset")
@@ -189,7 +253,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     try:
         # Create Apify service directly
@@ -202,6 +266,11 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
         items = result.get("items", [])
         count = len(items)
 
+        if "error" in result and not items:
+            click.echo(click.style(f"Warning: Error while processing data: {result['error']}", fg="yellow"), err=True)
+            click.echo(click.style("No items were retrieved.", fg="yellow"), err=True)
+            return 1
+            
         click.echo(click.style(f"✓ Retrieved {count} items!", fg="green"))
 
         # Process output
@@ -209,7 +278,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
             with open(output, "w") as f:
                 json.dump(result, f, indent=2)
             click.echo(f"Output saved to {output}")
-            return
+            return 0
 
         # Display results
         if format_type == "table" and items:
@@ -245,13 +314,11 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
                 click.echo(json.dumps(items, indent=2))
         else:
             click.echo(json.dumps(items, indent=2))
+            
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error retrieving dataset: {str(e)}", fg="red"), err=True
-        )
+        return handle_apify_error(e)
 
 
 @apify_group.command(name="get-actor")
@@ -268,7 +335,7 @@ def get_actor(actor_id, token):
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     try:
         # Create Apify service directly
@@ -289,13 +356,11 @@ def get_actor(actor_id, token):
         if input_schema:
             click.echo("\nInput Schema:")
             click.echo(json.dumps(input_schema, indent=2))
+            
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error retrieving actor details: {str(e)}", fg="red"), err=True
-        )
+        return handle_apify_error(e)
 
 
 @apify_group.command(name="scrape-content")
@@ -323,7 +388,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     try:
         # Create Apify service directly
@@ -349,7 +414,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
             )
-            return
+            return 1
 
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
@@ -388,11 +453,11 @@ def scrape_content(url, max_pages, max_depth, token, output):
                     click.echo(f"\n...and {remaining_items} more items.")
             else:
                 click.echo("No items were scraped.")
+                
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(click.style(f"Error scraping content: {str(e)}", fg="red"), err=True)
+        return handle_apify_error(e)
 
 
 @apify_group.command(name="web-scraper")
@@ -420,7 +485,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
     if token:
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
-        return
+        return 1
 
     try:
         # Create Apify service directly
@@ -474,7 +539,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
             )
-            return
+            return 1
 
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
@@ -511,8 +576,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
                     click.echo(f"\n...and {remaining_items} more items.")
             else:
                 click.echo("No items were scraped.")
+                
+        return 0
 
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(click.style(f"Error scraping website: {str(e)}", fg="red"), err=True)
+        return handle_apify_error(e)
