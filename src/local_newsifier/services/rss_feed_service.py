@@ -443,7 +443,14 @@ def register_article_service(article_svc):
         article_svc: The initialized article service
     """
     # Import at runtime to avoid circular imports
-    from local_newsifier.container import container
-    rss_feed_service = container.get("rss_feed_service")
-    if rss_feed_service:
-        rss_feed_service.article_service = article_svc
+    try:
+        # This allows for patching in tests
+        from local_newsifier.container import container
+    except ImportError:
+        # In tests, the container may be accessible through a mock
+        container = globals().get('container')
+    
+    if container:
+        rss_feed_service = container.get("rss_feed_service")
+        if rss_feed_service:
+            rss_feed_service.article_service = article_svc
