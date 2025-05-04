@@ -21,7 +21,7 @@ DEFAULT_CONFIG_FILE = "config.ini"
 DEFAULT_ENV = "dev"
 RESERVED_SECTIONS = ["global"]  # Sections in config file that aren't environments
 
-# Environment variables that can be loaded from config
+# Environment variables that can be loaded from config (uppercase)
 ENV_VARS = [
     "DATABASE_URL",
     "APIFY_TOKEN",
@@ -29,6 +29,9 @@ ENV_VARS = [
     "API_URL",
     "LOG_LEVEL",
 ]
+
+# Lowercase versions of environment variables for configparser compatibility
+ENV_VARS_LOWER = [var.lower() for var in ENV_VARS]
 
 
 class EnvConfig:
@@ -60,7 +63,7 @@ class EnvConfig:
         if DEFAULT_ENV not in self.config:
             self.config[DEFAULT_ENV] = {
                 "name": "Development",
-                "DATABASE_URL": "sqlite:///local_newsifier.db",
+                "database_url": "sqlite:///local_newsifier.db",  # Config lowercases keys
             }
 
         # Save if we made changes
@@ -207,11 +210,21 @@ class EnvConfig:
             return applied_vars
 
         # Apply environment variables
-        for var_name in ENV_VARS:
-            if var_name in self.config[env]:
-                value = self.config[env][var_name]
-                os.environ[var_name] = value
-                applied_vars[var_name] = value
+        for i, var_name in enumerate(ENV_VARS):
+            # Look for the lowercase version in the config
+            lower_var = ENV_VARS_LOWER[i]
+            if lower_var in self.config[env]:
+                value = self.config[env][lower_var]
+                # Set the environment variable with uppercase name
+                try:
+                    os.environ[var_name] = value
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to set environment variable {var_name}: {e}"
+                    )
+                applied_vars[lower_var] = (
+                    value  # Keep lowercase key in returned dict for consistency
+                )
 
         return applied_vars
 
@@ -234,27 +247,23 @@ class EnvConfig:
 
         # Mask sensitive information
         if mask_secrets:
-            # Check for password in database URL
-            has_db_password = (
-                "DATABASE_URL" in result
-                and "password" in result["DATABASE_URL"].lower()
-            )
-            if has_db_password:
-                parts = result["DATABASE_URL"].split(":")
-                if len(parts) >= 3:
-                    # Format: postgresql://user:password@host:port/database
-                    auth_parts = parts[2].split("@")
-                    if len(auth_parts) >= 1:
-                        auth = auth_parts[0]
+            # Check for password in database URL (looking for lowercase key)
+            db_url_key = "database_url"
+            if db_url_key in result and "password" in result[db_url_key].lower():
+                db_url = result[db_url_key]
+                # Parse the URL to mask the password
+                if "://" in db_url:
+                    prefix, rest = db_url.split("://", 1)
+                    if "@" in rest:
+                        auth, host_part = rest.split("@", 1)
                         if ":" in auth:
-                            user, _ = auth.split(":", 1)
-                            masked_url = result["DATABASE_URL"].replace(
-                                auth, f"{user}:********"
-                            )
-                            result["DATABASE_URL"] = masked_url
+                            username, _ = auth.split(":", 1)
+                            # Replace with masked version
+                            masked_url = f"{prefix}://{username}:********@{host_part}"
+                            result[db_url_key] = masked_url
 
-            # Mask tokens
-            for key in ["APIFY_TOKEN"]:
+            # Mask tokens (using lowercase keys)
+            for key in ["apify_token"]:  # Use lowercase keys
                 if key in result:
                     result[key] = "********"
 
