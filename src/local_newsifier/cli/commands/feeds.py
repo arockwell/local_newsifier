@@ -17,6 +17,7 @@ from tabulate import tabulate
 from typing import Any, Dict
 
 # Allow direct imports from container for tests
+# Import the container for backwards compatibility with tests
 from local_newsifier.container import container
 
 # Import functions from di.providers for dependency injection
@@ -28,29 +29,26 @@ from local_newsifier.di.providers import (
     get_session as get_db_session,
 )
 
-# For compatibility with tests that patch container.get
-# This is the only place we use container directly
 def get_injected_deps() -> Dict[str, Any]:
-    """Get dependencies either from providers or container.
+    """Get dependencies using injectable provider functions.
     
-    This function handles dependencies in both normal usage and test scenarios.
-    It supports mocking via container.get during tests while using injectable 
-    providers in normal operation.
+    This function gets dependencies from injectable provider functions,
+    with a special case for tests that use the patched container.
     
     Returns:
         Dict with service instances ready for use in CLI commands
     """
     deps = {}
     
-    # Always try to get services from container first (for tests)
-    # then fall back to provider functions (for normal operation)
-    try:
+    # Support for tests: if we detect we're in a test (container is patched),
+    # use the container directly
+    if hasattr(container, "patched_for_testing") and container.patched_for_testing:
         deps["rss_feed_service"] = container.get("rss_feed_service")
         deps["article_crud"] = container.get("article_crud") 
         deps["news_pipeline_flow"] = container.get("news_pipeline_flow")
         deps["entity_tracking_flow"] = container.get("entity_tracking_flow")
         
-        # Handle session carefully to avoid "not callable" errors
+        # Handle session carefully 
         session_factory = container.get("session_factory")
         if callable(session_factory):
             session = session_factory()
@@ -58,13 +56,8 @@ def get_injected_deps() -> Dict[str, Any]:
                 deps["session"] = next(session)
             else:
                 deps["session"] = session
-        else:
-            # Fall back to provider function
-            db_session = get_db_session()
-            if db_session is not None:
-                deps["session"] = next(db_session)
-    except Exception as e:
-        # Fall back to provider functions
+    else:
+        # Normal operation: use injectable provider functions
         deps["rss_feed_service"] = get_rss_feed_service() 
         deps["article_crud"] = get_article_crud()
         deps["news_pipeline_flow"] = get_news_pipeline_flow()
