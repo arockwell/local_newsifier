@@ -16,7 +16,7 @@ interact with the database or maintain state between operations.
 """
 
 import logging
-from typing import Annotated, Any, Generator, Optional
+from typing import Annotated, Generator, Optional, TYPE_CHECKING
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -24,6 +24,9 @@ from fastapi_injectable import injectable
 # Using injectable directly - no scope parameter in version 0.7.0
 # We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
+
+if TYPE_CHECKING:
+    from local_newsifier.services.entity_service import EntityService
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +337,7 @@ def get_trend_analyzer_tool(session: Annotated[Session, Depends(get_session)] = 
 
 @injectable(use_cache=False)
 def get_entity_tracker_tool(
-    entity_service: Annotated[Any, Depends(get_entity_service)] = None,
+    entity_service: Annotated["EntityService", Depends(get_entity_service)] = None,
     session: Annotated[Session, Depends(get_session)] = None
 ):
     """Provide the entity tracker tool.
@@ -392,7 +395,7 @@ def get_file_writer_tool(output_dir: str = "output"):
 
 @injectable(use_cache=False)
 def get_entity_tracker(
-    entity_service: Annotated[Any, Depends(get_entity_service)] = None,
+    entity_service: Annotated["EntityService", Depends(get_entity_service)] = None,
     session: Annotated[Session, Depends(get_session)] = None
 ):
     """Alias for get_entity_tracker_tool."""

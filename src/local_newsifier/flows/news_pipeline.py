@@ -49,7 +49,8 @@ class NewsPipelineFlow(Flow):
         self.scraper = web_scraper
         self.writer = file_writer
         
-        # Set up session factory
+        # If session_factory was provided, use it; otherwise create a simple
+        # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
         
         # Create or use provided pipeline service

@@ -64,7 +64,8 @@ class PublicOpinionFlow(Flow):
         self.sentiment_tracker = sentiment_tracker
         self.opinion_visualizer = opinion_visualizer
         
-        # Set up session factory
+        # If session_factory was provided, use it; otherwise create a simple
+        # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
 
     @with_session

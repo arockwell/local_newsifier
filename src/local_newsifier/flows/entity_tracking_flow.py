@@ -1,7 +1,7 @@
 """Flow for tracking entities across news articles."""
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Annotated
+from typing import Dict, List, Optional, Annotated
 
 from crewai import Flow
 from fastapi import Depends
@@ -16,8 +16,7 @@ from local_newsifier.models.state import (
 from local_newsifier.services.entity_service import EntityService
 from local_newsifier.tools.entity_tracker_service import EntityTracker
 from local_newsifier.di.providers import (
-    get_session, get_entity_service, get_entity_tracker_tool,
-    get_entity_extractor, get_context_analyzer, get_entity_resolver
+    get_session, get_entity_service, get_entity_tracker_tool
 )
 
 
@@ -44,7 +43,8 @@ class EntityTrackingFlow(Flow):
         self.entity_service = entity_service
         self._entity_tracker = entity_tracker
         
-        # If session_factory was provided, use it; otherwise create one
+        # If session_factory was provided, use it; otherwise create a simple
+        # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
