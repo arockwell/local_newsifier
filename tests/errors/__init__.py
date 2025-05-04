@@ -1,1 +1,1 @@
-"""Tests for error handling functionality."""
+"""Error handling tests."""

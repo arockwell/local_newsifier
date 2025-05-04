@@ -74,7 +74,12 @@ class ServiceError(Exception):
         self.timestamp = datetime.now()
         
         # Get error type properties
-        type_info = ERROR_TYPES.get(error_type, ERROR_TYPES["unknown"])
+        # Note: Service-specific error types should be registered with ERROR_TYPES
+        # before being used. The init.py module does this for RSS error types.
+        # Make a local copy of ERROR_TYPES to avoid potential circular dependency issues during import
+        local_error_types = ERROR_TYPES.copy()
+        type_info = local_error_types.get(error_type, local_error_types["unknown"])
+            
         self.transient = type_info.get("transient", False)
         self.exit_code = type_info.get("exit_code", 1)
         

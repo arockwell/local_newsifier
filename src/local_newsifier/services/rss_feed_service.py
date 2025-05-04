@@ -14,6 +14,8 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.errors.rss import handle_rss_service
+from local_newsifier.errors.error import ServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,7 @@ class RSSFeedService:
             feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
         return [self._format_feed_dict(feed) for feed in feeds]
 
+    @handle_rss_service
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """Create a new feed.
 
@@ -121,14 +124,23 @@ class RSSFeedService:
             Created feed data as dict
 
         Raises:
-            ValueError: If feed with the URL already exists
+            ServiceError: If feed with the URL already exists or other errors occur
         """
         session = self._get_session()
         
         # Check if feed already exists
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
-            raise ValueError(f"Feed with URL '{url}' already exists")
+            raise ServiceError(
+                service="rss",
+                error_type="validation",
+                message=f"Feed with URL '{url}' already exists",
+                context={"url": url}
+            )
+        
+        # Validate that the URL is a valid RSS feed
+        # This will raise a ServiceError if the feed is invalid
+        feed_data = parse_rss_feed(url)
         
         # Create new feed
         new_feed = self.rss_feed_crud.create(
@@ -207,6 +219,7 @@ class RSSFeedService:
         return self._format_feed_dict(removed)
 
 
+    @handle_rss_service
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
     ) -> Dict[str, Any]:
@@ -218,21 +231,29 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
+            
+        Raises:
+            ServiceError: For feed processing errors
         """
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
+            raise ServiceError(
+                service="rss",
+                error_type="not_found",
+                message=f"Feed with ID {feed_id} not found",
+                context={"feed_id": feed_id}
+            )
         
         # Create processing log
         log = self.feed_processing_log_crud.create_processing_started(
             session, feed_id=feed_id
         )
         
-        # Parse the RSS feed
         try:
+            # Parse the RSS feed - this will use the error handler from parse_rss_feed
             feed_data = parse_rss_feed(feed.url)
             
             articles_found = len(feed_data.get("entries", []))
@@ -252,8 +273,9 @@ class RSSFeedService:
                         try:
                             if self.container:
                                 article_service = self.container.get("article_service")
-                        except:
+                        except Exception as container_e:
                             # If container access fails, continue with None
+                            logger.warning(f"Error getting article_service from container: {str(container_e)}")
                             article_service = None
                         
                     if article_service is not None:
@@ -282,7 +304,13 @@ class RSSFeedService:
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
+                            raise ServiceError(
+                                service="rss", 
+                                error_type="validation",
+                                message=f"Article service initialization failed: {str(temp_e)}",
+                                original=temp_e,
+                                context={"entry_url": entry.get("link", "unknown")}
+                            )
                     
                     if article_id:
                         # Queue article processing
@@ -299,8 +327,9 @@ class RSSFeedService:
                             else:
                                 logger.warning(f"No task function available to process article {article_id}")
                         articles_added += 1
-                except Exception as e:
-                    logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
+                except Exception as entry_e:
+                    # Log but continue with other entries - don't let one bad entry fail the whole process
+                    logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(entry_e)}")
             
             # Update feed last fetched timestamp
             self.rss_feed_crud.update_last_fetched(session, id=feed_id)
@@ -333,12 +362,17 @@ class RSSFeedService:
                 error_message=str(e),
             )
             
-            return {
-                "status": "error",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "message": str(e),
-            }
+            # Re-raise the exception if it's already a ServiceError, otherwise wrap it
+            if isinstance(e, ServiceError):
+                raise
+            else:
+                raise ServiceError(
+                    service="rss",
+                    error_type="unknown",
+                    message=f"Error processing feed {feed_id}: {str(e)}",
+                    original=e,
+                    context={"feed_id": feed_id, "feed_name": feed.name, "feed_url": feed.url}
+                )
 
     def get_feed_processing_logs(
         self, feed_id: int, skip: int = 0, limit: int = 100
@@ -415,7 +449,14 @@ def register_article_service(article_svc):
         article_svc: The initialized article service
     """
     # Import at runtime to avoid circular imports
-    from local_newsifier.container import container
-    rss_feed_service = container.get("rss_feed_service")
-    if rss_feed_service:
-        rss_feed_service.article_service = article_svc
+    try:
+        # This allows for patching in tests
+        from local_newsifier.container import container
+    except ImportError:
+        # In tests, the container may be accessible through a mock
+        container = globals().get('container')
+    
+    if container:
+        rss_feed_service = container.get("rss_feed_service")
+        if rss_feed_service:
+            rss_feed_service.article_service = article_svc

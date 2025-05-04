@@ -1,106 +1,48 @@
 """
-Service-specific error handlers.
+Generic service error handlers.
 
-This module provides pre-configured handlers for specific services.
+This module provides reusable error handlers for various services.
 """
 
 import functools
-from typing import Callable, Dict, Optional, Any
+from typing import Callable, Dict, Optional
 
-from .error import handle_service_error, with_retry, with_timing
-
-# Service-specific error messages with troubleshooting hints
-ERROR_MESSAGES = {
-    "apify": {
-        "auth": "Apify API key is invalid or expired. Check your APIFY_TOKEN in settings.",
-        "rate_limit": "Apify rate limit exceeded. Try again later or upgrade your plan.",
-        "server": "Apify server is experiencing issues. Try again later."
-    },
-    "rss": {
-        "network": "Could not connect to RSS feed. Check the feed URL and your internet connection.",
-        "parse": "RSS feed format is invalid or unsupported.",
-        "not_found": "RSS feed not found. Check the feed URL."
-    },
-    "web_scraper": {
-        "network": "Could not connect to website. Check the URL and your internet connection.",
-        "auth": "Website requires authentication or blocks automated access.",
-        "parse": "Could not extract content from website. The site structure may have changed."
-    }
-}
+# First import core types to avoid circular dependencies
+from .error import ServiceError, handle_service_error, with_retry, with_timing
 
 
 def create_service_handler(
     service: str, 
-    retry_attempts: Optional[int] = 3,
-    include_timing: bool = True
+    retry_attempts: Optional[int] = None
 ) -> Callable:
-    """Create a combined handler for a service.
-    
-    Args:
-        service: Service identifier ("apify", "rss", etc.)
-        retry_attempts: Number of retry attempts (None to disable)
-        include_timing: Whether to include timing
-        
-    Returns:
-        A decorator that combines error handling, retry, and timing
-    """
-    def decorator(func: Callable) -> Callable:
-        """Combined decorator for service handling."""
-        # Start with the original function
-        result = func
-        
-        # Add error handling (innermost decorator)
-        result = handle_service_error(service)(result)
-        
-        # Add retry if requested
-        if retry_attempts:
-            result = with_retry(retry_attempts)(result)
-        
-        # Add timing if requested (outermost decorator)
-        if include_timing:
-            result = with_timing(service)(result)
-        
-        # Use proper wrapper to maintain function metadata
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            return result(*args, **kwargs)
-        
-        return wrapper
-    
-    return decorator
-
-
-# Pre-configured handlers for common services
-handle_apify = create_service_handler("apify")
-handle_rss = create_service_handler("rss")
-handle_web_scraper = create_service_handler("web_scraper")
-
-
-def get_error_message(service: str, error_type: str) -> str:
-    """Get service-specific error message with troubleshooting hints.
+    """Create a service-specific error handler with optional retry.
     
     Args:
         service: Service identifier
-        error_type: Error type
+        retry_attempts: Number of retry attempts (optional)
         
     Returns:
-        Error message with troubleshooting hints
+        Decorator function for error handling
     """
-    # Try service-specific message
-    if service in ERROR_MESSAGES and error_type in ERROR_MESSAGES[service]:
-        return ERROR_MESSAGES[service][error_type]
+    # Create base handler
+    handler = handle_service_error(service)
     
-    # Generic messages by error type
-    generic_messages = {
-        "network": "Network connectivity issue. Check your internet connection.",
-        "timeout": "Request timed out. The service may be slow or unresponsive.",
-        "rate_limit": "Rate limit exceeded. Try again later.",
-        "auth": "Authentication failed. Check your credentials.",
-        "parse": "Failed to parse response. The format may have changed.",
-        "validation": "Input validation failed. Check your request parameters.",
-        "not_found": "Resource not found. Check the resource identifier.",
-        "server": "Server error. Try again later.",
-        "unknown": "Unknown error occurred."
-    }
+    # Add retry if specified
+    if retry_attempts:
+        retry = with_retry(max_attempts=retry_attempts)
+        
+        def combined_decorator(func: Callable) -> Callable:
+            # Apply handlers in reverse order (retry is outermost)
+            return retry(handler(func))
+            
+        return combined_decorator
     
-    return generic_messages.get(error_type, "An error occurred.")
+    # Otherwise just return the handler
+    return handler
+
+
+# Create service-specific handlers
+handle_apify = create_service_handler("apify", retry_attempts=2)
+handle_web_scraper = create_service_handler("web_scraper", retry_attempts=3)
+
+# The handle_rss handler is defined in rss.py to avoid circular dependencies
