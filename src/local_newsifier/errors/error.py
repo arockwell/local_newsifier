@@ -36,6 +36,18 @@ ERROR_TYPES = {
     # Server-side errors
     "server": {"transient": True, "retry": True, "exit_code": 9},
     
+    # Database connection issues
+    "connection": {"transient": True, "retry": True, "exit_code": 10},
+    
+    # Database integrity errors (constraints, etc.)
+    "integrity": {"transient": False, "retry": False, "exit_code": 11},
+    
+    # Multiple results where one expected
+    "multiple": {"transient": False, "retry": False, "exit_code": 12},
+    
+    # Transaction errors
+    "transaction": {"transient": True, "retry": True, "exit_code": 13},
+    
     # Unknown/unexpected errors
     "unknown": {"transient": False, "retry": False, "exit_code": 1}
 }
@@ -221,6 +233,60 @@ def with_timing(service: str) -> Callable:
     return decorator
 
 
+def _classify_database_error(error: Exception) -> tuple:
+    """Classify database-specific exceptions into appropriate error types.
+    
+    Args:
+        error: The database-related exception to classify
+        
+    Returns:
+        Tuple of (error_type, error_message)
+    """
+    error_name = type(error).__name__
+    error_str = str(error).lower()
+    
+    # Use dictionary mapping for common error types (more efficient than multiple if-statements)
+    error_mappings = {
+        "NoResultFound": ("not_found", f"Record not found in the database"),
+        "MultipleResultsFound": ("multiple", f"Multiple records found where only one was expected"),
+        "DisconnectionError": ("connection", f"Database connection error: {error}"),
+        "DBAPIError": ("connection", f"Database operational error: {error}"),
+        "TimeoutError": ("timeout", f"Database query timeout: {error}"),
+        "DataError": ("validation", f"Database data validation error: {error}"),
+        "StatementError": ("validation", f"Database data validation error: {error}"),
+        "TransactionError": ("transaction", f"Database transaction error: {error}"),
+        "InvalidRequestError": ("transaction", f"Database transaction error: {error}")
+    }
+    
+    # Check for direct class name matches
+    for cls_name, (error_type, message) in error_mappings.items():
+        if cls_name in error_name:
+            return error_type, message
+    
+    # Special case handling for common errors needing message inspection
+    if "OperationalError" in error_name:
+        return "timeout" if any(term in error_str for term in ["timeout", "timed out"]) else "connection", \
+               f"Database {'timeout' if any(term in error_str for term in ['timeout', 'timed out']) else 'connection'} error: {error}"
+               
+    if "IntegrityError" in error_name:
+        if "unique constraint" in error_str:
+            return "integrity", f"Unique constraint violation: {error}"
+        if "foreign key constraint" in error_str:
+            return "integrity", f"Foreign key constraint violation: {error}"
+        return "integrity", f"Database integrity error: {error}"
+    
+    # Generic SQL error detection
+    if any(term in error_str for term in ["sql:", "[sql:", "sqlalchemy"]):
+        for pattern, err_type in [("timeout", "timeout"), ("timed out", "timeout"), 
+                               ("connection", "connection"), ("connect", "connection"),
+                               ("constraint", "integrity"), ("duplicate", "integrity")]:
+            if pattern in error_str:
+                return err_type, f"Database {err_type} error: {error}"
+        return "connection", f"Database error: {error}"
+    
+    return "unknown", f"Unknown database error: {error}"
+
+
 def _classify_error(error: Exception, service: str) -> tuple:
     """Classify an exception into an appropriate error type.
     
@@ -231,7 +297,17 @@ def _classify_error(error: Exception, service: str) -> tuple:
     Returns:
         Tuple of (error_type, error_message)
     """
-    # Check for HTTP status code
+    # Import here to avoid circular imports
+    from .handlers import get_error_message
+    
+    # Handle database-specific errors when service is "database"
+    if service == "database":
+        error_type, technical_message = _classify_database_error(error)
+        # Get user-friendly message from handlers
+        user_message = get_error_message(service, error_type)
+        return error_type, user_message
+    
+    # Standard HTTP error handling
     if hasattr(error, 'response') and hasattr(error.response, 'status_code'):
         status = error.response.status_code
         if status == 401 or status == 403:
