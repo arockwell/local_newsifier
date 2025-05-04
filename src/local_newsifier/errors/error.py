@@ -102,6 +102,36 @@ class ServiceError(Exception):
             "context": self.context,
             "original": str(self.original) if self.original else None
         }
+    
+    def log_error(self, logger=None):
+        """Log the error with appropriate severity based on error type.
+        
+        Args:
+            logger: Optional logger to use. If None, uses the module logger.
+        """
+        log = logger or logging.getLogger(__name__)
+        
+        # Choose log level based on error properties
+        if self.transient:
+            level = logging.WARNING
+        else:
+            level = logging.ERROR
+            
+        # Create structured log with context
+        log_data = {
+            "service": self.service,
+            "error_type": self.error_type,
+            "full_type": self.full_type,
+            "transient": self.transient,
+            **self.context
+        }
+        
+        # Log with full context
+        log.log(level, f"{self.full_type}: {str(self)}", extra=log_data)
+        
+        # Log original exception at debug level if available
+        if self.original:
+            log.debug(f"Original exception: {type(self.original).__name__}: {self.original}")
 
 
 def handle_service_error(service: str) -> Callable:
@@ -142,13 +172,19 @@ def handle_service_error(service: str) -> Callable:
                     context['url'] = getattr(e.response.request, 'url', 'unknown')
                 
                 # Convert to ServiceError
-                raise ServiceError(
+                service_error = ServiceError(
                     service=service,
                     error_type=error_type,
                     message=error_message or str(e),
                     original=e,
                     context=context
                 )
+                
+                # Log the error
+                service_error.log_error(logger)
+                
+                # Re-raise the service error
+                raise service_error
         
         return wrapper
     
@@ -175,13 +211,31 @@ def with_retry(max_attempts: int = 3) -> Callable:
                 except ServiceError as e:
                     # Only retry transient errors, and only if not the last attempt
                     if e.transient and attempt < max_attempts - 1:
-                        logger.info(
+                        # Log this at warning level
+                        retry_context = {
+                            "attempt": attempt + 1,
+                            "max_attempts": max_attempts,
+                            "function": func.__name__,
+                            **e.context
+                        }
+                        retry_message = (
                             f"Retrying {func.__name__} due to transient error: {e.error_type} "
                             f"(attempt {attempt + 1}/{max_attempts})"
                         )
+                        logger.warning(retry_message, extra=retry_context)
+                        
                         # Simple backoff: 1s, 2s, 4s, etc.
                         time.sleep(2 ** attempt)
                         continue
+                    
+                    # If we're not retrying, log it once more with final attempt info
+                    if attempt > 0:
+                        logger.error(
+                            f"Failed after {attempt + 1} attempts: {e.full_type}",
+                            extra={"final_attempt": True, **e.context}
+                        )
+                    
+                    # Re-raise the error
                     raise
         
         return wrapper

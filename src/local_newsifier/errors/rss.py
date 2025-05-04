@@ -60,46 +60,62 @@ def _classify_rss_error(error: Exception) -> tuple:
     error_str = str(error).lower()
     error_type = type(error).__name__
     
-    # XML parsing errors - check by type first, then by string content
+    # Import needed modules in function scope to prevent circular imports
     from xml.etree.ElementTree import ParseError
-    if isinstance(error, ParseError):
-        return "xml_parse", f"XML parsing error: {error}"
-    elif "xml" in error_str and ("parse" in error_str or "syntax" in error_str):
-        return "xml_parse", f"XML parsing error: {error}"
-    
-    # Feed format errors
-    if "no entries found" in error_str or "no items found" in error_str:
-        return "feed_format", f"Invalid feed format (no entries): {error}"
-    
-    if "not a valid feed" in error_str:
-        return "feed_format", f"Invalid feed format: {error}"
-    
-    # URL errors
-    if "invalid url" in error_str or "malformed url" in error_str:
-        return "url", f"Invalid feed URL: {error}"
-    
-    # Encoding errors
-    if "encoding" in error_str or "decode" in error_str:
-        return "encoding", f"Feed encoding error: {error}"
-    
-    # Network errors - requests lib raises ConnectionError
     import requests
-    if isinstance(error, requests.ConnectionError):
-        return "network", f"Could not connect to feed: {error}"
-    elif "connectionerror" in error_type.lower() or "connection" in error_str:
-        return "network", f"Could not connect to feed: {error}"
     
-    # Not found errors - requests raises HTTPError for 404
-    if isinstance(error, requests.HTTPError) and "404" in str(error):
-        return "not_found", f"Feed not found: {error}"
-    elif "404" in error_str:
-        return "not_found", f"Feed not found: {error}"
+    # Define error classifiers as (predicate, error_type, message_prefix)
+    # The first matching classifier will determine the error type
+    # Check type-based classifiers first (more reliable), then string-based ones
+    ERROR_CLASSIFIERS = [
+        # XML parsing errors
+        (lambda e: isinstance(e, ParseError), 
+         "xml_parse", "XML parsing error"),
+        
+        # Network errors
+        (lambda e: isinstance(e, requests.ConnectionError), 
+         "network", "Could not connect to feed"),
+        
+        # Not found errors
+        (lambda e: isinstance(e, requests.HTTPError) and "404" in str(e), 
+         "not_found", "Feed not found"),
+        
+        # Timeout errors
+        (lambda e: isinstance(e, requests.Timeout), 
+         "timeout", "Connection timed out"),
+        
+        # Feed format errors (string-based checks)
+        (lambda e: "no entries found" in error_str or "no items found" in error_str, 
+         "feed_format", "Invalid feed format (no entries)"),
+        
+        (lambda e: "not a valid feed" in error_str, 
+         "feed_format", "Invalid feed format"),
+        
+        # URL errors
+        (lambda e: "invalid url" in error_str or "malformed url" in error_str, 
+         "url", "Invalid feed URL"),
+        
+        # Encoding errors
+        (lambda e: "encoding" in error_str or "decode" in error_str, 
+         "encoding", "Feed encoding error"),
+        
+        # Other network errors (string-based)
+        (lambda e: "connectionerror" in error_type.lower() or "connection" in error_str, 
+         "network", "Could not connect to feed"),
+        
+        # Other not found errors
+        (lambda e: "404" in error_str, 
+         "not_found", "Feed not found"),
+        
+        # Other timeout errors
+        (lambda e: "timeout" in error_str or "timed out" in error_str, 
+         "timeout", "Connection timed out"),
+    ]
     
-    # Timeout errors
-    if isinstance(error, requests.Timeout):
-        return "timeout", f"Connection timed out: {error}"
-    elif "timeout" in error_str or "timed out" in error_str:
-        return "timeout", f"Connection timed out: {error}"
+    # Try each classifier in order
+    for predicate, err_type, message_prefix in ERROR_CLASSIFIERS:
+        if predicate(error):
+            return err_type, f"{message_prefix}: {error}"
     
     # Fall back to standard classification
     return None, None

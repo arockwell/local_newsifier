@@ -6,7 +6,7 @@ This module provides decorators and utilities for handling errors in CLI command
 
 import functools
 import sys
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional, Tuple, Any, Union
 
 import click
 
@@ -35,24 +35,8 @@ def handle_cli_errors(service: str) -> Callable:
                 ctx = click.get_current_context()
                 verbose = ctx.obj.get("verbose", False) if ctx.obj else False
                 
-                # Show error message
-                click.secho(f"Error: {e}", fg="red", err=True)
-                
-                # Show troubleshooting hint if available
-                from .rss import get_rss_error_message
-                if service == "rss" and e.error_type in get_rss_error_message.__globals__.get("RSS_ERROR_MESSAGES", {}):
-                    hint = get_rss_error_message(e.error_type)
-                    if hint:
-                        click.secho(f"Hint: {hint}", fg="yellow", err=True)
-                
-                # Show context in verbose mode
-                if verbose:
-                    click.echo("Context:", err=True)
-                    for key, value in e.context.items():
-                        click.echo(f"  {key}: {value}", err=True)
-                    
-                    if e.original:
-                        click.echo(f"Original error: {type(e.original).__name__}: {e.original}", err=True)
+                # Use the standardized formatting function
+                print_cli_error(e, verbose)
                 
                 # Exit with appropriate code
                 sys.exit(e.exit_code)
@@ -64,6 +48,64 @@ def handle_cli_errors(service: str) -> Callable:
         return wrapper
     
     return decorator
+
+
+def format_cli_error(
+    error: ServiceError, 
+    verbose: bool = False
+) -> List[Tuple[str, Optional[str], Optional[bool]]]:
+    """Format a ServiceError for CLI display.
+    
+    Returns a list of (message, color, bold) tuples ready for click.secho().
+    
+    Args:
+        error: The ServiceError to format
+        verbose: Whether to include verbose details
+        
+    Returns:
+        List of formatted lines as (text, color, bold) tuples
+    """
+    lines = []
+    
+    # Main error line - always red and bold
+    lines.append((f"Error: {error}", "red", True))
+    
+    # Get troubleshooting hint if available
+    hint = None
+    if hasattr(error, "service") and error.service == "rss":
+        # Import here to avoid circular import
+        from .rss import get_rss_error_message
+        if error.error_type in get_rss_error_message.__globals__.get("RSS_ERROR_MESSAGES", {}):
+            hint = get_rss_error_message(error.error_type)
+    
+    # Add hint if available
+    if hint:
+        lines.append((f"Hint: {hint}", "yellow", False))
+    
+    # Add context info if verbose
+    if verbose and hasattr(error, "context") and error.context:
+        lines.append(("Context:", None, True))
+        for key, value in error.context.items():
+            lines.append((f"  {key}: {value}", None, False))
+        
+        if hasattr(error, "original") and error.original:
+            orig_type = type(error.original).__name__
+            lines.append((f"Original error: {orig_type}: {error.original}", None, False))
+    
+    return lines
+
+
+# Helper to print formatted error
+def print_cli_error(error: ServiceError, verbose: bool = False):
+    """Print a formatted ServiceError to the console.
+    
+    Args:
+        error: The ServiceError to print
+        verbose: Whether to include verbose details
+    """
+    formatted_lines = format_cli_error(error, verbose)
+    for text, color, bold in formatted_lines:
+        click.secho(text, fg=color, bold=bold, err=True)
 
 
 # Create service-specific CLI handlers
