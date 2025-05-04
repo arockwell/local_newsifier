@@ -1,6 +1,6 @@
 # Database Session Management Guide
 
-This document outlines the standardized approach to database session management in the Local Newsifier project.
+This document outlines the standardized approach to database session management in the Local Newsifier project. This is the reference implementation following the changes made in Issue #231.
 
 ## Overview
 
@@ -10,6 +10,8 @@ The Local Newsifier project has standardized on a container-based session manage
 - **Testability**: Easier to mock for testing
 - **Consistency**: Single pattern across the codebase
 - **Flexibility**: Can be easily extended or modified in the future
+- **Performance**: Optimized session management for tests and production
+- **Dependency Resolution**: Proper integration with the DI container
 
 ## Standard Approach
 
@@ -112,9 +114,21 @@ def my_function(session=None):
 
 ## Legacy Support
 
-The legacy session management methods (`SessionManager`, `get_session()`, and `with_session`) are still available but are marked as deprecated. They will emit deprecation warnings when used.
+The legacy session management methods (`SessionManager`, `get_session()`, and `with_session`) are marked as deprecated. They emit deprecation warnings when used and should be replaced with the standardized utilities.
 
-These legacy methods now use the standardized approach internally, so they will continue to work correctly during the transition period.
+These legacy methods use the standardized approach internally, so they will continue to work correctly during the transition period. However, all code should be updated to use the new standardized utilities as soon as possible.
+
+## Implementation Notes
+
+The new standardized session management is implemented using a wrapper around the container-based session factory, which provides the following benefits:
+
+1. **Circular Dependency Handling**: Uses deferred imports to avoid circular dependencies
+2. **Container Integration**: Properly retrieves the session factory from the container
+3. **Performance Optimization**: Includes special handling for test environments
+4. **Error Handling**: Robust error handling and logging for failed operations
+5. **Decorator Support**: Simplified decorator interface for database operations
+
+The wrapper functions are implemented in `local_newsifier.database.session_utils`, and the container is configured to use these utilities in `local_newsifier.container`.
 
 ## Testing with the Standardized Approach
 
