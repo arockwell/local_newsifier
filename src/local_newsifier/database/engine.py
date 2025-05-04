@@ -1,6 +1,7 @@
 """Database engine and session management using SQLModel."""
 
 import logging
+import os
 import traceback
 import time
 from contextlib import contextmanager
@@ -40,6 +41,39 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     Returns:
         SQLModel engine or None if connection fails after retries
     """
+    # Check if we're running in test mode
+    if test_mode or os.environ.get("LOCAL_NEWSIFIER_TEST_MODE") == "true":
+        # If tests have initialized the test database, try to get the test engine
+        if os.environ.get("TEST_DB_INITIALIZED") == "true":
+            # Use the test engine from conftest.py
+            try:
+                import sys
+                import importlib.util
+                
+                # Try to get the test engine from conftest module
+                conftest_spec = importlib.util.find_spec('conftest')
+                if conftest_spec is not None:
+                    conftest_module = sys.modules.get('conftest')
+                    if conftest_module and hasattr(conftest_module, '_test_engine'):
+                        logger.info("Using SQLite in-memory test database engine")
+                        return conftest_module._test_engine
+            except Exception as e:
+                logger.warning(f"Failed to import test engine, creating new one: {e}")
+        
+        # Create an in-memory SQLite database for tests if we couldn't get the shared one
+        logger.info("Creating new SQLite in-memory test database engine")
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=False,
+            pool_recycle=-1,
+        )
+        
+        # Create all tables
+        from sqlmodel import SQLModel
+        SQLModel.metadata.create_all(engine)
+        return engine
+    
     # Use faster retry for tests
     if test_mode:
         retry_delay = 0.01  # Use milliseconds instead of seconds for tests

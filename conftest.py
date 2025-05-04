@@ -14,6 +14,9 @@ import uuid
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, text, select
 
+# Set environment variable to indicate we're running in test mode
+os.environ["LOCAL_NEWSIFIER_TEST_MODE"] = "true"
+
 # First, reset and register all models in a controlled order
 # This must run before any database operations
 SQLModel.metadata.clear()
@@ -51,14 +54,18 @@ from local_newsifier.models.apify import (
     ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
 )
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def test_engine():
     """Create a test database engine using SQLite in-memory.
     
     This fixture:
     1. Creates an in-memory SQLite database
     2. Creates all tables
-    3. Yields the engine for tests
+    3. Registers the engine for use by all tests
+    4. Yields the engine for tests that need direct access
+    
+    The autouse=True parameter ensures this fixture runs for all tests,
+    even when not explicitly requested, ensuring the test database is always set up.
     """
     # Create SQLite in-memory engine for tests
     engine = create_engine(
@@ -97,6 +104,13 @@ def test_engine():
         # Clean up the test data
         session.delete(result)
         session.commit()
+    
+    # Store the engine in environment for access by test-aware code
+    os.environ["TEST_DB_INITIALIZED"] = "true"
+    
+    # Add the engine to a module-level variable for access by patches
+    import sys
+    sys.modules[__name__]._test_engine = engine
     
     # Yield the engine for tests to use
     yield engine
