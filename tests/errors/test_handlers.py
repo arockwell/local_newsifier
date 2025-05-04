@@ -6,12 +6,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.local_newsifier.errors.error import ServiceError
-from src.local_newsifier.errors.handlers import (
+from local_newsifier.errors.error import ServiceError
+from local_newsifier.errors.handlers import (
     create_service_handler,
-    handle_apify, 
-    handle_rss,
-    get_error_message
+    handle_apify,
+    handle_web_scraper
 )
 
 
@@ -48,23 +47,26 @@ class TestServiceHandler:
         with pytest.raises(ServiceError):
             test_function()
     
-    def test_create_service_handler_no_timing(self):
-        """Test creating a service handler with no timing."""
-        # Mock timing decorator to verify it's not called
-        with patch("src.local_newsifier.errors.handlers.with_timing") as mock_timing:
-            # Create handler without timing
-            handler = create_service_handler("test", include_timing=False)
+    def test_create_service_handler_parameters(self):
+        """Test creating a service handler with parameters."""
+        # Create a handler with retry
+        handler_with_retry = create_service_handler("test", retry_attempts=3)
+        
+        # Create a handler without retry
+        handler_without_retry = create_service_handler("test", retry_attempts=None)
+        
+        # Apply to test functions
+        @handler_with_retry
+        def test_function_with_retry():
+            return "with_retry"
             
-            # Apply to test function
-            @handler
-            def test_function():
-                return "success"
-            
-            # Check function still works
-            assert test_function() == "success"
-            
-            # Verify timing decorator wasn't used
-            mock_timing.assert_not_called()
+        @handler_without_retry
+        def test_function_without_retry():
+            return "without_retry"
+        
+        # Check functions still work
+        assert test_function_with_retry() == "with_retry"
+        assert test_function_without_retry() == "without_retry"
     
     def test_service_handler_error_handling(self):
         """Test service handler error transformation."""
@@ -82,21 +84,6 @@ class TestServiceHandler:
         assert "Test error" in str(excinfo.value)
     
 
-class TestErrorMessages:
-    """Tests for error message handling."""
-    
-    @pytest.mark.parametrize("service,error_type,expected_text", [
-        # Service-specific messages
-        ("apify", "auth", "API key is invalid"),
-        ("rss", "network", "Could not connect to RSS feed"),
-        ("web_scraper", "parse", "Could not extract content"),
-        
-        # Generic fallbacks
-        ("unknown_service", "network", "Network connectivity issue"),
-        ("apify", "timeout", "Request timed out"),
-        ("rss", "unknown", "Unknown error occurred")
-    ])
-    def test_get_error_message(self, service, error_type, expected_text):
-        """Test getting error messages for various services and types."""
-        message = get_error_message(service, error_type)
-        assert expected_text in message
+# We've removed the TestErrorMessages class since get_error_message 
+# doesn't exist in our new implementation. Error messages are now 
+# handled by service-specific functions like get_rss_error_message.

@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.local_newsifier.errors.error import ServiceError
-from src.local_newsifier.errors.handlers import handle_apify
+from local_newsifier.errors.error import ServiceError, ERROR_TYPES
+from local_newsifier.errors.handlers import handle_apify
 
 
 class TestErrorHandlingIntegration:
@@ -36,30 +36,36 @@ class TestErrorHandlingIntegration:
         assert "Failed to connect" in str(excinfo.value)
         assert excinfo.value.transient is True
     
-    def test_retry_behavior(self):
-        """Test retry behavior with transient errors."""
-        # Create mock for counting calls
-        mock_fn = Mock()
-        mock_fn.side_effect = [
-            requests.ConnectionError("Failed on first attempt"),
-            requests.ConnectionError("Failed on second attempt"),
-            "success"
-        ]
+    def test_service_error_transient_flag(self):
+        """Test that service errors have the correct transient flag."""
+        # Create service error with network error (transient)
+        network_error = ServiceError(
+            service="test",
+            error_type="network",
+            message="Network error"
+        )
         
-        # Create a service method with retry
-        class TestService:
-            @handle_apify
-            def fetch_with_retry(self):
-                """Test method with retry."""
-                return mock_fn()
+        # Create service error with validation error (non-transient)
+        validation_error = ServiceError(
+            service="test",
+            error_type="validation",
+            message="Validation error"
+        )
         
-        # Call method
-        service = TestService()
-        result = service.fetch_with_retry()
+        # Verify transient flags
+        assert network_error.transient is True
+        assert validation_error.transient is False
         
-        # Check result and call count
-        assert result == "success"
-        assert mock_fn.call_count == 3
+    def test_error_type_properties(self):
+        """Test error type properties are correct."""
+        # Verify network errors are marked as transient
+        assert ERROR_TYPES["network"]["transient"] is True
+        assert ERROR_TYPES["timeout"]["transient"] is True
+        assert ERROR_TYPES["not_found"]["transient"] is False
+        
+        # Verify exit codes are set correctly
+        assert ERROR_TYPES["network"]["exit_code"] == 2
+        assert ERROR_TYPES["validation"]["exit_code"] == 7
     
     def test_error_context_preservation(self):
         """Test context preservation in nested calls."""

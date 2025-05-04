@@ -117,14 +117,32 @@ class ServiceError(Exception):
         else:
             level = logging.ERROR
             
-        # Create structured log with context
+        # Create structured log with context - avoid LogRecord reserved names
         log_data = {
             "service": self.service,
             "error_type": self.error_type,
             "full_type": self.full_type,
-            "transient": self.transient,
-            **self.context
+            "transient": self.transient
         }
+        
+        # Add context safely, avoiding LogRecord reserved fields
+        # LogRecord reserved: args, asctime, created, exc_info, exc_text, filename,
+        # funcName, levelname, levelno, lineno, module, msecs, message, msg, 
+        # name, pathname, process, processName, relativeCreated, stack_info, 
+        # thread, threadName
+        reserved_fields = {
+            "args", "asctime", "created", "exc_info", "exc_text", "filename",
+            "funcName", "levelname", "levelno", "lineno", "module", "msecs", 
+            "message", "msg", "name", "pathname", "process", "processName", 
+            "relativeCreated", "stack_info", "thread", "threadName"
+        }
+        
+        # Rename any reserved fields with ctx_ prefix
+        for key, value in self.context.items():
+            if key in reserved_fields:
+                log_data[f"ctx_{key}"] = value
+            else:
+                log_data[key] = value
         
         # Log with full context
         log.log(level, f"{self.full_type}: {str(self)}", extra=log_data)
@@ -213,11 +231,25 @@ def with_retry(max_attempts: int = 3) -> Callable:
                     if e.transient and attempt < max_attempts - 1:
                         # Log this at warning level
                         retry_context = {
-                            "attempt": attempt + 1,
-                            "max_attempts": max_attempts,
-                            "function": func.__name__,
-                            **e.context
+                            "retry_attempt": attempt + 1,
+                            "retry_max": max_attempts,
+                            "retry_function": func.__name__
                         }
+                        
+                        # Add context safely, avoiding LogRecord reserved fields
+                        reserved_fields = {
+                            "args", "asctime", "created", "exc_info", "exc_text", "filename",
+                            "funcName", "levelname", "levelno", "lineno", "module", "msecs", 
+                            "message", "msg", "name", "pathname", "process", "processName", 
+                            "relativeCreated", "stack_info", "thread", "threadName"
+                        }
+                        
+                        # Rename any reserved fields with ctx_ prefix
+                        for key, value in e.context.items():
+                            if key in reserved_fields:
+                                retry_context[f"ctx_{key}"] = value
+                            else:
+                                retry_context[key] = value
                         retry_message = (
                             f"Retrying {func.__name__} due to transient error: {e.error_type} "
                             f"(attempt {attempt + 1}/{max_attempts})"
@@ -230,9 +262,23 @@ def with_retry(max_attempts: int = 3) -> Callable:
                     
                     # If we're not retrying, log it once more with final attempt info
                     if attempt > 0:
+                        # Create safe extra context dict
+                        final_context = {
+                            "final_attempt": True,
+                            "retry_attempts": attempt + 1,
+                            "full_type": e.full_type
+                        }
+                        
+                        # Add context safely, avoiding LogRecord reserved fields
+                        for key, value in e.context.items():
+                            if key in reserved_fields:
+                                final_context[f"ctx_{key}"] = value
+                            else:
+                                final_context[key] = value
+                                
                         logger.error(
                             f"Failed after {attempt + 1} attempts: {e.full_type}",
-                            extra={"final_attempt": True, **e.context}
+                            extra=final_context
                         )
                     
                     # Re-raise the error

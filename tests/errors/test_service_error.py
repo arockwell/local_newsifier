@@ -103,6 +103,8 @@ class TestServiceError:
         assert extra["service"] == "test"
         assert extra["error_type"] == "network"
         assert extra["transient"] is True
+        # Test key should be present
+        assert "test" in extra or "ctx_test" in extra
         
         # Test original exception logging at debug level
         mock_debug.assert_called_once()
