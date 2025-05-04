@@ -23,6 +23,13 @@ class TestArticleRouter:
         }
 
         response = client.post("/articles/", json=article_data)
+        # Print debug info if there's an error
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"ERROR STATUS: {response.status_code}")
+            print(f"RESPONSE CONTENT: {response.content}")
+            print(f"RESPONSE TEXT: {response.text}")
+            print(f"RESPONSE JSON: {response.json()}")
+
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["title"] == article_data["title"]
