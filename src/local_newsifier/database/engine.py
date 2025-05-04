@@ -120,15 +120,19 @@ def get_session() -> Generator[Session, None, None]:
         stacklevel=2
     )
     
-    # Use the new standardized approach internally
-    session_ctx = get_db_session()
-    try:
-        with session_ctx as session:
-            yield session
-    except Exception as e:
-        logger.error(f"Error during session: {str(e)}")
-        logger.error(traceback.format_exc())
+    # Avoid circular imports by not using get_db_session() here
+    engine = get_engine()
+    if engine is None:
+        logger.warning("Cannot create session - database engine is None")
         yield None
+    else:
+        try:
+            with Session(engine) as session:
+                yield session
+        except Exception as e:
+            logger.error(f"Error during session: {str(e)}")
+            logger.error(traceback.format_exc())
+            yield None
 
 
 @contextmanager
@@ -214,9 +218,13 @@ class SessionManager:
             Session: Database session or None if engine creation fails
         """
         try:
-            # Use the new standardized approach internally
-            session_ctx = get_db_session()
-            self.session = session_ctx.__enter__()
+            # Avoid circular imports by using the engine directly
+            self.engine = get_engine(test_mode=self.test_mode)
+            if self.engine is None:
+                logger.warning("SessionManager: Cannot create session - database engine is None")
+                return None
+
+            self.session = Session(self.engine)
             return self.session
         except Exception as e:
             logger.error(f"SessionManager: Error creating session: {str(e)}")

@@ -72,6 +72,7 @@ def with_db_session(func: F = None, *, container=None) -> F:
         def wrapper(*args, session: Optional[Session] = None, **kwargs):
             # If a session is already provided, use it directly
             if session is not None:
+                # Let any exceptions propagate for proper testing
                 return func(*args, session=session, **kwargs)
             
             # Otherwise, get a new session from the container
