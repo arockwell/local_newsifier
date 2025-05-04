@@ -14,8 +14,7 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
-from local_newsifier.errors.rss import handle_rss_service
-from local_newsifier.errors.error import ServiceError
+from local_newsifier.errors import handle_rss_service, ServiceError
 
 logger = logging.getLogger(__name__)
 

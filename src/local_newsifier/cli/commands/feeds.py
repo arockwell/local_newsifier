@@ -15,9 +15,8 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
-# Import error handling first to avoid circular imports
-from local_newsifier.errors.error import ServiceError
-from local_newsifier.errors.rss import handle_rss_cli
+# Import error handling
+from local_newsifier.errors import ServiceError, handle_rss_cli
 
 # Then import container
 from local_newsifier.container import container

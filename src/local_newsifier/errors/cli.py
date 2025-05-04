@@ -71,16 +71,24 @@ def format_cli_error(
     lines.append((f"Error: {error}", "red", True))
     
     # Get troubleshooting hint if available
-    hint = None
-    if hasattr(error, "service") and error.service == "rss":
-        # Import here to avoid circular import
-        try:
-            from .rss import get_rss_error_message, RSS_ERROR_MESSAGES
-            if error.error_type in RSS_ERROR_MESSAGES:
-                hint = get_rss_error_message(error.error_type)
-        except (ImportError, AttributeError):
-            # Fallback if import fails or attribute doesn't exist
-            pass
+    # Basic error messages with troubleshooting hints
+    ERROR_MESSAGES = {
+        # Common errors
+        "network": "Could not connect to the server. Check your internet connection.",
+        "timeout": "The request timed out. The server may be slow or overloaded.",
+        "auth": "Authentication failed. Check your credentials and permissions.",
+        "parse": "Failed to parse the response. The data format may be invalid.",
+        "validation": "Input validation failed. Check your parameters.",
+        "not_found": "The requested resource was not found. Check the identifier or URL.",
+        "server": "A server-side error occurred. Try again later.",
+        
+        # RSS-specific errors
+        "xml_parse": "Failed to parse XML content. The feed may have syntax errors.",
+        "feed_format": "Feed structure doesn't match expected RSS or Atom format."
+    }
+    
+    # Get a hint for this error type
+    hint = ERROR_MESSAGES.get(error.error_type)
     
     # Add hint if available
     if hint:

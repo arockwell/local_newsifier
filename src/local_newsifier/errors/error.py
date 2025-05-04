@@ -36,6 +36,10 @@ ERROR_TYPES = {
     # Server-side errors
     "server": {"transient": True, "retry": True, "exit_code": 9},
     
+    # RSS-specific error types
+    "xml_parse": {"transient": False, "retry": False, "exit_code": 10},
+    "feed_format": {"transient": False, "retry": False, "exit_code": 11},
+    
     # Unknown/unexpected errors
     "unknown": {"transient": False, "retry": False, "exit_code": 1}
 }
@@ -152,11 +156,12 @@ class ServiceError(Exception):
             log.debug(f"Original exception: {type(self.original).__name__}: {self.original}")
 
 
-def handle_service_error(service: str) -> Callable:
-    """Create a decorator for handling service errors.
+def handle_service_error(service: str, retry_attempts: Optional[int] = None) -> Callable:
+    """Create a decorator for handling service errors with optional retry.
     
     Args:
         service: Service identifier ("apify", "rss", etc.)
+        retry_attempts: Number of retry attempts (optional)
         
     Returns:
         Decorator function for error handling
@@ -165,128 +170,70 @@ def handle_service_error(service: str) -> Callable:
         """Decorate a function with service error handling."""
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            """Wrapped function with error handling."""
-            try:
-                return func(*args, **kwargs)
-            except ServiceError:
-                # Already handled
-                raise
-            except Exception as e:
-                # Create context with function info
-                context = {
-                    "function": func.__name__,
-                    # Safely extract args/kwargs (truncated)
-                    "args": [str(arg)[:100] for arg in args[:5] if not isinstance(arg, (dict, list))],
-                    "kwargs": {k: str(v)[:100] for k, v in list(kwargs.items())[:5] 
-                               if not isinstance(v, (dict, list))}
-                }
-                
-                # Classify error
-                error_type, error_message = _classify_error(e, service)
-                
-                # Add HTTP context if available
-                if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
-                    context['status_code'] = e.response.status_code
-                    context['url'] = getattr(e.response.request, 'url', 'unknown')
-                
-                # Convert to ServiceError
-                service_error = ServiceError(
-                    service=service,
-                    error_type=error_type,
-                    message=error_message or str(e),
-                    original=e,
-                    context=context
-                )
-                
-                # Log the error
-                service_error.log_error(logger)
-                
-                # Re-raise the service error
-                raise service_error
-        
-        return wrapper
-    
-    return decorator
-
-
-def with_retry(max_attempts: int = 3) -> Callable:
-    """Create a decorator for retrying transient errors.
-    
-    Args:
-        max_attempts: Maximum number of retry attempts
-        
-    Returns:
-        Decorator function for retry handling
-    """
-    def decorator(func: Callable) -> Callable:
-        """Decorate a function with retry logic."""
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            """Wrapped function with retry logic."""
+            """Wrapped function with error handling and retry logic."""
+            max_attempts = retry_attempts or 1
+            
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
                 except ServiceError as e:
-                    # Only retry transient errors, and only if not the last attempt
+                    # Only retry transient errors and not on the last attempt
                     if e.transient and attempt < max_attempts - 1:
-                        # Log this at warning level
-                        retry_context = {
-                            "retry_attempt": attempt + 1,
-                            "retry_max": max_attempts,
-                            "retry_function": func.__name__
-                        }
-                        
-                        # Add context safely, avoiding LogRecord reserved fields
-                        reserved_fields = {
-                            "args", "asctime", "created", "exc_info", "exc_text", "filename",
-                            "funcName", "levelname", "levelno", "lineno", "module", "msecs", 
-                            "message", "msg", "name", "pathname", "process", "processName", 
-                            "relativeCreated", "stack_info", "thread", "threadName"
-                        }
-                        
-                        # Rename any reserved fields with ctx_ prefix
-                        for key, value in e.context.items():
-                            if key in reserved_fields:
-                                retry_context[f"ctx_{key}"] = value
-                            else:
-                                retry_context[key] = value
-                        retry_message = (
-                            f"Retrying {func.__name__} due to transient error: {e.error_type} "
+                        # Log retry
+                        logger.warning(
+                            f"Retrying {func.__name__} due to {e.error_type} error "
+                            f"(attempt {attempt + 1}/{max_attempts})",
+                            extra={"error_type": e.error_type, "service": service}
+                        )
+                        # Exponential backoff
+                        time.sleep(2 ** attempt)
+                        continue
+                    # Not retrying or last attempt - re-raise
+                    raise
+                except Exception as e:
+                    # Create minimal context with function info
+                    context = {"function": func.__name__}
+                    
+                    # Add HTTP context if available
+                    if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
+                        context['status_code'] = e.response.status_code
+                        context['url'] = getattr(e.response.request, 'url', 'unknown')
+                    
+                    # Classify error
+                    error_type, error_message = _classify_error(e, service)
+                    
+                    # Convert to ServiceError
+                    service_error = ServiceError(
+                        service=service,
+                        error_type=error_type,
+                        message=error_message or str(e),
+                        original=e,
+                        context=context
+                    )
+                    
+                    # Log the error
+                    service_error.log_error(logger)
+                    
+                    # Check if we should retry
+                    if service_error.transient and attempt < max_attempts - 1:
+                        logger.warning(
+                            f"Retrying {func.__name__} due to {error_type} error "
                             f"(attempt {attempt + 1}/{max_attempts})"
                         )
-                        logger.warning(retry_message, extra=retry_context)
-                        
-                        # Simple backoff: 1s, 2s, 4s, etc.
+                        # Exponential backoff
                         time.sleep(2 ** attempt)
                         continue
                     
-                    # If we're not retrying, log it once more with final attempt info
-                    if attempt > 0:
-                        # Create safe extra context dict
-                        final_context = {
-                            "final_attempt": True,
-                            "retry_attempts": attempt + 1,
-                            "full_type": e.full_type
-                        }
-                        
-                        # Add context safely, avoiding LogRecord reserved fields
-                        for key, value in e.context.items():
-                            if key in reserved_fields:
-                                final_context[f"ctx_{key}"] = value
-                            else:
-                                final_context[key] = value
-                                
-                        logger.error(
-                            f"Failed after {attempt + 1} attempts: {e.full_type}",
-                            extra=final_context
-                        )
-                    
-                    # Re-raise the error
-                    raise
+                    # Re-raise the service error
+                    raise service_error
         
         return wrapper
     
     return decorator
+
+
+# Handle RSS service calls with retry
+handle_rss_service = handle_service_error("rss", retry_attempts=3)
 
 
 def with_timing(service: str) -> Callable:
@@ -336,6 +283,10 @@ def _classify_error(error: Exception, service: str) -> tuple:
     Returns:
         Tuple of (error_type, error_message)
     """
+    # Convert error details to strings for matching
+    error_str = str(error).lower()
+    error_name = type(error).__name__
+    
     # Check for HTTP status code
     if hasattr(error, 'response') and hasattr(error.response, 'status_code'):
         status = error.response.status_code
@@ -350,17 +301,42 @@ def _classify_error(error: Exception, service: str) -> tuple:
         elif status >= 400:
             return "validation", f"Request validation failed: {error}"
     
-    # Check exception type
-    error_name = type(error).__name__
+    # RSS-specific checks when service is 'rss'
+    if service == "rss":
+        # Try to import required modules - catch import errors to avoid failures
+        try:
+            from xml.etree.ElementTree import ParseError
+            if isinstance(error, ParseError):
+                return "xml_parse", f"XML parsing error: {error}"
+        except ImportError:
+            pass
+            
+        try:
+            import requests
+            if isinstance(error, requests.ConnectionError):
+                return "network", f"Could not connect to feed: {error}"
+            if isinstance(error, requests.HTTPError) and "404" in error_str:
+                return "not_found", f"Feed not found: {error}"
+            if isinstance(error, requests.Timeout):
+                return "timeout", f"Connection timed out: {error}"
+        except ImportError:
+            pass
+            
+        # String-based RSS checks
+        if "no entries found" in error_str or "no items found" in error_str or "not a valid feed" in error_str:
+            return "feed_format", f"Invalid feed format: {error}"
+        if "xml" in error_str:
+            return "xml_parse", f"XML parsing error: {error}"
     
-    if "Timeout" in error_name or "TimeoutError" in error_name:
+    # General error classification
+    if "timeout" in error_name.lower() or "timed out" in error_str:
         return "timeout", f"Request timed out: {error}"
     
-    if "Connection" in error_name or "Network" in error_name:
+    if "connection" in error_name.lower() or "network" in error_name.lower() or "connection" in error_str:
         return "network", f"Network error: {error}"
     
     # Check for parsing errors
-    if "JSON" in str(error) or "parse" in str(error).lower():
+    if "json" in error_str or "parse" in error_str.lower():
         return "parse", f"Failed to parse response: {error}"
         
     # Check for validation errors
