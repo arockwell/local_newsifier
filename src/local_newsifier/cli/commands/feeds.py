@@ -228,6 +228,7 @@ def process_feed(id, no_process):
     
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
+    # Output will only happen if no error was raised (handle_rss_cli would have caught it)
     click.echo(click.style("Processing completed successfully!", fg="green"))
     click.echo(f"Articles found: {result['articles_found']}")
     click.echo(f"Articles added: {result['articles_added']}")

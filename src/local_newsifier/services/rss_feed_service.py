@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
-from local_newsifier.errors import handle_rss
+from local_newsifier.errors import handle_rss, ServiceError
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
@@ -133,7 +133,6 @@ class RSSFeedService:
         # Check if feed already exists
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
-            from local_newsifier.errors import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="validation",
@@ -183,7 +182,6 @@ class RSSFeedService:
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            from local_newsifier.errors import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="not_found",
@@ -222,7 +220,6 @@ class RSSFeedService:
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            from local_newsifier.errors import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="not_found",
@@ -233,7 +230,6 @@ class RSSFeedService:
         # Remove feed
         removed = self.rss_feed_crud.remove(session, id=feed_id)
         if not removed:
-            from local_newsifier.errors import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="unknown",
@@ -265,7 +261,6 @@ class RSSFeedService:
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            from local_newsifier.errors import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="not_found",
@@ -330,7 +325,6 @@ class RSSFeedService:
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            from local_newsifier.errors import ServiceError
                             raise ServiceError(
                                 service="rss",
                                 error_type="unknown",
