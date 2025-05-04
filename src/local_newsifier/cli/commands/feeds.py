@@ -74,9 +74,13 @@ def add_feed(url, name, description):
     """Add a new feed."""
     feed_name = name or url
     
-    rss_feed_service = container.get("rss_feed_service")
-    feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
-    click.echo(f"Feed added successfully with ID: {feed['id']}")
+    try:
+        rss_feed_service = container.get("rss_feed_service")
+        feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
+        click.echo(f"Feed added successfully with ID: {feed['id']}")
+    except ValueError as e:
+        # For backward compatibility with tests
+        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
 
 
 @feeds_group.command(name="show")
@@ -88,6 +92,11 @@ def show_feed(id, json_output, show_logs):
     """Show feed details."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
+    
+    # For backward compatibility with tests
+    if feed is None:
+        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
+        return
     
     # Get logs if requested
     logs = []
