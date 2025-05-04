@@ -27,6 +27,7 @@ class ArticleCreate(BaseModel):
     source: str = Field(..., min_length=1, max_length=100)
     published_at: Optional[datetime] = None
     status: str = "new"
+    scraped_at: Optional[datetime] = None
 
     @validator("status")
     def validate_status(cls, v):

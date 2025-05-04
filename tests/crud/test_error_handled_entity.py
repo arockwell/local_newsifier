@@ -7,7 +7,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import select
 
-from local_newsifier.crud.error_handled_base import (EntityNotFoundError,
+from local_newsifier.crud.error_handled_base import (DatabaseConnectionError,
+                                                     EntityNotFoundError,
                                                      TransactionError,
                                                      ValidationError)
 from local_newsifier.crud.error_handled_entity import (ErrorHandledCRUDEntity,
@@ -294,11 +295,11 @@ class TestErrorHandledEntityCRUD:
                 "connection refused", params=None, orig=None
             )
 
-            with pytest.raises(TransactionError) as excinfo:
+            with pytest.raises(DatabaseConnectionError) as excinfo:
                 error_handled_entity.create(db_session, obj_in=sample_entity_data)
 
-            assert "Database error" in str(excinfo.value)
-            assert excinfo.value.error_type == "server"
+            assert "Database connection error" in str(excinfo.value)
+            assert excinfo.value.error_type == "network"
 
     def test_singleton_instance(self):
         """Test that the error_handled_entity is a singleton instance of ErrorHandledCRUDEntity."""
