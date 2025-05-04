@@ -58,25 +58,16 @@ from local_newsifier.models.apify import (
 # Global variable to store the test engine for sharing between tests
 _shared_test_engine = None
 
-# Create a pytest plugin hook that allows access to the test engine
-@pytest.hookimpl(hookwrapper=True)
-def pytest_configure(config):
-    """Register a plugin that provides access to the test engine.
-    
-    This allows engine.py to access the test engine via pytest's plugin system,
-    which is more reliable than sys.modules.
-    """
-    # Run all other pytest_configure hooks
-    yield
-    
-    # Register a function that can access our module-level variable
-    class TestEnginePlugin:
-        @staticmethod
-        def get_engine():
-            return _shared_test_engine
-    
-    # Register the plugin with pytest
-    config.pluginmanager.register(TestEnginePlugin(), "test_engine_plugin")
+# Create a pytest plugin that allows access to the test engine
+class TestEnginePlugin:
+    @staticmethod
+    def get_engine():
+        return _shared_test_engine
+
+# Register the plugin directly as a module attribute
+# This avoids the need for a pytest_configure hook which can cause
+# compatibility issues with yield fixtures
+pytest.test_engine_plugin = TestEnginePlugin()
 
 @pytest.fixture(scope="session", autouse=True)
 def test_engine():
