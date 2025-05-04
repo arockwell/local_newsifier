@@ -12,80 +12,99 @@ The Local Newsifier project is transitioning from a custom DIContainer to use fa
 
 The adapter module provides utilities for:
 - Registering DIContainer services with fastapi-injectable
-- Converting between scope types
+- Determining appropriate caching behavior
 - Adapting decorator patterns
 
 Key functions include:
 
-#### `scope_converter(scope: str) -> Scope`
+#### `get_service_factory(service_name: str) -> Callable`
 
-Converts DIContainer scope strings to fastapi-injectable Scope enum values:
+Creates factory functions that delegate to DIContainer with proper caching behavior:
 
 ```python
-def scope_converter(scope: str) -> Scope:
-    """Convert DIContainer scope to fastapi-injectable scope."""
-    scope_map = {
-        "singleton": Scope.SINGLETON,
-        "transient": Scope.TRANSIENT,
-        "scoped": Scope.REQUEST  # Map scoped to request in fastapi-injectable
-    }
-    return scope_map.get(scope.lower(), Scope.SINGLETON)
+def get_service_factory(service_name: str) -> Callable:
+    """Create a factory function that gets a service from DIContainer."""
+    # Determine appropriate caching behavior based on service type
+    stateful_patterns = [
+        "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
+    ]
+    
+    # Components that interact with state or databases should use use_cache=False
+    use_cache = True  # Default to caching for performance
+    
+    # For stateful components or those interacting with databases, disable caching
+    for pattern in stateful_patterns:
+        if pattern in service_name:
+            use_cache = False
+            break
+    
+    @injectable(use_cache=use_cache)
+    def service_factory():
+        """Factory function to get service from DIContainer."""
+        return di_container.get(service_name)
+    
+    # Set better function name for debugging
+    service_factory.__name__ = f"get_{service_name}"
+    
+    return service_factory
 ```
 
-#### `register_with_injectable(service_name: str, service_class: Type[T]) -> None`
+#### `register_with_injectable(service_name: str, service_class: Type[T]) -> Callable`
 
 Registers a service from DIContainer with fastapi-injectable:
 
 ```python
-def register_with_injectable(service_name: str, service_class: Type[T]) -> None:
+def register_with_injectable(service_name: str, service_class: Type[T]) -> Callable:
     """Register a service from DIContainer with fastapi-injectable."""
-    # Get the service scope from DIContainer
-    di_scope = di_container._scopes.get(service_name, "singleton")
-    injectable_scope = scope_converter(di_scope)
-    
-    # Create an injectable factory that gets the service from DIContainer
-    @injectable(scope=injectable_scope)
-    class ServiceWrapper(Injectable):
-        """Wrapper for service from DIContainer."""
-        
-        def __new__(cls, *args, **kwargs):
-            """Create a new instance by getting from DIContainer."""
-            return di_container.get(service_name)
+    factory = get_service_factory(service_name)
+    return factory
 ```
 
 #### `inject_adapter(func: Callable) -> Callable`
 
-Decorator that adapts between fastapi-injectable's Inject and DIContainer:
+Decorator that adapts between fastapi-injectable and DIContainer:
 
 ```python
 def inject_adapter(func: Callable) -> Callable:
-    """Decorator to adapt between fastapi-injectable's Inject and DIContainer."""
+    """Decorator to adapt between fastapi-injectable and DIContainer."""
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Get type hints from function signature
-        hints = get_type_hints(func)
+    async def async_wrapper(*args, **kwargs):
+        # For async functions
+        result = await get_injected_obj(func, args=list(args), kwargs=kwargs.copy())
+        return result
         
-        # Look for parameters with Inject dependency
-        for param_name, param_type in hints.items():
-            # ...logic to resolve dependencies...
-            
-        return func(*args, **kwargs)
-        
-    return wrapper
+    @wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        # For sync functions
+        result = get_injected_obj(func, args=list(args), kwargs=kwargs.copy())
+        return result
+    
+    # Choose the right wrapper based on whether the function is async
+    if inspect.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 ```
 
-#### `migrate_container_services() -> None`
+#### `migrate_container_services(app: FastAPI) -> None`
 
 Registers all DIContainer services with fastapi-injectable:
 
 ```python
-def migrate_container_services() -> None:
+async def migrate_container_services(app: FastAPI) -> None:
     """Register all DIContainer services with fastapi-injectable."""
-    # Register services and factories with fastapi-injectable
+    # Register the FastAPI app with fastapi-injectable
+    await register_app(app)
+    
+    # Register direct service instances
     for name, service in di_container._services.items():
         if service is not None:
-            service_class = service.__class__
-            register_with_injectable(name, service_class)
+            try:
+                service_class = service.__class__
+                factory = get_service_factory(name)  # This handles caching behavior
+                logger.info(f"Registered service {name} with fastapi-injectable")
+            except Exception as e:
+                logger.error(f"Error registering service {name}: {str(e)}")
 ```
 
 ### 2. Testing Components
@@ -103,17 +122,19 @@ The adapter includes test endpoints and utilities to verify correct operation:
 Add the following to your FastAPI application:
 
 ```python
-from fastapi_injectable import init_injection_dependency
-from local_newsifier.fastapi_injectable_adapter import migrate_container_services
+from fastapi_injectable import register_app
+from local_newsifier.fastapi_injectable_adapter import migrate_container_services, lifespan_with_injectable
 
-# Create FastAPI app
-app = FastAPI()
-
-# Initialize fastapi-injectable
-init_injection_dependency(app)
-
-# Register DIContainer services with fastapi-injectable
-migrate_container_services()
+# Use the adapter-provided lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database
+    create_db_and_tables()
+    
+    # Use the adapter's lifespan function
+    async with lifespan_with_injectable(app):
+        # Let FastAPI handle requests
+        yield
 ```
 
 ### Using Injectable Services
@@ -122,13 +143,14 @@ migrate_container_services()
 
 ```python
 from typing import Annotated
-from fastapi_injectable import Inject, Injectable, Scope, injectable
+from fastapi import Depends
+from fastapi_injectable import injectable
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)  # Create new instance for each injection
 class MyService:
     def __init__(
         self,
-        article_service: Annotated[ArticleService, Inject()],
+        article_service: Annotated[ArticleService, Depends(get_article_service)],
     ):
         self.article_service = article_service
 ```
@@ -137,9 +159,8 @@ class MyService:
 
 ```python
 @app.get("/my-endpoint")
-@inject_adapter  # Add this decorator
 async def my_endpoint(
-    my_service: Annotated[MyService, Inject()],
+    my_service: Annotated[MyService, Depends()],
 ):
     # Use the service
     return my_service.some_method()
@@ -165,13 +186,13 @@ The adapter supports an incremental migration path:
 ## Troubleshooting
 
 - **Service not found**: Ensure the service is registered in DIContainer
-- **Scope mismatch**: Check that service lifetimes are compatible
+- **Instance state issues**: Check that service is using appropriate `use_cache` setting
 - **Circular dependencies**: Use lazy loading patterns or refactor dependencies
-- **Type errors**: Ensure type annotations are correct with Annotated[Type, Inject()]
+- **Type errors**: Ensure type annotations are correct with Annotated[Type, Depends()]
 
 ## Best Practices
 
-- Always use the `@inject_adapter` decorator with FastAPI endpoints using injected services
-- Keep service registration in a centralized location
+- Use `use_cache=False` for components that interact with the database or maintain state
+- Keep service dependencies explicit with type annotations
 - Test both DIContainer and fastapi-injectable during migration
 - Document service dependencies clearly with type annotations

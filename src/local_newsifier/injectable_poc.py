@@ -5,7 +5,7 @@ fastapi-injectable. This is for planning purposes and doesn't use the
 actual fastapi-injectable package yet due to version constraints.
 """
 
-from enum import Enum
+import inspect
 from typing import Annotated, Dict, List, Optional, Type, TypeVar
 
 from fastapi import Depends, FastAPI, Path
@@ -18,27 +18,21 @@ from local_newsifier.services.entity_service import EntityService
 
 
 # Mock fastapi-injectable decorators and utilities
-class Scope(str, Enum):
-    """Service lifetime scopes."""
-    
-    SINGLETON = "singleton"
-    TRANSIENT = "transient"
-    REQUEST = "request"
-
-
-def injectable(scope: Scope = Scope.SINGLETON):
+def injectable(use_cache: bool = True):
     """Mock decorator for marking classes as injectable.
     
     Args:
-        scope: The service lifetime scope
-        
+        use_cache: Whether to reuse the same instance for identical dependency requests
+            - True: Reuse the same instance (singleton-like behavior)
+            - False: Create a new instance each time (transient-like behavior)
+            
     Returns:
         Decorator function
     """
     def decorator(cls):
         # In a real implementation, this would register the class
         # with fastapi-injectable
-        setattr(cls, "__injectable_scope__", scope)
+        setattr(cls, "__injectable_use_cache__", use_cache)
         return cls
     
     return decorator
@@ -77,9 +71,13 @@ def Inject(service_type: Optional[Type] = None):
 
 
 # Example of how services would be defined with @injectable
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)  # Create new instance for each injection
 class ExampleArticleService:
-    """Example of how ArticleService would be defined with fastapi-injectable."""
+    """Example of how ArticleService would be defined with fastapi-injectable.
+    
+    Uses use_cache=False to ensure fresh instances for each injection,
+    as this service interacts with the database.
+    """
     
     def __init__(
         self, 
@@ -110,7 +108,7 @@ def example_api_setup(app: FastAPI):
     @app.get("/articles/{article_id}")
     def get_article(
         article_id: int = Path(...),
-        article_service: Annotated[ArticleService, Inject()]
+        article_service: Annotated[ArticleService, Depends()]  # Using standard FastAPI Depends
     ):
         """Get article by ID.
         
@@ -126,7 +124,7 @@ def example_api_setup(app: FastAPI):
     
     @app.get("/session-example")
     def session_example(
-        session: Annotated[Session, Inject()]
+        session: Annotated[Session, Depends()]  # Using standard FastAPI Depends
     ):
         """Example using an injected session.
         
@@ -152,8 +150,8 @@ def example_api_setup(app: FastAPI):
     @app.post("/articles/filter")
     def filter_articles(
         filter_params: ArticleFilter,
-        article_service: Annotated[ArticleService, Inject()],
-        entity_service: Annotated[EntityService, Inject()]
+        article_service: Annotated[ArticleService, Depends()],
+        entity_service: Annotated[EntityService, Depends()]
     ):
         """Filter articles by parameters.
         
@@ -167,7 +165,3 @@ def example_api_setup(app: FastAPI):
         """
         # Use both services together
         return {"message": "Articles filtered"}
-
-
-# This import is needed for the Inject() function to work
-import inspect

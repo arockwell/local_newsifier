@@ -23,23 +23,34 @@ router = APIRouter(
 )
 
 # Create factories for our services
-@injectable(use_cache=True)
+@injectable(use_cache=False)  # Services with state need new instances
 def get_article_service():
-    """Get the article service from DIContainer."""
+    """Get the article service from DIContainer.
+    
+    Uses use_cache=False to ensure a fresh instance for each injection,
+    as this service interacts with the database.
+    """
     return di_container.get("article_service")
 
-@injectable(use_cache=True)
+@injectable(use_cache=False)  # Services with state need new instances
 def get_entity_service():
-    """Get the entity service from DIContainer."""
+    """Get the entity service from DIContainer.
+    
+    Uses use_cache=False to ensure a fresh instance for each injection,
+    as this service interacts with the database.
+    """
     return di_container.get("entity_service")
 
 # Create a new injectable service that uses our existing services
-@injectable(use_cache=True)
+@injectable(use_cache=False)  # Composite service needs fresh instances too
 def get_article_info_service(
     article_service: Annotated[ArticleService, Depends(get_article_service)],
     entity_service: Annotated[EntityService, Depends(get_entity_service)],
 ):
-    """Get a service that provides article statistics and information."""
+    """Get a service that provides article statistics and information.
+    
+    Uses use_cache=False because it depends on database-interacting services.
+    """
     class ArticleInfoService:
         """Service that provides article statistics and information."""
         

@@ -25,7 +25,7 @@
 fastapi-injectable is a dependency injection library for FastAPI that:
 
 - Uses decorators to mark injectable components
-- Provides scoped lifetimes (singleton, transient, request)
+- Provides instance reuse control (with `use_cache` parameter)
 - Supports auto-discovery of injectable components
 - Integrates directly with FastAPI's dependency system
 - Handles circular dependencies
@@ -36,7 +36,7 @@ fastapi-injectable is a dependency injection library for FastAPI that:
 |---------|---------------------|-------------------|
 | Registration | Explicit registration with container.register() | Decorator-based (@injectable) |
 | Resolution | container.get("service_name") | Direct injection via type hints |
-| Scopes | SINGLETON, TRANSIENT, SCOPED | SINGLETON, TRANSIENT, REQUEST |
+| Instance Reuse | Controlled by custom scope settings | Controlled by use_cache parameter |
 | Integration | Manual integration with FastAPI dependencies | Direct FastAPI integration |
 | Discovery | Manual registration | Auto-discovery with scanning |
 
@@ -59,9 +59,9 @@ fastapi-injectable is a dependency injection library for FastAPI that:
 Convert services to use the injectable pattern:
 
 ```python
-from fastapi_injectable import injectable, Scope
+from fastapi_injectable import injectable
 
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)  # Create new instance for each injection
 class EntityService:
     def __init__(self, entity_crud: EntityCRUD, session_factory: SessionFactory):
         self.entity_crud = entity_crud
@@ -78,25 +78,30 @@ def get_article_service() -> ArticleService:
     return container.get("article_service")
 
 # New approach with fastapi-injectable
-from fastapi_injectable import Inject
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
 
-def get_article_service(service: ArticleService = Inject()):
-    return service
+@injectable(use_cache=False)  # Stateful service, needs new instances
+def get_article_service(entity_service: Annotated[EntityService, Depends()]):
+    return ArticleService(entity_service=entity_service)
 ```
 
 ### 5. Session Management Updates
 
-Update session management to use fastapi-injectable's request scope:
+Update session management to use fastapi-injectable with `use_cache=False`:
 
 ```python
-@injectable(scope=Scope.REQUEST)
-class RequestSession:
-    def __init__(self, session_factory: SessionFactory):
-        self.session = session_factory()
-        
-    def __del__(self):
-        if self.session:
-            self.session.close()
+@injectable(use_cache=False)  # New session for each request
+def get_session() -> Generator[Session, None, None]:
+    """Provide a database session."""
+    from local_newsifier.database.engine import get_session as get_db_session
+    
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
 ```
 
 ### 6. CRUD Modules Conversion
@@ -104,7 +109,7 @@ class RequestSession:
 Convert CRUD modules to use injectable pattern:
 
 ```python
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)  # Database interactions require fresh instances
 class EntityCRUD:
     def get(self, session: Session, id: int):
         # Implementation
@@ -115,10 +120,14 @@ class EntityCRUD:
 Update application startup to use fastapi-injectable initialization:
 
 ```python
-from fastapi_injectable import InjectableAPI, load_modules
+from fastapi_injectable import register_app
+from local_newsifier.fastapi_injectable_adapter import migrate_container_services
 
-app = InjectableAPI()
-load_modules(["local_newsifier.services", "local_newsifier.crud"])
+# Register app with fastapi-injectable
+await register_app(app)
+
+# Register all services in DIContainer with fastapi-injectable
+await migrate_container_services(app)
 ```
 
 ## Compatibility Challenges
