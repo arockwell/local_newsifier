@@ -9,7 +9,7 @@ import functools
 import re
 
 from .handlers import create_service_handler, handle_cli_errors
-from .error import ServiceError, ERROR_TYPES
+from .error import ServiceError
 
 
 # RSS-specific error types

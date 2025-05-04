@@ -74,7 +74,19 @@ class ServiceError(Exception):
         self.timestamp = datetime.now()
         
         # Get error type properties
-        type_info = ERROR_TYPES.get(error_type, ERROR_TYPES["unknown"])
+        # First check service-specific error types if available
+        service_specific_types = None
+        if service == "rss":
+            # Import at runtime to avoid circular imports
+            from .rss import RSS_ERROR_TYPES
+            service_specific_types = RSS_ERROR_TYPES
+        
+        # Get type info, first from service-specific types, then from general types
+        if service_specific_types and error_type in service_specific_types:
+            type_info = service_specific_types.get(error_type)
+        else:
+            type_info = ERROR_TYPES.get(error_type, ERROR_TYPES["unknown"])
+            
         self.transient = type_info.get("transient", False)
         self.exit_code = type_info.get("exit_code", 1)
         
