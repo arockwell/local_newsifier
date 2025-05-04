@@ -16,7 +16,7 @@ interact with the database or maintain state between operations.
 """
 
 import logging
-from typing import Annotated, Generator, Optional, TYPE_CHECKING
+from typing import Annotated, Generator, Optional, TYPE_CHECKING, Any
 
 from fastapi import Depends
 from fastapi_injectable import injectable
