@@ -44,7 +44,7 @@
 - Uses SQLModel (combines SQLAlchemy ORM and Pydantic validation)
 - PostgreSQL backend with cursor-specific database instances
 - Key models: Article, Entity, AnalysisResult, CanonicalEntity, ApifySourceConfig, RSSFeed
-- Database sessions should be managed with the `with_session` decorator
+- Database sessions should be managed with context managers:
 
 ### Project Structure
 ```
@@ -56,7 +56,10 @@ src/
 │   ├── cli/            # Command-line interface
 │   │   └── commands/   # CLI command implementations
 │   ├── config/         # Configuration settings
-│   ├── container.py    # Dependency injection container
+│   ├── container.py    # Container instance
+│   ├── di/             # Injectable provider functions
+│   ├── di_container.py # Original DI container (legacy)
+│   ├── fastapi_injectable_adapter.py # Adapter between DI systems
 │   ├── crud/           # Database CRUD operations
 │   ├── database/       # Database connection and session management
 │   ├── flows/          # High-level workflow definitions
@@ -82,20 +85,29 @@ src/
 class Article(SQLModel, table=True):
     __tablename__ = "articles"
     
+    # Add table configuration for SQLAlchemy
+    model_config = {"table": True}
+    __table_args__ = {"extend_existing": True}
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     content: str
     url: str = Field(unique=True)
     # ...
     
-    entities: List["Entity"] = Relationship(back_populates="article")
+    # Use fully qualified paths in relationship definitions
+    entities: List["local_newsifier.models.entity.Entity"] = Relationship(back_populates="article")
 ```
 
 ### CRUD Operations
 - CRUD operations are in `src/local_newsifier/crud/`
 - Use the CRUDBase class for common operations
 - Extend with model-specific operations
-- Use the `with_session` decorator for session management
+- Use context managers for session management:
+```python
+with session_factory() as session:
+    # Database operations here
+```
 
 ### Dependency Injection
 
