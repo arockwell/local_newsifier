@@ -1,8 +1,4 @@
-"""Tests for RSS feeds CLI commands using injectable providers.
-
-This file is maintained for backward compatibility but uses the patched_injectable fixture instead
-of the container directly.
-"""
+"""Tests for RSS feeds CLI commands using injectable dependency injection."""
 
 import json
 import pytest
@@ -30,9 +26,9 @@ def sample_feed():
     }
 
 
-def test_feeds_list_with_container(patched_injectable, sample_feed):
-    """Test the feeds list command using injectable provider functions."""
-    # Setup mock service with specific return value
+def test_feeds_list_with_injectable(patched_injectable, sample_feed):
+    """Test the feeds list command using injectable dependency injection."""
+    # Set up the mock service
     rss_service = patched_injectable["rss_feed_service"]
     rss_service.list_feeds.return_value = [sample_feed]
     
@@ -49,9 +45,9 @@ def test_feeds_list_with_container(patched_injectable, sample_feed):
     rss_service.list_feeds.assert_called_once()
 
 
-def test_feeds_add_with_container(patched_injectable, sample_feed):
-    """Test the feeds add command using injectable provider functions."""
-    # Setup mock
+def test_feeds_add_with_injectable(patched_injectable, sample_feed):
+    """Test the feeds add command using injectable dependency injection."""
+    # Set up the mock service
     rss_service = patched_injectable["rss_feed_service"]
     rss_service.create_feed.return_value = sample_feed
     
@@ -71,9 +67,9 @@ def test_feeds_add_with_container(patched_injectable, sample_feed):
     )
 
 
-def test_feeds_process_with_container(patched_injectable, sample_feed):
-    """Test the feeds process command using injectable provider functions."""
-    # Setup mocks
+def test_feeds_process_with_injectable(patched_injectable, sample_feed):
+    """Test the feeds process command using injectable dependency injection."""
+    # Set up mock services
     rss_service = patched_injectable["rss_feed_service"]
     article_crud = patched_injectable["article_crud"]
     news_flow = patched_injectable["news_pipeline_flow"]
@@ -82,7 +78,7 @@ def test_feeds_process_with_container(patched_injectable, sample_feed):
     # Configure mocks
     rss_service.get_feed.return_value = sample_feed
     rss_service.process_feed.return_value = {
-        "status": "success", 
+        "status": "success",
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 10,

@@ -17,9 +17,6 @@ from tabulate import tabulate
 from typing import Any, Dict
 
 # Allow direct imports from container for tests
-# Import the container for backwards compatibility with tests
-from local_newsifier.container import container
-
 # Import functions from di.providers for dependency injection
 from local_newsifier.di.providers import (
     get_rss_feed_service,
@@ -32,41 +29,23 @@ from local_newsifier.di.providers import (
 def get_injected_deps() -> Dict[str, Any]:
     """Get dependencies using injectable provider functions.
     
-    This function gets dependencies from injectable provider functions,
-    with a special case for tests that use the patched container.
+    This function gets dependencies from injectable provider functions.
     
     Returns:
         Dict with service instances ready for use in CLI commands
     """
     deps = {}
     
-    # Support for tests: if we detect we're in a test (container is patched),
-    # use the container directly
-    if hasattr(container, "patched_for_testing") and container.patched_for_testing:
-        deps["rss_feed_service"] = container.get("rss_feed_service")
-        deps["article_crud"] = container.get("article_crud") 
-        deps["news_pipeline_flow"] = container.get("news_pipeline_flow")
-        deps["entity_tracking_flow"] = container.get("entity_tracking_flow")
-        
-        # Handle session carefully 
-        session_factory = container.get("session_factory")
-        if callable(session_factory):
-            session = session_factory()
-            if hasattr(session, "__next__"):
-                deps["session"] = next(session)
-            else:
-                deps["session"] = session
-    else:
-        # Normal operation: use injectable provider functions
-        deps["rss_feed_service"] = get_rss_feed_service() 
-        deps["article_crud"] = get_article_crud()
-        deps["news_pipeline_flow"] = get_news_pipeline_flow()
-        deps["entity_tracking_flow"] = get_entity_tracking_flow()
-        
-        # Safely get session
-        db_session = get_db_session()
-        if db_session is not None:
-            deps["session"] = next(db_session)
+    # Get all dependencies from injectable provider functions
+    deps["rss_feed_service"] = get_rss_feed_service() 
+    deps["article_crud"] = get_article_crud()
+    deps["news_pipeline_flow"] = get_news_pipeline_flow()
+    deps["entity_tracking_flow"] = get_entity_tracking_flow()
+    
+    # Safely get session
+    db_session = get_db_session()
+    if db_session is not None:
+        deps["session"] = next(db_session)
         
     return deps
 

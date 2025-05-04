@@ -32,16 +32,44 @@ def mock_session(test_container):
 def patched_container(test_container):
     """Patch the singleton container with our test container.
     
-    This fixture temporarily replaces the application container with a test container,
-    allowing tests to control the behavior of components that directly use the container.
+    This fixture temporarily replaces the application container with a test container
+    and patches injectable provider functions to return mocked services.
     """
-    # Add a special attribute to test_container for our CLI detection
-    test_container.patched_for_testing = True
-    
     with patch('local_newsifier.container.container', test_container):
-        with patch('local_newsifier.cli.commands.feeds.container', test_container):
-            yield test_container
+        yield test_container
 
+
+@pytest.fixture
+def patched_injectable():
+    """Patch injectable provider functions used in CLI commands.
+    
+    This fixture creates mocks for the injectable provider functions 
+    and makes the mocks available for configuring test behavior.
+    """
+    # Create mock services
+    rss_feed_service_mock = MagicMock()
+    article_crud_mock = MagicMock()
+    news_pipeline_flow_mock = MagicMock()  
+    entity_tracking_flow_mock = MagicMock()
+    session_mock = MagicMock()
+    
+    # Create a mock session generator
+    def mock_session_gen():
+        yield session_mock
+    
+    # Patch all the provider functions for CLI commands
+    with patch('local_newsifier.cli.commands.feeds.get_rss_feed_service', return_value=rss_feed_service_mock):
+        with patch('local_newsifier.cli.commands.feeds.get_article_crud', return_value=article_crud_mock):
+            with patch('local_newsifier.cli.commands.feeds.get_news_pipeline_flow', return_value=news_pipeline_flow_mock):
+                with patch('local_newsifier.cli.commands.feeds.get_entity_tracking_flow', return_value=entity_tracking_flow_mock):
+                    with patch('local_newsifier.cli.commands.feeds.get_db_session', return_value=mock_session_gen()):
+                        yield {
+                            "rss_feed_service": rss_feed_service_mock,
+                            "article_crud": article_crud_mock,
+                            "news_pipeline_flow": news_pipeline_flow_mock,
+                            "entity_tracking_flow": entity_tracking_flow_mock,
+                            "session": session_mock
+                        }
 
 @pytest.fixture
 def mock_rss_feed_service(patched_container):

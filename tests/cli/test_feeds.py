@@ -9,25 +9,14 @@ from click.testing import CliRunner
 from local_newsifier.cli.main import cli
 
 
+# Import the patched_injectable fixture
+from tests.utils.conftest import patched_injectable
+
 @pytest.fixture
-def mock_rss_feed_service():
+def mock_rss_feed_service(patched_injectable):
     """Mock the RSSFeedService for testing."""
-    mock_service = MagicMock()
-    
-    # We patch the container.get method in the feeds module
-    with patch('local_newsifier.cli.commands.feeds.container') as mock_container:
-        # Setup mock container to return our mock service for "rss_feed_service"
-        def mock_get(service_name):
-            if service_name == "rss_feed_service":
-                return mock_service
-            elif service_name == "article_crud":
-                return MagicMock()
-            elif service_name == "session_factory":
-                return MagicMock()
-            return None
-            
-        mock_container.get.side_effect = mock_get
-        yield mock_service
+    # Return the mocked rss_feed_service from patched_injectable
+    return patched_injectable["rss_feed_service"]
 
 
 @pytest.fixture
