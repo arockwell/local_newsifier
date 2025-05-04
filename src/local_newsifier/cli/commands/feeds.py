@@ -15,9 +15,13 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
+# Import error handling first to avoid circular imports
+from local_newsifier.errors.error import ServiceError
+from local_newsifier.errors.rss import handle_rss_cli
+
+# Then import container
 from local_newsifier.container import container
 from local_newsifier.database.engine import get_session
-from local_newsifier.errors.rss import handle_rss_cli
 
 
 @click.group(name="feeds")
@@ -88,8 +92,12 @@ def show_feed(id, json_output, show_logs):
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise ServiceError(
+            service="rss",
+            error_type="not_found",
+            message=f"Feed with ID {id} not found",
+            context={"feed_id": id}
+        )
     
     # Get logs if requested
     logs = []
@@ -157,8 +165,12 @@ def remove_feed(id, force):
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise ServiceError(
+            service="rss",
+            error_type="not_found",
+            message=f"Feed with ID {id} not found",
+            context={"feed_id": id}
+        )
     
     if not force:
         if not click.confirm(f"Are you sure you want to remove feed '{feed['name']}' (ID: {id})?"):
@@ -200,7 +212,6 @@ def direct_process_article(article_id):
         # Get the article from the database
         article = article_crud.get(session, id=article_id)
         if not article:
-            from local_newsifier.errors.error import ServiceError
             raise ServiceError(
                 service="rss",
                 error_type="not_found",
@@ -233,7 +244,6 @@ def process_feed(id, no_process):
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        from local_newsifier.errors.error import ServiceError
         raise ServiceError(
             service="rss",
             error_type="not_found",
@@ -264,7 +274,6 @@ def update_feed(id, name, description, active):
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        from local_newsifier.errors.error import ServiceError
         raise ServiceError(
             service="rss",
             error_type="not_found",
