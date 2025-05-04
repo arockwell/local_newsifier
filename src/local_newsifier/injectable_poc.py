@@ -107,7 +107,7 @@ def example_api_setup(app: FastAPI):
     """
     @app.get("/articles/{article_id}")
     def get_article(
-        article_id: int = Path(...),
+        article_id: int,
         article_service: Annotated[ArticleService, Depends()]  # Using standard FastAPI Depends
     ):
         """Get article by ID.
