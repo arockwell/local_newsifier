@@ -615,7 +615,8 @@ class TestSentimentTracker:
                 topic1="climate",
                 topic2="energy",
                 start_date=start_date,
-                end_date=end_date
+                end_date=end_date,
+                session=mock_sess  # Use the same mock session
             )
             
             # Only one period has data for both topics
