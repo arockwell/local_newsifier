@@ -48,6 +48,9 @@ class ContainerAdapter:
         Raises:
             ValueError: If the service cannot be found
         """
+        # TODO: Test coverage needed - Fix tests with InvalidSpecError
+        # See issue: Test coverage for ContainerAdapter.get_service
+        
         # Try with module prefix (e.g., "entity_service")
         module_name = service_type.__module__.split(".")[-1]
         class_name = service_type.__name__
@@ -71,11 +74,13 @@ class ContainerAdapter:
                 return cast(T, service)
         
         # If not found by name, try to find by type
+        # TODO: Test coverage needed for type-based lookup path
         for name, service in di_container._services.items():
             if isinstance(service, service_type):
                 return cast(T, service)
                 
         # Last resort: check factories and try to create the service
+        # TODO: Test coverage needed for factory-based service creation
         for name, factory in di_container._factories.items():
             try:
                 service = di_container._create_service(name, **kwargs)
@@ -211,12 +216,16 @@ def register_container_service(service_name: str) -> Union[Callable, None]:
             logger.warning(f"Service {service_name} not found in DIContainer")
             return None
     except (AttributeError, TypeError) as e:
+        # TODO: Test coverage needed for error path handling
+        # See issue: Test coverage for error handling paths
         logger.error(f"Type error registering {service_name}: {str(e)}")
         return None
     except ValueError as e:
+        # TODO: Test coverage needed for error path handling
         logger.error(f"Value error registering {service_name}: {str(e)}")
         return None
     except Exception as e:
+        # TODO: Test coverage needed for error path handling
         logger.error(f"Unexpected error registering {service_name}: {str(e)}")
         return None
 
@@ -267,6 +276,9 @@ async def migrate_container_services(app: FastAPI) -> None:
     Args:
         app: FastAPI application to register with fastapi-injectable
     """
+    # TODO: Test coverage needed for async function
+    # See issue: Test coverage for async functions
+    
     # Register the FastAPI app with fastapi-injectable
     await register_app(app)
     
@@ -278,10 +290,13 @@ async def migrate_container_services(app: FastAPI) -> None:
                 factory = get_service_factory(name)  # This handles scope selection
                 logger.info(f"Registered service {name} with fastapi-injectable")
             except (AttributeError, TypeError) as e:
+                # TODO: Test coverage needed for error handling path
                 logger.error(f"Type error registering service {name}: {str(e)}")
             except ValueError as e:
+                # TODO: Test coverage needed for error handling path
                 logger.error(f"Value error registering service {name}: {str(e)}")
             except Exception as e:
+                # TODO: Test coverage needed for error handling path
                 logger.error(f"Unexpected error registering service {name}: {str(e)}")
     
     # Register factory-created services
@@ -296,10 +311,13 @@ async def migrate_container_services(app: FastAPI) -> None:
                 registered_factories += 1
                 logger.info(f"Registered factory service {name} with fastapi-injectable")
         except (AttributeError, TypeError) as e:
+            # TODO: Test coverage needed for error handling path
             logger.warning(f"Type error registering factory {name}: {str(e)}")
         except ValueError as e:
+            # TODO: Test coverage needed for error handling path
             logger.warning(f"Value error registering factory {name}: {str(e)}")
         except Exception as e:
+            # TODO: Test coverage needed for error handling path
             logger.warning(f"Could not register factory {name}: {str(e)}")
     
     # Log summary
@@ -316,6 +334,9 @@ async def lifespan_with_injectable(app: FastAPI):
     Args:
         app: FastAPI application
     """
+    # TODO: Test coverage needed for async lifespan context manager
+    # See issue: Test coverage for integration with FastAPI
+    
     # Initialize fastapi-injectable
     logger.info("Initializing fastapi-injectable")
     await register_app(app)
