@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
+@patch('local_newsifier.services.news_pipeline_service.get_db_session')
 def test_process_url(mock_session_manager):
     """Test processing an article from a URL."""
     # Arrange
@@ -78,7 +78,7 @@ def test_process_url(mock_session_manager):
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
+@patch('local_newsifier.services.news_pipeline_service.get_db_session')
 def test_process_url_scraping_failed(mock_session_manager):
     """Test processing an article when scraping fails."""
     # Arrange
@@ -105,7 +105,7 @@ def test_process_url_scraping_failed(mock_session_manager):
     assert result["status"] == "error"
     assert "Failed to scrape content" in result["message"]
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
+@patch('local_newsifier.services.news_pipeline_service.get_db_session')
 def test_process_content(mock_session_manager):
     """Test processing article content directly."""
     # Arrange
@@ -173,7 +173,7 @@ def test_process_content(mock_session_manager):
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
+@patch('local_newsifier.services.news_pipeline_service.get_db_session')
 def test_process_content_with_file_writer(mock_session_manager):
     """Test processing article content with file writer."""
     # Arrange
