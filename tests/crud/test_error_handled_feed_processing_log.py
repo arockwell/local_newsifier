@@ -182,7 +182,15 @@ class TestErrorHandledFeedProcessingLogCRUD:
 
         # Verify it's the most recent one
         assert latest_log is not None
-        assert latest_log.started_at == now  # Most recent log
+        
+        # Check if the timestamps match after accounting for possible timezone differences
+        # Convert both to the same format for comparison if needed
+        latest_started_at = latest_log.started_at
+        if latest_started_at.tzinfo is None:
+            latest_started_at = latest_started_at.replace(tzinfo=timezone.utc)
+        
+        # Compare just the timestamp parts if needed
+        assert latest_started_at.timestamp() == now.timestamp()
 
     def test_get_latest_by_feed_id_not_found(self, db_session):
         """Test getting the latest log for a non-existent feed."""

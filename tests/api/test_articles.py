@@ -29,8 +29,14 @@ class TestArticleRouter:
         response = client.post("/articles/", json=article_data)
         if response.status_code != status.HTTP_201_CREATED:
             print(f"CREATE ARTICLE ERROR: {response.status_code}")
-            print(f"CREATE ARTICLE ERROR CONTENT: {response.content.decode('utf-8')}")
+            error_content = response.content.decode('utf-8')
+            print(f"CREATE ARTICLE ERROR CONTENT: {error_content}")
             print(f"CREATE ARTICLE DATA: {article_data}")
+            # Save the response and data for inspection
+            with open('/tmp/error_response.txt', 'w') as f:
+                f.write(f"Status: {response.status_code}\n\n")
+                f.write(f"Response: {error_content}\n\n")
+                f.write(f"Data: {article_data}")
         
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
