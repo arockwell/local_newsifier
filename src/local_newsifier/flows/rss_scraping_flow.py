@@ -25,14 +25,14 @@ class RSSScrapingFlow:
 
     def __init__(
         self, 
-        rss_feed_service: RSSFeedService,
-        article_service: ArticleService,
-        rss_parser: RSSParser,
-        web_scraper: WebScraperTool,
+        rss_feed_service: Optional[RSSFeedService] = None,
+        article_service: Optional[ArticleService] = None,
+        rss_parser: Optional[RSSParser] = None,
+        web_scraper: Optional[WebScraperTool] = None,
         cache_dir: Optional[str] = None
     ):
         """
-        Initialize the RSS scraping flow with injected dependencies.
+        Initialize the RSS scraping flow.
 
         Args:
             rss_feed_service: Service for RSS feed operations
@@ -44,8 +44,13 @@ class RSSScrapingFlow:
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.rss_feed_service = rss_feed_service
         self.article_service = article_service
-        self.rss_parser = rss_parser
-        self.web_scraper = web_scraper
+
+        # Initialize or use provided tools
+        cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
+        self.rss_parser = rss_parser or RSSParser(
+            cache_file=str(cache_file) if cache_file else None
+        )
+        self.web_scraper = web_scraper or WebScraperTool()
 
     def process_feed(self, feed_url: str) -> List[NewsAnalysisState]:
         """
