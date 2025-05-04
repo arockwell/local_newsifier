@@ -192,6 +192,76 @@ def get_web_scraper_tool():
 
 
 @injectable(use_cache=False)
+def get_sentiment_analyzer_tool():
+    """Provide the sentiment analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as sentiment
+    analysis tools may maintain state during processing and interact with NLP models.
+    
+    Returns:
+        SentimentAnalysisTool instance
+    """
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    return SentimentAnalysisTool()
+
+
+@injectable(use_cache=False)
+def get_sentiment_tracker_tool():
+    """Provide the sentiment tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it 
+    interacts with database and maintains state during tracking.
+    
+    Returns:
+        SentimentTracker instance
+    """
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
+    return SentimentTracker()
+
+
+@injectable(use_cache=False)
+def get_trend_analyzer_tool():
+    """Provide the trend analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it 
+    performs complex analysis that may maintain state during processing.
+    
+    Returns:
+        TrendAnalyzer instance
+    """
+    from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+    return TrendAnalyzer()
+
+
+@injectable(use_cache=False)
+def get_trend_reporter_tool():
+    """Provide the trend reporter tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    maintains state during report generation and handles file operations.
+    
+    Returns:
+        TrendReporter instance
+    """
+    from local_newsifier.tools.trend_reporter import TrendReporter
+    return TrendReporter(output_dir="trend_output")
+
+
+@injectable(use_cache=False)
+def get_context_analyzer_tool():
+    """Provide the context analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    loads and interacts with NLP models that may maintain state.
+    
+    Returns:
+        ContextAnalyzer instance
+    """
+    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+    return ContextAnalyzer()
+
+
+@injectable(use_cache=False)
 def get_entity_extractor():
     """Provide the entity extractor tool.
     
@@ -206,6 +276,20 @@ def get_entity_extractor():
 
 
 @injectable(use_cache=False)
+def get_entity_extractor_tool():
+    """Provide the entity extractor tool (alias with _tool suffix).
+    
+    This provides the same entity extractor with a consistent naming pattern.
+    Uses use_cache=False to create new instances for each injection, as NLP 
+    tools may have stateful caches or models.
+    
+    Returns:
+        EntityExtractor instance
+    """
+    return get_entity_extractor()
+
+
+@injectable(use_cache=False)
 def get_entity_resolver():
     """Provide the entity resolver tool.
     
@@ -217,6 +301,20 @@ def get_entity_resolver():
     """
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
     return EntityResolver()
+
+
+@injectable(use_cache=False)
+def get_entity_resolver_tool():
+    """Provide the entity resolver tool (alias with _tool suffix).
+    
+    This provides the same entity resolver with a consistent naming pattern.
+    Uses use_cache=False to create new instances for each injection, as this tool
+    may have state during the resolution process.
+    
+    Returns:
+        EntityResolver instance
+    """
+    return get_entity_resolver()
 
 
 @injectable(use_cache=False)
