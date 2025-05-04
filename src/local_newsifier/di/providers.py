@@ -54,17 +54,17 @@ def get_session() -> Generator[Session, None, None]:
 # CRUD providers
 
 @injectable(use_cache=False)
-def get_analysis_result_crud():
-    """Provide the analysis result CRUD component.
+def get_apify_source_config_crud():
+    """Provide the apify source config CRUD component.
     
     Uses use_cache=False to create new instances for each injection, as CRUD 
     components interact with the database and should not share state between operations.
     
     Returns:
-        AnalysisResultCRUD instance
+        ApifySourceConfigCRUD instance
     """
-    from local_newsifier.crud.analysis_result import analysis_result
-    return analysis_result
+    from local_newsifier.crud.apify_source_config import apify_source_config
+    return apify_source_config
 
 
 @injectable(use_cache=False)
@@ -123,6 +123,76 @@ def get_rss_feed_crud():
     return rss_feed
 
 
+@injectable(use_cache=False)
+def get_analysis_result_crud():
+    """Provide the analysis result CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        AnalysisResultCRUD instance
+    """
+    from local_newsifier.crud.analysis_result import analysis_result
+    return analysis_result
+
+
+@injectable(use_cache=False)
+def get_canonical_entity_crud():
+    """Provide the canonical entity CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        CanonicalEntityCRUD instance
+    """
+    from local_newsifier.crud.canonical_entity import canonical_entity
+    return canonical_entity
+
+
+@injectable(use_cache=False)
+def get_entity_mention_context_crud():
+    """Provide the entity mention context CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        EntityMentionContextCRUD instance
+    """
+    from local_newsifier.crud.entity_mention_context import entity_mention_context
+    return entity_mention_context
+
+
+@injectable(use_cache=False)
+def get_entity_profile_crud():
+    """Provide the entity profile CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        EntityProfileCRUD instance
+    """
+    from local_newsifier.crud.entity_profile import entity_profile
+    return entity_profile
+
+
+@injectable(use_cache=False)
+def get_feed_processing_log_crud():
+    """Provide the feed processing log CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        FeedProcessingLogCRUD instance
+    """
+    from local_newsifier.crud.feed_processing_log import feed_processing_log
+    return feed_processing_log
+
+
 # Tool providers
 
 @injectable(use_cache=False)
@@ -136,6 +206,76 @@ def get_web_scraper_tool():
     """
     from local_newsifier.tools.web_scraper import WebScraperTool
     return WebScraperTool()
+
+
+@injectable(use_cache=False)
+def get_sentiment_analyzer_tool():
+    """Provide the sentiment analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as sentiment
+    analysis tools may maintain state during processing and interact with NLP models.
+    
+    Returns:
+        SentimentAnalysisTool instance
+    """
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    return SentimentAnalysisTool()
+
+
+@injectable(use_cache=False)
+def get_sentiment_tracker_tool():
+    """Provide the sentiment tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it 
+    interacts with database and maintains state during tracking.
+    
+    Returns:
+        SentimentTracker instance
+    """
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
+    return SentimentTracker()
+
+
+@injectable(use_cache=False)
+def get_trend_analyzer_tool():
+    """Provide the trend analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it 
+    performs complex analysis that may maintain state during processing.
+    
+    Returns:
+        TrendAnalyzer instance
+    """
+    from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+    return TrendAnalyzer()
+
+
+@injectable(use_cache=False)
+def get_trend_reporter_tool():
+    """Provide the trend reporter tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    maintains state during report generation and handles file operations.
+    
+    Returns:
+        TrendReporter instance
+    """
+    from local_newsifier.tools.trend_reporter import TrendReporter
+    return TrendReporter(output_dir="trend_output")
+
+
+@injectable(use_cache=False)
+def get_context_analyzer_tool():
+    """Provide the context analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    loads and interacts with NLP models that may maintain state.
+    
+    Returns:
+        ContextAnalyzer instance
+    """
+    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+    return ContextAnalyzer()
 
 
 @injectable(use_cache=False)
@@ -153,6 +293,20 @@ def get_entity_extractor():
 
 
 @injectable(use_cache=False)
+def get_entity_extractor_tool():
+    """Provide the entity extractor tool (alias with _tool suffix).
+    
+    This provides the same entity extractor with a consistent naming pattern.
+    Uses use_cache=False to create new instances for each injection, as NLP 
+    tools may have stateful caches or models.
+    
+    Returns:
+        EntityExtractor instance
+    """
+    return get_entity_extractor()
+
+
+@injectable(use_cache=False)
 def get_entity_resolver():
     """Provide the entity resolver tool.
     
@@ -164,6 +318,20 @@ def get_entity_resolver():
     """
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
     return EntityResolver()
+
+
+@injectable(use_cache=False)
+def get_entity_resolver_tool():
+    """Provide the entity resolver tool (alias with _tool suffix).
+    
+    This provides the same entity resolver with a consistent naming pattern.
+    Uses use_cache=False to create new instances for each injection, as this tool
+    may have state during the resolution process.
+    
+    Returns:
+        EntityResolver instance
+    """
+    return get_entity_resolver()
 
 
 @injectable(use_cache=False)

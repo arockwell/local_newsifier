@@ -337,6 +337,7 @@ class TestPublicOpinionFlow:
         assert text_result == "Text Report"
         flow.opinion_visualizer.generate_text_report.assert_called_once_with(mock_viz_data, report_type="timeline")
 
+    @pytest.mark.slow
     def test_generate_comparison_report(self, flow):
         """Test generating a comparison report."""
         # Mock opinion visualizer
@@ -380,6 +381,7 @@ class TestPublicOpinionFlow:
         assert "climate" in comparison_data
         assert "energy" in comparison_data
 
+    @pytest.mark.slow
     def test_generate_report_with_error(self, flow):
         """Test error handling in report generation."""
         # Mock visualizer with an error

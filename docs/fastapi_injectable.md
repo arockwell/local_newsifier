@@ -1,5 +1,8 @@
 # FastAPI Injectable Migration Guide
 
+> **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture 
+> and transition strategy, please refer to the [DI Architecture Guide](di_architecture.md).
+
 ## Overview
 
 Local Newsifier is transitioning from a custom DIContainer to the fastapi-injectable framework. This guide provides comprehensive information on the migration process, implementation details, and best practices.

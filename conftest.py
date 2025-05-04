@@ -46,6 +46,11 @@ from local_newsifier.models.trend import (
     TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 )
 
+# Apify models
+from local_newsifier.models.apify import (
+    ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
+)
+
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a test database engine using SQLite in-memory.
@@ -59,6 +64,9 @@ def test_engine():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        # Speed up SQLite for tests
+        pool_pre_ping=False,  # Disable pre-ping for tests
+        pool_recycle=-1,  # Disable connection recycling
     )
     
     # Create all tables

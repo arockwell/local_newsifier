@@ -1,6 +1,10 @@
 # Dependency Injection System
 
-This document explains the dependency injection (DI) container implementation in the Local Newsifier project.
+> **IMPORTANT NOTICE**: Local Newsifier is currently migrating from this custom DIContainer to fastapi-injectable.
+> For comprehensive guidance on the current DI architecture and transition strategy, please refer to the
+> [DI Architecture Guide](di_architecture.md). This document is maintained for reference purposes.
+
+This document explains the original dependency injection (DI) container implementation in the Local Newsifier project.
 
 ## Overview
 
