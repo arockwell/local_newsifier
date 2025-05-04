@@ -4,82 +4,63 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch, MagicMock
 
 import pytest
+from fastapi import Depends
+from sqlmodel import Session
 
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.services.entity_service import EntityService
+from local_newsifier.tools.entity_tracker_service import EntityTracker
 
 
-@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
-@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityService")
-def test_entity_tracking_flow_init(
-    mock_entity_service_class, 
-    mock_tracker_class,
-    mock_resolver_class, 
-    mock_context_analyzer_class, 
-    mock_extractor_class
+@patch("local_newsifier.di.providers.get_entity_service")
+@patch("local_newsifier.di.providers.get_entity_tracker_tool")
+@patch("local_newsifier.di.providers.get_session")
+def test_entity_tracking_flow_init_with_di(
+    mock_get_session,
+    mock_get_entity_tracker,
+    mock_get_entity_service
 ):
-    """Test initializing the entity tracking flow with defaults."""
-    # Setup mocks
+    """Test initializing the entity tracking flow with dependency injection."""
+    # Setup mocks for providers
     mock_entity_service = Mock(spec=EntityService)
-    mock_entity_service_class.return_value = mock_entity_service
+    mock_entity_tracker = Mock(spec=EntityTracker)
+    mock_session = Mock(spec=Session)
     
-    mock_tracker = Mock()
-    mock_tracker_class.return_value = mock_tracker
+    mock_get_entity_service.return_value = mock_entity_service
+    mock_get_entity_tracker.return_value = mock_entity_tracker
+    mock_get_session.return_value = mock_session
     
-    mock_extractor = Mock()
-    mock_extractor_class.return_value = mock_extractor
-    
-    mock_analyzer = Mock()
-    mock_context_analyzer_class.return_value = mock_analyzer
-    
-    mock_resolver = Mock()
-    mock_resolver_class.return_value = mock_resolver
-    
-    # Initialize flow
+    # Initialize flow using DI patterns
     flow = EntityTrackingFlow()
     
-    # Verify service and tools were created
-    assert flow.entity_service is not None
-    assert flow.session is None
-    assert flow._entity_tracker is not None
-    assert flow._entity_extractor is not None
-    assert flow._context_analyzer is not None
-    assert flow._entity_resolver is not None
+    # Verify dependencies were injected
+    assert flow.entity_service is mock_entity_service
+    assert flow._entity_tracker is mock_entity_tracker
+    assert flow.session is mock_session
 
 
-def test_entity_tracking_flow_init_with_dependencies():
-    """Test initializing the entity tracking flow with provided dependencies."""
+def test_entity_tracking_flow_init_with_explicit_dependencies():
+    """Test initializing the entity tracking flow with explicitly provided dependencies."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
-    mock_entity_tracker = Mock()
-    mock_entity_extractor = Mock()
-    mock_context_analyzer = Mock()
-    mock_entity_resolver = Mock()
+    mock_entity_tracker = Mock(spec=EntityTracker)
+    mock_session = Mock(spec=Session)
     mock_session_factory = Mock()
-    mock_session = Mock()
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with explicit dependencies
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory,
-        session=mock_session
+        session=mock_session,
+        session_factory=mock_session_factory
     )
     
     # Verify dependencies were used
     assert flow.entity_service is mock_entity_service
     assert flow._entity_tracker is mock_entity_tracker
-    assert flow._entity_extractor is mock_entity_extractor
-    assert flow._context_analyzer is mock_context_analyzer
-    assert flow._entity_resolver is mock_entity_resolver
     assert flow.session is mock_session
+    assert flow._session_factory is mock_session_factory
 
 
 def test_process_method():
@@ -127,7 +108,7 @@ def test_process_new_articles_method():
 def test_process_article_method(mock_article_crud):
     """Test the process_article method (legacy)."""
     # Setup mocks
-    mock_entity_service = Mock()  # Don't use spec to avoid attribute constraints
+    mock_entity_service = Mock(spec=EntityService)
     mock_session = Mock()
     mock_article = Mock()
     mock_article.id = 123
@@ -139,7 +120,9 @@ def test_process_article_method(mock_article_crud):
     mock_context_manager = MagicMock()
     mock_context_manager.__enter__.return_value = mock_session
     mock_context_manager.__exit__.return_value = None
-    mock_entity_service.session_factory.return_value = mock_context_manager
+    
+    # Setup session factory mock
+    mock_session_factory = Mock(return_value=mock_context_manager)
     
     # Configure article crud mock
     mock_article_crud.get.return_value = mock_article
@@ -149,11 +132,17 @@ def test_process_article_method(mock_article_crud):
     mock_result_state.entities = [{"entity": "test"}]
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
-    # Initialize flow
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    # Initialize flow with session factory
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        session_factory=mock_session_factory
+    )
     
     # Call process_article method
     result = flow.process_article(article_id=123)
+    
+    # Verify session factory was called
+    mock_session_factory.assert_called_once()
     
     # Verify article was retrieved
     mock_article_crud.get.assert_called_once_with(mock_session, id=123)

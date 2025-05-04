@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Annotated
 
 from crewai import Flow
+from fastapi import Depends
+from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.file_writer import FileWriterTool
@@ -9,16 +11,10 @@ from local_newsifier.tools.web_scraper import WebScraperTool
 from local_newsifier.services.news_pipeline_service import NewsPipelineService
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.entity_service import EntityService
-from local_newsifier.database.engine import get_session
-from local_newsifier.crud.article import article as article_crud
-from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
-from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+from local_newsifier.di.providers import (
+    get_session, get_article_service, get_entity_service, 
+    get_web_scraper_tool, get_file_writer_tool
+)
 
 
 class NewsPipelineFlow(Flow):
@@ -26,70 +22,35 @@ class NewsPipelineFlow(Flow):
 
     def __init__(
         self, 
-        article_service: Optional[ArticleService] = None,
-        entity_service: Optional[EntityService] = None,
-        pipeline_service: Optional[NewsPipelineService] = None,
-        web_scraper: Optional[WebScraperTool] = None,
-        file_writer: Optional[FileWriterTool] = None,
-        entity_extractor: Optional[EntityExtractor] = None,
-        context_analyzer: Optional[ContextAnalyzer] = None,
-        entity_resolver: Optional[EntityResolver] = None,
+        article_service: Annotated[ArticleService, Depends(get_article_service)] = None,
+        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
+        web_scraper: Annotated[WebScraperTool, Depends(get_web_scraper_tool)] = None,
+        file_writer: Annotated[FileWriterTool, Depends(get_file_writer_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
         session_factory: Optional[callable] = None,
-        output_dir: str = "output"
+        pipeline_service: Optional[NewsPipelineService] = None
     ):
         """Initialize the pipeline flow.
         
         Args:
             article_service: Service for article operations
             entity_service: Service for entity operations
-            pipeline_service: Service for news pipeline operations
             web_scraper: Tool for scraping web content
             file_writer: Tool for writing files
-            entity_extractor: Tool for extracting entities
-            context_analyzer: Tool for analyzing context
-            entity_resolver: Tool for resolving entities
+            session: Database session
             session_factory: Function to create database sessions
-            output_dir: Directory for output files
+            pipeline_service: Service for news pipeline operations
         """
         super().__init__()
         
-        # Create or use provided tools
-        self.scraper = web_scraper or WebScraperTool()
-        self.writer = file_writer or FileWriterTool(output_dir=output_dir)
+        # Use injected dependencies
+        self.article_service = article_service
+        self.entity_service = entity_service
+        self.scraper = web_scraper
+        self.writer = file_writer
         
-        # Get or create session factory
-        self._session_factory = session_factory or get_session
-        
-        # Create or use provided entity service
-        self._entity_extractor = entity_extractor or EntityExtractor()
-        self._context_analyzer = context_analyzer or ContextAnalyzer()
-        self._entity_resolver = entity_resolver or EntityResolver()
-        
-        if entity_service:
-            self.entity_service = entity_service
-        else:
-            self.entity_service = EntityService(
-                entity_crud=entity_crud,
-                canonical_entity_crud=canonical_entity_crud,
-                entity_mention_context_crud=entity_mention_context_crud,
-                entity_profile_crud=entity_profile_crud,
-                article_crud=article_crud,
-                entity_extractor=self._entity_extractor,
-                context_analyzer=self._context_analyzer,
-                entity_resolver=self._entity_resolver,
-                session_factory=self._session_factory
-            )
-        
-        # Create or use provided article service
-        if article_service:
-            self.article_service = article_service
-        else:
-            self.article_service = ArticleService(
-                article_crud=article_crud,
-                analysis_result_crud=analysis_result_crud,
-                entity_service=self.entity_service,
-                session_factory=self._session_factory
-            )
+        # Set up session factory
+        self._session_factory = session_factory or (lambda: session)
         
         # Create or use provided pipeline service
         if pipeline_service:

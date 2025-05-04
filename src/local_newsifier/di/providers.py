@@ -330,3 +330,82 @@ def get_trend_analyzer_tool(session: Annotated[Session, Depends(get_session)] = 
     """
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
     return TrendAnalyzer(session=session)
+
+
+@injectable(use_cache=False)
+def get_entity_tracker_tool(
+    entity_service: Annotated[Any, Depends(get_entity_service)] = None,
+    session: Annotated[Session, Depends(get_session)] = None
+):
+    """Provide the entity tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the entity
+    tracker uses database operations and maintains state during processing.
+    
+    Args:
+        entity_service: Entity service instance
+        session: Database session
+    
+    Returns:
+        EntityTracker instance
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker(entity_service=entity_service, session=session)
+
+
+@injectable(use_cache=False)
+def get_opinion_visualizer_tool(session: Annotated[Session, Depends(get_session)] = None):
+    """Provide the opinion visualizer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the opinion
+    visualizer interacts with the database and maintains state during visualization.
+    
+    Args:
+        session: Database session
+    
+    Returns:
+        OpinionVisualizerTool instance
+    """
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+    return OpinionVisualizerTool(session=session)
+
+
+@injectable(use_cache=False)
+def get_file_writer_tool(output_dir: str = "output"):
+    """Provide the file writer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the file
+    writer maintains state related to output files and directories.
+    
+    Args:
+        output_dir: Directory to save output files in
+    
+    Returns:
+        FileWriterTool instance
+    """
+    from local_newsifier.tools.file_writer import FileWriterTool
+    return FileWriterTool(output_dir=output_dir)
+
+
+# Alias definitions for backward compatibility
+# These ensure tools can be referenced both with and without the _tool suffix
+
+@injectable(use_cache=False)
+def get_entity_tracker(
+    entity_service: Annotated[Any, Depends(get_entity_service)] = None,
+    session: Annotated[Session, Depends(get_session)] = None
+):
+    """Alias for get_entity_tracker_tool."""
+    return get_entity_tracker_tool(entity_service=entity_service, session=session)
+
+
+@injectable(use_cache=False)
+def get_opinion_visualizer(session: Annotated[Session, Depends(get_session)] = None):
+    """Alias for get_opinion_visualizer_tool."""
+    return get_opinion_visualizer_tool(session=session)
+
+
+@injectable(use_cache=False)
+def get_file_writer(output_dir: str = "output"):
+    """Alias for get_file_writer_tool."""
+    return get_file_writer_tool(output_dir=output_dir)

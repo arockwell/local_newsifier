@@ -15,17 +15,22 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Annotated
 
 from crewai import Flow
+from fastapi import Depends
 from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session, with_session
+from local_newsifier.database.engine import with_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.models.sentiment import SentimentVisualizationData
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+from local_newsifier.di.providers import (
+    get_session, get_sentiment_analyzer_tool, 
+    get_sentiment_tracker_tool, get_opinion_visualizer_tool
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +40,11 @@ class PublicOpinionFlow(Flow):
 
     def __init__(
         self, 
-        sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
-        sentiment_tracker: Optional[SentimentTracker] = None,
-        opinion_visualizer: Optional[OpinionVisualizerTool] = None,
-        session_factory: Optional[callable] = None,
-        session: Optional[Session] = None
+        sentiment_analyzer: Annotated[SentimentAnalysisTool, Depends(get_sentiment_analyzer_tool)] = None,
+        sentiment_tracker: Annotated[SentimentTracker, Depends(get_sentiment_tracker_tool)] = None,
+        opinion_visualizer: Annotated[OpinionVisualizerTool, Depends(get_opinion_visualizer_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
+        session_factory: Optional[callable] = None
     ):
         """
         Initialize the public opinion analysis flow.
@@ -48,36 +53,19 @@ class PublicOpinionFlow(Flow):
             sentiment_analyzer: Tool for sentiment analysis
             sentiment_tracker: Tool for tracking sentiment over time
             opinion_visualizer: Tool for generating visualizations
+            session: SQLModel session
             session_factory: Factory function for creating database sessions
-            session: Optional SQLModel session to use
         """
         super().__init__()
-
-        # Set up database connection if not provided
-        if session is None:
-            if session_factory:
-                self.session_generator = session_factory()
-            else:
-                self.session_generator = get_session()
-            self.session = next(self.session_generator)
-            self._owns_session = True
-        else:
-            self.session = session
-            self._owns_session = False
-
-        # Initialize tools or use provided ones
-        self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)
-        self.sentiment_tracker = sentiment_tracker or SentimentTracker(self.session)
-        self.opinion_visualizer = opinion_visualizer or OpinionVisualizerTool(self.session)
-
-    def __del__(self):
-        """Clean up resources when the flow is deleted."""
-        if hasattr(self, "_owns_session") and self._owns_session:
-            if hasattr(self, "session") and self.session is not None:
-                try:
-                    next(self.session_generator, None)
-                except StopIteration:
-                    pass
+        
+        # Use injected dependencies
+        self.session = session
+        self.sentiment_analyzer = sentiment_analyzer
+        self.sentiment_tracker = sentiment_tracker
+        self.opinion_visualizer = opinion_visualizer
+        
+        # Set up session factory
+        self._session_factory = session_factory or (lambda: session)
 
     @with_session
     def analyze_articles(
