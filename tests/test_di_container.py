@@ -286,3 +286,178 @@ class TestDIContainer:
         assert child_result == "Child 1"
         assert parent_calls == 1
         assert child_calls == 1
+        
+    # Tests for the new public API methods
+    
+    def test_get_all_services(self):
+        """Test getting all registered service instances."""
+        # Arrange
+        container = DIContainer()
+        service1 = object()
+        service2 = object()
+        container.register("service1", service1)
+        container.register("service2", service2)
+        
+        # Act
+        services = container.get_all_services()
+        
+        # Assert
+        assert isinstance(services, dict)
+        assert len(services) == 2
+        assert services["service1"] is service1
+        assert services["service2"] is service2
+        
+        # Verify it's a copy not the original
+        services["newkey"] = "newvalue"
+        assert "newkey" not in container.get_all_services()
+        
+    def test_get_all_factories(self):
+        """Test getting all registered factory functions."""
+        # Arrange
+        container = DIContainer()
+        factory1 = lambda c: "result1"
+        factory2 = lambda c: "result2"
+        container.register_factory("factory1", factory1)
+        container.register_factory("factory2", factory2)
+        
+        # Act
+        factories = container.get_all_factories()
+        
+        # Assert
+        assert isinstance(factories, dict)
+        assert len(factories) == 2
+        assert factories["factory1"] is factory1
+        assert factories["factory2"] is factory2
+        
+        # Verify it's a copy not the original
+        factories["newkey"] = lambda c: "new"
+        assert "newkey" not in container.get_all_factories()
+        
+    def test_get_service_scope(self):
+        """Test getting the scope of a service."""
+        # Arrange
+        container = DIContainer()
+        container.register("singleton", "value", scope=Scope.SINGLETON)
+        container.register("transient", "value", scope=Scope.TRANSIENT)
+        container.register("scoped", "value", scope=Scope.SCOPED)
+        
+        # Act & Assert
+        assert container.get_service_scope("singleton") == Scope.SINGLETON
+        assert container.get_service_scope("transient") == Scope.TRANSIENT
+        assert container.get_service_scope("scoped") == Scope.SCOPED
+        assert container.get_service_scope("nonexistent") is None
+        
+    def test_create_service(self):
+        """Test creating a service using its registered factory."""
+        # Arrange
+        container = DIContainer()
+        call_count = 0
+        
+        def factory(c, param=None):
+            nonlocal call_count
+            call_count += 1
+            return {"id": call_count, "param": param}
+            
+        container.register_factory_with_params("service", factory, scope=Scope.SINGLETON)
+        
+        # Act - get singleton instance first
+        singleton = container.get("service")
+        
+        # Now create new instances with create_service
+        instance1 = container.create_service("service")
+        instance2 = container.create_service("service", param="value")
+        
+        # The normal get should still return the singleton
+        singleton_again = container.get("service")
+        
+        # Assert
+        assert call_count == 3  # 1 for singleton, 2 for create_service calls
+        assert singleton["id"] == 1
+        assert instance1["id"] == 2
+        assert instance2["id"] == 3
+        assert instance2["param"] == "value"
+        assert singleton_again is singleton  # Still the same singleton
+        
+        # Test with nonexistent service
+        with pytest.raises(KeyError):
+            container.create_service("nonexistent")
+            
+    def test_get_service_names(self):
+        """Test getting the names of all registered services."""
+        # Arrange
+        container = DIContainer()
+        container.register("service1", "value")
+        container.register("service2", "value")
+        container.register_factory("factory1", lambda c: "result")
+        
+        # Act
+        names = container.get_service_names()
+        
+        # Assert - should contain all registered services and factories
+        assert isinstance(names, list)
+        assert len(names) == 3
+        assert set(names) == {"service1", "service2", "factory1"}
+        
+    def test_get_services_by_pattern(self):
+        """Test getting service names that match a pattern."""
+        # Arrange
+        container = DIContainer()
+        container.register("service_one", "value")
+        container.register("service_two", "value")
+        container.register("other_service", "value")
+        container.register_factory("factory_one", lambda c: "result")
+        
+        # Act
+        services_with_one = container.get_services_by_pattern("one")
+        services_with_service = container.get_services_by_pattern("service")
+        
+        # Assert
+        assert set(services_with_one) == {"service_one", "factory_one"}
+        assert set(services_with_service) == {"service_one", "service_two", "other_service"}
+        
+    def test_get_services_by_scope(self):
+        """Test getting service names with a specific scope."""
+        # Arrange
+        container = DIContainer()
+        container.register("singleton1", "value", scope=Scope.SINGLETON)
+        container.register("singleton2", "value", scope=Scope.SINGLETON)
+        container.register("transient1", "value", scope=Scope.TRANSIENT)
+        container.register("scoped1", "value", scope=Scope.SCOPED)
+        
+        # Act
+        singletons = container.get_services_by_scope(Scope.SINGLETON)
+        transients = container.get_services_by_scope(Scope.TRANSIENT)
+        scoped = container.get_services_by_scope(Scope.SCOPED)
+        
+        # Assert
+        assert set(singletons) == {"singleton1", "singleton2"}
+        assert set(transients) == {"transient1"}
+        assert set(scoped) == {"scoped1"}
+        
+    def test_property_deprecation_warnings(self):
+        """Test that deprecated property accessors emit warnings."""
+        # Arrange
+        container = DIContainer()
+        container.register("service", "value")
+        container.register_factory("factory", lambda c: "result")
+        
+        # Act & Assert - check that each property access emits a warning
+        with pytest.warns(DeprecationWarning, match="Use get_all_services"):
+            services = container._services
+            assert "service" in services
+            
+        with pytest.warns(DeprecationWarning, match="Use get_all_factories"):
+            factories = container._factories
+            assert "factory" in factories
+            
+        with pytest.warns(DeprecationWarning, match="Use get_service_scope"):
+            scopes = container._scopes
+            assert "service" in scopes
+            
+        with pytest.warns(DeprecationWarning):
+            creating = container._creating
+            assert isinstance(creating, set)
+            
+        with pytest.warns(DeprecationWarning):
+            handlers = container._cleanup_handlers
+            assert isinstance(handlers, dict)
