@@ -131,12 +131,7 @@ class RSSFeedService:
         # Check if feed already exists
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
-            raise ServiceError(
-                service="rss",
-                error_type="validation",
-                message=f"Feed with URL '{url}' already exists",
-                context={"url": url}
-            )
+            raise ValueError(f"Feed with URL '{url}' already exists")
         
         # Validate that the URL is a valid RSS feed
         # This will raise a ServiceError if the feed is invalid
