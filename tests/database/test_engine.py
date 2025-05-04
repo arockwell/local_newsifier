@@ -17,11 +17,15 @@ from local_newsifier.database.engine import (
 )
 
 
+@patch('local_newsifier.database.engine.os.environ.get')
 @patch('local_newsifier.database.engine.create_engine')
 @patch('local_newsifier.database.engine.get_settings')
-def test_get_engine_success(mock_get_settings, mock_create_engine):
+def test_get_engine_success(mock_get_settings, mock_create_engine, mock_environ_get):
     """Test successful engine creation."""
     # Arrange
+    # Ensure the test doesn't detect we're in test mode
+    mock_environ_get.return_value = None
+    
     mock_settings = MagicMock()
     mock_settings.DATABASE_URL = "postgresql://user:pass@localhost/db"
     mock_settings.POSTGRES_PASSWORD = "pass"
@@ -36,17 +40,15 @@ def test_get_engine_success(mock_get_settings, mock_create_engine):
     mock_engine.connect.return_value.__enter__.return_value = mock_connection
     mock_create_engine.return_value = mock_engine
     
-    # Act - Use url parameter to avoid test_mode special handling
-    # This ensures the mocked create_engine is used instead of SQLite test mode
-    result = get_engine(url="postgresql://user:pass@localhost/db")
+    # Act - Set test_mode=False to ensure we don't use SQLite mode
+    result = get_engine(url="postgresql://user:pass@localhost/db", test_mode=False)
     
     # Assert
     assert result is not None
-    mock_create_engine.assert_called_once()
-    
-    # We can only check that an engine is returned, not necessarily the exact mock
-    # since test_mode might return a SQLite engine
     assert mock_create_engine.called
+    
+    # With our fixes, we should be able to verify the result is our mock engine
+    assert result == mock_engine
 
 
 @patch('local_newsifier.database.engine.create_engine', side_effect=OperationalError("statement", {}, None))

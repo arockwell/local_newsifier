@@ -211,6 +211,12 @@ def test_get_table_details_api_error(client):
 
 def test_get_tables_info(mock_session):
     """Test the helper function for getting table information."""
+    # Setup session bind and dialect for SQLite detection
+    mock_dialect = Mock()
+    mock_dialect.name = "postgresql"  # Use postgres dialect for the test
+    mock_session.bind = Mock()
+    mock_session.bind.dialect = mock_dialect
+    
     # Setup session exec mock with proper list-like responses
     mock_tables_result = [("table1", 3, 1024), ("table2", 5, 2048)]
 
