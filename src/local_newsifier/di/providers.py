@@ -406,6 +406,7 @@ def get_entity_service(
 @injectable(use_cache=False)
 def get_rss_feed_service(
     rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
+    feed_processing_log_crud: Annotated[Any, Depends(get_feed_processing_log_crud)],
     rss_parser: Annotated[Any, Depends(get_rss_parser)],
     article_service: Annotated[Any, Depends(get_article_service)],
     session: Annotated[Session, Depends(get_session)]
@@ -417,6 +418,7 @@ def get_rss_feed_service(
     
     Args:
         rss_feed_crud: RSS feed CRUD component
+        feed_processing_log_crud: Feed processing log CRUD component
         rss_parser: RSS parser tool
         article_service: Article service
         session: Database session
@@ -428,7 +430,101 @@ def get_rss_feed_service(
     
     return RSSFeedService(
         rss_feed_crud=rss_feed_crud,
-        rss_parser=rss_parser,
+        feed_processing_log_crud=feed_processing_log_crud,
         article_service=article_service,
         session_factory=lambda: session
     )
+
+
+# CLI-specific provider functions
+
+@injectable(use_cache=False)
+def get_news_pipeline_flow(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    web_scraper_tool: Annotated[Any, Depends(get_web_scraper_tool)],
+    file_writer_tool: Annotated[Any, Depends(get_trend_reporter_tool)],
+    entity_extractor_tool: Annotated[Any, Depends(get_entity_extractor_tool)],
+    context_analyzer_tool: Annotated[Any, Depends(get_context_analyzer_tool)],
+    entity_resolver_tool: Annotated[Any, Depends(get_entity_resolver_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news pipeline flow.
+    
+    Used by CLI commands to process articles.
+    
+    Args:
+        article_service: Article service
+        entity_service: Entity service
+        web_scraper_tool: Web scraper tool
+        file_writer_tool: File writer tool
+        entity_extractor_tool: Entity extractor tool
+        context_analyzer_tool: Context analyzer tool
+        entity_resolver_tool: Entity resolver tool
+        session: Database session
+        
+    Returns:
+        NewsPipelineFlow instance
+    """
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    
+    return NewsPipelineFlow(
+        article_service=article_service,
+        entity_service=entity_service,
+        web_scraper=web_scraper_tool,
+        file_writer=file_writer_tool,
+        entity_extractor=entity_extractor_tool,
+        context_analyzer=context_analyzer_tool,
+        entity_resolver=entity_resolver_tool,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    entity_tracker_tool: Annotated[Any, Depends(get_entity_extractor_tool)],
+    entity_extractor_tool: Annotated[Any, Depends(get_entity_extractor_tool)],
+    context_analyzer_tool: Annotated[Any, Depends(get_context_analyzer_tool)],
+    entity_resolver_tool: Annotated[Any, Depends(get_entity_resolver_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity tracking flow.
+    
+    Used by CLI commands to process entity tracking.
+    
+    Args:
+        entity_service: Entity service
+        entity_tracker_tool: Entity tracker tool
+        entity_extractor_tool: Entity extractor tool
+        context_analyzer_tool: Context analyzer tool
+        entity_resolver_tool: Entity resolver tool
+        session: Database session
+        
+    Returns:
+        EntityTrackingFlow instance
+    """
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    
+    return EntityTrackingFlow(
+        entity_service=entity_service,
+        entity_tracker=entity_tracker_tool,
+        entity_extractor=entity_extractor_tool,
+        context_analyzer=context_analyzer_tool,
+        entity_resolver=entity_resolver_tool,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_apify_service():
+    """Provide the Apify service.
+    
+    Used by CLI commands to interact with Apify API.
+    
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    
+    return ApifyService()

@@ -14,9 +14,58 @@ import json
 import click
 from datetime import datetime
 from tabulate import tabulate
+from typing import Any
 
-from local_newsifier.container import container
-from local_newsifier.database.engine import get_session
+from local_newsifier.di.providers import (
+    get_rss_feed_service as get_rss_feed_service_provider,
+    get_article_crud as get_article_crud_provider,
+    get_news_pipeline_flow as get_news_pipeline_flow_provider,
+    get_entity_tracking_flow as get_entity_tracking_flow_provider,
+    get_session as get_session_provider,
+)
+from local_newsifier.container import container  # Keep for compatibility with tests
+
+# Function wrappers to get provider instances
+def get_rss_feed_service() -> Any:
+    """Get the RSS feed service instance using the provider or container."""
+    try:
+        return get_rss_feed_service_provider()
+    except Exception:
+        # Fallback to container for compatibility with tests
+        return container.get("rss_feed_service")
+
+def get_article_crud() -> Any:
+    """Get the article CRUD instance using the provider or container."""
+    try:
+        return get_article_crud_provider()
+    except Exception:
+        # Fallback to container for compatibility with tests
+        return container.get("article_crud")
+
+def get_news_pipeline_flow() -> Any:
+    """Get the news pipeline flow instance using the provider or container."""
+    try:
+        return get_news_pipeline_flow_provider()
+    except Exception:
+        # Fallback to container for compatibility with tests
+        return container.get("news_pipeline_flow")
+
+def get_entity_tracking_flow() -> Any:
+    """Get the entity tracking flow instance using the provider or container."""
+    try:
+        return get_entity_tracking_flow_provider()
+    except Exception:
+        # Fallback to container for compatibility with tests
+        return container.get("entity_tracking_flow")
+
+def get_session() -> Any:
+    """Get a database session using the provider or container."""
+    try:
+        return next(get_session_provider())
+    except Exception:
+        # Fallback to container for compatibility with tests
+        session_factory = container.get("session_factory")
+        return next(session_factory())
 
 
 @click.group(name="feeds")
@@ -30,9 +79,15 @@ def feeds_group():
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--limit", type=int, default=100, help="Maximum number of feeds to display")
 @click.option("--skip", type=int, default=0, help="Number of feeds to skip")
-def list_feeds(active_only, json_output, limit, skip):
+def list_feeds(
+    active_only, 
+    json_output, 
+    limit, 
+    skip
+):
     """List all feeds with optional filtering."""
-    rss_feed_service = container.get("rss_feed_service")
+    # Get the service using the provider function
+    rss_feed_service = get_rss_feed_service()
     feeds = rss_feed_service.list_feeds(skip=skip, limit=limit, active_only=active_only)
     
     if json_output:
@@ -67,12 +122,17 @@ def list_feeds(active_only, json_output, limit, skip):
 @click.argument("url", required=True)
 @click.option("--name", help="Feed name (defaults to URL if not provided)")
 @click.option("--description", help="Feed description")
-def add_feed(url, name, description):
+def add_feed(
+    url, 
+    name, 
+    description
+):
     """Add a new feed."""
     feed_name = name or url
     
     try:
-        rss_feed_service = container.get("rss_feed_service")
+        # Get the service using the provider function
+        rss_feed_service = get_rss_feed_service()
         feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
         click.echo(f"Feed added successfully with ID: {feed['id']}")
     except ValueError as e:
@@ -83,9 +143,14 @@ def add_feed(url, name, description):
 @click.argument("id", type=int, required=True)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--show-logs", is_flag=True, help="Show processing logs")
-def show_feed(id, json_output, show_logs):
+def show_feed(
+    id, 
+    json_output, 
+    show_logs
+):
     """Show feed details."""
-    rss_feed_service = container.get("rss_feed_service")
+    # Get the service using the provider function
+    rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -152,9 +217,13 @@ def show_feed(id, json_output, show_logs):
 @feeds_group.command(name="remove")
 @click.argument("id", type=int, required=True)
 @click.option("--force", is_flag=True, help="Skip confirmation")
-def remove_feed(id, force):
+def remove_feed(
+    id, 
+    force
+):
     """Remove a feed."""
-    rss_feed_service = container.get("rss_feed_service")
+    # Get the service using the provider function
+    rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -184,47 +253,48 @@ def direct_process_article(article_id):
     Returns:
         bool: True if processing was successful, False otherwise
     """
-    # Get all required dependencies from the container
-    article_crud = container.get("article_crud")
-    session_factory = container.get("session_factory")
-    
-    # Get flow services from container
-    news_pipeline_flow = container.get("news_pipeline_flow")
-    entity_tracking_flow = container.get("entity_tracking_flow")
-    
-    with session_factory() as session:
-        try:
-            # Get the article from the database
-            article = article_crud.get(session, id=article_id)
-            if not article:
-                click.echo(f"Article with ID {article_id} not found")
-                return False
-            
-            # Process the article through the news pipeline
-            if article.url and news_pipeline_flow:
-                news_pipeline_flow.process_url_directly(article.url)
-            
-            # Process entities in the article
-            entities = None
-            if entity_tracking_flow:
-                entities = entity_tracking_flow.process_article(article.id)
-            
-            click.echo(f"Processed article {article_id}: {article.title}")
-            if entities:
-                click.echo(f"  Found {len(entities)} entities")
-            
-            return True
-        except Exception as e:
-            click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
+    try:
+        # Get dependencies using provider functions
+        article_crud = get_article_crud()
+        news_pipeline_flow = get_news_pipeline_flow() 
+        entity_tracking_flow = get_entity_tracking_flow()
+        session = get_session()
+        
+        # Get the article from the database
+        article = article_crud.get(session, id=article_id)
+        if not article:
+            click.echo(f"Article with ID {article_id} not found")
             return False
+        
+        # Process the article through the news pipeline
+        if article.url and news_pipeline_flow:
+            news_pipeline_flow.process_url_directly(article.url)
+        
+        # Process entities in the article
+        entities = None
+        if entity_tracking_flow:
+            entities = entity_tracking_flow.process_article(article.id)
+        
+        click.echo(f"Processed article {article_id}: {article.title}")
+        if entities:
+            click.echo(f"  Found {len(entities)} entities")
+        
+        return True
+    except Exception as e:
+        click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
+        return False
 
 
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
-def process_feed(id, no_process):
+def process_feed(
+    id, 
+    no_process
+):
     """Process a specific feed."""
-    rss_feed_service = container.get("rss_feed_service")
+    # Get dependencies using provider functions
+    rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
@@ -251,9 +321,15 @@ def process_feed(id, no_process):
 @click.option("--name", help="New feed name")
 @click.option("--description", help="New feed description")
 @click.option("--active/--inactive", help="Set feed active or inactive")
-def update_feed(id, name, description, active):
+def update_feed(
+    id, 
+    name, 
+    description, 
+    active
+):
     """Update feed properties."""
-    rss_feed_service = container.get("rss_feed_service")
+    # Get dependencies using provider functions
+    rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
