@@ -9,15 +9,31 @@
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Common Commands
+
+### CLI Commands
 - `nf help`: Show available commands and options
-- `nf run-pipeline --url <URL>`: Process a single article
-- `nf demo-headline-trends --days 30 --interval day`: Analyze recent headlines
-- `nf demo-entity-tracking`: View entity tracking dashboard
-- `nf demo-sentiment-analysis`: Run sentiment analysis demo
 - `nf feeds list`: List configured RSS feeds
-- `nf feeds fetch`: Fetch articles from feeds
+- `nf feeds add <URL>`: Add a new RSS feed
+- `nf feeds show <ID>`: Show details for a specific feed
+- `nf feeds remove <ID>`: Remove a feed
+- `nf feeds update <ID>`: Update feed properties
+- `nf feeds process <ID>`: Process a specific feed
+- `nf db stats`: Show database statistics
+- `nf db duplicates`: Find duplicate articles
+- `nf db articles`: List articles with filtering options
+- `nf db inspect <TABLE> <ID>`: Inspect a specific database record
 - `nf apify test`: Test Apify API connection
 - `nf apify scrape-content <URL>`: Scrape content using Apify
+- `nf apify web-scraper <URL>`: Scrape websites using Apify's web-scraper
+- `nf apify run-actor <ACTOR_ID>`: Run an Apify actor
+
+### Standalone Scripts
+- `python scripts/run_pipeline.py --url <URL>`: Process a single article
+- `python scripts/demo_headline_trends.py --days 30 --interval day`: Analyze recent headlines
+- `python scripts/demo_entity_tracking.py`: View entity tracking dashboard
+- `python scripts/demo_sentiment_analysis.py`: Run sentiment analysis demo
+
+### Development Commands
 - `poetry run pytest`: Run all tests
 - `poetry run pytest --cov=src/local_newsifier`: Run tests with coverage
 - `poetry run python -m spacy download en_core_web_lg`: Download required spaCy model
