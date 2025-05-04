@@ -46,6 +46,11 @@ from local_newsifier.models.trend import (
     TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendStatus, TrendType
 )
 
+# Apify models
+from local_newsifier.models.apify import (
+    ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
+)
+
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a test database engine using SQLite in-memory.

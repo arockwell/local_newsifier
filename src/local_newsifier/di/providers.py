@@ -51,6 +51,20 @@ def get_session() -> Generator[Session, None, None]:
 # CRUD providers
 
 @injectable(use_cache=False)
+def get_apify_source_config_crud():
+    """Provide the apify source config CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        ApifySourceConfigCRUD instance
+    """
+    from local_newsifier.crud.apify_source_config import apify_source_config
+    return apify_source_config
+
+
+@injectable(use_cache=False)
 def get_article_crud():
     """Provide the article CRUD component.
     
