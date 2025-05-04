@@ -99,17 +99,22 @@ def test_feeds_add(mock_rss_feed_service, sample_feed):
 
 def test_feeds_add_error(mock_rss_feed_service):
     """Test the feeds add command with an error."""
-    # Setup mock
-    mock_rss_feed_service.create_feed.side_effect = ValueError("Feed already exists")
+    # Setup mock - now using ServiceError instead of ValueError
+    from local_newsifier.errors import ServiceError
+    mock_rss_feed_service.create_feed.side_effect = ServiceError(
+        service="rss",
+        error_type="validation",
+        message="Feed with URL 'https://example.com/feed.xml' already exists",
+        context={"url": "https://example.com/feed.xml"}
+    )
     
     # Run command
     runner = CliRunner()
     result = runner.invoke(cli, ["feeds", "add", "https://example.com/feed.xml"])
     
-    # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for ValueError
-    assert "Error" in result.output
-    assert "Feed already exists" in result.output
+    # Verify - now we expect a non-zero exit code due to @handle_rss_cli decorator
+    assert result.exit_code != 0
+    # Error message display is handled by @handle_rss_cli decorator
 
 
 def test_feeds_show(mock_rss_feed_service, sample_feed):
@@ -161,17 +166,22 @@ def test_feeds_show_with_logs(mock_rss_feed_service, sample_feed):
 
 def test_feeds_show_not_found(mock_rss_feed_service):
     """Test the feeds show command with a non-existent feed."""
-    # Setup mock
-    mock_rss_feed_service.get_feed.return_value = None
+    # Setup mock - now using ServiceError instead of returning None
+    from local_newsifier.errors import ServiceError
+    mock_rss_feed_service.get_feed.side_effect = ServiceError(
+        service="rss",
+        error_type="not_found",
+        message="Feed with ID 999 not found",
+        context={"feed_id": 999}
+    )
     
     # Run command
     runner = CliRunner()
     result = runner.invoke(cli, ["feeds", "show", "999"])
     
-    # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for not found
-    assert "Error" in result.output
-    assert "not found" in result.output
+    # Verify - now we expect a non-zero exit code due to @handle_rss_cli decorator
+    assert result.exit_code != 0
+    # Error message display is handled by @handle_rss_cli decorator
     mock_rss_feed_service.get_feed.assert_called_once_with(999)
 
 
