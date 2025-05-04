@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Path, Query, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, validator
 from sqlmodel import Session
 
 from local_newsifier.api.dependencies import get_session
@@ -21,21 +21,40 @@ router = APIRouter(prefix="/articles", tags=["articles"])
 class ArticleCreate(BaseModel):
     """Request model for creating an article."""
 
-    title: str
-    content: str
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=1)
     url: HttpUrl
-    source: str
+    source: str = Field(..., min_length=1, max_length=100)
     published_at: Optional[datetime] = None
     status: str = "new"
+
+    @validator("status")
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values."""
+        allowed_statuses = ["new", "processed", "analyzed", "archived"]
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of: {', '.join(allowed_statuses)}")
+        return v
 
 
 class ArticleUpdate(BaseModel):
     """Request model for updating an article."""
 
-    title: Optional[str] = None
-    content: Optional[str] = None
-    source: Optional[str] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    content: Optional[str] = Field(None, min_length=1)
+    source: Optional[str] = Field(None, min_length=1, max_length=100)
     status: Optional[str] = None
+
+    @validator("status")
+    def validate_status(cls, v):
+        """Validate that status is one of the allowed values if provided."""
+        if v is None:
+            return v
+
+        allowed_statuses = ["new", "processed", "analyzed", "archived"]
+        if v not in allowed_statuses:
+            raise ValueError(f"Status must be one of: {', '.join(allowed_statuses)}")
+        return v
 
 
 class ArticleResponse(BaseModel):
@@ -160,10 +179,10 @@ async def delete_article(
     return None
 
 
-@router.get("/by-url/", response_model=ArticleResponse)
+@router.get("/url/{url}", response_model=ArticleResponse)
 @handle_crud_errors
 async def get_article_by_url(
-    url: HttpUrl = Query(
+    url: HttpUrl = Path(
         ..., title="Article URL", description="URL of the article to retrieve"
     ),
     db: Session = Depends(get_session),

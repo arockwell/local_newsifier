@@ -1,6 +1,15 @@
 """Error-handled CRUD operations for SQLModel.
 
 This module provides a base class for CRUD operations with standardized error handling.
+
+SQLAlchemy exceptions are mapped to domain-specific exceptions as follows:
+- NoResultFound -> EntityNotFoundError: For missing entities
+- IntegrityError (unique constraint) -> DuplicateEntityError: For duplicates
+- IntegrityError (other) -> ValidationError: For constraint violations
+- OperationalError (connection) -> DatabaseConnectionError: For connection issues
+- OperationalError (other) -> TransactionError: For database operation issues
+- Other SQLAlchemyError -> TransactionError: For generic database errors
+- Unexpected exceptions -> CRUDError: For unexpected errors
 """
 
 import functools

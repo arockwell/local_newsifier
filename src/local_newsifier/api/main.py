@@ -9,10 +9,16 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi_injectable import register_app
 from starlette.middleware.sessions import SessionMiddleware
 
+# Required imports
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import articles, auth, system, tasks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
+
+# These imports are needed for side effects
+import local_newsifier.models  # noqa: F401 - needed to register models with SQLModel
+from local_newsifier.celery_app import app as celery_app  # noqa: F401 - needed for Celery tasks
+from local_newsifier.fastapi_injectable_adapter import lifespan_with_injectable  # noqa: F401 - needed for DI
 
 # Configure logging
 logging.basicConfig(

@@ -3,6 +3,7 @@
 This module provides utilities for handling CRUD errors and converting them to API responses.
 """
 
+import asyncio
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, status
@@ -94,14 +95,5 @@ def handle_crud_errors(func: Any) -> Any:
     return sync_wrapper
 
 
-# Helper function to check if a function is a coroutine
-try:
-    # Import asyncio only if needed to avoid dependency issues
-    import asyncio
-
-    asyncio_iscoroutinefunction = asyncio.iscoroutinefunction
-except (ImportError, AttributeError):
-    # Fallback if asyncio is not available
-    def asyncio_iscoroutinefunction(func: Any) -> bool:
-        """Check if a function is a coroutine function."""
-        return False
+# Use the asyncio.iscoroutinefunction to check if a function is a coroutine
+asyncio_iscoroutinefunction = asyncio.iscoroutinefunction
