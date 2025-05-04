@@ -39,13 +39,11 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Database session
     """
-    from local_newsifier.database.engine import get_session as get_db_session
+    from local_newsifier.database.session_utils import get_db_session
     
-    session = next(get_db_session())
-    try:
+    with get_db_session() as session:
         yield session
-    finally:
-        session.close()
+    # No need to explicitly close the session as the context manager handles it
 
 
 # CRUD providers

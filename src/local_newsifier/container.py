@@ -7,8 +7,7 @@ resolution and lifecycle management.
 """
 
 from local_newsifier.di_container import DIContainer, Scope
-from local_newsifier.database.engine import SessionManager
-from local_newsifier.database.session_utils import get_container_session
+from local_newsifier.database.session_utils import get_db_session
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,18 +61,14 @@ def init_container(environment="production"):
     
     # Register session management
     if environment == "testing":
-        # For testing, we might want different session behavior
+        # For testing, use test_mode=True for performance optimization
         container.register_factory("session_factory", 
-                                lambda c: SessionManager)
+                                lambda c: lambda test_mode=True, **kwargs: get_db_session(container=c, test_mode=test_mode, **kwargs))
     else:
         container.register_factory("session_factory", 
-                                lambda c: SessionManager)
+                                lambda c: lambda **kwargs: get_db_session(container=c, **kwargs))
     
-    # Register session utility
-    container.register_factory_with_params(
-        "get_session", 
-        lambda c, **kwargs: get_container_session(c, **kwargs)
-    )
+    # We no longer need to register get_session as get_db_session is the standardized utility
     
     # Register Core Tools
     register_core_tools(container)
