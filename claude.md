@@ -82,10 +82,13 @@ class Article(SQLModel, table=True):
 - Use the `with_session` decorator for session management
 
 ### Dependency Injection
-- The system uses a central DIContainer for managing dependencies
-- Components should be registered with the container
+
+> **Note:** The project is currently transitioning between two dependency injection systems: the original custom DIContainer and fastapi-injectable. For more details, see the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md).
+
+#### Legacy DIContainer
+- The original system uses a central DIContainer for managing dependencies
+- Components are registered with the container
 - Services get dependencies through the container
-- This helps prevent circular imports and improves testability
 - Example container usage:
 ```python
 # Get a service from the container
@@ -96,6 +99,25 @@ container.register_factory("article_service", lambda c: ArticleService(
     article_crud=c.get("article_crud"),
     session_factory=c.get("session_factory")
 ))
+```
+
+#### FastAPI-Injectable System
+- Newer components use the fastapi-injectable framework
+- Provider functions are defined in `src/local_newsifier/di/providers.py`
+- All providers use `use_cache=False` to create fresh instances on each request
+- Example provider function:
+```python
+@injectable(use_cache=False)
+def get_article_service(
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    from local_newsifier.services.article_service import ArticleService
+    
+    return ArticleService(
+        article_crud=article_crud,
+        session_factory=lambda: session
+    )
 ```
 
 ### Service Layer
