@@ -12,6 +12,7 @@ from sqlmodel import Session
 
 from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
+from local_newsifier.errors import handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
@@ -59,6 +60,7 @@ class RSSFeedService:
         from local_newsifier.database.engine import get_session
         return next(get_session())
 
+    @handle_rss
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
 
@@ -74,6 +76,7 @@ class RSSFeedService:
             return None
         return self._format_feed_dict(feed)
 
+    @handle_rss
     def get_feed_by_url(self, url: str) -> Optional[Dict[str, Any]]:
         """Get a feed by URL.
 
@@ -89,6 +92,7 @@ class RSSFeedService:
             return None
         return self._format_feed_dict(feed)
 
+    @handle_rss
     def list_feeds(
         self, skip: int = 0, limit: int = 100, active_only: bool = False
     ) -> List[Dict[str, Any]]:
@@ -109,6 +113,7 @@ class RSSFeedService:
             feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
         return [self._format_feed_dict(feed) for feed in feeds]
 
+    @handle_rss
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """Create a new feed.
 
@@ -121,14 +126,20 @@ class RSSFeedService:
             Created feed data as dict
 
         Raises:
-            ValueError: If feed with the URL already exists
+            ServiceError: With error_type="validation" if feed with the URL already exists
         """
         session = self._get_session()
         
         # Check if feed already exists
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
-            raise ValueError(f"Feed with URL '{url}' already exists")
+            from local_newsifier.errors import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="validation",
+                message=f"Feed with URL '{url}' already exists",
+                context={"url": url}
+            )
         
         # Create new feed
         new_feed = self.rss_feed_crud.create(
@@ -145,6 +156,7 @@ class RSSFeedService:
         
         return self._format_feed_dict(new_feed)
 
+    @handle_rss
     def update_feed(
         self,
         feed_id: int,
@@ -162,13 +174,22 @@ class RSSFeedService:
 
         Returns:
             Updated feed data as dict if found, None otherwise
+            
+        Raises:
+            ServiceError: With error_type="not_found" if feed doesn't exist
         """
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return None
+            from local_newsifier.errors import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="not_found",
+                message=f"Feed with ID {feed_id} not found",
+                context={"feed_id": feed_id}
+            )
         
         # Prepare update data
         update_data = {"updated_at": datetime.now(timezone.utc)}
@@ -183,30 +204,47 @@ class RSSFeedService:
         updated = self.rss_feed_crud.update(session, db_obj=feed, obj_in=update_data)
         return self._format_feed_dict(updated)
 
-    def remove_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
+    @handle_rss
+    def remove_feed(self, feed_id: int) -> Dict[str, Any]:
         """Remove a feed.
 
         Args:
             feed_id: Feed ID
 
         Returns:
-            Removed feed data as dict if found, None otherwise
+            Removed feed data as dict
+            
+        Raises:
+            ServiceError: With error_type="not_found" if feed doesn't exist
         """
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return None
+            from local_newsifier.errors import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="not_found",
+                message=f"Feed with ID {feed_id} not found",
+                context={"feed_id": feed_id}
+            )
         
         # Remove feed
         removed = self.rss_feed_crud.remove(session, id=feed_id)
         if not removed:
-            return None
+            from local_newsifier.errors import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="unknown",
+                message=f"Failed to remove feed with ID {feed_id}",
+                context={"feed_id": feed_id}
+            )
         
         return self._format_feed_dict(removed)
 
 
+    @handle_rss
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
     ) -> Dict[str, Any]:
@@ -218,21 +256,31 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
+            
+        Raises:
+            ServiceError: With appropriate error type based on the issue encountered
         """
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
+            from local_newsifier.errors import ServiceError
+            raise ServiceError(
+                service="rss",
+                error_type="not_found",
+                message=f"Feed with ID {feed_id} not found",
+                context={"feed_id": feed_id}
+            )
         
         # Create processing log
         log = self.feed_processing_log_crud.create_processing_started(
             session, feed_id=feed_id
         )
         
-        # Parse the RSS feed
         try:
+            # Parse the RSS feed - errors here will be automatically classified
+            # by the handle_rss decorator (network, timeout, parse, etc.)
             feed_data = parse_rss_feed(feed.url)
             
             articles_found = len(feed_data.get("entries", []))
@@ -282,7 +330,14 @@ class RSSFeedService:
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
+                            from local_newsifier.errors import ServiceError
+                            raise ServiceError(
+                                service="rss",
+                                error_type="unknown",
+                                message="Article service not initialized and failed to create temporary service",
+                                original=temp_e,
+                                context={"entry_url": entry.get("link", "unknown")}
+                            )
                     
                     if article_id:
                         # Queue article processing
@@ -300,6 +355,7 @@ class RSSFeedService:
                                 logger.warning(f"No task function available to process article {article_id}")
                         articles_added += 1
                 except Exception as e:
+                    # Log but continue processing other articles
                     logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
             
             # Update feed last fetched timestamp
@@ -333,13 +389,11 @@ class RSSFeedService:
                 error_message=str(e),
             )
             
-            return {
-                "status": "error",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "message": str(e),
-            }
+            # Let the handle_rss decorator convert this to a ServiceError
+            # with appropriate classification if it's not already one
+            raise
 
+    @handle_rss
     def get_feed_processing_logs(
         self, feed_id: int, skip: int = 0, limit: int = 100
     ) -> List[Dict[str, Any]]:
