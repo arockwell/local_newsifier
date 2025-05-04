@@ -1,8 +1,19 @@
-"""Script to initialize a new database for a cursor instance."""
+"""Script to initialize a new database for a cursor instance.
+
+This script:
+1. Generates or uses an existing cursor ID stored in CURSOR_DB_ID env var
+2. Creates a new database specific to this cursor instance
+3. Sets up all required tables using SQLModel's metadata
+4. Saves the cursor ID to .env.cursor for future sessions
+
+Usage:
+    poetry run python scripts/init_cursor_db.py
+"""
 
 import logging
 import os
 import psycopg2
+import sys
 from pathlib import Path
 from local_newsifier.config.settings import get_cursor_db_name
 from local_newsifier.config.database import DatabaseSettings
@@ -18,46 +29,64 @@ logger = logging.getLogger(__name__)
 
 def init_cursor_db():
     """Initialize a new database for this cursor instance."""
-    settings = DatabaseSettings()
-    db_name = settings.POSTGRES_DB
-    cursor_id = db_name.replace("local_newsifier_", "")
-    
-    # Save cursor ID to file
-    env_file = Path(".env.cursor")
-    env_file.write_text(f"export CURSOR_DB_ID={cursor_id}\n")
-    logger.info(f"Saved cursor ID to {env_file}")
-    
-    # Connect to default postgres database to create new db
-    conn = psycopg2.connect(
-        host=settings.POSTGRES_HOST,
-        port=int(settings.POSTGRES_PORT),
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        database="postgres"
-    )
-    conn.autocommit = True
-    
     try:
-        with conn.cursor() as cur:
-            # Drop database if it exists
-            cur.execute(f"DROP DATABASE IF EXISTS {db_name}")
-            logger.info(f"Dropped database {db_name} if it existed")
-            
-            # Create new database
-            cur.execute(f"CREATE DATABASE {db_name}")
-            logger.info(f"Created new database {db_name}")
-            
-    finally:
-        conn.close()
+        settings = DatabaseSettings()
+        db_name = settings.POSTGRES_DB
+        cursor_id = db_name.replace("local_newsifier_", "")
+        
+        # Save cursor ID to file
+        env_file = Path(".env.cursor")
+        env_file.write_text(f"export CURSOR_DB_ID={cursor_id}\n")
+        logger.info(f"Saved cursor ID to {env_file}")
+        
+        # Connect to default postgres database to create new db
+        try:
+            conn = psycopg2.connect(
+                host=settings.POSTGRES_HOST,
+                port=int(settings.POSTGRES_PORT),
+                user=settings.POSTGRES_USER,
+                password=settings.POSTGRES_PASSWORD,
+                database="postgres"
+            )
+            conn.autocommit = True
+        except psycopg2.OperationalError as e:
+            logger.error(f"Failed to connect to PostgreSQL: {e}")
+            logger.error("Make sure PostgreSQL is running and accessible with the configured credentials")
+            sys.exit(1)
+        
+        try:
+            with conn.cursor() as cur:
+                # Drop database if it exists
+                cur.execute(f"DROP DATABASE IF EXISTS {db_name}")
+                logger.info(f"Dropped database {db_name} if it existed")
+                
+                # Create new database
+                cur.execute(f"CREATE DATABASE {db_name}")
+                logger.info(f"Created new database {db_name}")
+                
+        finally:
+            conn.close()
+        
+        # Create tables in the new database
+        engine = create_engine(str(settings.DATABASE_URL))
+        Base.metadata.create_all(engine)
+        logger.info(f"Created all tables in database {db_name}")
+        
+        logger.info(f"To use this database in new shells, run: source {env_file}")
+        logger.info(f"To check your database status: poetry run python -m src.local_newsifier.cli.main db stats")
+        return db_name
     
-    # Create tables in the new database
-    engine = create_engine(str(settings.DATABASE_URL))
-    Base.metadata.create_all(engine)
-    logger.info(f"Created all tables in database {db_name}")
-    
-    logger.info(f"To use this database in new shells, run: source {env_file}")
-    return db_name
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        logger.error("See docs/db_initialization.md for troubleshooting steps")
+        sys.exit(1)
 
 if __name__ == "__main__":
+    print("Initializing database for Local Newsifier...")
     db_name = init_cursor_db()
-    logger.info(f"Successfully initialized database {db_name}")
+    print("\n✅ Success! Database initialized and ready to use.")
+    print(f"Database name: {db_name}")
+    print("\nTo use this database in new shells, run:")
+    print("  source .env.cursor")
+    print("\nTo verify your database is working:")
+    print("  poetry run python -m src.local_newsifier.cli.main db stats")
