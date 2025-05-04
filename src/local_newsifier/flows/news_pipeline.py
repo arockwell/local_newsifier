@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 
 from crewai import Flow
 
@@ -9,7 +9,8 @@ from local_newsifier.tools.web_scraper import WebScraperTool
 from local_newsifier.services.news_pipeline_service import NewsPipelineService
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.entity_service import EntityService
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.session_utils import get_db_session
+from local_newsifier.container import container as default_container
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.crud.entity import entity as entity_crud
@@ -34,7 +35,7 @@ class NewsPipelineFlow(Flow):
         entity_extractor: Optional[EntityExtractor] = None,
         context_analyzer: Optional[ContextAnalyzer] = None,
         entity_resolver: Optional[EntityResolver] = None,
-        session_factory: Optional[callable] = None,
+        container: Optional[Any] = None,
         output_dir: str = "output"
     ):
         """Initialize the pipeline flow.
@@ -48,6 +49,7 @@ class NewsPipelineFlow(Flow):
             entity_extractor: Tool for extracting entities
             context_analyzer: Tool for analyzing context
             entity_resolver: Tool for resolving entities
+            container: DI container for database operations
             session_factory: Function to create database sessions
             output_dir: Directory for output files
         """
@@ -57,8 +59,8 @@ class NewsPipelineFlow(Flow):
         self.scraper = web_scraper or WebScraperTool()
         self.writer = file_writer or FileWriterTool(output_dir=output_dir)
         
-        # Get or create session factory
-        self._session_factory = session_factory or get_session
+        # Get or use container
+        self._container = container or default_container
         
         # Create or use provided entity service
         self._entity_extractor = entity_extractor or EntityExtractor()
@@ -77,7 +79,7 @@ class NewsPipelineFlow(Flow):
                 entity_extractor=self._entity_extractor,
                 context_analyzer=self._context_analyzer,
                 entity_resolver=self._entity_resolver,
-                session_factory=self._session_factory
+                container=self._container
             )
         
         # Create or use provided article service
@@ -88,7 +90,7 @@ class NewsPipelineFlow(Flow):
                 article_crud=article_crud,
                 analysis_result_crud=analysis_result_crud,
                 entity_service=self.entity_service,
-                session_factory=self._session_factory
+                session_factory=get_db_session
             )
         
         # Create or use provided pipeline service
@@ -99,7 +101,7 @@ class NewsPipelineFlow(Flow):
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
-                session_factory=self._session_factory
+                session_factory=get_db_session
             )
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
