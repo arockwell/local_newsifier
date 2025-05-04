@@ -75,6 +75,29 @@ class ArticleService:
             return self.article_crud.get(session, id=article_id)
 ```
 
+### Database Error Handling and Retry Behavior
+
+The `@handle_database` decorator provides robust error handling for database operations:
+
+- **Classification**: Automatically classifies SQLAlchemy exceptions into appropriate error types
+- **Error Messages**: Provides descriptive error messages with troubleshooting hints
+- **Retry Logic**: Automatically retries transient errors with backoff
+
+#### Retry Behavior for Database Errors
+
+| Error Type    | Is Retried | Retry Attempts | Description                                      |
+|---------------|------------|----------------|--------------------------------------------------|
+| `connection`  | Yes        | 3 (default)    | Database connection issues, server unavailable   |
+| `timeout`     | Yes        | 3 (default)    | Query timeout, long-running operations          |
+| `transaction` | Yes        | 3 (default)    | Transaction errors, deadlocks                   |
+| `integrity`   | No         | N/A            | Constraint violations (unique, foreign key)     |
+| `validation`  | No         | N/A            | Input validation failures                       |
+| `not_found`   | No         | N/A            | Record not found (business logic issue)         |
+| `multiple`    | No         | N/A            | Multiple records when one expected              |
+
+Each retry uses exponential backoff (1s, 2s, 4s) to allow temporary issues to resolve.
+```
+
 ### CLI Commands
 
 ```python
