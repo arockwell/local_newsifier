@@ -58,11 +58,12 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown complete")
 
 
+# Create app with our custom lifespan
 app = FastAPI(
     title="Local Newsifier API",
     description="API for Local Newsifier",
     version="0.1.0",
-    lifespan=lifespan,
+    lifespan=lifespan,  # Set the lifespan context manager
 )
 
 # Add session middleware
