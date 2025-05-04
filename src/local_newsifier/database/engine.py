@@ -4,6 +4,7 @@ import logging
 import traceback
 import time
 import warnings
+import functools
 from contextlib import contextmanager
 from typing import Generator, Optional, Callable, TypeVar, Any
 
@@ -274,5 +275,31 @@ def with_session(func: F) -> F:
         stacklevel=2
     )
     
-    # Use the new standardized approach internally
-    return with_db_session(func)
+    @functools.wraps(func)
+    def wrapper(*args, session: Optional[Session] = None, **kwargs):
+        """Execute function with session management.
+
+        Args:
+            session: SQLModel session
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+
+        Returns:
+            Result of the decorated function or None if session creation fails
+        """
+        if session is not None:
+            # Let original exceptions propagate for compatibility with existing tests
+            return func(*args, session=session, **kwargs)
+
+        try:
+            with SessionManager() as new_session:
+                if new_session is None:
+                    logger.warning("with_session: SessionManager returned None, cannot execute function")
+                    return None
+                return func(*args, session=new_session, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in with_session (new session): {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+
+    return wrapper
