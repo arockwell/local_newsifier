@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Any
 from crewai import Flow
 from sqlmodel import Session
 
+from local_newsifier.container import container as default_container
+
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
 from local_newsifier.crud.entity import entity as entity_crud
@@ -33,7 +35,7 @@ class EntityTrackingFlow(Flow):
         entity_extractor: Optional[EntityExtractor] = None,
         context_analyzer: Optional[ContextAnalyzer] = None,
         entity_resolver: Optional[EntityResolver] = None,
-        session_factory: Optional[callable] = None,
+        container: Optional[Any] = None,
         session: Optional[Session] = None
     ):
         """Initialize the entity tracking flow.
@@ -44,7 +46,7 @@ class EntityTrackingFlow(Flow):
             entity_extractor: Tool for extracting entities
             context_analyzer: Tool for analyzing context
             entity_resolver: Tool for resolving entities
-            session_factory: Function to create database sessions
+            container: DI container for database operations
             session: Optional database session
         """
         super().__init__()
@@ -70,7 +72,7 @@ class EntityTrackingFlow(Flow):
                 entity_extractor=self._entity_extractor,
                 context_analyzer=self._context_analyzer,
                 entity_resolver=self._entity_resolver,
-                session_factory=session_factory
+                container=container or default_container
             )
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
