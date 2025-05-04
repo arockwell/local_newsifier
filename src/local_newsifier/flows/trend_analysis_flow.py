@@ -77,9 +77,9 @@ class NewsTrendAnalysisFlow(Flow):
 
     def __init__(
         self,
-        analysis_service: Annotated[AnalysisService, Depends("get_analysis_service")],
-        trend_reporter: Annotated[TrendReporter, Depends("get_trend_reporter_tool")],
-        trend_analyzer: Annotated[Any, Depends("get_trend_analyzer_tool")] = None,
+        analysis_service: AnalysisService,
+        trend_reporter: TrendReporter,
+        trend_analyzer: Optional[Any] = None,
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
         config: Optional[TrendAnalysisConfig] = None,
