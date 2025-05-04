@@ -4,6 +4,7 @@
 # These are intentionally unused in this module
 # flake8: noqa F401
 from .analysis_result import analysis_result
+from .apify_source_config import apify_source_config
 from .article import article
 from .canonical_entity import canonical_entity
 from .entity import entity
