@@ -35,8 +35,19 @@ def test_entity_tracking_flow_uses_service():
         published_at=datetime(2025, 1, 1)
     )
 
-    # Create flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_service)
+    # Create flow with mock service and explicitly mocked dependencies to avoid NLP model loading
+    mock_tracker = MagicMock()
+    mock_extractor = MagicMock()
+    mock_analyzer = MagicMock()
+    mock_resolver = MagicMock()
+    
+    flow = EntityTrackingFlow(
+        entity_service=mock_service,
+        entity_tracker=mock_tracker,
+        entity_extractor=mock_extractor,
+        context_analyzer=mock_analyzer,
+        entity_resolver=mock_resolver
+    )
 
     # Act
     result_state = flow.process(state)
