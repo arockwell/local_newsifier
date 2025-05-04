@@ -120,8 +120,17 @@ def test_trend_analysis_state_methods():
 
 def test_news_trend_analysis_flow_init(mock_dependencies):
     """Test NewsTrendAnalysisFlow initialization."""
+    # Create mock dependencies
+    analysis_service = MagicMock()
+    trend_reporter = MagicMock()
+    trend_analyzer = MagicMock()
+    
     # Test with default parameters
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )
     assert isinstance(flow.config, TrendAnalysisConfig)
 
     # Test with custom parameters
@@ -129,13 +138,27 @@ def test_news_trend_analysis_flow_init(mock_dependencies):
         time_frame=TimeFrame.MONTH,
         min_articles=5,
     )
-    flow = NewsTrendAnalysisFlow(config=custom_config, output_dir="custom_output")
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer,
+        config=custom_config
+    )
     assert flow.config == custom_config
 
 
 def test_aggregate_historical_data(mock_dependencies):
     """Test historical data aggregation in the flow."""
-    flow = NewsTrendAnalysisFlow()
+    # Create mock dependencies
+    analysis_service = MagicMock()
+    trend_reporter = MagicMock()
+    trend_analyzer = MagicMock()
+    
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )
     state = TrendAnalysisState()
     
     # Test successful data aggregation
@@ -163,94 +186,113 @@ def test_aggregate_historical_data(mock_dependencies):
 
 def test_detect_trends(mock_dependencies, sample_trends):
     """Test trend detection in the flow."""
-    # Setup mock behavior for the analysis service
-    mock_dependencies["service"].return_value.detect_entity_trends.return_value = sample_trends
+    # Create mock dependencies
+    analysis_service = MagicMock()
+    analysis_service.detect_entity_trends.return_value = sample_trends
+    trend_reporter = MagicMock()
+    trend_analyzer = MagicMock()
+    trend_analyzer.detect_entity_trends.return_value = sample_trends
+    trend_analyzer.detect_anomalous_patterns.return_value = []
     
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )
     state = TrendAnalysisState()
     
-    # Patch the trend_detector directly for testing
-    with patch.object(flow, 'trend_detector') as mock_detector:
-        mock_detector.detect_entity_trends.return_value = sample_trends
-        mock_detector.detect_anomalous_patterns.return_value = []
-        
-        # Test successful trend detection
-        result = flow.detect_trends(state)
-        
-        assert result.status == AnalysisStatus.ANALYSIS_SUCCEEDED
-        assert len(result.logs) > 0
-        
-        # Test exception handling by directly patching the method
-        with patch.object(flow, 'detect_trends', 
-                         side_effect=lambda s: s.set_error("Error during trend detection: Analysis error") 
-                         or setattr(s, 'status', AnalysisStatus.ANALYSIS_FAILED) or s):
-            error_result = flow.detect_trends(state)
-            assert error_result.status == AnalysisStatus.ANALYSIS_FAILED
-            assert "Analysis error" in error_result.error
-        
-        # Rather than patching the method, directly test error state
-        error_state = TrendAnalysisState()
-        error_state.status = AnalysisStatus.ANALYSIS_FAILED
-        error_state.set_error("Test error")
-        
-        assert error_state.status == AnalysisStatus.ANALYSIS_FAILED
-        assert error_state.error is not None
-        assert "Test error" in error_state.error
+    # Test successful trend detection
+    result = flow.detect_trends(state)
+    
+    assert result.status == AnalysisStatus.ANALYSIS_SUCCEEDED
+    assert len(result.logs) > 0
+    
+    # Test exception handling by directly patching the method
+    with patch.object(flow, 'detect_trends', 
+                     side_effect=lambda s: s.set_error("Error during trend detection: Analysis error") 
+                     or setattr(s, 'status', AnalysisStatus.ANALYSIS_FAILED) or s):
+        error_result = flow.detect_trends(state)
+        assert error_result.status == AnalysisStatus.ANALYSIS_FAILED
+        assert "Analysis error" in error_result.error
+    
+    # Rather than patching the method, directly test error state
+    error_state = TrendAnalysisState()
+    error_state.status = AnalysisStatus.ANALYSIS_FAILED
+    error_state.set_error("Test error")
+    
+    assert error_state.status == AnalysisStatus.ANALYSIS_FAILED
+    assert error_state.error is not None
+    assert "Test error" in error_state.error
 
 
 def test_generate_report(mock_dependencies, sample_trends):
     """Test report generation in the flow."""
-    # Setup reporter mock behavior
-    mock_dependencies["reporter"].return_value.save_report.return_value = "/path/to/report.md"
+    # Create mock dependencies
+    analysis_service = MagicMock()
+    trend_reporter = MagicMock()
+    trend_reporter.save_report.return_value = "/path/to/report.md"
+    trend_analyzer = MagicMock()
     
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )
     
-    # Patch the reporter directly
-    with patch.object(flow, 'reporter') as mock_reporter:
-        mock_reporter.save_report.return_value = "/path/to/report.md"
-        
-        # Test with trends
-        state = TrendAnalysisState()
-        state.detected_trends = sample_trends
-        
-        result = flow.generate_report(state, format=ReportFormat.MARKDOWN)
-        
-        assert result.status == AnalysisStatus.SAVE_SUCCEEDED
-        assert result.report_path == "/path/to/report.md"
-        
-        # Test with no trends
-        state = TrendAnalysisState()
-        state.detected_trends = []
-        
-        result = flow.generate_report(state)
-        
-        assert result.status == AnalysisStatus.SAVE_SUCCEEDED
-        assert result.report_path is None
-        
-        # Test exception handling
-        mock_reporter.save_report.side_effect = Exception("Report generation error")
-        state.detected_trends = sample_trends
-        
-        error_result = flow.generate_report(state)
-        assert error_result.status == AnalysisStatus.SAVE_FAILED
-        assert "Report generation error" in error_result.error
-        
-        # Rather than patching the method, directly test error state
-        error_state = TrendAnalysisState()
-        error_state.detected_trends = sample_trends
-        error_state.status = AnalysisStatus.SAVE_FAILED
-        error_state.set_error("Test error")
-        
-        assert error_state.status == AnalysisStatus.SAVE_FAILED
-        assert error_state.error is not None
-        assert "Test error" in error_state.error
+    # Test with trends
+    state = TrendAnalysisState()
+    state.detected_trends = sample_trends
+    
+    result = flow.generate_report(state, format=ReportFormat.MARKDOWN)
+    
+    assert result.status == AnalysisStatus.SAVE_SUCCEEDED
+    assert result.report_path == "/path/to/report.md"
+    
+    # Test with no trends
+    state = TrendAnalysisState()
+    state.detected_trends = []
+    
+    result = flow.generate_report(state)
+    
+    assert result.status == AnalysisStatus.SAVE_SUCCEEDED
+    assert result.report_path is None
+    
+    # Test exception handling
+    trend_reporter.save_report.side_effect = Exception("Report generation error")
+    state.detected_trends = sample_trends
+    
+    error_result = flow.generate_report(state)
+    assert error_result.status == AnalysisStatus.SAVE_FAILED
+    assert "Report generation error" in error_result.error
+    
+    # Rather than patching the method, directly test error state
+    error_state = TrendAnalysisState()
+    error_state.detected_trends = sample_trends
+    error_state.status = AnalysisStatus.SAVE_FAILED
+    error_state.set_error("Test error")
+    
+    assert error_state.status == AnalysisStatus.SAVE_FAILED
+    assert error_state.error is not None
+    assert "Test error" in error_state.error
 
 
 def test_run_analysis(mock_dependencies, sample_trends):
     """Test running the complete analysis flow."""
-    with patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data") as mock_aggregate, \
-         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.detect_trends") as mock_detect, \
-         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.generate_report") as mock_generate:
+    # Create mock dependencies
+    analysis_service = MagicMock()
+    trend_reporter = MagicMock()
+    trend_analyzer = MagicMock()
+    
+    # Create a direct instance for the test
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer
+    )
+    
+    with patch.object(flow, 'aggregate_historical_data') as mock_aggregate, \
+         patch.object(flow, 'detect_trends') as mock_detect, \
+         patch.object(flow, 'generate_report') as mock_generate:
         
         # Setup method mock behaviors for success case
         def aggregate_success(state):
@@ -270,8 +312,6 @@ def test_run_analysis(mock_dependencies, sample_trends):
         mock_aggregate.side_effect = aggregate_success
         mock_detect.side_effect = detect_success
         mock_generate.side_effect = generate_success
-        
-        flow = NewsTrendAnalysisFlow()
         
         # Test successful complete flow
         result = flow.run_analysis()
