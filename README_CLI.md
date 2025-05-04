@@ -1,6 +1,6 @@
 # Local Newsifier CLI
 
-The Local Newsifier CLI provides command-line tools for managing RSS feeds, processing articles, interacting with Apify for web scraping, and other system operations.
+The Local Newsifier CLI provides command-line tools for managing RSS feeds, processing articles, interacting with Apify for web scraping, and other system operations. It supports multiple environments (development, staging, production) with appropriate safeguards.
 
 ## Installation - Development Mode
 
@@ -23,6 +23,17 @@ poetry run nf --help
 
 ## Usage
 
+### Global Options
+
+```bash
+# Run with a specific environment
+poetry run nf --env production --verbose <command>
+
+# Set the NF_ENV environment variable (alternative to --env)
+export NF_ENV=production
+poetry run nf <command>
+```
+
 ### Get Help
 
 ```bash
@@ -31,6 +42,9 @@ poetry run nf --help
 
 # Show help for feeds commands
 poetry run nf feeds --help
+
+# Show help for environment configuration
+poetry run nf config --help
 ```
 
 ### Managing RSS Feeds
@@ -178,6 +192,71 @@ poetry run pytest tests/cli
 poetry run pytest tests/cli/test_feeds.py
 ```
 
+### Environment Management
+
+The CLI supports multiple environments (development, staging, production) with different configurations.
+
+#### List Environments
+
+```bash
+# List configured environments
+poetry run nf config list-env
+
+# Show details of the current environment
+poetry run nf config show-env
+
+# Show details of a specific environment
+poetry run nf config show-env production
+```
+
+#### Create and Configure Environments
+
+```bash
+# Create a new environment
+poetry run nf config create-env production --name "Production" --database-url "postgresql://user:pass@host:port/db" --is-production
+
+# Update an existing environment
+poetry run nf config update-env staging --database-url "postgresql://user:pass@staging-host:port/db"
+
+# Set the current environment
+poetry run nf config set-env staging
+```
+
+#### Import/Export Environments
+
+```bash
+# Export environments to a file
+poetry run nf config export config.json --include-all
+
+# Import environments from a file
+poetry run nf config import config.json
+```
+
+#### Delete an Environment
+
+```bash
+# Delete an environment (with confirmation prompt)
+poetry run nf config delete-env staging
+```
+
+### Production Safeguards
+
+When running commands against production environments:
+
+1. Commands that modify data will display warnings
+2. Destructive operations require confirmation
+3. The current environment is clearly marked
+
+For example:
+
+```bash
+# This will show a warning when run against production
+poetry run nf feeds add https://example.com/feed.xml
+
+# This will require confirmation when run against production
+poetry run nf feeds remove 1
+```
+
 ## Troubleshooting
 
 If you encounter any issues:
@@ -185,3 +264,4 @@ If you encounter any issues:
 1. Make sure Poetry is correctly installed and the project is installed with `poetry install`
 2. Ensure the database is properly set up and migrations are applied
 3. Check the logs for more detailed error messages
+4. Verify your environment configuration with `nf config show-env`
