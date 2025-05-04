@@ -38,10 +38,18 @@ def test_init_with_session(mock_session):
     assert not flow._owns_session
 
 
+@pytest.mark.skip(reason="Test requires database connection - skipped in PR #174")
 def test_init_without_session():
     """Test initialization without session."""
-    # Skip this test since we can't mock the database connection easily
-    pytest.skip("Skipping due to database connection issues in CI environment")
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
+        
+        mock_session = MagicMock()
+        # Fix the mock to match the actual code using __next__() instead of __enter__
+        mock_get_session.return_value.__next__ = MagicMock(return_value=mock_session)
+        
+        flow = HeadlineTrendFlow()
+        assert flow._owns_session
+        assert flow.session is not None
 
 
 def test_analyze_recent_trends(flow_with_mocks):

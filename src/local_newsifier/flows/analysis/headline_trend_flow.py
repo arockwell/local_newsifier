@@ -16,7 +16,6 @@ and report generation in various formats (text, markdown, HTML).
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from unittest.mock import MagicMock
 
 from crewai import Flow
 
@@ -44,42 +43,17 @@ class HeadlineTrendFlow(Flow):
         
         if session is None:
             self._owns_session = True
-            # Use the session context manager correctly
-            try:
-                session_ctx = get_session()
-                self.session = next(session_ctx)
-                # Store the context manager to properly close it later
-                self._session_ctx = session_ctx
-            except Exception as e:
-                logger.error(f"Failed to create session: {str(e)}")
-                # Create a fallback session
-                self.session = MagicMock()
+            self.session = get_session().__next__()
 
         # Initialize analysis service
         self.analysis_service = AnalysisService(session_factory=lambda: self.session)
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
-        if hasattr(self, '_owns_session') and self._owns_session:
-            try:
-                # Try to close the context manager if we have one
-                if hasattr(self, '_session_ctx'):
-                    try:
-                        # Close the context manager properly
-                        next(self._session_ctx, None)
-                    except StopIteration:
-                        pass
-                    except Exception as e:
-                        logger.error(f"Error closing session context: {str(e)}")
-                
-                # Also try to close the session directly if it exists
-                if hasattr(self, 'session') and self.session:
-                    try:
-                        self.session.close()
-                    except Exception as e:
-                        logger.error(f"Error closing session: {str(e)}")
-            except Exception as e:
-                logger.error(f"Error in __del__: {str(e)}")
+        if hasattr(self, '_owns_session') and self._owns_session and hasattr(self, 'session'):
+            # Only close the session if we created it
+            if self.session:
+                self.session.close()
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20
