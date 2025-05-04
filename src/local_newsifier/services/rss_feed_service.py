@@ -14,6 +14,7 @@ from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.errors.rss_error import RSSError, handle_rss_error
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,7 @@ class RSSFeedService:
             feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
         return [self._format_feed_dict(feed) for feed in feeds]
 
+    @handle_rss_error
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """Create a new feed.
 
@@ -121,7 +123,7 @@ class RSSFeedService:
             Created feed data as dict
 
         Raises:
-            ValueError: If feed with the URL already exists
+            RSSError: If feed already exists or other errors occur
         """
         session = self._get_session()
         
@@ -129,6 +131,9 @@ class RSSFeedService:
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
             raise ValueError(f"Feed with URL '{url}' already exists")
+        
+        # Validate the URL by trying to parse it - this will raise an error if invalid
+        feed_data = parse_rss_feed(url)
         
         # Create new feed
         new_feed = self.rss_feed_crud.create(
@@ -207,6 +212,7 @@ class RSSFeedService:
         return self._format_feed_dict(removed)
 
 
+    @handle_rss_error
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
     ) -> Dict[str, Any]:
@@ -218,21 +224,24 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
+            
+        Raises:
+            RSSError: If feed not found or processing fails
         """
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
+            raise ValueError(f"Feed with ID {feed_id} not found")
         
         # Create processing log
         log = self.feed_processing_log_crud.create_processing_started(
             session, feed_id=feed_id
         )
         
-        # Parse the RSS feed
         try:
+            # Parse the RSS feed
             feed_data = parse_rss_feed(feed.url)
             
             articles_found = len(feed_data.get("entries", []))
@@ -333,12 +342,8 @@ class RSSFeedService:
                 error_message=str(e),
             )
             
-            return {
-                "status": "error",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "message": str(e),
-            }
+            # Re-raise as RSSError with our decorators
+            raise
 
     def get_feed_processing_logs(
         self, feed_id: int, skip: int = 0, limit: int = 100

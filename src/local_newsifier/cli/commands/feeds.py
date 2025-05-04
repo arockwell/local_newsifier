@@ -17,6 +17,8 @@ from tabulate import tabulate
 
 from local_newsifier.container import container
 from local_newsifier.database.engine import get_session
+from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
+from local_newsifier.errors.rss_error import RSSError
 
 
 @click.group(name="feeds")
@@ -67,16 +69,14 @@ def list_feeds(active_only, json_output, limit, skip):
 @click.argument("url", required=True)
 @click.option("--name", help="Feed name (defaults to URL if not provided)")
 @click.option("--description", help="Feed description")
+@handle_rss_cli_errors
 def add_feed(url, name, description):
     """Add a new feed."""
     feed_name = name or url
     
-    try:
-        rss_feed_service = container.get("rss_feed_service")
-        feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
-        click.echo(f"Feed added successfully with ID: {feed['id']}")
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+    rss_feed_service = container.get("rss_feed_service")
+    feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
+    click.echo(f"Feed added successfully with ID: {feed['id']}")
 
 
 @feeds_group.command(name="show")
@@ -222,13 +222,14 @@ def direct_process_article(article_id):
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@handle_rss_cli_errors
 def process_feed(id, no_process):
     """Process a specific feed."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        # This will be caught by the decorator and displayed properly
+        raise RSSError(f"Feed with ID {id} not found")
     
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
     
@@ -237,13 +238,10 @@ def process_feed(id, no_process):
     
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
-    if result["status"] == "success":
-        click.echo(click.style("Processing completed successfully!", fg="green"))
-        click.echo(f"Articles found: {result['articles_found']}")
-        click.echo(f"Articles added: {result['articles_added']}")
-    else:
-        click.echo(click.style("Processing failed.", fg="red"), err=True)
-        click.echo(click.style(f"Error: {result['message']}", fg="red"), err=True)
+    # If we get here, the process was successful
+    click.echo(click.style("Processing completed successfully!", fg="green"))
+    click.echo(f"Articles found: {result['articles_found']}")
+    click.echo(f"Articles added: {result['articles_added']}")
 
 
 @feeds_group.command(name="update")
