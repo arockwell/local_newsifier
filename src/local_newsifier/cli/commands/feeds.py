@@ -25,17 +25,24 @@ from local_newsifier.di.providers import (
     get_session as get_db_session,
 )
 
+# For testing - this allows test doubles to be injected
+_injectable_override = None
+
 def get_injected_deps() -> Dict[str, Any]:
     """Get dependencies using injectable provider functions.
     
-    This function gets dependencies from injectable provider functions.
+    This function gets dependencies from injectable provider functions
+    or from test doubles if they have been injected for testing.
     
     Returns:
         Dict with service instances ready for use in CLI commands
     """
-    deps = {}
+    # If we're in a test environment and dependency overrides have been set, use them
+    if _injectable_override is not None:
+        return _injectable_override
     
-    # Get all dependencies from injectable provider functions
+    # Normal operation - get dependencies from injectable provider functions
+    deps = {}
     deps["rss_feed_service"] = get_rss_feed_service() 
     deps["article_crud"] = get_article_crud()
     deps["news_pipeline_flow"] = get_news_pipeline_flow()
@@ -47,6 +54,27 @@ def get_injected_deps() -> Dict[str, Any]:
         deps["session"] = next(db_session)
         
     return deps
+
+def set_test_dependencies(deps: Dict[str, Any]):
+    """Set test dependencies for CLI commands.
+    
+    This function allows tests to inject mock dependencies directly
+    without needing to patch provider functions.
+    
+    Args:
+        deps: Dictionary of test double dependencies
+    """
+    global _injectable_override
+    _injectable_override = deps
+
+def reset_test_dependencies():
+    """Reset test dependencies for CLI commands.
+    
+    This function clears any test dependencies that were set,
+    restoring normal operation using provider functions.
+    """
+    global _injectable_override
+    _injectable_override = None
 
 
 @click.group(name="feeds")

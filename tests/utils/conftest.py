@@ -1,38 +1,32 @@
 """
-Test fixtures for injectable-based testing.
+Test fixtures for CLI testing with dependency injection.
 
-This module provides pytest fixtures for mocking injectable provider functions.
+This module provides pytest fixtures that create test doubles for CLI commands.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
-# Create mock session generator function
-def create_mock_session():
-    """Create a mock database session generator for testing."""
+@pytest.fixture
+def mock_session():
+    """Create a mock database session for testing."""
     session = MagicMock()
     
     # Set up session as context manager
     session.__enter__ = MagicMock(return_value=session)
     session.__exit__ = MagicMock(return_value=None)
     
-    def session_gen():
-        yield session
-    
-    return session_gen, session
+    return session
 
 
 @pytest.fixture
-def patched_injectable(monkeypatch):
-    """Patch injectable provider functions for CLI testing.
+def injectable_deps():
+    """Create injectable dependencies for CLI testing.
     
-    This fixture creates mocks for injectable provider functions
-    and returns them in a dictionary for easy test configuration.
+    Instead of patching provider functions, this fixture creates
+    mock services that can be injected directly into CLI commands.
     
-    Args:
-        monkeypatch: pytest's monkeypatch fixture
-        
     Returns:
         dict: Mock objects for each service
     """
@@ -41,16 +35,13 @@ def patched_injectable(monkeypatch):
     article_crud = MagicMock()
     news_pipeline_flow = MagicMock()
     entity_tracking_flow = MagicMock()
-    session_gen, session = create_mock_session()
+    session = MagicMock()
     
-    # Patch provider functions with monkeypatch (cleaner than nested with statements)
-    monkeypatch.setattr('local_newsifier.cli.commands.feeds.get_rss_feed_service', lambda: rss_feed_service)
-    monkeypatch.setattr('local_newsifier.cli.commands.feeds.get_article_crud', lambda: article_crud) 
-    monkeypatch.setattr('local_newsifier.cli.commands.feeds.get_news_pipeline_flow', lambda: news_pipeline_flow)
-    monkeypatch.setattr('local_newsifier.cli.commands.feeds.get_entity_tracking_flow', lambda: entity_tracking_flow)
-    monkeypatch.setattr('local_newsifier.cli.commands.feeds.get_db_session', lambda: session_gen())
+    # Set up session as context manager
+    session.__enter__ = MagicMock(return_value=session)
+    session.__exit__ = MagicMock(return_value=None)
     
-    # Return all mocks in a dictionary for easy access
+    # Return all mocks in a dictionary
     return {
         "rss_feed_service": rss_feed_service,
         "article_crud": article_crud,
@@ -59,25 +50,23 @@ def patched_injectable(monkeypatch):
         "session": session
     }
 
-# Injectable-based fixture for RSS feed service
+# Fixtures for individual mocked services
 @pytest.fixture
-def mock_rss_feed_service(patched_injectable):
-    """Create a mock RSSFeedService for testing using injectable."""
-    return patched_injectable["rss_feed_service"]
+def mock_rss_feed_service(injectable_deps):
+    """Create a mock RSSFeedService for testing."""
+    return injectable_deps["rss_feed_service"]
 
 
-# Injectable-based fixture for article CRUD
 @pytest.fixture
-def mock_article_crud(patched_injectable):
-    """Create a mock article CRUD for testing using injectable."""
-    return patched_injectable["article_crud"]
+def mock_article_crud(injectable_deps):
+    """Create a mock article CRUD for testing."""
+    return injectable_deps["article_crud"]
 
 
-# Injectable-based fixture for flow services
 @pytest.fixture
-def mock_flows(patched_injectable):
-    """Create mock flow services for testing using injectable."""
+def mock_flows(injectable_deps):
+    """Create mock flow services for testing."""
     return {
-        "news_pipeline_flow": patched_injectable["news_pipeline_flow"],
-        "entity_tracking_flow": patched_injectable["entity_tracking_flow"]
+        "news_pipeline_flow": injectable_deps["news_pipeline_flow"],
+        "entity_tracking_flow": injectable_deps["entity_tracking_flow"]
     }

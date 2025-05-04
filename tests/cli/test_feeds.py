@@ -9,14 +9,14 @@ from click.testing import CliRunner
 from local_newsifier.cli.main import cli
 
 
-# Import the patched_injectable fixture
-from tests.utils.conftest import patched_injectable
+# Import fixtures from utils conftest
+from tests.utils.conftest import injectable_deps
 
 @pytest.fixture
-def mock_rss_feed_service(patched_injectable):
+def mock_rss_feed_service(injectable_deps):
     """Mock the RSSFeedService for testing."""
-    # Return the mocked rss_feed_service from patched_injectable
-    return patched_injectable["rss_feed_service"]
+    # Return the mocked rss_feed_service from injectable_deps
+    return injectable_deps["rss_feed_service"]
 
 
 @pytest.fixture
