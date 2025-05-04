@@ -35,6 +35,22 @@ class DIContainer:
         self._scopes = {}           # Lifetime scope of each service
         self._creating = set()      # Set of services currently being created (for circular dep detection)
         self._cleanup_handlers = {} # Handlers for cleanup when a service is removed
+        
+    def get_all_services(self) -> Dict[str, Any]:
+        """Get all registered service instances.
+        
+        Returns:
+            A copy of the dictionary mapping service names to their instances
+        """
+        return self._services.copy()
+        
+    def get_all_factories(self) -> Dict[str, Callable]:
+        """Get all registered factory functions.
+        
+        Returns:
+            A copy of the dictionary mapping service names to their factory functions
+        """
+        return self._factories.copy()
 
     def register(self, name: str, instance: Any, scope: Scope = Scope.SINGLETON) -> 'DIContainer':
         """Register a service instance directly.
