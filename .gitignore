@@ -61,3 +61,5 @@ venv.bak/
 # Environment files
 .env
 .env.test
+
+**/.claude/settings.local.json

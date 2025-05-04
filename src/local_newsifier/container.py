@@ -454,7 +454,7 @@ def register_flows(container):
         # Import all flow classes
         from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
         from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-        from local_newsifier.flows.trend_analysis_flow import TrendAnalysisFlow
+        from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow as TrendAnalysisFlow
         from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
         from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
         

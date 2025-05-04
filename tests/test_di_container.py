@@ -286,3 +286,49 @@ class TestDIContainer:
         assert child_result == "Child 1"
         assert parent_calls == 1
         assert child_calls == 1
+        
+    # Tests for the new public API methods
+    
+    def test_get_all_services(self):
+        """Test getting all registered service instances."""
+        # Arrange
+        container = DIContainer()
+        service1 = object()
+        service2 = object()
+        container.register("service1", service1)
+        container.register("service2", service2)
+        
+        # Act
+        services = container.get_all_services()
+        
+        # Assert
+        assert isinstance(services, dict)
+        assert len(services) == 2
+        assert services["service1"] is service1
+        assert services["service2"] is service2
+        
+        # Verify it's a copy not the original
+        services["newkey"] = "newvalue"
+        assert "newkey" not in container.get_all_services()
+        
+    def test_get_all_factories(self):
+        """Test getting all registered factory functions."""
+        # Arrange
+        container = DIContainer()
+        factory1 = lambda c: "result1"
+        factory2 = lambda c: "result2"
+        container.register_factory("factory1", factory1)
+        container.register_factory("factory2", factory2)
+        
+        # Act
+        factories = container.get_all_factories()
+        
+        # Assert
+        assert isinstance(factories, dict)
+        assert len(factories) == 2
+        assert factories["factory1"] is factory1
+        assert factories["factory2"] is factory2
+        
+        # Verify it's a copy not the original
+        factories["newkey"] = lambda c: "new"
+        assert "newkey" not in container.get_all_factories()

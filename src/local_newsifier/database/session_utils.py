@@ -9,6 +9,7 @@ single source of truth for database session management in the application.
 import logging
 import functools
 import warnings
+import sys
 from typing import TypeVar, Callable, Any, Optional, Dict, Generator
 
 from sqlmodel import Session
@@ -23,13 +24,14 @@ F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_db_session(container=None, **kwargs):
+def get_db_session(container=None, test_mode: bool = False, **kwargs):
     """Get a database session from the container.
     
     This is the standard way to get a database session throughout the application.
     
     Args:
         container: Optional container instance (will be imported if not provided)
+        test_mode: If True, use optimized settings for tests
         **kwargs: Additional parameters to pass to the session factory
         
     Returns:
@@ -43,7 +45,12 @@ def get_db_session(container=None, **kwargs):
     if session_factory is None:
         logger.error("Session factory not available in container")
         raise ValueError("Session factory not available in container")
-    return session_factory()
+    
+    # Detect if we're running in a test environment
+    if 'pytest' in sys.modules:
+        test_mode = True
+        
+    return session_factory(test_mode=test_mode)
 
 
 def with_db_session(func: F = None, *, container=None) -> F:

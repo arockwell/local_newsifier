@@ -1,6 +1,6 @@
 # Local Newsifier CLI
 
-The Local Newsifier CLI provides command-line tools for managing RSS feeds, processing articles, and interacting with the system.
+The Local Newsifier CLI provides command-line tools for managing RSS feeds, processing articles, interacting with Apify for web scraping, and other system operations.
 
 ## Installation - Development Mode
 
@@ -106,6 +106,65 @@ poetry run nf feeds remove 1
 # Remove a feed (skip confirmation)
 poetry run nf feeds remove 1 --force
 ```
+
+### Using Apify for Web Scraping
+
+Local Newsifier integrates with Apify for scraping content from websites without RSS feeds.
+
+#### Test Apify Connection
+
+```bash
+# Test API connection
+poetry run nf apify test
+
+# Test with a specific token
+poetry run nf apify test --token your_token_here
+```
+
+#### Scrape Content from a Website
+
+```bash
+# Basic content scraping
+poetry run nf apify scrape-content https://example.com
+
+# Advanced options
+poetry run nf apify scrape-content https://example.com --max-pages 10 --max-depth 2 --output results.json
+```
+
+#### Use Web Scraper Actor
+
+```bash
+# Basic web scraping
+poetry run nf apify web-scraper https://example.com
+
+# With custom selectors
+poetry run nf apify web-scraper https://example.com --selector "article a" --output results.json
+
+# With wait-for selector
+poetry run nf apify web-scraper https://example.com --wait-for "#content .loaded"
+```
+
+#### Run Custom Apify Actors
+
+```bash
+# Run a custom actor with JSON input
+poetry run nf apify run-actor apify/web-scraper --input '{"startUrls":[{"url":"https://example.com"}]}'
+
+# Run actor with input from file
+poetry run nf apify run-actor apify/web-scraper --input input.json --output results.json
+```
+
+#### Get Dataset Items
+
+```bash
+# Get items from a dataset
+poetry run nf apify get-dataset dataset_id
+
+# With formatting options
+poetry run nf apify get-dataset dataset_id --limit 20 --format table
+```
+
+For more comprehensive documentation on Apify integration, see [docs/apify_integration.md](docs/apify_integration.md).
 
 ## Testing the CLI
 

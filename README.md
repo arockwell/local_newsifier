@@ -14,9 +14,26 @@ This system automatically fetches local news articles, performs Named Entity Rec
 - Named Entity Recognition (NER) analysis
 - Headline trend analysis with NLP-powered keyword extraction
 - Temporal tracking of trending terms in news coverage
+- Web scraping via Apify integration for websites without RSS feeds
 - Robust error handling and retry mechanisms
 - State persistence and workflow resumption
 - Comprehensive logging and monitoring
+- Dependency injection for modular and testable code
+
+## Architecture
+
+### Dependency Injection
+
+Local Newsifier uses a hybrid dependency injection (DI) approach as it migrates from a custom DI container to fastapi-injectable:
+
+- **Custom DIContainer**: The original DI system for service management
+- **fastapi-injectable**: The newer DI framework leveraging FastAPI's dependency injection
+- **Adapter Layer**: Bridges both systems during the transition period
+
+For detailed information on our DI architecture, testing strategies, and migration guidelines, see:
+- [DI Architecture Guide](docs/di_architecture.md)
+- [Original DIContainer Documentation](docs/dependency_injection.md)
+- [fastapi-injectable Migration Guide](docs/fastapi_injectable.md)
 
 ## Setup
 
@@ -56,6 +73,26 @@ nf feeds process <id>      # Process a feed manually
 ```
 
 For detailed CLI documentation, see [README_CLI.md](README_CLI.md).
+
+### Apify Web Scraping
+
+The system integrates with Apify for scraping content from websites without RSS feeds:
+
+```bash
+# Test Apify connection
+nf apify test
+
+# Scrape content from a website
+nf apify scrape-content https://example.com
+
+# Use web-scraper actor with custom selectors
+nf apify web-scraper https://example.com --selector "article a"
+
+# Get items from an Apify dataset
+nf apify get-dataset <dataset_id>
+```
+
+For detailed Apify integration documentation, see [docs/apify_integration.md](docs/apify_integration.md).
 
 ### Scripts
 
@@ -174,16 +211,16 @@ The testing framework now includes robust environment variable management:
   def test_with_clean_environment():
       # Store original environment
       original_env = {k: os.environ.get(k) for k in relevant_keys}
-      
+
       try:
           # Clear environment for test
           for key in original_env:
               if key in os.environ:
                   del os.environ[key]
-          
+
           # Run test with clean environment
           result = test_function()
-          
+
       finally:
           # Restore original environment
           for key, value in original_env.items():
@@ -206,10 +243,10 @@ Database testing has been improved with:
       mock_settings_instance = MagicMock()
       mock_settings_instance.DATABASE_URL = "test_url"
       mock_settings.return_value = mock_settings_instance
-      
+
       # Run test
       result = database_operation()
-      
+
       # Verify behavior
       mock_init_db.assert_called_once_with("test_url")
   ```
@@ -252,17 +289,21 @@ src/
 │   │   ├── analysis/   # Analysis tools (headline trends, etc.)
 │   │   └── ...         # Other tools (web scraper, NER, etc.)
 │   ├── models/         # Pydantic models
+│   │   └── apify.py    # Apify integration models
 │   ├── flows/          # crew.ai Flow definitions
 │   │   ├── analysis/   # Analysis workflows
 │   │   └── ...         # Other flows (news pipeline, RSS, etc.)
 │   ├── cli/            # Command Line Interface
 │   │   └── commands/   # CLI command implementations
+│   │       └── apify.py # Apify CLI commands
 │   ├── crud/           # Database CRUD operations
 │   ├── services/       # Business logic services
+│   │   └── apify_service.py # Apify API integration service
 │   ├── api/            # FastAPI web API
 │   └── config/         # Configuration
 tests/                  # Test suite
 scripts/                # Runtime scripts
+docs/                   # Documentation
 ```
 
 ## Configuration
@@ -270,6 +311,14 @@ scripts/                # Runtime scripts
 The system can be configured through:
 - Environment variables
 - Configuration files in `src/local_newsifier/config/`
+
+### Key Environment Variables
+
+| Variable        | Description                                  | Required For                 |
+|-----------------|----------------------------------------------|------------------------------|
+| APIFY_TOKEN     | API token for Apify web scraping integration | Apify integration            |
+| CURSOR_DB_ID    | Unique ID for cursor-specific database       | Multi-cursor support         |
+| DATABASE_URL    | PostgreSQL connection string                 | Database operations          |
 
 ## Error Handling
 

@@ -1,0 +1,407 @@
+# Local Newsifier Services Guide
+
+## Overview
+The services module contains business logic that coordinates between CRUD operations (database access) and tools (processing logic). Services manage transactions, implement business rules, and provide a clean API for higher-level components.
+
+> **IMPORTANT**: The project is transitioning from a custom DIContainer to fastapi-injectable. During this migration, you'll see both patterns in use. New services should use the fastapi-injectable pattern described in the "Injectable Service Pattern" section below.
+
+## Key Service Types
+
+### Content Services
+- **ArticleService**: Manages article creation, fetching, and processing
+- **RSSFeedService**: Manages RSS feed configuration and article extraction
+- **ApifyService**: Manages Apify web scraping integration
+- Located in `services/article_service.py`, `services/rss_feed_service.py`, `services/apify_service.py`
+
+### Analysis Services
+- **AnalysisService**: Provides analysis operations for articles and entities
+- **EntityService**: Manages entity tracking and relationship analysis
+- Located in `services/analysis_service.py`, `services/entity_service.py`
+
+### Pipeline Services
+- **NewsPipelineService**: Coordinates the end-to-end news processing pipeline
+- Located in `services/news_pipeline_service.py`
+
+## Service Patterns
+
+### Service Initialization
+Services accept dependencies through constructor injection:
+
+```python
+class EntityService:
+    def __init__(
+        self, 
+        entity_crud=None, 
+        canonical_entity_crud=None,
+        entity_relationship_crud=None,
+        session_factory=None,
+        container=None
+    ):
+        """Initialize the entity service.
+        
+        Args:
+            entity_crud: CRUD operations for entities
+            canonical_entity_crud: CRUD operations for canonical entities
+            entity_relationship_crud: CRUD operations for entity relationships
+            session_factory: Database session factory
+            container: DI container for lazy dependency resolution
+        """
+        self.entity_crud = entity_crud
+        self.canonical_entity_crud = canonical_entity_crud
+        self.entity_relationship_crud = entity_relationship_crud
+        self.session_factory = session_factory
+        self.container = container
+        self._ensure_dependencies()
+```
+
+### Dependency Resolution
+Services may resolve dependencies from the DI container:
+
+```python
+def _ensure_dependencies(self):
+    """Ensure all dependencies are available."""
+    if self.entity_crud is None and self.container:
+        self.entity_crud = self.container.get("entity_crud")
+        
+    if self.canonical_entity_crud is None and self.container:
+        self.canonical_entity_crud = self.container.get("canonical_entity_crud")
+        
+    if self.entity_relationship_crud is None and self.container:
+        self.entity_relationship_crud = self.container.get("entity_relationship_crud")
+        
+    if self.session_factory is None and self.container:
+        self.session_factory = self.container.get("session_factory")
+        
+    # Verify required dependencies
+    if self.entity_crud is None:
+        raise ValueError("EntityService requires entity_crud")
+        
+    if self.session_factory is None:
+        raise ValueError("EntityService requires session_factory")
+```
+
+### Transaction Management
+Services manage database transactions using context managers:
+
+```python
+def create_entity(self, entity_data):
+    """Create a new entity.
+    
+    Args:
+        entity_data: Dictionary with entity data
+        
+    Returns:
+        Created entity ID
+    """
+    with self.session_factory() as session:
+        # Create entity in database
+        entity = self.entity_crud.create(
+            session, 
+            Entity(**entity_data)
+        )
+        
+        # Return ID, not entity object
+        return entity.id
+```
+
+### Return Values
+Services return IDs or data dicts, not SQLModel objects:
+
+```python
+def get_entity(self, entity_id):
+    """Get entity by ID.
+    
+    Args:
+        entity_id: ID of the entity to get
+        
+    Returns:
+        Entity data as dictionary, or None if not found
+    """
+    with self.session_factory() as session:
+        entity = self.entity_crud.get(session, entity_id)
+        if not entity:
+            return None
+            
+        # Return data dict, not entity object
+        return entity.model_dump()
+```
+
+### Tool Integration
+Services coordinate between database and tools:
+
+```python
+def analyze_entity_sentiment(self, entity_id):
+    """Analyze sentiment for an entity.
+    
+    Args:
+        entity_id: ID of the entity to analyze
+        
+    Returns:
+        Sentiment analysis result
+    """
+    with self.session_factory() as session:
+        # Get entity from database
+        entity = self.entity_crud.get(session, entity_id)
+        if not entity:
+            raise ValueError(f"Entity not found: {entity_id}")
+            
+        # Get sentiment analyzer tool
+        sentiment_analyzer = self.container.get("sentiment_analyzer_tool")
+        
+        # Get context for entity
+        context = entity.sentence_context or ""
+        
+        # Analyze sentiment
+        sentiment = sentiment_analyzer.analyze_sentiment(context)
+        
+        # Create analysis result
+        analysis_result = AnalysisResult(
+            entity_id=entity_id,
+            analysis_type="sentiment",
+            result_data=sentiment,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        # Save to database
+        result = self.analysis_result_crud.create(session, analysis_result)
+        
+        # Return result ID and data
+        return {
+            "id": result.id,
+            "entity_id": entity_id,
+            "sentiment": sentiment
+        }
+```
+
+### State-Based Services
+Services may use state objects for complex operations:
+
+```python
+def process_article_with_state(self, state: EntityTrackingState) -> EntityTrackingState:
+    """Process an article with tracking state.
+    
+    Args:
+        state: Current processing state
+        
+    Returns:
+        Updated state with processing results
+    """
+    try:
+        with self.session_factory() as session:
+            # Get article from database
+            article = self.article_crud.get(session, state.article_id)
+            if not article:
+                raise ValueError(f"Article not found: {state.article_id}")
+                
+            # Get entity extractor tool
+            entity_extractor = self.container.get("entity_extractor_tool")
+            
+            # Extract entities
+            entities = entity_extractor.extract_entities(article.content)
+            
+            # Update state with extracted entities
+            state.entities = entities
+            state.add_log(f"Extracted {len(entities)} entities")
+            
+            # Save entities to database
+            for entity_data in entities:
+                entity = Entity(
+                    article_id=article.id,
+                    text=entity_data["text"],
+                    entity_type=entity_data["entity_type"],
+                    confidence=entity_data.get("confidence", 1.0)
+                )
+                self.entity_crud.create(session, entity)
+                
+            # Update state to success
+            state.status = TrackingStatus.SUCCESS
+            
+    except Exception as e:
+        # Update state with error
+        state.status = TrackingStatus.ERROR
+        state.set_error("entity_service.process_article", e)
+        
+    return state
+```
+
+### External API Integration
+Services encapsulate interactions with external APIs:
+
+```python
+class ApifyService:
+    def __init__(self, token=None):
+        """Initialize the Apify service.
+        
+        Args:
+            token: API token for Apify authentication
+        """
+        self._token = token
+        self._client = None
+        
+    @property
+    def client(self):
+        """Get the Apify client."""
+        if self._client is None:
+            from apify_client import ApifyClient
+            token = self._token or settings.APIFY_TOKEN
+            self._client = ApifyClient(token)
+        return self._client
+        
+    def run_actor(self, actor_id, run_input):
+        """Run an Apify actor.
+        
+        Args:
+            actor_id: ID of the actor to run
+            run_input: Input data for the actor
+            
+        Returns:
+            Result of the actor run
+        """
+        return self.client.actor(actor_id).call(run_input=run_input)
+```
+
+## Service Registration in Container
+
+Services are registered in the DI container:
+
+```python
+# Register article service
+container.register_factory("article_service", lambda c: ArticleService(
+    article_crud=c.get("article_crud"),
+    entity_crud=c.get("entity_crud"),
+    session_factory=c.get("session_factory"),
+    container=c
+))
+
+# Register entity service
+container.register_factory("entity_service", lambda c: EntityService(
+    entity_crud=c.get("entity_crud"),
+    canonical_entity_crud=c.get("canonical_entity_crud"),
+    entity_relationship_crud=c.get("entity_relationship_crud"),
+    session_factory=c.get("session_factory"),
+    container=c
+))
+
+# Register analysis service with configurable parameters
+container.register_factory_with_params(
+    "analysis_service", 
+    lambda c, **kwargs: AnalysisService(
+        analysis_result_crud=c.get("analysis_result_crud"),
+        article_crud=c.get("article_crud"),
+        entity_crud=c.get("entity_crud"),
+        session_factory=c.get("session_factory"),
+        container=c,
+        min_confidence=kwargs.get("min_confidence", 0.5)
+    )
+)
+```
+
+## Best Practices
+
+### Service Design
+- Keep services focused on specific business domains
+- Use meaningful method names that reflect business operations
+- Implement proper error handling and validation
+- Encapsulate complex logic behind simple interfaces
+- Return IDs or data dicts, not ORM objects
+
+### Session Management
+- Use context managers for database sessions
+- Don't pass SQLModel objects between sessions
+- Commit transactions explicitly at the end of operations
+- Handle errors and rollback transactions when needed
+
+### Dependency Injection
+- Accept dependencies through constructor parameters
+- Resolve missing dependencies from container
+- Verify required dependencies are available
+- Use lazy loading for expensive dependencies
+
+### Error Handling
+- Provide clear error messages
+- Log errors with appropriate context
+- Translate technical errors to business-level errors
+- Implement retry logic for transient failures
+
+### Testing
+- Mock dependencies for unit testing
+- Test happy paths and error cases
+- Verify database interactions
+- Test integration with tools and external APIs
+
+## Injectable Service Pattern
+
+Services are transitioning to use fastapi-injectable for dependency injection. This section describes the new pattern.
+
+### Injectable Service Definition
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
+
+@injectable
+class InjectableEntityService:
+    """Entity service using fastapi-injectable."""
+    
+    def __init__(
+        self,
+        entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
+        canonical_entity_crud: Annotated[CanonicalEntityCRUD, Depends(get_canonical_entity_crud)],
+        session: Annotated[Session, Depends(get_session)],
+    ):
+        self.entity_crud = entity_crud
+        self.canonical_entity_crud = canonical_entity_crud
+        self.session = session
+```
+
+### Session Usage in Injectable Services
+
+In injectable services, the session is typically injected directly:
+
+```python
+def process_entity(self, entity_id: int):
+    """Process an entity.
+    
+    Args:
+        entity_id: ID of the entity to process
+        
+    Returns:
+        Processed entity data
+    """
+    # Use the injected session directly
+    entity = self.entity_crud.get(self.session, entity_id)
+    if not entity:
+        raise ValueError(f"Entity not found: {entity_id}")
+        
+    # Process entity...
+    
+    # Return processed data
+    return entity.model_dump()
+```
+
+### Testing Injectable Services
+
+Injectable services can be tested by providing mock dependencies directly:
+
+```python
+def test_injectable_service(patch_injectable_dependencies):
+    # Get mocks from fixture
+    mocks = patch_injectable_dependencies
+    
+    # Create service with mock dependencies
+    service = InjectableEntityService(
+        entity_crud=mocks["entity_crud"],
+        canonical_entity_crud=mocks["canonical_entity_crud"],
+        session=mocks["session"]
+    )
+    
+    # Test the service
+    result = service.process_entity(1)
+    assert result is not None
+    
+    # Verify mock calls
+    mocks["entity_crud"].get.assert_called_once_with(mocks["session"], 1)
+```
+
+For more information on the migration to fastapi-injectable, see `docs/fastapi_injectable.md`.
