@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi_injectable import register_app
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
@@ -18,6 +19,7 @@ from local_newsifier.api.routers import auth, system, tasks
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
+from local_newsifier.fastapi_injectable_adapter import lifespan_with_injectable
 
 # Configure logging
 logging.basicConfig(
@@ -39,8 +41,13 @@ async def lifespan(app: FastAPI):
         # Initialize database tables
         create_db_and_tables()
         logger.info("Database initialization completed")
+        
+        # Initialize fastapi-injectable
+        logger.info("Initializing fastapi-injectable")
+        await register_app(app)
+        logger.info("fastapi-injectable initialization completed")
     except Exception as e:
-        logger.error(f"Database initialization error: {str(e)}")
+        logger.error(f"Startup error: {str(e)}")
     
     logger.info("Application startup complete")
     
@@ -51,11 +58,12 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown complete")
 
 
+# Create app with our custom lifespan
 app = FastAPI(
     title="Local Newsifier API",
     description="API for Local Newsifier",
     version="0.1.0",
-    lifespan=lifespan,
+    lifespan=lifespan,  # Set the lifespan context manager
 )
 
 # Add session middleware
@@ -65,8 +73,6 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(tasks.router)
-
-
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, templates=Depends(get_templates)):
