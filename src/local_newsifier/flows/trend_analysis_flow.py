@@ -3,11 +3,13 @@
 from datetime import datetime, timezone, timedelta
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Annotated
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
@@ -69,44 +71,43 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
+@injectable(use_cache=False)
 class NewsTrendAnalysisFlow(Flow):
     """Flow for detecting and analyzing trends in local news coverage."""
 
     def __init__(
         self,
-        analysis_service: Optional[AnalysisService] = None,
-        trend_reporter: Optional[TrendReporter] = None,
+        analysis_service: Annotated[AnalysisService, Depends("get_analysis_service")],
+        trend_reporter: Annotated[TrendReporter, Depends("get_trend_reporter_tool")],
+        trend_analyzer: Annotated[Any, Depends("get_trend_analyzer_tool")] = None,
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
-        trend_detector: Optional[Any] = None,
         config: Optional[TrendAnalysisConfig] = None,
-        output_dir: str = "trend_output",
     ):
         """
         Initialize the trend analysis flow.
 
         Args:
-            analysis_service: Service for analysis operations
-            trend_reporter: Tool for generating trend reports
+            analysis_service: Service for analysis operations (injected)
+            trend_reporter: Tool for generating trend reports (injected)
+            trend_analyzer: Tool for analyzing trends (injected)
             data_aggregator: Tool for aggregating data (for backwards compatibility)
             topic_analyzer: Tool for analyzing topics (for backwards compatibility)
-            trend_detector: Tool for detecting trends (for backwards compatibility)
             config: Configuration for trend analysis
-            output_dir: Directory for report output
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
         
-        # Initialize reporter
-        self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
+        # Use injected services and tools
+        self.reporter = trend_reporter
+        self.analysis_service = analysis_service
         
-        # Use analysis service for all trend analysis operations 
-        self.analysis_service = analysis_service or AnalysisService()
+        # Initialize trend analyzer via DI 
+        self.trend_detector = trend_analyzer
         
         # For backwards compatibility with tests
         self.data_aggregator = data_aggregator or MagicMock()
         self.topic_analyzer = topic_analyzer or MagicMock()
-        self.trend_detector = trend_detector or MagicMock()
         
     def aggregate_historical_data(
         self, state: TrendAnalysisState
@@ -167,17 +168,41 @@ class NewsTrendAnalysisFlow(Flow):
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting trend detection")
 
-            # Detect entity-based trends using TrendDetector
-            entity_trends = self.trend_detector.detect_entity_trends(
-                entity_types=state.config.entity_types,
-                min_significance=state.config.significance_threshold,
-                min_mentions=state.config.min_articles,
-                max_trends=state.config.topic_limit,
-                session=self.analysis_service._get_session()
-            )
+            # Calculate date range based on configuration
+            end_date = datetime.now(timezone.utc)
+            if state.config.time_frame == TimeFrame.DAY:
+                start_date = end_date - timedelta(days=1)
+            elif state.config.time_frame == TimeFrame.WEEK:
+                start_date = end_date - timedelta(days=7)
+            elif state.config.time_frame == TimeFrame.MONTH:
+                start_date = end_date - timedelta(days=30)
+            else:
+                start_date = end_date - timedelta(days=90)
+                
+            state.add_log(f"Analyzing trends from {start_date.isoformat()} to {end_date.isoformat()}")
             
-            # Detect anomalous patterns
-            anomaly_trends = self.trend_detector.detect_anomalous_patterns()
+            # Detect entity-based trends using TrendAnalyzer via DI
+            # If this is a proper TrendAnalyzer instance
+            if hasattr(self.trend_detector, 'detect_entity_trends'):
+                entity_trends = self.trend_detector.detect_entity_trends(
+                    entity_types=state.config.entity_types,
+                    min_significance=state.config.significance_threshold,
+                    min_mentions=state.config.min_articles,
+                    max_trends=state.config.topic_limit
+                )
+                
+                # Try to detect anomalous patterns
+                if hasattr(self.trend_detector, 'detect_anomalous_patterns'):
+                    anomaly_trends = self.trend_detector.detect_anomalous_patterns()
+            else:
+                # Fallback to using analysis_service directly
+                entity_trends = self.analysis_service.detect_entity_trends(
+                    entity_types=state.config.entity_types,
+                    time_frame=state.config.time_frame,
+                    min_significance=state.config.significance_threshold,
+                    min_mentions=state.config.min_articles,
+                    max_trends=state.config.topic_limit
+                )
 
             # Store the trends
             state.detected_trends = entity_trends
@@ -188,6 +213,7 @@ class NewsTrendAnalysisFlow(Flow):
         except Exception as e:
             state.status = AnalysisStatus.ANALYSIS_FAILED
             state.set_error(f"Error during trend detection: {str(e)}")
+            logger.exception("Error during trend detection")
 
         return state
 

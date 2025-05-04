@@ -51,6 +51,20 @@ def get_session() -> Generator[Session, None, None]:
 # CRUD providers
 
 @injectable(use_cache=False)
+def get_analysis_result_crud():
+    """Provide the analysis result CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        AnalysisResultCRUD instance
+    """
+    from local_newsifier.crud.analysis_result import analysis_result
+    return analysis_result
+
+
+@injectable(use_cache=False)
 def get_article_crud():
     """Provide the article CRUD component.
     
@@ -250,3 +264,69 @@ def get_rss_feed_service(
         article_service=article_service,
         session_factory=lambda: session
     )
+
+
+@injectable(use_cache=False)
+def get_analysis_service(
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)] = None,
+    article_crud: Annotated[Any, Depends(get_article_crud)] = None,
+    entity_crud: Annotated[Any, Depends(get_entity_crud)] = None,
+    session: Annotated[Session, Depends(get_session)] = None
+):
+    """Provide the analysis service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        analysis_result_crud: Analysis result CRUD component
+        article_crud: Article CRUD component
+        entity_crud: Entity CRUD component
+        session: Database session
+        
+    Returns:
+        AnalysisService instance
+    """
+    from local_newsifier.services.analysis_service import AnalysisService
+    from local_newsifier.crud.analysis_result import analysis_result as default_analysis_result_crud
+    
+    return AnalysisService(
+        analysis_result_crud=analysis_result_crud or default_analysis_result_crud,
+        article_crud=article_crud,
+        entity_crud=entity_crud,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_trend_reporter_tool(output_dir: str = "trend_output"):
+    """Provide the trend reporter tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the trend
+    reporter creates files and maintains file paths during processing.
+    
+    Args:
+        output_dir: Directory for report output
+        
+    Returns:
+        TrendReporter instance
+    """
+    from local_newsifier.tools.trend_reporter import TrendReporter
+    return TrendReporter(output_dir=output_dir)
+
+
+@injectable(use_cache=False)
+def get_trend_analyzer_tool(session: Annotated[Session, Depends(get_session)] = None):
+    """Provide the trend analyzer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the trend
+    analyzer may maintain state during processing and uses NLP models.
+    
+    Args:
+        session: Database session
+    
+    Returns:
+        TrendAnalyzer instance
+    """
+    from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+    return TrendAnalyzer(session=session)
