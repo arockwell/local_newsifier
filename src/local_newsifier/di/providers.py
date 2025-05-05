@@ -72,7 +72,7 @@ def get_article_crud():
     components interact with the database and should not share state between operations.
     
     Returns:
-        ArticleCRUD instance
+        CRUDArticle instance
     """
     from local_newsifier.crud.article import article
     return article
