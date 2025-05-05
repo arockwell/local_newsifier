@@ -65,10 +65,10 @@ setup_graceful_shutdown()
 # Caching strategy helper function
 def should_cache(scope: str) -> bool:
     """Convert DIContainer scope to fastapi-injectable use_cache value.
-    
+
     Args:
         scope: DIContainer scope string ("singleton", "transient", "scoped")
-        
+
     Returns:
         Boolean indicating whether to cache the dependency
     """
@@ -90,7 +90,7 @@ from sqlmodel import Session
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session."""
     from local_newsifier.database.engine import get_session as get_db_session
-    
+
     session = next(get_db_session())
     try:
         yield session
@@ -100,7 +100,7 @@ def get_session() -> Generator[Session, None, None]:
 @injectable(use_cache=False)  # Create new instances for data access components
 def get_entity_crud():
     """Provide the entity CRUD component.
-    
+
     Uses use_cache=False to create new instances for each injection, as CRUD
     components interact with the database and should not share state.
     """
@@ -119,25 +119,25 @@ def get_service_factory(service_name: str) -> Callable:
     stateful_patterns = [
         "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
     ]
-    
+
     # Determine appropriate caching behavior based on service type
     use_cache = True  # Default to caching for performance
-    
+
     # For stateful components or those interacting with databases, disable caching
     for pattern in stateful_patterns:
         if pattern in service_name:
             use_cache = False
             break
-    
+
     @injectable(use_cache=use_cache)
     def service_factory():
         """Factory function to get service from DIContainer."""
         return di_container.get(service_name)
-    
+
     # Set better function name for debugging
     service_factory.__name__ = f"get_{service_name}"
     logger.info(f"Created provider for {service_name} with use_cache={use_cache}")
-    
+
     return service_factory
 ```
 
@@ -205,7 +205,7 @@ def get_article_crud():
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session."""
     from local_newsifier.database.engine import get_session as get_db_session
-    
+
     session = next(get_db_session())
     try:
         yield session
@@ -220,7 +220,7 @@ def get_article_service(
 ):
     """Provide the article service."""
     from local_newsifier.services.article_service import ArticleService
-    
+
     return ArticleService(
         article_crud=article_crud,
         session_factory=lambda: session
@@ -235,7 +235,7 @@ Convert services to use the `@injectable` decorator with appropriate scope:
 @injectable(use_cache=False)  # Prevent caching to ensure fresh instances
 class InjectableEntityService:
     """Injectable entity service with explicitly defined dependencies.
-    
+
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     """
@@ -273,7 +273,7 @@ def patch_injectable_dependencies(monkeypatch):
     """Patch injectable dependencies for non-API tests."""
     mock_entity_crud = Mock()
     monkeypatch.setattr("local_newsifier.di.providers.get_entity_crud", lambda: mock_entity_crud)
-    
+
     return {
         "entity_crud": mock_entity_crud,
     }
@@ -334,27 +334,27 @@ def test_service(patch_injectable_dependencies):
 fastapi-injectable v0.7.0 doesn't have a Scope enum or scope parameter, but it does control
 instance reuse with the `use_cache` parameter:
 
-- **use_cache=True** (default):
+- **use_cache=True** (default in fastapi-injectable):
   - Reuses the same instance for identical dependency requests
   - Only safe for completely stateless and thread-safe components
-  - Examples: Pure utility functions, configuration providers, constants
-  - Be extremely conservative with this setting to avoid shared state issues
-  - Never use for components that interact with the database or other external resources
+  - Can lead to subtle concurrency issues and state leakage
 
 - **use_cache=False**:
-  - The safest choice for almost all components
   - Creates a fresh instance for each dependency injection
   - Prevents shared state and potential leakage between operations
-  - Required for services and components that interact with database
-  - Examples: CRUD components, Entity services, analysis services, processing tools, database sessions
+  - More predictable behavior in asynchronous environments
 
-Our strategy follows these guidelines:
-- Components that match patterns like "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
-  are automatically configured with `use_cache=False`
-- Purely functional, stateless utilities could use `use_cache=True` for performance
+**Our project decision**: We use **`use_cache=False` for ALL components** for consistency and safety.
 
-Always prefer `use_cache=False` when in doubt, especially for services with database 
-interaction or internal state management.
+This decision:
+- Eliminates an entire class of potential bugs related to shared state
+- Makes the system more predictable in concurrent environments
+- Simplifies the development model (no need to decide which components are truly stateless)
+- Prevents unexpected side effects when modifying components
+- Provides isolation between different parts of the application
+
+While there might be a minor performance cost to creating fresh instances, the improved
+reliability and maintainability outweigh this concern for our application.
 
 ### Testing
 - Create mock fixtures for common dependencies

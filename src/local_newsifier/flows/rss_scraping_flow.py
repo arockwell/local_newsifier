@@ -5,7 +5,10 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Annotated
+
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem, RSSParser

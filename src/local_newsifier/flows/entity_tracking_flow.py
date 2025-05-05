@@ -1,9 +1,11 @@
 """Flow for tracking entities across news articles."""
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Annotated
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article as article_crud
@@ -50,7 +52,7 @@ class EntityTrackingFlow(Flow):
         super().__init__()
         self.session = session
         
-        # Use provided dependencies or create defaults
+        # Use provided dependencies or create defaults for backward compatibility
         self._entity_tracker = entity_tracker or EntityTracker()
         self._entity_extractor = entity_extractor or EntityExtractor()
         self._context_analyzer = context_analyzer or ContextAnalyzer()
