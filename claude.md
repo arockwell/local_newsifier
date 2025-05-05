@@ -8,16 +8,48 @@
 - Uses Celery with Redis for asynchronous task processing
 - Deployed on Railway with web, worker, and scheduler processes
 
+## Environment Setup
+
+### Python Version
+This project requires Python 3.10-3.12, with Python 3.12 recommended to match CI.
+
+### Setup
+```bash
+# Install dependencies with Poetry
+make setup-poetry
+
+# Install spaCy models
+make setup-spacy
+```
+
+See `docs/python_setup.md` for more details.
+
 ## Common Commands
+
+### CLI Commands
 - `nf help`: Show available commands and options
-- `nf run-pipeline --url <URL>`: Process a single article
-- `nf demo-headline-trends --days 30 --interval day`: Analyze recent headlines
-- `nf demo-entity-tracking`: View entity tracking dashboard
-- `nf demo-sentiment-analysis`: Run sentiment analysis demo
 - `nf feeds list`: List configured RSS feeds
-- `nf feeds fetch`: Fetch articles from feeds
+- `nf feeds add <URL>`: Add a new RSS feed
+- `nf feeds show <ID>`: Show details for a specific feed
+- `nf feeds remove <ID>`: Remove a feed
+- `nf feeds update <ID>`: Update feed properties
+- `nf feeds process <ID>`: Process a specific feed
+- `nf db stats`: Show database statistics
+- `nf db duplicates`: Find duplicate articles
+- `nf db articles`: List articles with filtering options
+- `nf db inspect <TABLE> <ID>`: Inspect a specific database record
 - `nf apify test`: Test Apify API connection
 - `nf apify scrape-content <URL>`: Scrape content using Apify
+- `nf apify web-scraper <URL>`: Scrape websites using Apify's web-scraper
+- `nf apify run-actor <ACTOR_ID>`: Run an Apify actor
+
+### Standalone Scripts
+- `python scripts/run_pipeline.py --url <URL>`: Process a single article
+- `python scripts/demo_headline_trends.py --days 30 --interval day`: Analyze recent headlines
+- `python scripts/demo_entity_tracking.py`: View entity tracking dashboard
+- `python scripts/demo_sentiment_analysis.py`: Run sentiment analysis demo
+
+### Development Commands
 - `poetry run pytest`: Run all tests
 - `poetry run pytest --cov=src/local_newsifier`: Run tests with coverage
 - `poetry run python -m spacy download en_core_web_lg`: Download required spaCy model
@@ -65,13 +97,13 @@ src/
 ```python
 class Article(SQLModel, table=True):
     __tablename__ = "articles"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     content: str
     url: str = Field(unique=True)
     # ...
-    
+
     entities: List["Entity"] = Relationship(back_populates="article")
 ```
 
@@ -82,10 +114,13 @@ class Article(SQLModel, table=True):
 - Use the `with_session` decorator for session management
 
 ### Dependency Injection
-- The system uses a central DIContainer for managing dependencies
-- Components should be registered with the container
+
+> **Note:** The project is currently transitioning between two dependency injection systems: the original custom DIContainer and fastapi-injectable. For more details, see the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md).
+
+#### Legacy DIContainer
+- The original system uses a central DIContainer for managing dependencies
+- Components are registered with the container
 - Services get dependencies through the container
-- This helps prevent circular imports and improves testability
 - Example container usage:
 ```python
 # Get a service from the container
@@ -98,6 +133,25 @@ container.register_factory("article_service", lambda c: ArticleService(
 ))
 ```
 
+#### FastAPI-Injectable System
+- Newer components use the fastapi-injectable framework
+- Provider functions are defined in `src/local_newsifier/di/providers.py`
+- All providers use `use_cache=False` to create fresh instances on each request
+- Example provider function:
+```python
+@injectable(use_cache=False)
+def get_article_service(
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    from local_newsifier.services.article_service import ArticleService
+
+    return ArticleService(
+        article_crud=article_crud,
+        session_factory=lambda: session
+    )
+```
+
 ### Service Layer
 - Services coordinate business logic between CRUD operations and tools
 - Services are in `src/local_newsifier/services/`
@@ -108,10 +162,10 @@ def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
         articles = self.article_crud.get_by_date_range(
             session, start_date, end_date
         )
-        
+
         trend_analyzer = self.container.get("trend_analyzer_tool")
         results = trend_analyzer.extract_keywords([a.title for a in articles])
-        
+
         return {"trending_terms": results}
 ```
 
@@ -124,7 +178,7 @@ class ApifyService:
     def __init__(self, token=None):
         self._token = token
         self._client = None
-        
+
     def run_actor(self, actor_id, run_input):
         return self.client.actor(actor_id).call(run_input=run_input)
 ```

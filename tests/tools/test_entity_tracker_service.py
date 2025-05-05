@@ -22,7 +22,6 @@ class MockEntityTracker:
             title=title,
             published_at=published_at
         )
-
 def test_entity_tracker_uses_service():
     """Test that EntityTracker uses the new service.
     

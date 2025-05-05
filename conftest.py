@@ -51,14 +51,38 @@ from local_newsifier.models.apify import (
     ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
 )
 
-@pytest.fixture(scope="session")
+# Create a pytest plugin that allows access to the shared test engine
+class TestEnginePlugin:
+    """Plugin to provide access to the test engine."""
+    
+    _shared_engine = None
+    
+    @classmethod
+    def set_engine(cls, engine):
+        """Set the shared engine."""
+        cls._shared_engine = engine
+        
+    @classmethod
+    def get_engine(cls):
+        """Get the shared engine."""
+        return cls._shared_engine
+
+# Register the plugin directly on pytest
+# This avoids using the problematic pytest_configure hook
+pytest.test_engine_plugin = TestEnginePlugin()
+
+@pytest.fixture(scope="session", autouse=True)
 def test_engine():
     """Create a test database engine using SQLite in-memory.
     
     This fixture:
     1. Creates an in-memory SQLite database
     2. Creates all tables
-    3. Yields the engine for tests
+    3. Makes the engine available via the test_engine_plugin
+    4. Yields the engine for tests that need direct access
+    
+    The autouse=True parameter ensures this fixture runs for all tests,
+    even when not explicitly requested, ensuring the test database is always set up.
     """
     # Create SQLite in-memory engine for tests
     engine = create_engine(
@@ -98,10 +122,15 @@ def test_engine():
         session.delete(result)
         session.commit()
     
-    # Yield the engine for tests to use
+    # Make the engine available to the plugin so it can be accessed outside the fixture
+    # This is the key change that avoids needing the problematic pytest_configure hook
+    pytest.test_engine_plugin.set_engine(engine)
+    
+    # Yield the engine for tests to use directly
     yield engine
     
-    # No cleanup needed for in-memory database
+    # Clean up by removing the engine from the plugin and disposing it
+    pytest.test_engine_plugin.set_engine(None)
     engine.dispose()
 
 @pytest.fixture
