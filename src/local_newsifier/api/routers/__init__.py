@@ -1,4 +1,3 @@
 """API routers package."""
 
-from . import auth, system, tasks
-from . import simple_articles
+from . import articles, auth, system, tasks

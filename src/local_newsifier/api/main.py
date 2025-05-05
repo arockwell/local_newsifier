@@ -10,8 +10,7 @@ from fastapi_injectable import register_app
 from starlette.middleware.sessions import SessionMiddleware
 
 from local_newsifier.api.dependencies import get_templates
-from local_newsifier.api.routers import auth, system, tasks
-from local_newsifier.api.routers import simple_articles
+from local_newsifier.api.routers import articles, auth, system, tasks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 
@@ -67,7 +66,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(tasks.router)
-app.include_router(simple_articles.router)
+app.include_router(articles.router)
 
 
 @app.get("/", response_class=HTMLResponse)

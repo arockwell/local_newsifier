@@ -3,17 +3,19 @@
 This module provides utilities for handling CRUD errors and converting them to API responses.
 """
 
-from typing import Any, Dict, Optional
+import asyncio
+import functools
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
 from local_newsifier.crud.error_handled_base import (CRUDError,
-                                                     DatabaseConnectionError,
-                                                     DuplicateEntityError,
-                                                     EntityNotFoundError,
-                                                     TransactionError,
-                                                     ValidationError)
+                                                   DatabaseConnectionError,
+                                                   DuplicateEntityError,
+                                                   EntityNotFoundError,
+                                                   TransactionError,
+                                                   ValidationError)
 
 # Map CRUD error types to HTTP status codes
 HTTP_STATUS_CODES = {
@@ -35,73 +37,65 @@ class ErrorResponse(BaseModel):
 
 
 def crud_error_to_http_exception(error: CRUDError) -> HTTPException:
-    """Convert a CRUD error to a FastAPI HTTPException.
-
-    Args:
-        error: The CRUD error to convert
-
-    Returns:
-        HTTPException with appropriate status code and details
-    """
-    # Get the HTTP status code based on error type
-    error_type = type(error)
-    status_code = HTTP_STATUS_CODES.get(
-        error_type, status.HTTP_500_INTERNAL_SERVER_ERROR
-    )
-
-    # Create the error response
+    """Convert a CRUD error to a FastAPI HTTPException."""
+    # Get the most specific error type
+    for error_type, status_code in HTTP_STATUS_CODES.items():
+        if isinstance(error, error_type):
+            # Create the error response
+            response = ErrorResponse(
+                detail=str(error),
+                error_type=error.full_type,
+                error_context=error.context
+            )
+            
+            # Create and return the HTTPException
+            return HTTPException(status_code=status_code, detail=response.model_dump())
+    
+    # Fallback for unknown error types
     response = ErrorResponse(
-        detail=str(error), error_type=error.full_type, error_context=error.context
+        detail=str(error),
+        error_type="database.unknown",
+        error_context=getattr(error, "context", {})
     )
-
-    # Create and return the HTTPException
-    return HTTPException(status_code=status_code, detail=response.model_dump())
+    return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=response.model_dump())
 
 
-def handle_crud_errors(func: Any) -> Any:
-    """Decorator to handle CRUD errors in API endpoints.
-
-    This decorator catches CRUD errors and converts them to appropriate
-    HTTP exceptions with standardized response formats.
-
-    Args:
-        func: The endpoint function to decorate
-
-    Returns:
-        Decorated function with CRUD error handling
-    """
-
-    async def wrapper(*args, **kwargs):
-        """Wrapped function with error handling."""
-        try:
-            return await func(*args, **kwargs)
-        except CRUDError as e:
-            # Convert CRUD error to HTTP exception
-            raise crud_error_to_http_exception(e)
-
-    # Handle both async and sync functions
-    if asyncio_iscoroutinefunction(func):
-        return wrapper
-
-    def sync_wrapper(*args, **kwargs):
-        """Sync version of the wrapper."""
-        try:
-            return func(*args, **kwargs)
-        except CRUDError as e:
-            # Convert CRUD error to HTTP exception
-            raise crud_error_to_http_exception(e)
-
-    return sync_wrapper
-
-
-# Helper function to check if a function is a coroutine
-try:
-    # Import asyncio only if needed to avoid dependency issues
-    import asyncio
-
-    asyncio_iscoroutinefunction = asyncio.iscoroutinefunction
-except (ImportError, AttributeError):
-    # Fallback if asyncio is not available
-    def asyncio_iscoroutinefunction(func: Any) -> bool:
-        """Check if a function is a coroutine function."""
+# Function to check if a function is a coroutine
+def is_coroutine_function(func: Any) -> bool:
+    """Check if a function is a coroutine function."""
+    try:
+        return asyncio.iscoroutinefunction(func)
+    except (ImportError, AttributeError):
         return False
+
+
+F = TypeVar('F', bound=Callable)
+
+
+def handle_crud_errors(func: F) -> F:
+    """Decorator to handle CRUD errors in API endpoints.
+    
+    This decorator catches CRUD errors and converts them to appropriate
+    HTTP exceptions with standardized response formats. It supports both
+    synchronous and asynchronous functions.
+    """
+    if is_coroutine_function(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            """Wrapped async function with error handling."""
+            try:
+                return await func(*args, **kwargs)
+            except CRUDError as e:
+                # Convert CRUD error to HTTP exception
+                raise crud_error_to_http_exception(e)
+        return async_wrapper  # type: ignore
+    else:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            """Wrapped sync function with error handling."""
+            try:
+                return func(*args, **kwargs)
+            except CRUDError as e:
+                # Convert CRUD error to HTTP exception
+                raise crud_error_to_http_exception(e)
+        return sync_wrapper  # type: ignore
