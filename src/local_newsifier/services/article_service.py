@@ -1,13 +1,14 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Callable
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
 
+# Forward references
 if TYPE_CHECKING:
     from local_newsifier.services.entity_service import EntityService
 
@@ -19,45 +20,28 @@ class ArticleService:
         self,
         article_crud,
         analysis_result_crud,
+        # Use callable for lazy resolution
         entity_service_factory: Optional[Callable[[], 'EntityService']] = None,
-        session_factory=None,
-        # For backwards compatibility; will be removed
-        entity_service=None,
-        container=None
+        session_factory=None
     ):
         """Initialize with dependencies.
         
         Args:
             article_crud: CRUD for articles
             analysis_result_crud: CRUD for analysis results
-            entity_service_factory: Factory function to get EntityService instances
+            entity_service_factory: Factory function for EntityService (lazy resolution)
             session_factory: Factory for database sessions
-            entity_service: Direct EntityService instance (legacy, will be deprecated)
-            container: DI container for resolving dependencies (legacy, will be deprecated)
         """
         self.article_crud = article_crud
         self.analysis_result_crud = analysis_result_crud
         self._entity_service_factory = entity_service_factory
         self.session_factory = session_factory
-        
-        # Legacy support - will be removed in future
-        self.entity_service = entity_service
-        self.container = container
     
     def _get_entity_service(self):
-        """Get the entity service, using the factory or falling back to legacy methods."""
-        # First try the factory-based approach (new)
+        """Get the entity service using lazy resolution."""
         if self._entity_service_factory is not None:
             return self._entity_service_factory()
-            
-        # Then try direct instance (legacy)
-        if self.entity_service is not None:
-            return self.entity_service
-            
-        # Finally try container (legacy)
-        if self.container is not None:
-            return self.container.get("entity_service")
-            
+        
         return None
         
     @handle_database

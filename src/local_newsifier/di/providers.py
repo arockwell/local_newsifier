@@ -407,8 +407,7 @@ def get_article_service(
     """Provide the article service.
     
     Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations. Uses the factory pattern
-    to resolve circular dependencies with EntityService.
+    preventing state leakage between operations.
     
     Args:
         article_crud: Article CRUD component
@@ -419,15 +418,17 @@ def get_article_service(
         ArticleService instance
     """
     from local_newsifier.services.article_service import ArticleService
-    from local_newsifier.di.factory_providers import get_entity_service_factory
     
-    # Get the entity service factory to break circular dependency
-    entity_service_factory = get_entity_service_factory()
+    # Simple function for lazy loading EntityService to break circular dependency
+    def get_entity_service_lazy():
+        # Import at runtime to avoid circular imports
+        from local_newsifier.di.providers import get_entity_service as get_entity_svc
+        return get_entity_svc()
     
     return ArticleService(
         article_crud=article_crud,
         analysis_result_crud=analysis_result_crud,
-        entity_service_factory=entity_service_factory,
+        entity_service_factory=get_entity_service_lazy,
         session_factory=lambda: session
     )
 
@@ -490,8 +491,7 @@ def get_rss_feed_service(
     """Provide the RSS feed service.
     
     Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations. Uses the factory pattern
-    to break circular dependencies with ArticleService.
+    preventing state leakage between operations.
     
     Args:
         rss_feed_crud: RSS feed CRUD component
@@ -502,15 +502,17 @@ def get_rss_feed_service(
         RSSFeedService instance
     """
     from local_newsifier.services.rss_feed_service import RSSFeedService
-    from local_newsifier.di.factory_providers import get_article_service_factory
     
-    # Get the article service factory to break circular dependency
-    article_service_factory = get_article_service_factory()
+    # Simple function for lazy loading ArticleService to break circular dependency
+    def get_article_service_lazy():
+        # Import at runtime to avoid circular imports
+        from local_newsifier.di.providers import get_article_service as get_article_svc
+        return get_article_svc()
     
     return RSSFeedService(
         rss_feed_crud=rss_feed_crud,
         feed_processing_log_crud=feed_processing_log_crud,
-        article_service_factory=article_service_factory,
+        article_service_factory=get_article_service_lazy,
         session_factory=lambda: session
     )
 
