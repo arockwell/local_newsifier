@@ -46,8 +46,6 @@ class RSSFeedService:
         self.article_service = article_service
         self.session_factory = session_factory
 
-
-
     @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
@@ -57,6 +55,9 @@ class RSSFeedService:
 
         Returns:
             Feed data as dict if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             feed = self.rss_feed_crud.get(session, id=feed_id)
@@ -73,6 +74,9 @@ class RSSFeedService:
 
         Returns:
             Feed data as dict if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             feed = self.rss_feed_crud.get_by_url(session, url=url)
@@ -93,6 +97,9 @@ class RSSFeedService:
 
         Returns:
             List of feed data as dicts
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             if active_only:
@@ -100,6 +107,34 @@ class RSSFeedService:
             else:
                 feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
             return [self._format_feed_dict(feed) for feed in feeds]
+
+    # This method is for testing only - to directly access the undecorated implementation
+    def _create_feed_impl(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
+        """Undecorated implementation of create_feed for testing purposes.
+
+        This method provides direct access to the implementation without the decorator.
+        Do not call this method directly in production code.
+        """
+        with self.session_factory() as session:
+            # Check if feed already exists
+            existing = self.rss_feed_crud.get_by_url(session, url=url)
+            if existing:
+                raise ValueError(f"Feed with URL '{url}' already exists")
+
+            # Create new feed
+            new_feed = self.rss_feed_crud.create(
+                session,
+                obj_in={
+                    "url": url,
+                    "name": name,
+                    "description": description,
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                },
+            )
+
+            return self._format_feed_dict(new_feed)
 
     @handle_database
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
@@ -115,28 +150,9 @@ class RSSFeedService:
 
         Raises:
             ValueError: If feed with the URL already exists
+            ServiceError: On database errors with appropriate classification
         """
-        with self.session_factory() as session:
-            # Check if feed already exists
-            existing = self.rss_feed_crud.get_by_url(session, url=url)
-            if existing:
-                raise ValueError(f"Feed with URL '{url}' already exists")
-            
-            # Create new feed
-            new_feed = self.rss_feed_crud.create(
-                session,
-                obj_in={
-                    "url": url,
-                    "name": name,
-                    "description": description,
-                    "is_active": True,
-                    "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
-                },
-            )
-            
-            return self._format_feed_dict(new_feed)
-
+        return self._create_feed_impl(url, name, description)
     @handle_database
     def update_feed(
         self,
@@ -155,6 +171,9 @@ class RSSFeedService:
 
         Returns:
             Updated feed data as dict if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             # Get feed
@@ -184,6 +203,9 @@ class RSSFeedService:
 
         Returns:
             Removed feed data as dict if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             # Get feed
@@ -212,6 +234,9 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
+            
+        Raises:
+            ServiceError: On RSS or database errors with appropriate classification
         """
         with self.session_factory() as session:
             # Get feed

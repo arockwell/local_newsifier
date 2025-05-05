@@ -62,7 +62,7 @@ class ApifyService:
             Dict[str, Any]: Actor run results
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set and not in test mode
+            ServiceError: On Apify API errors with appropriate classification
         """
         # In test mode with no token, return a mock response
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:
@@ -685,7 +685,7 @@ class ApifyService:
             Dict[str, Any]: Dataset items in format {"items": [...], "error": "..."}
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set and not in test mode
+            ServiceError: On Apify API errors with appropriate classification
         """
         # In test mode with no token, return mock data
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:
@@ -729,7 +729,7 @@ class ApifyService:
             Dict[str, Any]: Actor details
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set and not in test mode
+            ServiceError: On Apify API errors with appropriate classification
         """
         # In test mode with no token, return mock data
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:

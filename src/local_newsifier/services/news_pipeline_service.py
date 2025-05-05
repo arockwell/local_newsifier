@@ -41,6 +41,9 @@ class NewsPipelineService:
             
         Returns:
             Dictionary with processing results
+            
+        Raises:
+            ServiceError: On web scraping or database errors with appropriate classification
         """
         # Scrape content
         scraped_data = self.web_scraper.scrape_url(url)
@@ -93,6 +96,9 @@ class NewsPipelineService:
             
         Returns:
             Dictionary with processing results
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         # Use current time if no publication date provided
         if published_at is None:

@@ -12,7 +12,7 @@ from local_newsifier.crud.analysis_result import analysis_result
 from local_newsifier.crud.article import article
 from local_newsifier.crud.entity import entity
 from local_newsifier.database.engine import SessionManager, get_session
-from local_newsifier.errors.handlers import handle_database
+from local_newsifier.errors import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
@@ -62,6 +62,9 @@ class AnalysisService:
 
         Returns:
             Dictionary containing trend analysis results
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             # Use the injected trend analyzer
@@ -161,6 +164,9 @@ class AnalysisService:
 
         Returns:
             List of detected trends
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         if not entity_types:
             entity_types = ["PERSON", "ORG", "GPE"]
@@ -226,6 +232,9 @@ class AnalysisService:
 
         Returns:
             Saved AnalysisResult object
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         # Check if an analysis result already exists
         existing = self.analysis_result_crud.get_by_article_and_type(
@@ -268,6 +277,9 @@ class AnalysisService:
 
         Returns:
             Analysis results if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             result = self.analysis_result_crud.get_by_article_and_type(
