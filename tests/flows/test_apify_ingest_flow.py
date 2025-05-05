@@ -172,6 +172,8 @@ class TestApifyIngestFlow:
     def test_batch_ingest_partial_failure(self, apify_ingest_flow):
         """Test batch ingestion with some failures."""
         # Mock ingest_from_config to return success for first config and failure for second
+        original_method = apify_ingest_flow.ingest_from_config
+        
         def mock_ingest(config_id, run_input=None, state=None):
             if config_id == 1:
                 return ApifyIngestState(
@@ -188,7 +190,8 @@ class TestApifyIngestFlow:
                 failed_state.set_error("test", Exception("Actor run failed"))
                 return failed_state
         
-        apify_ingest_flow.ingest_from_config.side_effect = mock_ingest
+        # Replace method with our mock
+        apify_ingest_flow.ingest_from_config = MagicMock(side_effect=mock_ingest)
         
         # Execute
         state = apify_ingest_flow.batch_ingest([1, 2])
