@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from local_newsifier.crud.error_handled_article import (
@@ -62,9 +63,11 @@ class TestErrorHandledArticleCRUD:
 
         # Mock the database error that would occur
         with patch.object(db_session, "commit") as mock_commit:
-            # Simulate an IntegrityError for duplicate entry
-            mock_commit.side_effect = Exception(
-                "UNIQUE constraint failed: articles.url"
+            # Simulate an SQLAlchemy IntegrityError for duplicate entry
+            mock_commit.side_effect = IntegrityError(
+                statement="INSERT INTO articles VALUES ...",
+                params={},
+                orig=Exception("UNIQUE constraint failed: articles.url")
             )
 
             with pytest.raises(DuplicateEntityError):
