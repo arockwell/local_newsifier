@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from local_newsifier.flows.apify_ingest_flow import ApifyIngestFlow
 from local_newsifier.models.apify_state import ApifyIngestState, ApifyBatchIngestState, ApifyIngestStatus
+from local_newsifier.models.state import ErrorDetails
 
 
 @pytest.fixture
@@ -146,7 +147,8 @@ class TestApifyIngestFlow:
         # Verify
         assert state.status == ApifyIngestStatus.ACTOR_FAILED
         assert state.error_details is not None
-        assert "Actor run failed" in state.error_details.message
+        if state.error_details:  # Type checking to satisfy the null check above
+            assert "Actor run failed" in state.error_details.message
     
     def test_ingest_from_config_processing_partial(self, apify_ingest_flow):
         """Test ingestion with partial processing success."""

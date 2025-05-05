@@ -58,7 +58,7 @@ def get_apify_source_config_crud():
     components interact with the database and should not share state between operations.
     
     Returns:
-        ApifySourceConfigCRUD instance
+        CRUDApifySourceConfig instance
     """
     from local_newsifier.crud.apify_source_config import apify_source_config
     return apify_source_config

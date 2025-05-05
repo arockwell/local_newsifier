@@ -10,7 +10,7 @@ from local_newsifier.models.apify import ApifySourceConfig, ApifyDatasetItem
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.services.article_service import ArticleService
-from local_newsifier.crud.apify_source_config import ApifySourceConfigCRUD
+from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.crud.article import ArticleCRUD
 from local_newsifier.errors.error import ServiceError
 
@@ -32,7 +32,7 @@ class ApifyIngestFlow:
         self,
         apify_service: Optional[ApifyService] = None,
         article_service: Optional[ArticleService] = None,
-        source_config_crud: Optional[ApifySourceConfigCRUD] = None,
+        source_config_crud: Optional[CRUDApifySourceConfig] = None,
         article_crud: Optional[ArticleCRUD] = None,
         session_factory: Optional[Callable[[], Session]] = None,
     ):
