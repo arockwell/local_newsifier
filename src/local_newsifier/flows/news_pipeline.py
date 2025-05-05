@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 
 from crewai import Flow
 from fastapi import Depends
@@ -9,6 +9,9 @@ from sqlmodel import Session
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.file_writer import FileWriterTool
 from local_newsifier.tools.web_scraper import WebScraperTool
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 from local_newsifier.services.news_pipeline_service import NewsPipelineService
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.entity_service import EntityService
@@ -16,6 +19,13 @@ from local_newsifier.di.providers import (
     get_session, get_article_service, get_entity_service, 
     get_web_scraper_tool, get_file_writer_tool
 )
+# Keep these imports for backward compatibility
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 
 
 # Base class without DI for testing
@@ -33,7 +43,8 @@ class NewsPipelineFlowBase(Flow):
         file_writer: Optional[FileWriterTool] = None,
         session: Optional[Session] = None,
         session_factory: Optional[callable] = None,
-        pipeline_service: Optional[NewsPipelineService] = None
+        pipeline_service: Optional[NewsPipelineService] = None,
+        output_dir: str = "output"
     ):
         """Initialize the pipeline flow.
         
@@ -45,14 +56,16 @@ class NewsPipelineFlowBase(Flow):
             session: Database session
             session_factory: Function to create database sessions
             pipeline_service: Service for news pipeline operations
+            output_dir: Directory for output files
         """
         super().__init__()
         
-        # Use injected dependencies
+        # Use injected dependencies or create defaults
         self.article_service = article_service
         self.entity_service = entity_service
-        self.scraper = web_scraper
-        self.writer = file_writer
+        self.scraper = web_scraper or WebScraperTool()
+        self.writer = file_writer or FileWriterTool(output_dir=output_dir)
+        self.session = session
         
         # If session_factory was provided, use it; otherwise create a simple
         # factory that returns the injected session (allows external customization)
@@ -242,7 +255,8 @@ class NewsPipelineFlow(NewsPipelineFlowBase):
         file_writer: Annotated[FileWriterTool, Depends(get_file_writer_tool)] = None,
         session: Annotated[Session, Depends(get_session)] = None,
         session_factory: Optional[callable] = None,
-        pipeline_service: Optional[NewsPipelineService] = None
+        pipeline_service: Optional[NewsPipelineService] = None,
+        output_dir: str = "output"
     ):
         """Initialize the pipeline flow.
         
@@ -254,6 +268,7 @@ class NewsPipelineFlow(NewsPipelineFlowBase):
             session: Database session
             session_factory: Function to create database sessions
             pipeline_service: Service for news pipeline operations
+            output_dir: Directory for output files
         """
         super().__init__(
             article_service=article_service,
@@ -262,5 +277,6 @@ class NewsPipelineFlow(NewsPipelineFlowBase):
             file_writer=file_writer,
             session=session,
             session_factory=session_factory,
-            pipeline_service=pipeline_service
+            pipeline_service=pipeline_service,
+            output_dir=output_dir
         )

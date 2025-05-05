@@ -1,7 +1,7 @@
 """Flow for tracking entities across news articles."""
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Annotated
+from typing import Dict, List, Optional, Any, Annotated
 
 from crewai import Flow
 from fastapi import Depends
@@ -16,6 +16,9 @@ from local_newsifier.models.state import (
 )
 from local_newsifier.services.entity_service import EntityService
 from local_newsifier.tools.entity_tracker_service import EntityTracker
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 from local_newsifier.di.providers import (
     get_session, get_entity_service, get_entity_tracker_tool
 )
@@ -32,6 +35,9 @@ class EntityTrackingFlowBase(Flow):
         self, 
         entity_service: Optional[EntityService] = None,
         entity_tracker: Optional[EntityTracker] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        context_analyzer: Optional[ContextAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
         session: Optional[Session] = None,
         session_factory: Optional[callable] = None
     ):
@@ -40,17 +46,25 @@ class EntityTrackingFlowBase(Flow):
         Args:
             entity_service: Service for entity operations
             entity_tracker: Service for tracking entities
+            entity_extractor: Tool for extracting entities
+            context_analyzer: Tool for analyzing entity context
+            entity_resolver: Tool for resolving entities
             session: Database session
             session_factory: Function to create database sessions
         """
         super().__init__()
         self.session = session
         self.entity_service = entity_service
-        self._entity_tracker = entity_tracker
         
         # If session_factory was provided, use it; otherwise create a simple
         # factory that returns the injected session (allows external customization)
         self._session_factory = session_factory or (lambda: session)
+        
+        # Use provided dependencies or create defaults for backward compatibility
+        self._entity_tracker = entity_tracker or EntityTracker()
+        self._entity_extractor = entity_extractor or EntityExtractor()
+        self._context_analyzer = context_analyzer or ContextAnalyzer()
+        self._entity_resolver = entity_resolver or EntityResolver()
         
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
@@ -176,6 +190,9 @@ class EntityTrackingFlow(EntityTrackingFlowBase):
         entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
         entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)] = None,
         session: Annotated[Session, Depends(get_session)] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        context_analyzer: Optional[ContextAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
         session_factory: Optional[callable] = None
     ):
         """Initialize the entity tracking flow.
@@ -184,11 +201,17 @@ class EntityTrackingFlow(EntityTrackingFlowBase):
             entity_service: Service for entity operations
             entity_tracker: Service for tracking entities
             session: Database session
+            entity_extractor: Tool for extracting entities
+            context_analyzer: Tool for analyzing entity context
+            entity_resolver: Tool for resolving entities
             session_factory: Function to create database sessions
         """
         super().__init__(
             entity_service=entity_service,
             entity_tracker=entity_tracker,
+            entity_extractor=entity_extractor,
+            context_analyzer=context_analyzer,
+            entity_resolver=entity_resolver,
             session=session,
             session_factory=session_factory
         )

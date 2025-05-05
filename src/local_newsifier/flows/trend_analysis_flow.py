@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from crewai import Flow
 from fastapi import Depends
 from fastapi_injectable import injectable
+from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
@@ -88,7 +89,10 @@ class NewsTrendAnalysisFlowBase(Flow):
         trend_analyzer: Any,
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
+        trend_detector: Optional[Any] = None,
+        session: Optional[Session] = None,
         config: Optional[TrendAnalysisConfig] = None,
+        output_dir: str = "trend_output"
     ):
         """
         Initialize the trend analysis flow.
@@ -99,10 +103,14 @@ class NewsTrendAnalysisFlowBase(Flow):
             trend_analyzer: Tool for analyzing trends (injected)
             data_aggregator: Tool for aggregating data (for backwards compatibility)
             topic_analyzer: Tool for analyzing topics (for backwards compatibility)
+            trend_detector: Tool for detecting trends (for backwards compatibility)
+            session: Database session
             config: Configuration for trend analysis
+            output_dir: Directory for output files
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
+        self.session = session
         
         # Use injected services and tools
         self.reporter = trend_reporter
@@ -315,7 +323,10 @@ class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
         trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
+        trend_detector: Optional[Any] = None,
+        session: Optional[Session] = None,
         config: Optional[TrendAnalysisConfig] = None,
+        output_dir: str = "trend_output"
     ):
         """
         Initialize the trend analysis flow.
@@ -326,7 +337,10 @@ class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
             trend_analyzer: Tool for analyzing trends (injected)
             data_aggregator: Tool for aggregating data (for backwards compatibility)
             topic_analyzer: Tool for analyzing topics (for backwards compatibility)
+            trend_detector: Tool for detecting trends (for backwards compatibility)
+            session: Database session
             config: Configuration for trend analysis
+            output_dir: Directory for output files
         """
         super().__init__(
             analysis_service=analysis_service,
@@ -334,5 +348,8 @@ class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
             trend_analyzer=trend_analyzer,
             data_aggregator=data_aggregator,
             topic_analyzer=topic_analyzer,
-            config=config
+            trend_detector=trend_detector,
+            session=session,
+            config=config,
+            output_dir=output_dir
         )

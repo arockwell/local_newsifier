@@ -25,6 +25,12 @@ from fastapi_injectable import injectable
 # We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
 
+# Tools imported for direct access
+from local_newsifier.tools.entity_tracker_service import EntityTracker
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
 if TYPE_CHECKING:
     from local_newsifier.services.entity_service import EntityService
 
@@ -237,6 +243,20 @@ def get_sentiment_tracker_tool():
 
 
 @injectable(use_cache=False)
+def get_opinion_visualizer_tool():
+    """Provide the opinion visualizer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with database and maintains state during visualization generation.
+    
+    Returns:
+        OpinionVisualizerTool instance
+    """
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+    return OpinionVisualizerTool()
+
+
+@injectable(use_cache=False)
 def get_trend_analyzer_tool():
     """Provide the trend analyzer tool.
     
@@ -335,6 +355,20 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
+def get_entity_tracker_tool():
+    """Provide the entity tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during the entity tracking process.
+    
+    Returns:
+        EntityTracker instance
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker()
+
+
+@injectable(use_cache=False)
 def get_rss_parser():
     """Provide the RSS parser tool.
     
@@ -346,6 +380,20 @@ def get_rss_parser():
     """
     from local_newsifier.tools.rss_parser import RSSParser
     return RSSParser()
+
+
+@injectable(use_cache=False)
+def get_file_writer_tool():
+    """Provide the file writer tool.
+    
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during file writing operations.
+    
+    Returns:
+        FileWriterTool instance
+    """
+    from local_newsifier.tools.file_writer import FileWriterTool
+    return FileWriterTool(output_dir="output")
 
 
 # Service providers
@@ -469,10 +517,11 @@ def get_rss_feed_service(
 
 @injectable(use_cache=False)
 def get_analysis_service(
-    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)] = None,
-    article_crud: Annotated[Any, Depends(get_article_crud)] = None,
-    entity_crud: Annotated[Any, Depends(get_entity_crud)] = None,
-    session: Annotated[Session, Depends(get_session)] = None
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
+    entity_crud: Annotated[Any, Depends(get_entity_crud)],
+    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+    session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the analysis service.
     
@@ -480,136 +529,24 @@ def get_analysis_service(
     preventing state leakage between operations.
     
     Args:
-        analysis_result_crud: Analysis result CRUD component
         article_crud: Article CRUD component
+        analysis_result_crud: Analysis result CRUD component
         entity_crud: Entity CRUD component
+        trend_analyzer: Trend analyzer tool
         session: Database session
         
     Returns:
         AnalysisService instance
     """
     from local_newsifier.services.analysis_service import AnalysisService
-    from local_newsifier.crud.analysis_result import analysis_result as default_analysis_result_crud
     
     return AnalysisService(
-        analysis_result_crud=analysis_result_crud or default_analysis_result_crud,
         article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
         entity_crud=entity_crud,
+        trend_analyzer=trend_analyzer,
         session_factory=lambda: session
     )
-
-
-@injectable(use_cache=False)
-def get_trend_reporter_tool(output_dir: str = "trend_output"):
-    """Provide the trend reporter tool.
-    
-    Uses use_cache=False to create new instances for each injection, as the trend
-    reporter creates files and maintains file paths during processing.
-    
-    Args:
-        output_dir: Directory for report output
-        
-    Returns:
-        TrendReporter instance
-    """
-    from local_newsifier.tools.trend_reporter import TrendReporter
-    return TrendReporter(output_dir=output_dir)
-
-
-@injectable(use_cache=False)
-def get_trend_analyzer_tool(session: Annotated[Session, Depends(get_session)] = None):
-    """Provide the trend analyzer tool.
-    
-    Uses use_cache=False to create new instances for each injection, as the trend
-    analyzer may maintain state during processing and uses NLP models.
-    
-    Args:
-        session: Database session
-    
-    Returns:
-        TrendAnalyzer instance
-    """
-    from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-    return TrendAnalyzer(session=session)
-
-
-@injectable(use_cache=False)
-def get_entity_tracker_tool(
-    entity_service: Annotated["EntityService", Depends(get_entity_service)] = None,
-    session: Annotated[Session, Depends(get_session)] = None
-):
-    """Provide the entity tracker tool.
-    
-    Uses use_cache=False to create new instances for each injection, as the entity
-    tracker uses database operations and maintains state during processing.
-    
-    Args:
-        entity_service: Entity service instance
-        session: Database session
-    
-    Returns:
-        EntityTracker instance
-    """
-    from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service, session=session)
-
-
-@injectable(use_cache=False)
-def get_opinion_visualizer_tool(session: Annotated[Session, Depends(get_session)] = None):
-    """Provide the opinion visualizer tool.
-    
-    Uses use_cache=False to create new instances for each injection, as the opinion
-    visualizer interacts with the database and maintains state during visualization.
-    
-    Args:
-        session: Database session
-    
-    Returns:
-        OpinionVisualizerTool instance
-    """
-    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-    return OpinionVisualizerTool(session=session)
-
-
-@injectable(use_cache=False)
-def get_file_writer_tool(output_dir: str = "output"):
-    """Provide the file writer tool.
-    
-    Uses use_cache=False to create new instances for each injection, as the file
-    writer maintains state related to output files and directories.
-    
-    Args:
-        output_dir: Directory to save output files in
-    
-    Returns:
-        FileWriterTool instance
-    """
-    from local_newsifier.tools.file_writer import FileWriterTool
-    return FileWriterTool(output_dir=output_dir)
-
-
-# Alias definitions for backward compatibility
-# These ensure tools can be referenced both with and without the _tool suffix
-
-@injectable(use_cache=False)
-def get_entity_tracker(
-    entity_service: Annotated["EntityService", Depends(get_entity_service)] = None,
-    session: Annotated[Session, Depends(get_session)] = None
-):
-    """Alias for get_entity_tracker_tool."""
-    return get_entity_tracker_tool(entity_service=entity_service, session=session)
-
-
-@injectable(use_cache=False)
-def get_opinion_visualizer(session: Annotated[Session, Depends(get_session)] = None):
-    """Alias for get_opinion_visualizer_tool."""
-    return get_opinion_visualizer_tool(session=session)
-
-
-@injectable(use_cache=False)
-def get_file_writer(output_dir: str = "output"):
-    """Alias for get_file_writer_tool."""
-    return get_file_writer_tool(output_dir=output_dir)
 
 
 # Flow providers
@@ -618,6 +555,9 @@ def get_file_writer(output_dir: str = "output"):
 def get_entity_tracking_flow(
     entity_service: Annotated[Any, Depends(get_entity_service)],
     entity_tracker: Annotated[Any, Depends(get_entity_tracker_tool)],
+    entity_extractor: Annotated[Any, Depends(get_entity_extractor_tool)],
+    context_analyzer: Annotated[Any, Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated[Any, Depends(get_entity_resolver_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the entity tracking flow.
@@ -628,6 +568,9 @@ def get_entity_tracking_flow(
     Args:
         entity_service: Entity service instance
         entity_tracker: Entity tracker tool
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
         session: Database session
         
     Returns:
@@ -638,6 +581,9 @@ def get_entity_tracking_flow(
     return EntityTrackingFlow(
         entity_service=entity_service,
         entity_tracker=entity_tracker,
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
         session=session
     )
 
@@ -666,13 +612,56 @@ def get_news_pipeline_flow(
         NewsPipelineFlow instance
     """
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    
+    # Create pipeline service
+    pipeline_service = NewsPipelineService(
+        article_service=article_service,
+        web_scraper=web_scraper,
+        file_writer=file_writer,
+        session_factory=lambda: session
+    )
     
     return NewsPipelineFlow(
         article_service=article_service,
         entity_service=entity_service,
+        pipeline_service=pipeline_service,
         web_scraper=web_scraper,
         file_writer=file_writer,
         session=session
+    )
+
+
+@injectable(use_cache=False)
+def get_trend_analysis_flow(
+    analysis_service: Annotated[Any, Depends(get_analysis_service)],
+    trend_reporter: Annotated[Any, Depends(get_trend_reporter_tool)],
+    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the trend analysis flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        analysis_service: Analysis service instance
+        trend_reporter: Trend reporter tool
+        trend_analyzer: Trend analyzer tool
+        session: Database session
+        
+    Returns:
+        NewsTrendAnalysisFlow instance
+    """
+    from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    from local_newsifier.models.trend import TrendAnalysisConfig
+    
+    return NewsTrendAnalysisFlow(
+        analysis_service=analysis_service,
+        trend_reporter=trend_reporter,
+        trend_analyzer=trend_analyzer,
+        session=session,
+        config=TrendAnalysisConfig()
     )
 
 
@@ -708,28 +697,32 @@ def get_public_opinion_flow(
 
 
 @injectable(use_cache=False)
-def get_trend_analysis_flow(
-    analysis_service: Annotated[Any, Depends(get_analysis_service)],
-    trend_reporter: Annotated[Any, Depends(get_trend_reporter_tool)],
-    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)]
+def get_rss_scraping_flow(
+    rss_feed_service: Annotated[Any, Depends(get_rss_feed_service)],
+    article_service: Annotated[Any, Depends(get_article_service)],
+    rss_parser: Annotated[Any, Depends(get_rss_parser)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)]
 ):
-    """Provide the trend analysis flow.
+    """Provide the RSS scraping flow.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
-        analysis_service: Analysis service instance
-        trend_reporter: Trend reporter tool
-        trend_analyzer: Trend analyzer tool
+        rss_feed_service: RSS feed service instance
+        article_service: Article service instance
+        rss_parser: RSS parser tool
+        web_scraper: Web scraper tool
         
     Returns:
-        NewsTrendAnalysisFlow instance
+        RSSScrapingFlow instance
     """
-    from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
     
-    return NewsTrendAnalysisFlow(
-        analysis_service=analysis_service,
-        trend_reporter=trend_reporter,
-        trend_analyzer=trend_analyzer
+    return RSSScrapingFlow(
+        rss_feed_service=rss_feed_service,
+        article_service=article_service,
+        rss_parser=rss_parser,
+        web_scraper=web_scraper,
+        cache_dir="cache"
     )
