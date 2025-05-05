@@ -250,3 +250,59 @@ def get_rss_feed_service(
         article_service=article_service,
         session_factory=lambda: session
     )
+
+
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity tracking flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        entity_service: Entity service
+        session: Database session
+        
+    Returns:
+        EntityTrackingFlow instance
+    """
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    
+    return EntityTrackingFlow(
+        entity_service=entity_service,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_news_pipeline_flow(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    web_scraper_tool: Annotated[Any, Depends(get_web_scraper_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news pipeline flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_service: Article service
+        entity_service: Entity service
+        web_scraper_tool: Web scraper tool
+        session: Database session
+        
+    Returns:
+        NewsPipelineFlow instance
+    """
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    
+    return NewsPipelineFlow(
+        article_service=article_service,
+        entity_service=entity_service,
+        web_scraper=web_scraper_tool,
+        session_factory=lambda: session
+    )
