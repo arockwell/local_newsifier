@@ -38,7 +38,7 @@ def test_process_article(mock_session_manager):
     service = ArticleService(
         article_crud=mock_article_crud,
         analysis_result_crud=mock_analysis_result_crud,
-        entity_service=mock_entity_service,
+        entity_service_factory=lambda: mock_entity_service,
         session_factory=None
     )
     
@@ -116,7 +116,7 @@ def test_get_article(mock_session_manager):
     service = ArticleService(
         article_crud=mock_article_crud,
         analysis_result_crud=mock_analysis_result_crud,
-        entity_service=MagicMock(),
+        entity_service_factory=lambda: MagicMock(),
         session_factory=None
     )
     
@@ -153,7 +153,7 @@ def test_get_article_not_found(mock_session_manager):
     service = ArticleService(
         article_crud=mock_article_crud,
         analysis_result_crud=MagicMock(),
-        entity_service=MagicMock(),
+        entity_service_factory=lambda: MagicMock(),
         session_factory=None
     )
     

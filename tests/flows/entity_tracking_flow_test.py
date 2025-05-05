@@ -224,17 +224,20 @@ def test_process_new_articles_method():
     assert result is mock_result_state
 
 
-@patch("local_newsifier.flows.entity_tracking_flow.article_crud")
+@patch("local_newsifier.crud.article.article")
 def test_process_article_method(mock_article_crud):
     """Test the process_article method (legacy)."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
     mock_session = Mock()
-    mock_article = Mock()
+    
+    # Create a proper article object with real values for pydantic validation
+    current_time = datetime.now(timezone.utc)
+    mock_article = MagicMock()
     mock_article.id = 123
     mock_article.content = "Test content"
     mock_article.title = "Test title"
-    mock_article.published_at = datetime.now(timezone.utc)
+    mock_article.published_at = current_time
     
     # Setup session context manager mock properly
     mock_context_manager = MagicMock()
