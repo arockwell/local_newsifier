@@ -19,18 +19,27 @@ def test_entity_tracking_flow_init_with_di():
     mock_entity_service = Mock(spec=EntityService)
     mock_entity_tracker = Mock(spec=EntityTracker)
     mock_session = Mock(spec=Session)
+    mock_entity_extractor = Mock(spec='EntityExtractor')
+    mock_context_analyzer = Mock(spec='ContextAnalyzer')
+    mock_entity_resolver = Mock(spec='EntityResolver')
     
     # Directly create a flow instance with mocked dependencies
     # In tests we're using the EntityTrackingFlowBase directly 
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver,
         session=mock_session
     )
     
     # Verify dependencies were set correctly
     assert flow.entity_service is mock_entity_service
     assert flow._entity_tracker is mock_entity_tracker
+    assert flow._entity_extractor is mock_entity_extractor
+    assert flow._context_analyzer is mock_context_analyzer
+    assert flow._entity_resolver is mock_entity_resolver
     assert flow.session is mock_session
 
 
@@ -41,11 +50,17 @@ def test_entity_tracking_flow_init_with_explicit_dependencies():
     mock_entity_tracker = Mock(spec=EntityTracker)
     mock_session = Mock(spec=Session)
     mock_session_factory = Mock()
+    mock_entity_extractor = Mock(spec='EntityExtractor')
+    mock_context_analyzer = Mock(spec='ContextAnalyzer')
+    mock_entity_resolver = Mock(spec='EntityResolver')
     
     # Initialize flow with explicit dependencies
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver,
         session=mock_session,
         session_factory=mock_session_factory
     )
@@ -53,6 +68,9 @@ def test_entity_tracking_flow_init_with_explicit_dependencies():
     # Verify dependencies were used
     assert flow.entity_service is mock_entity_service
     assert flow._entity_tracker is mock_entity_tracker
+    assert flow._entity_extractor is mock_entity_extractor
+    assert flow._context_analyzer is mock_context_analyzer
+    assert flow._entity_resolver is mock_entity_resolver
     assert flow.session is mock_session
     assert flow._session_factory is mock_session_factory
 
@@ -65,8 +83,20 @@ def test_process_method():
     mock_result_state = Mock(spec=EntityTrackingState)
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
-    # Initialize flow
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    # Mock additional dependencies
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    
+    # Initialize flow with all required dependencies
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
     
     # Call process method
     result = flow.process(mock_state)
@@ -83,8 +113,20 @@ def test_process_new_articles_method():
     mock_result_state = Mock(spec=EntityBatchTrackingState)
     mock_entity_service.process_articles_batch.return_value = mock_result_state
     
-    # Initialize flow
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    # Mock additional dependencies
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    
+    # Initialize flow with all required dependencies
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
     
     # Call process_new_articles method
     result = flow.process_new_articles()
@@ -126,9 +168,19 @@ def test_process_article_method(mock_article_crud):
     mock_result_state.entities = [{"entity": "test"}]
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
-    # Initialize flow with session factory
+    # Mock additional dependencies
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    
+    # Initialize flow with session factory and all required dependencies
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver,
         session_factory=mock_session_factory
     )
     
@@ -159,8 +211,20 @@ def test_get_entity_dashboard_method():
     mock_result_state.dashboard_data = {"dashboard": "data"}
     mock_entity_service.generate_entity_dashboard.return_value = mock_result_state
     
-    # Initialize flow
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    # Mock additional dependencies
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    
+    # Initialize flow with all required dependencies
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
     
     # Call get_entity_dashboard method
     result = flow.get_entity_dashboard(days=30, entity_type="PERSON")
@@ -184,8 +248,20 @@ def test_find_entity_relationships_method():
     mock_result_state.relationship_data = {"relationship": "data"}
     mock_entity_service.find_entity_relationships.return_value = mock_result_state
     
-    # Initialize flow
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    # Mock additional dependencies
+    mock_entity_tracker = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
+    
+    # Initialize flow with all required dependencies
+    flow = EntityTrackingFlow(
+        entity_service=mock_entity_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
     
     # Call find_entity_relationships method
     result = flow.find_entity_relationships(entity_id=456, days=15)

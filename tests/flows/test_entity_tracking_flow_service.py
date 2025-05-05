@@ -35,8 +35,20 @@ def test_entity_tracking_flow_uses_service():
         published_at=datetime(2025, 1, 1)
     )
 
+    # Mock additional dependencies
+    mock_entity_tracker = MagicMock()
+    mock_entity_extractor = MagicMock()
+    mock_context_analyzer = MagicMock()
+    mock_entity_resolver = MagicMock()
+
     # Create flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_service)
+    flow = EntityTrackingFlow(
+        entity_service=mock_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
 
     # Act
     result_state = flow.process(state)
@@ -107,8 +119,20 @@ def test_entity_tracking_flow_handles_errors():
         published_at=datetime(2025, 1, 1)
     )
     
+    # Mock additional dependencies
+    mock_entity_tracker = MagicMock()
+    mock_entity_extractor = MagicMock()
+    mock_context_analyzer = MagicMock()
+    mock_entity_resolver = MagicMock()
+    
     # Create flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_service)
+    flow = EntityTrackingFlow(
+        entity_service=mock_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
     
     # Act - The flow should catch the exception and return the state with error
     result_state = flow.process(state)
