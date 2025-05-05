@@ -8,7 +8,7 @@ from pydantic import BaseModel, HttpUrl
 from sqlmodel import Session
 
 from local_newsifier.api.dependencies import get_session
-from local_newsifier.crud.error_handled_article import get_article_crud_with_methods
+from local_newsifier.crud.article import get_article_crud
 from local_newsifier.crud.error_handling import handle_crud_errors
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -46,7 +46,7 @@ class ArticleResponse(BaseModel):
 async def create_article(
     article: ArticleCreate, 
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
     article_dict = article.model_dump()
     if not article_dict.get("published_at"):
@@ -62,7 +62,7 @@ async def create_article(
 async def get_article(
     article_id: int = Path(..., title="Article ID"),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
     return article_crud.get(db, article_id)
 
@@ -73,7 +73,7 @@ async def update_article(
     article_update: ArticleUpdate,
     article_id: int = Path(...),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
     article = article_crud.get(db, article_id)
     return article_crud.update(
@@ -86,7 +86,7 @@ async def update_article(
 async def delete_article(
     article_id: int = Path(...),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
     article_crud.remove(db, id=article_id)
     return None
@@ -97,9 +97,8 @@ async def delete_article(
 async def get_article_by_url(
     url: HttpUrl = Query(..., title="Article URL"),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
-    # Use the specialized method from the extended CRUD class
     return article_crud.get_by_url(db, url=str(url))
 
 
@@ -112,9 +111,8 @@ async def list_articles(
     skip: int = Query(0),
     limit: int = Query(100),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud_with_methods)
+    article_crud = Depends(get_article_crud)
 ):
-    # Use specialized methods from the extended CRUD class
     if status:
         return article_crud.get_by_status(db, status=status)
         
