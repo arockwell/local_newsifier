@@ -3,11 +3,13 @@
 import sys
 from unittest.mock import MagicMock
 
-# Create a simple mock object without recursive __getattr__
-mock_flow = MagicMock()
-mock_flow.__name__ = "Flow"
+# Create a proper Flow mock that can be subclassed
+class MockFlowBase:
+    def __init__(self, *args, **kwargs):
+        pass  # Do nothing in init, just provide the method
 
 # Create a mock for crewai
+mock_flow = MockFlowBase
 mock_crewai = MagicMock()
 mock_crewai.Flow = mock_flow
 
