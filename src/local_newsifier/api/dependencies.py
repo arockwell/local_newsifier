@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import importlib
 from typing import Generator
 
 from fastapi import HTTPException, Request, status
@@ -76,13 +77,15 @@ def get_article_service() -> ArticleService:
         ArticleService: The article service instance
     """
     try:
-        from local_newsifier.di.providers import get_article_service as get_injectable_service
+        # Use importlib to dynamically import the provider module
+        providers_module = importlib.import_module("local_newsifier.di.providers")
+        get_injectable_service = getattr(providers_module, "get_article_service")
         from local_newsifier.database.engine import get_session
         
         # First try to get from injectable providers
         with next(get_session()) as session:
             return get_injectable_service(session=session)
-    except (ImportError, NameError):
+    except (ImportError, NameError, AttributeError):
         # Fall back to container if injectable is not available
         return container.get("article_service")
 

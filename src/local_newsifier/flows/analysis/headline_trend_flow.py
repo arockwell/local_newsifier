@@ -45,8 +45,27 @@ class HeadlineTrendFlow(Flow):
             self._owns_session = True
             self.session = get_session().__next__()
 
-        # Initialize analysis service
-        self.analysis_service = AnalysisService(session_factory=lambda: self.session)
+        # Initialize analysis service with all required dependencies
+        try:
+            from local_newsifier.di.providers import get_analysis_service, get_analysis_result_crud, get_article_crud, get_entity_crud, get_trend_analyzer_tool
+            # Get all required dependencies
+            analysis_result_crud = get_analysis_result_crud()
+            article_crud = get_article_crud()
+            entity_crud = get_entity_crud()
+            trend_analyzer = get_trend_analyzer_tool()
+            
+            # Create the service with all dependencies
+            self.analysis_service = AnalysisService(
+                analysis_result_crud=analysis_result_crud,
+                article_crud=article_crud,
+                entity_crud=entity_crud,
+                trend_analyzer=trend_analyzer,
+                session_factory=lambda: self.session
+            )
+        except (ImportError, NameError):
+            # Fallback to simple construction with just session_factory
+            # This will fail if AnalysisService requires additional dependencies
+            self.analysis_service = AnalysisService(session_factory=lambda: self.session)
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
