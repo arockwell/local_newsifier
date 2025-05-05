@@ -14,7 +14,7 @@ import click
 from datetime import datetime
 from tabulate import tabulate
 
-from local_newsifier.container import container
+from local_newsifier.di.providers import get_apify_source_config_service
 from local_newsifier.database.engine import get_session
 
 
@@ -32,8 +32,11 @@ def apify_config_group():
 @click.option("--source-type", help="Filter by source type (e.g., news, blog)")
 def list_configs(active_only, json_output, limit, skip, source_type):
     """List all Apify source configurations with optional filtering."""
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     # Get configs based on filters
     configs_dict = apify_source_config_service.list_configs(
@@ -93,8 +96,11 @@ def list_configs(active_only, json_output, limit, skip, source_type):
 @click.option("--input", "-i", help="JSON string or file path for actor input configuration")
 def add_config(name, actor_id, source_type, source_url, schedule, input):
     """Add a new Apify source configuration."""
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     # Parse input configuration if provided
     input_configuration = None
@@ -141,8 +147,11 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def show_config(id, json_output):
     """Show Apify source configuration details."""
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     try:
         config = apify_source_config_service.get_config(id)
@@ -185,8 +194,11 @@ def show_config(id, json_output):
 @click.option("--force", is_flag=True, help="Skip confirmation")
 def remove_config(id, force):
     """Remove an Apify source configuration."""
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     try:
         config = apify_source_config_service.get_config(id)
@@ -219,8 +231,11 @@ def remove_config(id, force):
 @click.option("--input", "-i", help="JSON string or file path for actor input configuration")
 def update_config(id, name, actor_id, source_type, source_url, schedule, active, input):
     """Update Apify source configuration properties."""
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     try:
         # Check if at least one property to update was provided
@@ -286,8 +301,11 @@ def run_config(id, output):
         nf apify-config run 1
         nf apify-config run 2 --output result.json
     """
-    # Get the service from the container
-    apify_source_config_service = container.get("apify_source_config_service")
+    # Get the service using the injectable provider
+    with next(get_session()) as session:
+        apify_source_config_service = get_apify_source_config_service(
+            session=session
+        )
     
     try:
         # Run the configuration

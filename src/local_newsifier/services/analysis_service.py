@@ -21,6 +21,7 @@ class AnalysisService:
         analysis_result_crud,
         article_crud,
         entity_crud,
+        trend_analyzer,
         session_factory: Callable
     ):
         """Initialize the analysis service.
@@ -29,11 +30,13 @@ class AnalysisService:
             analysis_result_crud: CRUD component for analysis results
             article_crud: CRUD component for articles
             entity_crud: CRUD component for entities
+            trend_analyzer: Tool for trend analysis
             session_factory: Factory function for creating database sessions
         """
         self.analysis_result_crud = analysis_result_crud
         self.article_crud = article_crud
         self.entity_crud = entity_crud
+        self.trend_analyzer = trend_analyzer
         self.session_factory = session_factory
 
     def analyze_headline_trends(
@@ -54,11 +57,9 @@ class AnalysisService:
         Returns:
             Dictionary containing trend analysis results
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use the injected trend analyzer
+            trend_analyzer = self.trend_analyzer
             
             # Get headlines grouped by time interval
             grouped_headlines = self._get_headlines_by_period(
@@ -113,7 +114,6 @@ class AnalysisService:
         Returns:
             Dictionary mapping time periods to lists of headlines
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
         
         # Get all articles in the date range
         articles = self.article_crud.get_by_date_range(
@@ -126,7 +126,7 @@ class AnalysisService:
             if not article_obj.title:
                 continue
                 
-            interval_key = TrendAnalyzer.get_interval_key(article_obj.published_at, interval)
+            interval_key = self.trend_analyzer.get_interval_key(article_obj.published_at, interval)
             
             if interval_key not in grouped_headlines:
                 grouped_headlines[interval_key] = []
@@ -155,14 +155,12 @@ class AnalysisService:
         Returns:
             List of detected trends
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-        
         if not entity_types:
             entity_types = ["PERSON", "ORG", "GPE"]
             
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use the injected trend analyzer
+            trend_analyzer = self.trend_analyzer
             
             # Get start and end dates based on time frame
             end_date = datetime.now()
