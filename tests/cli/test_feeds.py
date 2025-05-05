@@ -279,7 +279,6 @@ def test_feeds_process_error(mock_rss_feed_service, sample_feed):
     mock_rss_feed_service.get_feed.assert_called_once_with(1)
     mock_rss_feed_service.process_feed.assert_called_once()
 
-
 def test_feeds_fetch(mock_rss_feed_service, sample_feed):
     """Test the feeds fetch command."""
     # Setup mock

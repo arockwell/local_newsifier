@@ -95,6 +95,23 @@ def sample_entity_profile_data() -> Dict:
 
 
 @pytest.fixture(scope="function")
+def sample_apify_source_config_data() -> Dict:
+    """Sample Apify source configuration data for testing."""
+    return {
+        "name": "Test News Source",
+        "actor_id": "abc123",
+        "is_active": True,
+        "schedule": "0 * * * *",  # Run hourly
+        "source_type": "news",
+        "source_url": "https://example.com/news",
+        "input_configuration": {
+            "startUrls": [{"url": "https://example.com/news"}],
+            "maxPagesPerCrawl": 10
+        }
+    }
+
+
+@pytest.fixture(scope="function")
 def sample_entity_relationship_data() -> Dict:
     """Sample entity relationship data for testing."""
     return {

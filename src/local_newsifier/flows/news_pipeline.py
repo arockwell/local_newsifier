@@ -1,11 +1,17 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.file_writer import FileWriterTool
 from local_newsifier.tools.web_scraper import WebScraperTool
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 from local_newsifier.services.news_pipeline_service import NewsPipelineService
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.entity_service import EntityService
@@ -16,9 +22,6 @@ from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
 from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
 
 class NewsPipelineFlow(Flow):
@@ -35,6 +38,7 @@ class NewsPipelineFlow(Flow):
         context_analyzer: Optional[ContextAnalyzer] = None,
         entity_resolver: Optional[EntityResolver] = None,
         session_factory: Optional[callable] = None,
+        session: Optional[Session] = None,
         output_dir: str = "output"
     ):
         """Initialize the pipeline flow.
@@ -49,6 +53,7 @@ class NewsPipelineFlow(Flow):
             context_analyzer: Tool for analyzing context
             entity_resolver: Tool for resolving entities
             session_factory: Function to create database sessions
+            session: Optional database session
             output_dir: Directory for output files
         """
         super().__init__()
@@ -56,6 +61,7 @@ class NewsPipelineFlow(Flow):
         # Create or use provided tools
         self.scraper = web_scraper or WebScraperTool()
         self.writer = file_writer or FileWriterTool(output_dir=output_dir)
+        self.session = session
         
         # Get or create session factory
         self._session_factory = session_factory or get_session

@@ -1,11 +1,12 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-spacy test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
-	@echo "  make install           - Install dependencies"
-	@echo "  make setup-spacy       - Install spaCy model (en_core_web_lg)"
+	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
+	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
+	@echo "  make setup-spacy       - Install spaCy models"
 	@echo "  make test              - Run tests"
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
@@ -15,25 +16,34 @@ help:
 	@echo "  make run-beat          - Run Celery beat scheduler"
 	@echo "  make run-all-celery    - Run Celery worker and beat in separate processes"
 
-# Installation
+# Legacy installation
 install:
 	pip install -e .
 
+# Setup Poetry and install dependencies
+setup-poetry:
+	@echo "Installing dependencies with Poetry..."
+	poetry install --no-interaction
+	@echo "Poetry setup complete. Use 'poetry shell' to activate environment."
+
 # Setup spaCy models
 setup-spacy:
-	bash scripts/init_spacy_models.sh
+	@echo "Installing spaCy models..."
+	poetry run python -m spacy download en_core_web_sm
+	poetry run python -m spacy download en_core_web_lg
+	@echo "spaCy models installed successfully"
 
 # Testing
 test:
-	pytest
+	poetry run pytest
 
 # Linting
 lint:
-	flake8 src tests
+	poetry run flake8 src tests
 
 # Formatting
 format:
-	black src tests
+	poetry run black src tests
 
 # Cleaning
 clean:
@@ -45,15 +55,15 @@ clean:
 
 # Run FastAPI application
 run-api: setup-spacy
-	uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000
+	poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run Celery worker
 run-worker: setup-spacy
-	celery -A local_newsifier.celery_app worker --loglevel=info
+	poetry run celery -A local_newsifier.celery_app worker --loglevel=info
 
 # Run Celery beat scheduler
 run-beat: setup-spacy
-	celery -A local_newsifier.celery_app beat --loglevel=info
+	poetry run celery -A local_newsifier.celery_app beat --loglevel=info
 
 # Run Celery worker and beat (for development)
 run-all-celery: setup-spacy
@@ -61,7 +71,7 @@ run-all-celery: setup-spacy
 	@echo "Worker output: celery-worker.log"
 	@echo "Beat output: celery-beat.log"
 	@trap 'kill %1 %2; echo "Celery processes stopped"; exit 0' SIGINT;
-	celery -A local_newsifier.celery_app worker --loglevel=info > celery-worker.log 2>&1 & \
-	celery -A local_newsifier.celery_app beat --loglevel=info > celery-beat.log 2>&1 & \
+	poetry run celery -A local_newsifier.celery_app worker --loglevel=info > celery-worker.log 2>&1 & \
+	poetry run celery -A local_newsifier.celery_app beat --loglevel=info > celery-beat.log 2>&1 & \
 	echo "Celery worker and beat running. Press Ctrl+C to stop."; \
 	wait

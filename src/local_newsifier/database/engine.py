@@ -40,8 +40,22 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     Returns:
         SQLModel engine or None if connection fails after retries
     """
-    # Use faster retry for tests
+    # Check if we're running in test mode
     if test_mode:
+        logger.info("Running in test mode")
+        # Try to get the shared test engine from pytest plugin
+        try:
+            import pytest
+            if hasattr(pytest, "test_engine_plugin"):
+                engine = pytest.test_engine_plugin.get_engine()
+                if engine:
+                    logger.info("Using shared test engine from pytest plugin")
+                    return engine
+        except (ImportError, AttributeError):
+            # We're not running under pytest or plugin isn't registered
+            logger.debug("Test engine plugin not available")
+        
+        # Use faster retry for tests if we don't get a test engine
         retry_delay = 0.01  # Use milliseconds instead of seconds for tests
     
     for attempt in range(max_retries + 1):
