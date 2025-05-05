@@ -76,24 +76,15 @@ def get_article_service() -> ArticleService:
     Returns:
         ArticleService: The article service instance
     """
-    try:
-        # Use importlib to dynamically import the provider module
-        providers_module = importlib.import_module("local_newsifier.di.providers")
-        get_injectable_service = getattr(providers_module, "get_article_service")
-        from local_newsifier.database.engine import get_session
-        
-        # First try to get from injectable providers
-        with next(get_session()) as session:
-            return get_injectable_service(session=session)
-    except (ImportError, NameError, AttributeError):
-        # Fall back to container if injectable is not available
-        return container.get("article_service")
+    # This approach is simpler and more reliable during testing
+    return container.get("article_service")
 
 
 def get_rss_feed_service() -> RSSFeedService:
-    """Get the RSS feed service from the container.
+    """Get the RSS feed service.
 
     Returns:
         RSSFeedService: The RSS feed service instance
     """
+    # This approach is simpler and more reliable during testing
     return container.get("rss_feed_service")
