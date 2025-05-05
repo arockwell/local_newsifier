@@ -89,8 +89,8 @@ class EntityMentionContext(TableBase, table=True):
     # Context fields
     entity_id: Optional[int] = Field(default=None)
     article_id: Optional[int] = Field(default=None)
-    context_text: str
-    context_type: Optional[str] = None
+    context_text: str = Field(..., description="Context text surrounding the entity mention (required)")
+    context_type: Optional[str] = Field(default="sentence", description="Type of context (e.g., 'sentence', 'paragraph')")
     sentiment_score: Optional[float] = None
     
     # Define a unique constraint 
