@@ -1,4 +1,4 @@
-"""Tests for the ApifyIngestFlow."""
+"""Tests for the ApifyIngestFlow class."""
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
