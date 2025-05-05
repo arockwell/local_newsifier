@@ -322,7 +322,7 @@ def test_create_feed_already_exists(mock_db_session, mock_session_factory):
     )
     
     # Act & Assert
-    with pytest.raises(ValueError, match=f"Feed with URL '{url}' already exists"):
+    with pytest.raises(RSSError, match=f"Feed with URL '{url}' already exists"):
         service.create_feed(url=url, name=name, description=description)
     
     mock_rss_feed_crud.get_by_url.assert_called_once_with(mock_db_session, url=url)
