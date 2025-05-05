@@ -8,26 +8,28 @@ including adding, updating, and retrieving configurations.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 
 from sqlmodel import Session
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
-from local_newsifier.crud.apify_source_config import apify_source_config
 from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.services.apify_service import ApifyService
 
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class ApifySourceConfigService:
     """Service for Apify source configuration management."""
 
     def __init__(
         self,
-        apify_source_config_crud=None,
-        apify_service=None,
-        session_factory=None,
-        container=None,
+        apify_source_config_crud,
+        apify_service,
+        session_factory: Callable,
     ):
         """Initialize with dependencies.
 
@@ -35,27 +37,14 @@ class ApifySourceConfigService:
             apify_source_config_crud: CRUD for Apify source configurations
             apify_service: Service for interacting with Apify API
             session_factory: Factory for database sessions
-            container: The DI container for resolving additional dependencies
         """
-        self.apify_source_config_crud = apify_source_config_crud or apify_source_config
+        self.apify_source_config_crud = apify_source_config_crud
         self.apify_service = apify_service
         self.session_factory = session_factory
-        self.container = container
 
     def _get_session(self) -> Session:
         """Get a database session."""
-        if self.session_factory:
-            return self.session_factory()
-            
-        # Get session factory from container as fallback
-        if self.container:
-            session_factory = self.container.get("session_factory")
-            if session_factory:
-                return session_factory()
-            
-        # Last resort fallback to direct import
-        from local_newsifier.database.engine import get_session
-        return next(get_session())
+        return self.session_factory()
 
     def _get_apify_service(self) -> ApifyService:
         """Get the ApifyService.
@@ -63,18 +52,7 @@ class ApifySourceConfigService:
         Returns:
             ApifyService: Service for interacting with Apify API
         """
-        if self.apify_service:
-            return self.apify_service
-            
-        # Get from container as fallback
-        if self.container:
-            try:
-                return self.container.get("apify_service")
-            except:
-                pass
-                
-        # Last resort fallback to direct creation
-        return ApifyService()
+        return self.apify_service
 
     def get_config(self, config_id: int) -> Optional[Dict[str, Any]]:
         """Get an Apify source configuration by ID.
@@ -359,5 +337,4 @@ class ApifySourceConfigService:
         }
 
 
-# Singleton instance
-apify_source_config_service = ApifySourceConfigService()
+# The ApifySourceConfigService is now fully injectable

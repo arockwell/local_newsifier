@@ -399,6 +399,7 @@ def get_analysis_service(
     analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
+    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the analysis service.
@@ -410,6 +411,7 @@ def get_analysis_service(
         analysis_result_crud: Analysis result CRUD component
         article_crud: Article CRUD component
         entity_crud: Entity CRUD component
+        trend_analyzer: Trend analyzer tool
         session: Database session
         
     Returns:
@@ -421,6 +423,7 @@ def get_analysis_service(
         analysis_result_crud=analysis_result_crud,
         article_crud=article_crud,
         entity_crud=entity_crud,
+        trend_analyzer=trend_analyzer,
         session_factory=lambda: session
     )
 
@@ -533,33 +536,48 @@ def get_rss_feed_service(
     )
 
 
+"""This provider has been moved to the top of the file"""
+
+
+# Additional Service Providers
+
 @injectable(use_cache=False)
-def get_analysis_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
-    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+def get_apify_service():
+    """Provide the Apify API service.
+    
+    Uses use_cache=False to create new instances for each injection.
+    
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    return ApifyService()
+
+
+@injectable(use_cache=False)
+def get_apify_source_config_service(
+    apify_source_config_crud: Annotated[Any, Depends(get_apify_source_config_crud)],
+    apify_service: Annotated[Any, Depends(get_apify_service)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the analysis service.
+    """Provide the Apify source config service.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
-        article_crud: Article CRUD component
-        analysis_result_crud: Analysis result CRUD component
-        trend_analyzer: Trend analyzer tool
+        apify_source_config_crud: Apify source config CRUD component
+        apify_service: Apify API service
         session: Database session
         
     Returns:
-        AnalysisService instance
+        ApifySourceConfigService instance
     """
-    from local_newsifier.services.analysis_service import AnalysisService
+    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
     
-    return AnalysisService(
-        article_crud=article_crud,
-        analysis_result_crud=analysis_result_crud,
-        trend_analyzer=trend_analyzer,
+    return ApifySourceConfigService(
+        apify_source_config_crud=apify_source_config_crud,
+        apify_service=apify_service,
         session_factory=lambda: session
     )
 
