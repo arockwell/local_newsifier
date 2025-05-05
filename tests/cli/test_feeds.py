@@ -14,19 +14,13 @@ def mock_rss_feed_service():
     """Mock the RSSFeedService for testing."""
     mock_service = MagicMock()
     
-    # We patch the container.get method in the feeds module
-    with patch('local_newsifier.cli.commands.feeds.container') as mock_container:
-        # Setup mock container to return our mock service for "rss_feed_service"
-        def mock_get(service_name):
-            if service_name == "rss_feed_service":
-                return mock_service
-            elif service_name == "article_crud":
-                return MagicMock()
-            elif service_name == "session_factory":
-                return MagicMock()
-            return None
-            
-        mock_container.get.side_effect = mock_get
+    # Patch the provider functions used in the feeds module
+    with patch('local_newsifier.cli.commands.feeds.get_rss_feed_service', return_value=mock_service), \
+         patch('local_newsifier.cli.commands.feeds.get_article_crud', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_session', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_news_pipeline_flow', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_entity_tracking_flow', return_value=MagicMock()):
+        
         yield mock_service
 
 
