@@ -294,9 +294,15 @@ class ApifyIngestFlow:
         Returns:
             Actor run details
         """
-        # This would be implemented in the ApifyService
-        # For now, let's assume the service has this method
-        return {"status": "SUCCEEDED", "defaultDatasetId": "some-dataset-id"}
+        if not self.apify_service:
+            raise ValueError("ApifyService is required to wait for actor runs")
+            
+        # Get actor run details
+        # This would normally poll until the run completes
+        actor_run = self.apify_service.client.run(run_id).get()
+        
+        # Return the full run details
+        return actor_run
 
     def _store_dataset_item(
         self, 
@@ -314,10 +320,20 @@ class ApifyIngestFlow:
         Returns:
             The stored ApifyDatasetItem model
         """
-        # Implementation would depend on the actual database model structure
-        # This is a placeholder that would need to be implemented
-        # with the actual database models and CRUD operations
-        return None
+        # Create and store the ApifyDatasetItem
+        dataset_item = ApifyDatasetItem(
+            source_config_id=source_config_id,
+            content=item,
+            url=item.get("url"),
+            processed=False,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        # Add to session and flush to get ID
+        session.add(dataset_item)
+        session.flush()
+        
+        return dataset_item
 
     def _is_valid_item(self, item: Dict[str, Any]) -> bool:
         """Check if an item has the required fields to create an article.
@@ -348,7 +364,49 @@ class ApifyIngestFlow:
             Tuple of (Article, is_new) or None if processing failed
             where is_new indicates if the article was newly created
         """
-        # This would use the article service to create or update articles
-        # Implementation would involve mapping fields from Apify item to Article model
-        # For now, this is a placeholder
-        return None
+        if not self.article_service:
+            raise ValueError("ArticleService is required to process items into articles")
+            
+        # Extract core article fields
+        url = item.get("url")
+        title = item.get("title")
+        content = item.get("content")
+        
+        # Extract additional fields if available
+        published_at = item.get("published_at")
+        if isinstance(published_at, str):
+            try:
+                published_at = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                published_at = datetime.now(timezone.utc)
+        else:
+            published_at = datetime.now(timezone.utc)
+            
+        # Prepare article data
+        article_data = {
+            "url": url,
+            "title": title,
+            "content": content,
+            "source": source_config.name,
+            "published_at": published_at,
+            "scraped_at": datetime.now(timezone.utc),
+            "status": "processed"
+        }
+        
+        # Check if article already exists
+        existing_article = self.article_crud.get_by_url(session, url=url)
+        
+        if existing_article:
+            # Update existing article
+            for key, value in article_data.items():
+                setattr(existing_article, key, value)
+            session.add(existing_article)
+            session.commit()
+            return (existing_article, False)
+        else:
+            # Create new article
+            new_article = Article(**article_data)
+            session.add(new_article)
+            session.commit()
+            session.refresh(new_article)
+            return (new_article, True)
