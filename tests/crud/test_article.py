@@ -1,11 +1,13 @@
 """Tests for the article CRUD module."""
 
 from datetime import datetime, timezone, timedelta
+import pytest
 
 from sqlmodel import select
 
 from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.error_handled_base import EntityNotFoundError
 from local_newsifier.models.article import Article
 
 
@@ -65,11 +67,12 @@ class TestArticleCRUD:
 
     def test_get_by_url_not_found(self, db_session):
         """Test getting a non-existent article by URL."""
-        article = article_crud.get_by_url(
-            db_session, url="https://example.com/nonexistent"
-        )
-
-        assert article is None
+        with pytest.raises(EntityNotFoundError) as excinfo:
+            article_crud.get_by_url(
+                db_session, url="https://example.com/nonexistent"
+            )
+        
+        assert "Article with URL 'https://example.com/nonexistent' not found" in str(excinfo.value)
 
     def test_update_status(self, db_session, create_article):
         """Test updating an article's status."""
@@ -89,11 +92,12 @@ class TestArticleCRUD:
 
     def test_update_status_not_found(self, db_session):
         """Test updating a non-existent article's status."""
-        updated_article = article_crud.update_status(
-            db_session, article_id=999, status="analyzed"
-        )
-
-        assert updated_article is None
+        with pytest.raises(EntityNotFoundError) as excinfo:
+            article_crud.update_status(
+                db_session, article_id=999, status="analyzed"
+            )
+        
+        assert "Article with ID 999 not found" in str(excinfo.value)
 
     def test_get_by_status(self, db_session):
         """Test getting articles by status."""
