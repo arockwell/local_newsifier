@@ -395,27 +395,30 @@ def get_file_writer_tool():
 # Service providers
 
 @injectable(use_cache=False)
-def get_article_service(
+def get_analysis_service(
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the article service.
+    """Provide the analysis service.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
+        analysis_result_crud: Analysis result CRUD component
         article_crud: Article CRUD component
         entity_crud: Entity CRUD component
         session: Database session
         
     Returns:
-        ArticleService instance
+        AnalysisService instance
     """
-    from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.services.analysis_service import AnalysisService
     
-    return ArticleService(
+    return AnalysisService(
+        analysis_result_crud=analysis_result_crud,
         article_crud=article_crud,
         entity_crud=entity_crud,
         session_factory=lambda: session
@@ -425,7 +428,13 @@ def get_article_service(
 @injectable(use_cache=False)
 def get_entity_service(
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
-    entity_relationship_crud: Annotated[Any, Depends(get_entity_relationship_crud)],
+    canonical_entity_crud: Annotated[Any, Depends(get_canonical_entity_crud)],
+    entity_mention_context_crud: Annotated[Any, Depends(get_entity_mention_context_crud)],
+    entity_profile_crud: Annotated[Any, Depends(get_entity_profile_crud)],
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    entity_extractor: Annotated[Any, Depends(get_entity_extractor)],
+    context_analyzer: Annotated[Any, Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated[Any, Depends(get_entity_resolver)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the entity service.
@@ -435,7 +444,13 @@ def get_entity_service(
     
     Args:
         entity_crud: Entity CRUD component
-        entity_relationship_crud: Entity relationship CRUD component
+        canonical_entity_crud: Canonical entity CRUD component
+        entity_mention_context_crud: Entity mention context CRUD component
+        entity_profile_crud: Entity profile CRUD component
+        article_crud: Article CRUD component
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
         session: Database session
         
     Returns:
@@ -445,7 +460,44 @@ def get_entity_service(
     
     return EntityService(
         entity_crud=entity_crud,
-        entity_relationship_crud=entity_relationship_crud,
+        canonical_entity_crud=canonical_entity_crud,
+        entity_mention_context_crud=entity_mention_context_crud,
+        entity_profile_crud=entity_profile_crud,
+        article_crud=article_crud,
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_article_service(
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the article service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_crud: Article CRUD component
+        analysis_result_crud: Analysis result CRUD component
+        entity_service: Entity service
+        session: Database session
+        
+    Returns:
+        ArticleService instance
+    """
+    from local_newsifier.services.article_service import ArticleService
+    
+    return ArticleService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        entity_service=entity_service,
         session_factory=lambda: session
     )
 
@@ -453,7 +505,7 @@ def get_entity_service(
 @injectable(use_cache=False)
 def get_rss_feed_service(
     rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
-    rss_parser: Annotated[Any, Depends(get_rss_parser)],
+    feed_processing_log_crud: Annotated[Any, Depends(get_feed_processing_log_crud)],
     article_service: Annotated[Any, Depends(get_article_service)],
     session: Annotated[Session, Depends(get_session)]
 ):
@@ -464,7 +516,7 @@ def get_rss_feed_service(
     
     Args:
         rss_feed_crud: RSS feed CRUD component
-        rss_parser: RSS parser tool
+        feed_processing_log_crud: Feed processing log CRUD component
         article_service: Article service
         session: Database session
         
@@ -475,7 +527,7 @@ def get_rss_feed_service(
     
     return RSSFeedService(
         rss_feed_crud=rss_feed_crud,
-        rss_parser=rss_parser,
+        feed_processing_log_crud=feed_processing_log_crud,
         article_service=article_service,
         session_factory=lambda: session
     )

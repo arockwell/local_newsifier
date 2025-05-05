@@ -1,27 +1,27 @@
 """Service layer for analysis operations."""
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Callable
 
 from sqlmodel import Session
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
-from local_newsifier.crud.analysis_result import analysis_result
-from local_newsifier.crud.article import article
-from local_newsifier.crud.entity import entity
-from local_newsifier.database.engine import SessionManager, get_session
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
 
+@injectable(use_cache=False)
 class AnalysisService:
     """Service for analyzing news data and managing analysis results."""
 
     def __init__(
         self,
-        analysis_result_crud=None,
-        article_crud=None,
-        entity_crud=None,
-        session_factory=None
+        analysis_result_crud,
+        article_crud,
+        entity_crud,
+        session_factory: Callable
     ):
         """Initialize the analysis service.
 
@@ -31,21 +31,10 @@ class AnalysisService:
             entity_crud: CRUD component for entities
             session_factory: Factory function for creating database sessions
         """
-        self.analysis_result_crud = analysis_result_crud or analysis_result
-        self.article_crud = article_crud or article
-        self.entity_crud = entity_crud or entity
-        self.session_factory = session_factory or SessionManager
-        self._session = None
-        
-    def _get_session(self):
-        """Get a database session.
-        
-        Returns:
-            Active database session
-        """
-        if not self._session:
-            self._session = get_session().__next__()
-        return self._session
+        self.analysis_result_crud = analysis_result_crud
+        self.article_crud = article_crud
+        self.entity_crud = entity_crud
+        self.session_factory = session_factory
 
     def analyze_headline_trends(
         self,

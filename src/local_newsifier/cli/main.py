@@ -33,23 +33,29 @@ def is_apify_command():
         bool: True if the command is apify-related
     """
     # Check if 'apify' is in the command arguments
-    return len(sys.argv) > 1 and sys.argv[1] == "apify"
+    return len(sys.argv) > 1 and (sys.argv[1] == "apify" or sys.argv[1] == "apify-config")
 
 
 # Conditionally load commands to avoid unnecessary dependencies
 if is_apify_command():
     # Only load the apify command if it's being used
-    from local_newsifier.cli.commands.apify import apify_group
-    cli.add_command(apify_group)
+    if sys.argv[1] == "apify":
+        from local_newsifier.cli.commands.apify import apify_group
+        cli.add_command(apify_group)
+    elif sys.argv[1] == "apify-config":
+        from local_newsifier.cli.commands.apify_config import apify_config_group
+        cli.add_command(apify_config_group)
 else:
     # Load all other command groups
     from local_newsifier.cli.commands.feeds import feeds_group
     from local_newsifier.cli.commands.db import db_group
     from local_newsifier.cli.commands.apify import apify_group
+    from local_newsifier.cli.commands.apify_config import apify_config_group
     
     cli.add_command(feeds_group)
     cli.add_command(db_group)
     cli.add_command(apify_group)
+    cli.add_command(apify_config_group)
 
 
 def main():

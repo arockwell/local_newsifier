@@ -440,6 +440,23 @@ def register_services(container):
     container.register_factory("apify_service", 
         lambda c: ApifyService()
     )
+    
+    # Import at runtime to avoid circular imports
+    try:
+        from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+        
+        # ApifySourceConfigService
+        container.register_factory("apify_source_config_service", 
+            lambda c: ApifySourceConfigService(
+                apify_source_config_crud=c.get("apify_source_config_crud"),
+                apify_service=c.get("apify_service"),
+                session_factory=c.get("session_factory"),
+                container=c
+            )
+        )
+    except ImportError as e:
+        # Log error but continue initialization
+        logger.error(f"Error registering ApifySourceConfigService: {e}")
 
 
 def register_flows(container):
