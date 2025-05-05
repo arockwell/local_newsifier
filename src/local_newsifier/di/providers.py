@@ -484,3 +484,51 @@ def get_rss_feed_service(
         article_service=article_service,
         session_factory=lambda: session
     )
+
+
+@injectable(use_cache=False)
+def get_apify_service():
+    """Provide the Apify service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    return ApifyService()
+
+
+@injectable(use_cache=False)
+def get_apify_ingest_flow(
+    apify_service: Annotated[Any, Depends(get_apify_service)],
+    article_service: Annotated[Any, Depends(get_article_service)],
+    source_config_crud: Annotated[Any, Depends(get_apify_source_config_crud)],
+    article_crud: Annotated[Any, Depends(get_article_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the Apify ingest flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        apify_service: Apify service
+        article_service: Article service
+        source_config_crud: Apify source config CRUD
+        article_crud: Article CRUD
+        session: Database session
+        
+    Returns:
+        ApifyIngestFlow instance
+    """
+    from local_newsifier.flows.apify_ingest_flow import ApifyIngestFlow
+    
+    return ApifyIngestFlow(
+        apify_service=apify_service,
+        article_service=article_service,
+        source_config_crud=source_config_crud,
+        article_crud=article_crud,
+        session_factory=lambda: session
+    )
