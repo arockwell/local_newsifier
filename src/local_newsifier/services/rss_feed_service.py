@@ -130,7 +130,7 @@ class RSSFeedService:
         # Check if feed already exists
         existing = self.rss_feed_crud.get_by_url(session, url=url)
         if existing:
-            raise ValueError(f"Feed with URL '{url}' already exists")
+            raise RSSError(f"Feed with URL '{url}' already exists")
         
         # Validate the URL by trying to parse it - this will raise an error if invalid
         feed_data = parse_rss_feed(url)
@@ -233,7 +233,7 @@ class RSSFeedService:
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            raise ValueError(f"Feed with ID {feed_id} not found")
+            raise RSSError(f"Feed with ID {feed_id} not found")
         
         # Create processing log
         log = self.feed_processing_log_crud.create_processing_started(
@@ -291,7 +291,7 @@ class RSSFeedService:
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
+                            raise RSSError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
                     
                     if article_id:
                         # Queue article processing
