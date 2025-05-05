@@ -3,11 +3,14 @@
 from datetime import datetime, timezone, timedelta
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Annotated
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (
@@ -79,8 +82,9 @@ class NewsTrendAnalysisFlow(Flow):
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
         trend_detector: Optional[Any] = None,
+        session: Optional[Session] = None,
         config: Optional[TrendAnalysisConfig] = None,
-        output_dir: str = "trend_output",
+        output_dir: str = "trend_output"
     ):
         """
         Initialize the trend analysis flow.
@@ -91,11 +95,13 @@ class NewsTrendAnalysisFlow(Flow):
             data_aggregator: Tool for aggregating data (for backwards compatibility)
             topic_analyzer: Tool for analyzing topics (for backwards compatibility)
             trend_detector: Tool for detecting trends (for backwards compatibility)
+            session: Database session
             config: Configuration for trend analysis
             output_dir: Directory for report output
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
+        self.session = session
         
         # Initialize reporter
         self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
