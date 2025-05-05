@@ -107,7 +107,7 @@ def test_feeds_add_error(mock_rss_feed_service):
     result = runner.invoke(cli, ["feeds", "add", "https://example.com/feed.xml"])
     
     # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for ValueError
+    assert result.exit_code == 1  # CLI now exits with an error code when using RSSError
     assert "Error" in result.output
     assert "Feed already exists" in result.output
 
@@ -169,7 +169,7 @@ def test_feeds_show_not_found(mock_rss_feed_service):
     result = runner.invoke(cli, ["feeds", "show", "999"])
     
     # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for not found
+    assert result.exit_code == 1  # CLI now exits with an error code for not found
     assert "Error" in result.output
     assert "not found" in result.output
     mock_rss_feed_service.get_feed.assert_called_once_with(999)
@@ -242,3 +242,148 @@ def test_feeds_process(mock_rss_feed_service, sample_feed):
     call_args = mock_rss_feed_service.process_feed.call_args
     assert call_args[0][0] == 1  # First positional arg should be feed_id
     # We don't verify the task_queue_func parameter specifically as it's an implementation detail
+
+def test_feeds_process_not_found(mock_rss_feed_service):
+    """Test the feeds process command with a non-existent feed."""
+    # Setup mock
+    mock_rss_feed_service.get_feed.return_value = None
+    
+    # Run command
+    runner = CliRunner()
+    result = runner.invoke(cli, ["feeds", "process", "999"])
+    
+    # Verify
+    assert result.exit_code == 1  # CLI exits with error code when feed not found
+    assert "Error" in result.output
+    assert "not found" in result.output
+    mock_rss_feed_service.get_feed.assert_called_once_with(999)
+
+
+def test_feeds_process_error(mock_rss_feed_service, sample_feed):
+    """Test the feeds process command when processing fails."""
+    # Setup mock
+    mock_rss_feed_service.get_feed.return_value = sample_feed
+    
+    # When the process_feed method returns an error status dict, 
+    # make sure to include the expected keys
+    mock_rss_feed_service.process_feed.return_value = {
+        "status": "error",
+        "feed_id": 1,
+        "feed_name": "Test Feed",
+        "message": "Failed to parse feed content",
+        "articles_found": 0,
+        "articles_added": 0,
+    }
+    
+    # Run command
+    runner = CliRunner()
+    result = runner.invoke(cli, ["feeds", "process", "1"])
+    
+    # Verify
+    assert result.exit_code == 1  # Now exits with error code for proper error handling
+    assert "Error" in result.output
+    mock_rss_feed_service.get_feed.assert_called_once_with(1)
+    mock_rss_feed_service.process_feed.assert_called_once()
+
+
+def test_feeds_fetch(mock_rss_feed_service, sample_feed):
+    """Test the feeds fetch command."""
+    # Setup mock
+    mock_rss_feed_service.list_feeds.return_value = [sample_feed, sample_feed.copy()]
+    mock_rss_feed_service.process_feed.return_value = {
+        "status": "success",
+        "feed_id": 1,
+        "feed_name": "Test Feed",
+        "articles_found": 5,
+        "articles_added": 3,
+    }
+    
+    # Run command
+    runner = CliRunner()
+    result = runner.invoke(cli, ["feeds", "fetch"])
+    
+    # Verify
+    assert result.exit_code == 0
+    assert "Processed 2 feeds: 2 successful, 0 failed" in result.output
+    assert "All feeds processed successfully" in result.output
+    mock_rss_feed_service.list_feeds.assert_called_once_with(active_only=True)
+    assert mock_rss_feed_service.process_feed.call_count == 2
+
+
+def test_feeds_fetch_with_errors(mock_rss_feed_service, sample_feed):
+    """Test the feeds fetch command with a failing feed."""
+    # Setup mocks
+    feed1 = sample_feed
+    feed2 = sample_feed.copy()
+    feed2["id"] = 2
+    feed2["name"] = "Test Feed 2"
+    
+    mock_rss_feed_service.list_feeds.return_value = [feed1, feed2]
+    
+    # Make the first feed succeed and the second fail
+    def process_feed_side_effect(feed_id, task_queue_func=None):
+        if feed_id == 1:
+            return {
+                "status": "success",
+                "feed_id": 1,
+                "feed_name": "Test Feed",
+                "articles_found": 5,
+                "articles_added": 3,
+            }
+        else:
+            return {
+                "status": "error",
+                "feed_id": 2,
+                "feed_name": "Test Feed 2",
+                "message": "Failed to fetch",
+                "articles_found": 0,
+                "articles_added": 0,
+            }
+    
+    mock_rss_feed_service.process_feed.side_effect = process_feed_side_effect
+    
+    # Run command
+    runner = CliRunner()
+    result = runner.invoke(cli, ["feeds", "fetch"])
+    
+    # Verify
+    assert result.exit_code == 0
+    assert "Processed 2 feeds: 1 successful, 1 failed" in result.output
+    assert "Partially successful" in result.output
+    mock_rss_feed_service.list_feeds.assert_called_once_with(active_only=True)
+    assert mock_rss_feed_service.process_feed.call_count == 2
+
+
+def test_feeds_fetch_all_failed(mock_rss_feed_service, sample_feed):
+    """Test the feeds fetch command when all feeds fail."""
+    # Setup mocks
+    feed1 = sample_feed
+    feed2 = sample_feed.copy()
+    feed2["id"] = 2
+    feed2["name"] = "Test Feed 2"
+    
+    mock_rss_feed_service.list_feeds.return_value = [feed1, feed2]
+    
+    # Make all feeds fail
+    def process_feed_side_effect(feed_id, task_queue_func=None):
+        return {
+            "status": "error",
+            "feed_id": feed_id,
+            "feed_name": f"Test Feed {feed_id}",
+            "message": "Failed to fetch",
+            "articles_found": 0,
+            "articles_added": 0,
+        }
+    
+    mock_rss_feed_service.process_feed.side_effect = process_feed_side_effect
+    
+    # Run command
+    runner = CliRunner()
+    result = runner.invoke(cli, ["feeds", "fetch"])
+    
+    # Verify
+    assert result.exit_code == 1  # Should exit with error code if all feeds fail
+    assert "Processed 2 feeds: 0 successful, 2 failed" in result.output
+    assert "Failed to process any feeds" in result.output
+    mock_rss_feed_service.list_feeds.assert_called_once_with(active_only=True)
+    assert mock_rss_feed_service.process_feed.call_count == 2

@@ -83,13 +83,13 @@ def add_feed(url, name, description):
 @click.argument("id", type=int, required=True)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--show-logs", is_flag=True, help="Show processing logs")
+@handle_rss_cli_errors
 def show_feed(id, json_output, show_logs):
     """Show feed details."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     # Get logs if requested
     logs = []
@@ -152,13 +152,13 @@ def show_feed(id, json_output, show_logs):
 @feeds_group.command(name="remove")
 @click.argument("id", type=int, required=True)
 @click.option("--force", is_flag=True, help="Skip confirmation")
+@handle_rss_cli_errors
 def remove_feed(id, force):
     """Remove a feed."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     if not force:
         if not click.confirm(f"Are you sure you want to remove feed '{feed['name']}' (ID: {id})?"):
@@ -169,7 +169,7 @@ def remove_feed(id, force):
     if result:
         click.echo(f"Feed '{feed['name']}' (ID: {id}) removed successfully.")
     else:
-        click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
+        raise RSSError(f"Error removing feed with ID {id}")
 
 
 def direct_process_article(article_id):
@@ -238,10 +238,15 @@ def process_feed(id, no_process):
     
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
-    # If we get here, the process was successful
-    click.echo(click.style("Processing completed successfully!", fg="green"))
-    click.echo(f"Articles found: {result['articles_found']}")
-    click.echo(f"Articles added: {result['articles_added']}")
+    # Check the status of the result
+    if result["status"] == "success":
+        click.echo(click.style("Processing completed successfully!", fg="green"))
+        click.echo(f"Articles found: {result['articles_found']}")
+        click.echo(f"Articles added: {result['articles_added']}")
+    else:
+        # This will be caught by the decorator and displayed properly
+        error_message = result.get("message", "Unknown error")
+        raise RSSError(error_message)
 
 
 @feeds_group.command(name="update")
@@ -249,13 +254,13 @@ def process_feed(id, no_process):
 @click.option("--name", help="New feed name")
 @click.option("--description", help="New feed description")
 @click.option("--active/--inactive", help="Set feed active or inactive")
+@handle_rss_cli_errors
 def update_feed(id, name, description, active):
     """Update feed properties."""
     rss_feed_service = container.get("rss_feed_service")
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     # Check if at least one property to update was provided
     if name is None and description is None and active is None:
@@ -277,4 +282,61 @@ def update_feed(id, name, description, active):
     if updated_feed:
         click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
     else:
-        click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
+        raise RSSError(f"Error updating feed with ID {id}")
+
+
+@feeds_group.command(name="fetch")
+@click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@click.option("--active-only", is_flag=True, default=True, help="Process only active feeds (default: True)")
+@handle_rss_cli_errors
+def fetch_feeds(no_process, active_only):
+    """Fetch articles from all active feeds.
+    
+    This command fetches articles from all active RSS feeds.
+    It's useful for bulk processing multiple feeds at once.
+    """
+    rss_feed_service = container.get("rss_feed_service")
+    
+    # Show what we're about to do
+    click.echo(f"Fetching {'active ' if active_only else 'all '}feeds...")
+    
+    # Get all the feeds we need to process
+    feeds = rss_feed_service.list_feeds(active_only=active_only)
+    if not feeds:
+        click.echo("No feeds found to process.")
+        return
+    
+    # Set up processing function if needed
+    task_func = None if no_process else direct_process_article
+    
+    # Track success and failure
+    successful = 0
+    failed = 0
+    
+    # Process each feed
+    with click.progressbar(feeds, label="Processing feeds", 
+                          item_show_func=lambda f: f["name"] if f else "") as feed_list:
+        for feed in feed_list:
+            try:
+                result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
+                if result["status"] == "success":
+                    successful += 1
+                else:
+                    # Log the error but continue processing other feeds
+                    error_message = result.get("message", "Unknown error")
+                    click.echo(f"\nError processing feed '{feed['name']}': {error_message}", err=True)
+                    failed += 1
+            except Exception as e:
+                click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
+                failed += 1
+    
+    # Show summary
+    total = len(feeds)
+    click.echo(f"\nProcessed {total} feeds: {successful} successful, {failed} failed")
+    
+    if successful == total:
+        click.echo(click.style("All feeds processed successfully!", fg="green"))
+    elif successful > 0:
+        click.echo(click.style(f"Partially successful: {successful}/{total} feeds processed", fg="yellow"))
+    else:
+        raise RSSError("Failed to process any feeds")
