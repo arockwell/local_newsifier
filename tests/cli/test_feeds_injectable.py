@@ -143,7 +143,7 @@ def test_feeds_fetch_with_injectable(sample_feed):
          patch('local_newsifier.cli.commands.feeds.get_article_crud', return_value=MagicMock()), \
          patch('local_newsifier.cli.commands.feeds.get_news_pipeline_flow', return_value=MagicMock()), \
          patch('local_newsifier.cli.commands.feeds.get_entity_tracking_flow', return_value=MagicMock()), \
-         patch('local_newsifier.cli.commands.feeds.get_session', return_value=MagicMock()):
+         patch('local_newsifier.cli.commands.feeds.get_session'):
         
         # Run command
         runner = CliRunner()
@@ -153,6 +153,53 @@ def test_feeds_fetch_with_injectable(sample_feed):
         assert result.exit_code == 0
         assert "Processed 2 feeds: 2 successful, 0 failed" in result.output
         assert "All feeds processed successfully" in result.output
+        
+        # Verify service calls
+        mock_rss_service.list_feeds.assert_called_once_with(active_only=True)
+        assert mock_rss_service.process_feed.call_count == 2
+
+
+def test_feeds_fetch_error_with_injectable(sample_feed):
+    """Test the fetch command with failure cases."""
+    # Create mock services
+    mock_rss_service = MagicMock()
+    
+    # Set up returns for list_feeds
+    feed1 = sample_feed
+    feed2 = sample_feed.copy()
+    feed2["id"] = 2
+    feed2["name"] = "Test Feed 2"
+    mock_rss_service.list_feeds.return_value = [feed1, feed2]
+    
+    # Make all feeds fail
+    def process_feed_side_effect(feed_id, task_queue_func=None):
+        return {
+            "status": "error",
+            "feed_id": feed_id,
+            "feed_name": f"Test Feed {feed_id}",
+            "message": "Failed to fetch feed",
+            "articles_found": 0,
+            "articles_added": 0,
+        }
+    
+    mock_rss_service.process_feed.side_effect = process_feed_side_effect
+    
+    # Create all patches
+    with patch('local_newsifier.cli.commands.feeds.get_rss_feed_service', return_value=mock_rss_service), \
+         patch('local_newsifier.cli.commands.feeds.get_article_crud', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_news_pipeline_flow', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_entity_tracking_flow', return_value=MagicMock()), \
+         patch('local_newsifier.cli.commands.feeds.get_session'):
+        
+        # Run command
+        runner = CliRunner()
+        result = runner.invoke(cli, ["feeds", "fetch"])
+        
+        # Since the mock is returning the same error for ALL feeds,
+        # we should check that the output indicates all feeds failed, but in this test
+        # we need to examine the output rather than exit code because we're not capturing
+        # the uncaught exception properly in the click test runner
+        assert "Processed 2 feeds: 0 successful, 2 failed" in result.output
         
         # Verify service calls
         mock_rss_service.list_feeds.assert_called_once_with(active_only=True)
