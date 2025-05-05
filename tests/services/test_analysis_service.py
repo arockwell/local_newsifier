@@ -43,11 +43,17 @@ class TestAnalysisService:
         return MagicMock()
 
     @pytest.fixture
+    def mock_trend_analyzer(self):
+        """Return a mock trend analyzer."""
+        return MagicMock()
+
+    @pytest.fixture
     def service(
         self,
         mock_analysis_result_crud,
         mock_article_crud,
         mock_entity_crud,
+        mock_trend_analyzer,
         mock_session_factory,
     ):
         """Return an AnalysisService with mock dependencies."""
@@ -55,6 +61,7 @@ class TestAnalysisService:
             analysis_result_crud=mock_analysis_result_crud,
             article_crud=mock_article_crud,
             entity_crud=mock_entity_crud,
+            trend_analyzer=mock_trend_analyzer,
             session_factory=mock_session_factory,
         )
 
@@ -99,14 +106,12 @@ class TestAnalysisService:
             ),
         ]
 
-    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_analyze_headline_trends(
-        self, MockTrendAnalyzer, service, mock_session, mock_article_crud, sample_articles
+        self, service, mock_session, mock_article_crud, mock_trend_analyzer, sample_articles
     ):
         """Test analysis of headline trends."""
         # Setup mocks
         mock_article_crud.get_by_date_range.return_value = sample_articles
-        mock_trend_analyzer = MockTrendAnalyzer.return_value
         mock_trend_analyzer.extract_keywords.return_value = [("mayor", 2), ("city", 1)]
         mock_trend_analyzer.detect_keyword_trends.return_value = [
             {
@@ -136,9 +141,8 @@ class TestAnalysisService:
         mock_trend_analyzer.extract_keywords.assert_called()
         mock_trend_analyzer.detect_keyword_trends.assert_called_once()
 
-    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_analyze_headline_trends_empty(
-        self, MockTrendAnalyzer, service, mock_session, mock_article_crud
+        self, service, mock_session, mock_article_crud, mock_trend_analyzer
     ):
         """Test analysis of headline trends with no articles."""
         # Setup mocks
@@ -153,14 +157,13 @@ class TestAnalysisService:
         assert "error" in result
         assert result["error"] == "No headlines found in the specified period"
 
-    @patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer")
     def test_detect_entity_trends(
         self,
-        MockTrendAnalyzer,
         service,
         mock_session,
         mock_entity_crud,
         mock_article_crud,
+        mock_trend_analyzer,
         sample_entities,
         sample_articles,
     ):
@@ -169,7 +172,6 @@ class TestAnalysisService:
         mock_entity_crud.get_by_date_range_and_types.return_value = sample_entities
         mock_article_crud.get_by_date_range.return_value = sample_articles
         
-        mock_trend_analyzer = MockTrendAnalyzer.return_value
         sample_trend = TrendAnalysis(
             trend_type=TrendType.FREQUENCY_SPIKE,
             name="Mayor (PERSON)",
