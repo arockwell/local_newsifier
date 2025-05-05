@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from apify_client import ApifyClient
 
 from local_newsifier.config.settings import settings
+from local_newsifier.errors import handle_apify
 
 
 class ApifyService:
@@ -39,6 +40,7 @@ class ApifyService:
             self._client = ApifyClient(token)
         return self._client
 
+    @handle_apify
     def run_actor(self, actor_id: str, run_input: Dict[str, Any]) -> Dict[str, Any]:
         """Run an Apify actor.
 
@@ -50,7 +52,7 @@ class ApifyService:
             Dict[str, Any]: Actor run results
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ServiceError: On Apify API errors with appropriate classification
         """
         # This will raise a clear error if token is missing via the client property
         return self.client.actor(actor_id).call(run_input=run_input)
@@ -389,6 +391,7 @@ class ApifyService:
         )
         return result
 
+    @handle_apify
     def get_dataset_items(self, dataset_id: str, **kwargs) -> Dict[str, Any]:
         """Get items from an Apify dataset.
 
@@ -404,7 +407,7 @@ class ApifyService:
             Dict[str, Any]: Dataset items in format {"items": [...], "error": "..."}
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ServiceError: On Apify API errors with appropriate classification
         """
         # Handle API call exceptions gracefully
         try:
@@ -423,6 +426,7 @@ class ApifyService:
             error_details = self._format_error(e, "Extraction Error")
             return {"items": [], "error": error_details}
 
+    @handle_apify
     def get_actor_details(self, actor_id: str) -> Dict[str, Any]:
         """Get details about an Apify actor.
 
@@ -433,6 +437,6 @@ class ApifyService:
             Dict[str, Any]: Actor details
 
         Raises:
-            ValueError: If APIFY_TOKEN is not set
+            ServiceError: On Apify API errors with appropriate classification
         """
         return self.client.actor(actor_id).get()

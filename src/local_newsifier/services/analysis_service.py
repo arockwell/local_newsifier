@@ -9,6 +9,7 @@ from local_newsifier.crud.analysis_result import analysis_result
 from local_newsifier.crud.article import article
 from local_newsifier.crud.entity import entity
 from local_newsifier.database.engine import SessionManager, get_session
+from local_newsifier.errors import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
@@ -47,6 +48,7 @@ class AnalysisService:
             self._session = get_session().__next__()
         return self._session
 
+    @handle_database
     def analyze_headline_trends(
         self,
         start_date: datetime,
@@ -64,6 +66,9 @@ class AnalysisService:
 
         Returns:
             Dictionary containing trend analysis results
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
 
@@ -146,6 +151,7 @@ class AnalysisService:
             
         return grouped_headlines
 
+    @handle_database
     def detect_entity_trends(
         self,
         entity_types: List[str] = None,
@@ -165,6 +171,9 @@ class AnalysisService:
 
         Returns:
             List of detected trends
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
         
@@ -214,6 +223,7 @@ class AnalysisService:
             
             return trends
 
+    @handle_database
     def _save_analysis_result(
         self, 
         session: Session, 
@@ -231,6 +241,9 @@ class AnalysisService:
 
         Returns:
             Saved AnalysisResult object
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         # Check if an analysis result already exists
         existing = self.analysis_result_crud.get_by_article_and_type(
@@ -259,6 +272,7 @@ class AnalysisService:
             session.refresh(new_result)
             return new_result
 
+    @handle_database
     def get_analysis_result(
         self, 
         article_id: int, 
@@ -272,6 +286,9 @@ class AnalysisService:
 
         Returns:
             Analysis results if found, None otherwise
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             result = self.analysis_result_crud.get_by_article_and_type(

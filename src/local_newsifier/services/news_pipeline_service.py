@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.errors import handle_database, handle_web_scraper
 
 
 class NewsPipelineService:
@@ -30,6 +31,8 @@ class NewsPipelineService:
         self.file_writer = file_writer
         self.session_factory = session_factory
     
+    @handle_web_scraper
+    @handle_database
     def process_url(self, url: str) -> Dict[str, Any]:
         """Process a news article from a URL.
         
@@ -38,6 +41,9 @@ class NewsPipelineService:
             
         Returns:
             Dictionary with processing results
+            
+        Raises:
+            ServiceError: On web scraping or database errors with appropriate classification
         """
         # Scrape content
         scraped_data = self.web_scraper.scrape_url(url)
@@ -72,6 +78,7 @@ class NewsPipelineService:
                 "url": url
             }
     
+    @handle_database
     def process_content(
         self, 
         url: str,
@@ -89,6 +96,9 @@ class NewsPipelineService:
             
         Returns:
             Dictionary with processing results
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         # Use current time if no publication date provided
         if published_at is None:
