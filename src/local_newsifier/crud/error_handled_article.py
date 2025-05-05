@@ -3,10 +3,12 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.crud.error_handled_base import (EntityNotFoundError,
                                                      ErrorHandledCRUD,
+                                                     get_error_handled_crud_factory,
                                                      handle_crud_error)
 from local_newsifier.models.article import Article
 
@@ -16,20 +18,7 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
 
     @handle_crud_error
     def get_by_url(self, db: Session, *, url: str) -> Article:
-        """Get an article by URL with error handling.
-
-        Args:
-            db: Database session
-            url: URL of the article to get
-
-        Returns:
-            Article if found
-
-        Raises:
-            EntityNotFoundError: If the article with the given URL does not exist
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get an article by URL with error handling."""
         statement = select(Article).where(Article.url == url)
         result = db.exec(statement).first()
 
@@ -43,21 +32,7 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
 
     @handle_crud_error
     def create(self, db: Session, *, obj_in: Union[Dict[str, Any], Article]) -> Article:
-        """Create a new article with error handling.
-
-        Args:
-            db: Database session
-            obj_in: Article data to create
-
-        Returns:
-            Created article
-
-        Raises:
-            DuplicateEntityError: If an article with the same URL already exists
-            ValidationError: If the article data fails validation
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Create a new article with error handling."""
         # Handle dict or model instance
         if isinstance(obj_in, dict):
             article_data = obj_in
@@ -79,22 +54,7 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
 
     @handle_crud_error
     def update_status(self, db: Session, *, article_id: int, status: str) -> Article:
-        """Update an article's status with error handling.
-
-        Args:
-            db: Database session
-            article_id: ID of the article to update
-            status: New status
-
-        Returns:
-            Updated article
-
-        Raises:
-            EntityNotFoundError: If the article with the given ID does not exist
-            ValidationError: If the status is invalid
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Update an article's status with error handling."""
         db_article = db.exec(select(Article).where(Article.id == article_id)).first()
 
         if db_article is None:
@@ -111,19 +71,7 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
 
     @handle_crud_error
     def get_by_status(self, db: Session, *, status: str) -> List[Article]:
-        """Get all articles with a specific status with error handling.
-
-        Args:
-            db: Database session
-            status: Status to filter by
-
-        Returns:
-            List of articles with the specified status
-
-        Raises:
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get all articles with a specific status with error handling."""
         return db.exec(select(Article).where(Article.status == status)).all()
 
     @handle_crud_error
@@ -135,21 +83,7 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
         end_date: datetime,
         source: Optional[str] = None,
     ) -> List[Article]:
-        """Get articles within a date range with error handling.
-
-        Args:
-            db: Database session
-            start_date: Start date
-            end_date: End date
-            source: Optional source to filter by
-
-        Returns:
-            List of articles within the date range
-
-        Raises:
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get articles within a date range with error handling."""
         query = select(Article).where(
             Article.published_at >= start_date, Article.published_at <= end_date
         )
@@ -164,5 +98,13 @@ class ErrorHandledCRUDArticle(ErrorHandledCRUD[Article]):
         return db.exec(query).all()
 
 
-# Create an instance of the error handled article CRUD
+# Create the article crud instance using the factory
+@injectable(use_cache=True)
+def get_article_crud_with_methods(crud_factory=get_error_handled_crud_factory()):
+    """Get an error-handled CRUD object for the Article model with additional methods."""
+    # Create a new instance with the extended class
+    return ErrorHandledCRUDArticle(Article)
+
+
+# For backward compatibility, keep the singleton instance
 error_handled_article = ErrorHandledCRUDArticle(Article)

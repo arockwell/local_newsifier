@@ -8,8 +8,8 @@ from pydantic import BaseModel, HttpUrl
 from sqlmodel import Session
 
 from local_newsifier.api.dependencies import get_session
+from local_newsifier.crud.error_handled_article import get_article_crud_with_methods
 from local_newsifier.crud.error_handling import handle_crud_errors
-from local_newsifier.di.crud_providers import get_article_crud
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -46,7 +46,7 @@ class ArticleResponse(BaseModel):
 async def create_article(
     article: ArticleCreate, 
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
     article_dict = article.model_dump()
     if not article_dict.get("published_at"):
@@ -62,7 +62,7 @@ async def create_article(
 async def get_article(
     article_id: int = Path(..., title="Article ID"),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
     return article_crud.get(db, article_id)
 
@@ -73,7 +73,7 @@ async def update_article(
     article_update: ArticleUpdate,
     article_id: int = Path(...),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
     article = article_crud.get(db, article_id)
     return article_crud.update(
@@ -86,7 +86,7 @@ async def update_article(
 async def delete_article(
     article_id: int = Path(...),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
     article_crud.remove(db, id=article_id)
     return None
@@ -97,17 +97,10 @@ async def delete_article(
 async def get_article_by_url(
     url: HttpUrl = Query(..., title="Article URL"),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
-    # For specialized methods not in basic CRUD, we can add them to a dedicated CRUD class
-    # or call find_by_attributes with the appropriate filter
-    attributes = {"url": str(url)}
-    results = article_crud.find_by_attributes(db, attributes=attributes)
-    if not results:
-        # The error will be handled by the decorator
-        from local_newsifier.crud.error_handled_base import EntityNotFoundError
-        raise EntityNotFoundError(f"Article with URL '{url}' not found")
-    return results[0]
+    # Use the specialized method from the extended CRUD class
+    return article_crud.get_by_url(db, url=str(url))
 
 
 @router.get("/", response_model=List[ArticleResponse])
@@ -119,32 +112,26 @@ async def list_articles(
     skip: int = Query(0),
     limit: int = Query(100),
     db: Session = Depends(get_session),
-    article_crud = Depends(get_article_crud)
+    article_crud = Depends(get_article_crud_with_methods)
 ):
+    # Use specialized methods from the extended CRUD class
+    if status:
+        return article_crud.get_by_status(db, status=status)
+        
+    if days:
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        return article_crud.get_by_date_range(
+            db, start_date=start_date, end_date=end_date, source=source
+        )
+        
     # Build attributes dictionary for filtering
     attributes = {}
-    if status:
-        attributes["status"] = status
     if source:
         attributes["source"] = source
         
     if attributes:
         return article_crud.find_by_attributes(db, attributes=attributes)
-        
-    if days:
-        # Use a custom method or implement date range filtering here
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        # This is a simplified approach - in a real implementation, you might
-        # want to extend the ErrorHandledCRUD with additional methods
-        # For now, we'll use find_by_attributes with manual date filtering
-        results = article_crud.get_multi(db, skip=skip, limit=None)
-        filtered_results = [
-            article for article in results 
-            if article.published_at and start_date <= article.published_at <= end_date
-        ]
-        return filtered_results[:limit] if limit else filtered_results
         
     # No filters, get all with pagination
     return article_crud.get_multi(db, skip=skip, limit=limit)

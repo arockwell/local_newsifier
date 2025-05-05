@@ -5,8 +5,9 @@ This module provides a base class for CRUD operations with standardized error ha
 
 import functools
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
+from fastapi_injectable import injectable
 from sqlalchemy.exc import (IntegrityError, NoResultFound, OperationalError,
                             SQLAlchemyError)
 from sqlmodel import Session, SQLModel, select
@@ -179,20 +180,7 @@ class ErrorHandledCRUD(CRUDBase[ModelType]):
 
     @handle_crud_error
     def get(self, db: Session, id: int) -> Optional[ModelType]:
-        """Get an item by id with error handling.
-
-        Args:
-            db: Database session
-            id: Item id
-
-        Returns:
-            The item if found, None otherwise
-
-        Raises:
-            EntityNotFoundError: If the entity with the given id does not exist
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get an item by id with error handling."""
         result = super().get(db, id)
         if result is None:
             raise EntityNotFoundError(
@@ -205,41 +193,14 @@ class ErrorHandledCRUD(CRUDBase[ModelType]):
     def get_multi(
         self, db: Session, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
-        """Get multiple items with pagination and error handling.
-
-        Args:
-            db: Database session
-            skip: Number of items to skip
-            limit: Maximum number of items to return
-
-        Returns:
-            List of items
-
-        Raises:
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get multiple items with pagination and error handling."""
         return super().get_multi(db, skip=skip, limit=limit)
 
     @handle_crud_error
     def create(
         self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]
     ) -> ModelType:
-        """Create a new item with error handling.
-
-        Args:
-            db: Database session
-            obj_in: Item data as dict or model instance
-
-        Returns:
-            Created item
-
-        Raises:
-            DuplicateEntityError: If an entity with the same unique fields already exists
-            ValidationError: If the entity data fails validation
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Create a new item with error handling."""
         return super().create(db, obj_in=obj_in)
 
     @handle_crud_error
@@ -250,40 +211,12 @@ class ErrorHandledCRUD(CRUDBase[ModelType]):
         db_obj: ModelType,
         obj_in: Union[Dict[str, Any], ModelType],
     ) -> ModelType:
-        """Update an item with error handling.
-
-        Args:
-            db: Database session
-            db_obj: Database object to update
-            obj_in: Update data as dict or model instance
-
-        Returns:
-            Updated item
-
-        Raises:
-            ValidationError: If the updated entity data fails validation
-            DuplicateEntityError: If the update would create a duplicate entity
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Update an item with error handling."""
         return super().update(db, db_obj=db_obj, obj_in=obj_in)
 
     @handle_crud_error
     def remove(self, db: Session, *, id: int) -> Optional[ModelType]:
-        """Remove an item with error handling.
-
-        Args:
-            db: Database session
-            id: Item id
-
-        Returns:
-            Removed item if found, None otherwise
-
-        Raises:
-            EntityNotFoundError: If the entity with the given id does not exist
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Remove an item with error handling."""
         result = super().remove(db, id=id)
         if result is None:
             raise EntityNotFoundError(
@@ -300,21 +233,7 @@ class ErrorHandledCRUD(CRUDBase[ModelType]):
         obj_in: Union[Dict[str, Any], ModelType],
         unique_fields: List[str],
     ) -> ModelType:
-        """Get an existing item or create a new one if it doesn't exist.
-
-        Args:
-            db: Database session
-            obj_in: Item data as dict or model instance
-            unique_fields: List of fields to check for uniqueness
-
-        Returns:
-            Existing or newly created item
-
-        Raises:
-            ValidationError: If the entity data fails validation
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Get an existing item or create a new one if it doesn't exist."""
         # Convert input to dict if it's a model instance
         if isinstance(obj_in, SQLModel):
             search_data = obj_in.model_dump(include=unique_fields)
@@ -341,22 +260,44 @@ class ErrorHandledCRUD(CRUDBase[ModelType]):
     def find_by_attributes(
         self, db: Session, *, attributes: Dict[str, Any]
     ) -> List[ModelType]:
-        """Find items by attribute values.
-
-        Args:
-            db: Database session
-            attributes: Dictionary of attribute name/value pairs to match
-
-        Returns:
-            List of matching items
-
-        Raises:
-            DatabaseConnectionError: If there's a connection issue
-            TransactionError: If there's a database transaction error
-        """
+        """Find items by attribute values."""
         query = select(self.model)
         for attr, value in attributes.items():
             if hasattr(self.model, attr):
                 query = query.where(getattr(self.model, attr) == value)
 
         return db.exec(query).all()
+
+
+# Factory function for creating CRUD instances
+# Cache of created CRUD objects to avoid recreating them
+_crud_cache: Dict[str, ErrorHandledCRUD] = {}
+
+
+@injectable(use_cache=True)
+def get_error_handled_crud_factory():
+    """Get a factory function for creating error-handled CRUD objects."""
+    def create_crud_for_model(model_class: Type[SQLModel]) -> ErrorHandledCRUD:
+        """Create an error-handled CRUD object for a model class."""
+        model_name = model_class.__name__
+        
+        # Check if we already have a CRUD object for this model
+        if model_name in _crud_cache:
+            return _crud_cache[model_name]
+        
+        # Create a new CRUD object
+        crud = ErrorHandledCRUD(model_class)
+        
+        # Cache it for future use
+        _crud_cache[model_name] = crud
+        
+        return crud
+    
+    return create_crud_for_model
+
+
+@injectable(use_cache=True)
+def get_article_crud(crud_factory=get_error_handled_crud_factory()):
+    """Get an error-handled CRUD object for the Article model."""
+    from local_newsifier.models.article import Article
+    return crud_factory(Article)
