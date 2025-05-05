@@ -33,10 +33,26 @@ def mock_tools():
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Fixture to mock dependencies."""
-    # Only mock AnalysisService since that's what the implementation uses
-    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_service, \
+    # Mock the di providers import
+    with patch("local_newsifier.di.providers.get_analysis_result_crud",
+              return_value=MagicMock()) as mock_analysis_result_crud, \
+         patch("local_newsifier.di.providers.get_article_crud",
+              return_value=MagicMock()) as mock_article_crud, \
+         patch("local_newsifier.di.providers.get_entity_crud",
+              return_value=MagicMock()) as mock_entity_crud, \
+         patch("local_newsifier.di.providers.get_trend_analyzer_tool",
+              return_value=MagicMock()) as mock_trend_analyzer_tool, \
+         patch("local_newsifier.di.providers.get_session") as mock_get_session, \
+         patch("local_newsifier.services.analysis_service.AnalysisService") as mock_service, \
          patch("local_newsifier.tools.trend_reporter.TrendReporter") as mock_reporter:
          
+        # Configure the session mock
+        mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__ = MagicMock(return_value=mock_session)
+        mock_get_session.return_value = mock_session_gen
+        
+        # Configure the AnalysisService mock
         mock_service.return_value = MagicMock()
         mock_reporter.return_value = MagicMock()
         
@@ -50,7 +66,13 @@ def mock_dependencies():
             "reporter": mock_reporter,
             "data_aggregator": mock_data_aggregator,
             "topic_analyzer": mock_topic_analyzer,
-            "trend_detector": mock_trend_detector
+            "trend_detector": mock_trend_detector,
+            "analysis_result_crud": mock_analysis_result_crud,
+            "article_crud": mock_article_crud,
+            "entity_crud": mock_entity_crud,
+            "trend_analyzer_tool": mock_trend_analyzer_tool,
+            "get_session": mock_get_session,
+            "session": mock_session
         }
 
 
