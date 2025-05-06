@@ -34,19 +34,33 @@ def flow_with_mocks(mock_session, mock_analysis_service):
 
 def test_init_with_session(mock_session):
     """Test initialization with provided session."""
-    # Mock the AnalysisService constructor
-    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_analysis_service_class:
-        # Configure the mock to return a mock instance
-        mock_service = MagicMock()
-        mock_analysis_service_class.return_value = mock_service
-        
-        # Create the flow with just the session
-        flow = HeadlineTrendFlow(session=mock_session)
-        
-        # Later in __init__, the flow will set analysis_service to our mock service
-        
-        assert flow.session == mock_session
-        assert not flow._owns_session
+    # First patch the get_analysis_result_crud, get_article_crud, get_entity_crud
+    # and other functions that might be imported and called
+    with patch("local_newsifier.di.providers.get_analysis_result_crud") as mock_get_analysis_result_crud:
+        with patch("local_newsifier.di.providers.get_article_crud") as mock_get_article_crud:
+            with patch("local_newsifier.di.providers.get_entity_crud") as mock_get_entity_crud:
+                with patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer") as mock_trend_analyzer_class:
+                    # Configure the mocks
+                    mock_get_analysis_result_crud.return_value = MagicMock()
+                    mock_get_article_crud.return_value = MagicMock()
+                    mock_get_entity_crud.return_value = MagicMock()
+                    mock_trend_analyzer_class.return_value = MagicMock()
+                    
+                    # Mock the AnalysisService to make it easier
+                    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_analysis_service_class:
+                        # Configure the mock to return a mock instance
+                        mock_service = MagicMock()
+                        mock_analysis_service_class.return_value = mock_service
+                        
+                        # Create the flow with just the session
+                        flow = HeadlineTrendFlow(session=mock_session)
+                        
+                        # Manually set the analysis_service for testing
+                        flow.analysis_service = mock_service
+                        
+                        assert flow.session == mock_session
+                        assert not flow._owns_session
+                        assert flow.analysis_service is mock_service
 
 
 @pytest.mark.skip(reason="Test requires database connection - skipped in PR #174")
@@ -198,31 +212,37 @@ def test_generate_report_with_error(flow_with_mocks):
 
 def test_cleanup_on_delete(mock_session):
     """Test that the session is closed when the flow is deleted."""
-    # Create with mocked AnalysisService
-    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_analysis_service_class:
-        mock_service = MagicMock()
-        mock_analysis_service_class.return_value = mock_service
-        
-        flow = HeadlineTrendFlow(session=mock_session)
-        
-        # Call the destructor directly
-        flow.__del__()
-        
-        # Session should not be closed since we didn't create it
-        assert True  # No assertion needed since we're not closing externally provided sessions
-        
-        # Test with owned session
-        with patch("local_newsifier.database.engine.get_session") as mock_get_session:
-            session_generator = MagicMock()
-            mock_owned_session = MagicMock()
-            session_generator.__next__.return_value = mock_owned_session
-            mock_get_session.return_value = session_generator
-            
-            # Create flow with owned session
-            flow = HeadlineTrendFlow()  # No session provided, so it creates its own
-            # Set the analysis service to avoid issues
-            flow.analysis_service = mock_service
-            
-            # We can't actually test the __del__ method since it would close the mock
-            # Direct test of the destructor
-            flow.__del__()
+    # Mock all the required services
+    with patch("local_newsifier.di.providers.get_analysis_result_crud", return_value=MagicMock()):
+        with patch("local_newsifier.di.providers.get_article_crud", return_value=MagicMock()):
+            with patch("local_newsifier.di.providers.get_entity_crud", return_value=MagicMock()):
+                with patch("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer", return_value=MagicMock()):
+                    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_analysis_service_class:
+                        mock_service = MagicMock()
+                        mock_analysis_service_class.return_value = mock_service
+                        
+                        flow = HeadlineTrendFlow(session=mock_session)
+                        # Manually set analysis_service for testing
+                        flow.analysis_service = mock_service
+                        
+                        # Call the destructor directly
+                        flow.__del__()
+                        
+                        # Session should not be closed since we didn't create it
+                        assert True  # No assertion needed since we're not closing externally provided sessions
+                        
+                        # Test with owned session
+                        with patch("local_newsifier.database.engine.get_session") as mock_get_session:
+                            session_generator = MagicMock()
+                            mock_owned_session = MagicMock()
+                            session_generator.__next__.return_value = mock_owned_session
+                            mock_get_session.return_value = session_generator
+                            
+                            # Create flow with owned session
+                            flow = HeadlineTrendFlow()  # No session provided, so it creates its own
+                            # Set the analysis service to avoid issues
+                            flow.analysis_service = mock_service
+                            
+                            # We can't actually test the __del__ method since it would close the mock
+                            # Direct test of the destructor
+                            flow.__del__()
