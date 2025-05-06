@@ -52,6 +52,14 @@ poetry install
 poetry run python -m spacy download en_core_web_lg
 ```
 
+4. (Optional) Set up Apify Token:
+```bash
+# Create .env file with your Apify token
+echo "APIFY_TOKEN=your_token_here" > .env
+```
+
+Note: While an Apify token is required for production use, the test suite can run without it. See [docs/testing_apify.md](docs/testing_apify.md) for more details.
+
 ## Usage
 
 ### Command Line Interface (CLI)
