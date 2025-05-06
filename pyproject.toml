@@ -68,6 +68,10 @@ markers = [
     "fast: marks tests that should run quickly"
 ]
 
+# Configure pytest-asyncio to fix deprecation warning
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
 filterwarnings = [
     # Pydantic V2 deprecation warning about class-based config
     "ignore::pydantic.warnings.PydanticDeprecatedSince20:",
