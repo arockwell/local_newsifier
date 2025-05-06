@@ -37,6 +37,14 @@ setup-spacy:
 test:
 	poetry run pytest
 
+# Run tests in parallel with optimized settings for local development
+test-parallel:
+	poetry run pytest -n auto
+
+# Run tests with coverage report
+test-coverage:
+	poetry run pytest --cov=src/local_newsifier --cov-report=term-missing
+
 # Linting
 lint:
 	poetry run flake8 src tests
