@@ -40,8 +40,45 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
     Returns:
         SQLModel engine or None if connection fails after retries
     """
-    # Use faster retry for tests
+    # Check if we're running in test mode
     if test_mode:
+        logger.info("Running in test mode")
+        # Try to get the shared test engine from pytest plugin
+        try:
+            import pytest
+            if hasattr(pytest, "test_engine_plugin"):
+                # First try to get a worker-specific engine when running with pytest-xdist
+                try:
+                    # For pytest-xdist parallel execution, we can figure out the worker ID
+                    # from sys.argv or environment variable if available
+                    import sys
+                    import os
+                    
+                    # Check for xdist worker ID patterns
+                    worker_id = None
+                    # Look for gw0, gw1, etc. in sys.argv for xdist workers
+                    for arg in sys.argv:
+                        if arg.startswith('gw'):
+                            worker_id = arg
+                            break
+                            
+                    # If we didn't find it in sys.argv, check for PYTEST_XDIST_WORKER env var
+                    if not worker_id:
+                        worker_id = os.environ.get('PYTEST_XDIST_WORKER')
+                        
+                    engine = pytest.test_engine_plugin.get_engine(worker_id)
+                except (ImportError, AttributeError):
+                    # Fallback to the standard method if we can't determine worker ID
+                    engine = pytest.test_engine_plugin.get_engine()
+                
+                if engine:
+                    logger.info(f"Using shared test engine from pytest plugin (worker: {worker_id or 'master'})")
+                    return engine
+        except (ImportError, AttributeError):
+            # We're not running under pytest or plugin isn't registered
+            logger.debug("Test engine plugin not available")
+        
+        # Use faster retry for tests if we don't get a test engine
         retry_delay = 0.01  # Use milliseconds instead of seconds for tests
     
     for attempt in range(max_retries + 1):

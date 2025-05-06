@@ -263,8 +263,14 @@ class OpinionVisualizerTool:
         report = f"SENTIMENT ANALYSIS REPORT: {data.topic}\n"
         report += "=" * 50 + "\n\n"
 
-        report += f"Time period: {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}\n"
-        report += f"Interval: {data.viz_metadata['interval']}\n\n"
+        # Check if metadata is available
+        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
+            report += f"Time period: {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}\n"
+            report += f"Interval: {data.viz_metadata['interval']}\n\n"
+        else:
+            # Fallback to basic information
+            report += "Time period: Not specified\n"
+            report += "Interval: Not specified\n\n"
 
         report += "SUMMARY STATISTICS\n"
         report += f"Average sentiment: {avg_sentiment:.2f}\n"
@@ -287,16 +293,27 @@ class OpinionVisualizerTool:
         if not data:
             return "No sentiment data available for comparison"
 
-        # Get viz_metadata from first entry
-        first_topic = list(data.keys())[0]
-        viz_metadata = data[first_topic].viz_metadata
-
         # Build report
         report = "SENTIMENT COMPARISON REPORT\n"
         report += "=" * 50 + "\n\n"
 
-        report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
-        report += f"Interval: {viz_metadata['interval']}\n\n"
+        # Get viz_metadata from first entry if available
+        if data and len(data) > 0:
+            first_topic = list(data.keys())[0]
+            viz_metadata = data[first_topic].viz_metadata
+            
+            # Check if metadata is available
+            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+                report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
+                report += f"Interval: {viz_metadata['interval']}\n\n"
+            else:
+                # Fallback to basic information
+                report += "Time period: Not specified\n"
+                report += "Interval: Not specified\n\n"
+        else:
+            # No data, use default values
+            report += "Time period: Not specified\n"
+            report += "Interval: Not specified\n\n"
 
         report += "SUMMARY STATISTICS\n"
         for topic, topic_data in data.items():
@@ -349,8 +366,14 @@ class OpinionVisualizerTool:
         # Build report
         report = f"# Sentiment Analysis Report: {data.topic}\n\n"
 
-        report += f"**Time period:** {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}  \n"
-        report += f"**Interval:** {data.viz_metadata['interval']}\n\n"
+        # Check if metadata is available
+        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
+            report += f"**Time period:** {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}  \n"
+            report += f"**Interval:** {data.viz_metadata['interval']}\n\n"
+        else:
+            # Fallback to basic information
+            report += "**Time period:** Not specified  \n"
+            report += "**Interval:** Not specified\n\n"
 
         report += "## Summary Statistics\n\n"
         report += f"- **Average sentiment:** {avg_sentiment:.2f}\n"
@@ -375,17 +398,26 @@ class OpinionVisualizerTool:
         if not data:
             return "No sentiment data available for comparison"
 
-        # Get viz_metadata from first entry
-        first_topic = list(data.keys())[0]
-        viz_metadata = data[first_topic].viz_metadata
-
         # Build report
         report = "# Sentiment Comparison Report\n\n"
 
-        report += (
-            f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
-        )
-        report += f"**Interval:** {viz_metadata['interval']}\n\n"
+        # Get viz_metadata from first entry if available
+        if data and len(data) > 0:
+            first_topic = list(data.keys())[0]
+            viz_metadata = data[first_topic].viz_metadata
+            
+            # Check if metadata is available
+            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+                report += f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
+                report += f"**Interval:** {viz_metadata['interval']}\n\n"
+            else:
+                # Fallback to basic information
+                report += "**Time period:** Not specified  \n"
+                report += "**Interval:** Not specified\n\n"
+        else:
+            # No data, use default values
+            report += "**Time period:** Not specified  \n"
+            report += "**Interval:** Not specified\n\n"
 
         report += "## Summary Statistics\n\n"
         report += "| Topic | Average Sentiment | Total Articles |\n"
@@ -462,8 +494,14 @@ class OpinionVisualizerTool:
 
         report += f"<h1>Sentiment Analysis Report: {data.topic}</h1>\n"
 
-        report += f"<p><strong>Time period:</strong> {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}<br>\n"
-        report += f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
+        # Check if metadata is available
+        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
+            report += f"<p><strong>Time period:</strong> {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}<br>\n"
+            report += f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
+        else:
+            # Fallback to basic information
+            report += "<p><strong>Time period:</strong> Not specified<br>\n"
+            report += "<strong>Interval:</strong> Not specified</p>\n"
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<ul>\n"
@@ -492,10 +530,6 @@ class OpinionVisualizerTool:
         if not data:
             return "<p>No sentiment data available for comparison</p>"
 
-        # Get viz_metadata from first entry
-        first_topic = list(data.keys())[0]
-        viz_metadata = data[first_topic].viz_metadata
-
         # Build report
         report = "<html><head>\n"
         report += "<style>\n"
@@ -511,8 +545,23 @@ class OpinionVisualizerTool:
 
         report += "<h1>Sentiment Comparison Report</h1>\n"
 
-        report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
-        report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
+        # Get viz_metadata from first entry if available
+        if data and len(data) > 0:
+            first_topic = list(data.keys())[0]
+            viz_metadata = data[first_topic].viz_metadata
+            
+            # Check if metadata is available
+            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+                report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
+                report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
+            else:
+                # Fallback to basic information
+                report += "<p><strong>Time period:</strong> Not specified<br>\n"
+                report += "<strong>Interval:</strong> Not specified</p>\n"
+        else:
+            # No data, use default values
+            report += "<p><strong>Time period:</strong> Not specified<br>\n"
+            report += "<strong>Interval:</strong> Not specified</p>\n"
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<table>\n"

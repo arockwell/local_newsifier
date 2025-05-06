@@ -15,9 +15,11 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Annotated
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.database.engine import get_session, with_session

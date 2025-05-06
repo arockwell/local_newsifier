@@ -51,18 +51,89 @@ from local_newsifier.models.apify import (
     ApifySourceConfig, ApifyJob, ApifyDatasetItem, ApifyCredentials, ApifyWebhook
 )
 
-@pytest.fixture(scope="session")
-def test_engine():
+# Create a pytest plugin that allows access to the test engine
+class TestEnginePlugin:
+    """Plugin to provide access to the test engine.
+    
+    This plugin maintains an engine per xdist worker to ensure proper isolation
+    when tests are run in parallel. Each worker gets its own dedicated in-memory
+    database.
+    """
+    
+    # Dictionary to store engines per worker (worker_id -> engine)
+    _worker_engines = {}
+    
+    @classmethod
+    def set_engine(cls, worker_id, engine):
+        """Set the engine for a specific worker.
+        
+        Args:
+            worker_id: The worker ID or None for single process
+            engine: The SQLAlchemy engine
+        """
+        cls._worker_engines[worker_id or "master"] = engine
+        
+    @classmethod
+    def get_engine(cls, worker_id=None):
+        """Get the engine for a specific worker.
+        
+        Args:
+            worker_id: The worker ID or None for single process
+            
+        Returns:
+            The SQLAlchemy engine or None if not found
+        """
+        return cls._worker_engines.get(worker_id or "master")
+    
+    @classmethod
+    def cleanup_engine(cls, worker_id):
+        """Clean up the engine for a specific worker.
+        
+        Args:
+            worker_id: The worker ID or None for single process
+        """
+        worker_key = worker_id or "master"
+        if worker_key in cls._worker_engines:
+            engine = cls._worker_engines[worker_key]
+            if engine:
+                engine.dispose()
+            del cls._worker_engines[worker_key]
+
+# Register the plugin directly on pytest
+# This avoids using the problematic pytest_configure hook
+pytest.test_engine_plugin = TestEnginePlugin()
+
+@pytest.fixture(scope="session", autouse=True)
+def test_engine(request):
     """Create a test database engine using SQLite in-memory.
     
     This fixture:
     1. Creates an in-memory SQLite database
     2. Creates all tables
-    3. Yields the engine for tests
+    3. Makes the engine available via the test_engine_plugin
+    4. Yields the engine for tests that need direct access
+    
+    The autouse=True parameter ensures this fixture runs for all tests,
+    even when not explicitly requested, ensuring the test database is always set up.
+    
+    In parallel testing environments (using pytest-xdist), each worker gets its own
+    dedicated SQLite in-memory database.
     """
-    # Create SQLite in-memory engine for tests
+    # Detect whether we're running with xdist and get the worker ID
+    worker_id = getattr(request.config, "workerinput", {}).get("workerid", None)
+    
+    # Create a unique database URL for each worker (for xdist) or use shared memory for single process
+    if worker_id:
+        # When running with xdist, each worker gets its own in-memory database with its own ID
+        # This ensures isolation between parallel test workers
+        db_url = f"sqlite:///:memory:"
+    else:
+        # In non-parallel mode, use the standard in-memory database
+        db_url = "sqlite:///:memory:"
+    
+    # Create SQLite engine for tests
     engine = create_engine(
-        "sqlite:///:memory:",
+        db_url,
         connect_args={"check_same_thread": False},
         # Speed up SQLite for tests
         pool_pre_ping=False,  # Disable pre-ping for tests
@@ -98,11 +169,15 @@ def test_engine():
         session.delete(result)
         session.commit()
     
-    # Yield the engine for tests to use
+    # Make the engine available to the plugin so it can be accessed outside the fixture
+    # This is the key change that avoids needing the problematic pytest_configure hook
+    pytest.test_engine_plugin.set_engine(worker_id, engine)
+    
+    # Yield the engine for tests to use directly
     yield engine
     
-    # No cleanup needed for in-memory database
-    engine.dispose()
+    # Clean up by removing the engine from the plugin and disposing it
+    pytest.test_engine_plugin.cleanup_engine(worker_id)
 
 @pytest.fixture
 def db_session(test_engine) -> Generator[Session, None, None]:
