@@ -77,13 +77,14 @@ def test_entity_tracking_flow_creates_default_service(
     # Create flow without providing a service
     flow = EntityTrackingFlow()
     
-    # Verify the service and tools were created
-    mock_service_class.assert_called_once()
+    # Verify the tools were created and the service was initialized with these tools
     mock_extractor_class.assert_called_once()
     mock_analyzer_class.assert_called_once()
     mock_resolver_class.assert_called_once()
     mock_tracker_class.assert_called_once()
+    mock_service_class.assert_called_once()
     
+    # Verify that the service and components were set correctly
     assert flow.entity_service is mock_service
     assert flow._entity_extractor is mock_extractor
     assert flow._context_analyzer is mock_analyzer
