@@ -1,13 +1,27 @@
 name: Tests
 
+# This workflow runs tests in these scenarios:
+# 1. Push to main branch
+# 2. Pull request targeting main branch
+# 3. Pull request targeting another PR branch (PR chain)
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # pull_request_target allows tests to run on PRs targeting branches other than main
+  pull_request_target:
+    branches-ignore: [ main ]  # Only for PRs targeting branches other than main
 
 jobs:
   test:
+    # Security check: only run pull_request_target event if PR is from the same repo
+    # This prevents potential security issues with untrusted code execution
+    if: |
+      (github.event_name == 'push') ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository)
+    
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -29,7 +43,12 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # For pull_request_target events, we need to check out the PR head
+        # instead of the base branch (which would be the default)
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || '' }}
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -112,6 +131,8 @@ jobs:
         "
 
     - name: Run tests with coverage
+      id: run_tests
+      continue-on-error: true  # Continue to the next step even if tests fail
       env:
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
@@ -121,9 +142,53 @@ jobs:
         TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |
         poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=80 tests/
+        echo "status=$?" >> $GITHUB_OUTPUT
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage.xml
+
+    # Post a comment on the PR with the test results
+    # This only runs for pull_request and pull_request_target events
+    - name: Post results to PR
+      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const pr_number = context.issue.number;
+          const { owner, repo } = context.repo;
+          const workflowRunUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+          
+          let targetType = 'the main branch';
+          if (context.eventName === 'pull_request_target') {
+            targetType = 'another PR branch';
+          }
+          
+          let testStatus = '${{ steps.run_tests.outputs.status }}';
+          let body = '';
+          
+          if (testStatus === '0') {
+            body = `## CI Test Results ✅\n\n`;
+            body += `Tests passed for this PR targeting ${targetType}!\n\n`;
+          } else {
+            body = `## CI Test Results ❌\n\n`;
+            body += `Tests failed for this PR targeting ${targetType}.\n\n`;
+            body += `Please check the logs for details on the failing tests.\n\n`;
+          }
+          
+          body += `[View full details](${workflowRunUrl})`;
+          
+          github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: pr_number,
+            body
+          });
+
+    # Fail the workflow if tests failed
+    - name: Fail if tests failed
+      if: steps.run_tests.outputs.status != '0'
+      run: exit 1
