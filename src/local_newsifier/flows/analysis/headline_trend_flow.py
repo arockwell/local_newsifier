@@ -28,12 +28,13 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session=None):
+    def __init__(self, session=None, analysis_service=None):
         """
         Initialize the headline trend analysis flow.
 
         Args:
             session: Optional SQLModel session to use
+            analysis_service: Optional AnalysisService instance (primarily for testing)
         """
         super().__init__()
         
@@ -45,32 +46,41 @@ class HeadlineTrendFlow(Flow):
             self._owns_session = True
             self.session = get_session().__next__()
 
-        # Initialize analysis service
-        # We need to explicitly provide all required dependencies due to injectable decorator
-        try:
-            # Import necessary dependencies
-            from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
-            from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-            
-            # Get required dependencies
-            analysis_result_crud = get_analysis_result_crud()
-            article_crud = get_article_crud()
-            entity_crud = get_entity_crud()
-            trend_analyzer = TrendAnalyzer()
-            
-            # Create the service with all dependencies
-            self.analysis_service = AnalysisService(
-                analysis_result_crud=analysis_result_crud,
-                article_crud=article_crud,
-                entity_crud=entity_crud,
-                trend_analyzer=trend_analyzer,
-                session_factory=lambda: self.session
-            )
-        except (ImportError, NameError):
-            # This path is for unit tests that mock the AnalysisService
-            # Tests will override this with a mock service
+        # Use provided analysis_service if available (primarily for testing)
+        self.analysis_service = analysis_service
+        
+        # If no analysis_service was provided, create one
+        if self.analysis_service is None:
+            # In production code, we import this directly to access the actual implementation
+            # In tests, this will be mocked to avoid the injectable decorator issues
             from local_newsifier.services.analysis_service import AnalysisService
-            self.analysis_service = None  # Will be set by tests
+            
+            # For production code, construct with all dependencies
+            # This is the path used by the actual application
+            try:
+                # Import all required dependencies
+                from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
+                from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+                
+                # Get required dependencies
+                analysis_result_crud = get_analysis_result_crud()
+                article_crud = get_article_crud()
+                entity_crud = get_entity_crud()
+                trend_analyzer = TrendAnalyzer(session=self.session)
+                
+                # Create service with all dependencies
+                self.analysis_service = AnalysisService(
+                    analysis_result_crud=analysis_result_crud,
+                    article_crud=article_crud,
+                    entity_crud=entity_crud,
+                    trend_analyzer=trend_analyzer,
+                    session_factory=lambda: self.session
+                )
+            except (ImportError, NameError):
+                # This should only happen in test environments
+                # In production, the dependencies should always be available
+                # Tests should provide a mock analysis_service
+                self.analysis_service = None
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
