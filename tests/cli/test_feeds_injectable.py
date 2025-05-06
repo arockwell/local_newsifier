@@ -75,7 +75,6 @@ def test_feeds_process_with_injectable(sample_feed):
     mock_rss_service = MagicMock()
     mock_rss_service.get_feed.return_value = sample_feed
     mock_rss_service.process_feed.return_value = {
-        "status": "success", 
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 10,
@@ -131,7 +130,6 @@ def test_feeds_fetch_with_injectable(sample_feed):
     
     # Set up returns for process_feed
     mock_rss_service.process_feed.return_value = {
-        "status": "success",
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 5,
@@ -171,16 +169,10 @@ def test_feeds_fetch_error_with_injectable(sample_feed):
     feed2["name"] = "Test Feed 2"
     mock_rss_service.list_feeds.return_value = [feed1, feed2]
     
-    # Make all feeds fail
+    # Make all feeds fail with RSSError
     def process_feed_side_effect(feed_id, task_queue_func=None):
-        return {
-            "status": "error",
-            "feed_id": feed_id,
-            "feed_name": f"Test Feed {feed_id}",
-            "message": "Failed to fetch feed",
-            "articles_found": 0,
-            "articles_added": 0,
-        }
+        from local_newsifier.errors.rss_error import RSSError
+        raise RSSError(f"Failed to fetch feed {feed_id}")
     
     mock_rss_service.process_feed.side_effect = process_feed_side_effect
     
@@ -195,11 +187,9 @@ def test_feeds_fetch_error_with_injectable(sample_feed):
         runner = CliRunner()
         result = runner.invoke(cli, ["feeds", "fetch"])
         
-        # Since the mock is returning the same error for ALL feeds,
-        # we should check that the output indicates all feeds failed, but in this test
-        # we need to examine the output rather than exit code because we're not capturing
-        # the uncaught exception properly in the click test runner
+        # Since all feeds will raise RSSError now, we verify the error handling
         assert "Processed 2 feeds: 0 successful, 2 failed" in result.output
+        assert "Error processing feed" in result.output
         
         # Verify service calls
         mock_rss_service.list_feeds.assert_called_once_with(active_only=True)

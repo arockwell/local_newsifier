@@ -258,16 +258,9 @@ def test_feeds_process_error(mock_rss_feed_service, sample_feed):
     # Setup mock
     mock_rss_feed_service.get_feed.return_value = sample_feed
     
-    # When the process_feed method returns an error status dict, 
-    # make sure to include the expected keys
-    mock_rss_feed_service.process_feed.return_value = {
-        "status": "error",
-        "feed_id": 1,
-        "feed_name": "Test Feed",
-        "message": "Failed to parse feed content",
-        "articles_found": 0,
-        "articles_added": 0,
-    }
+    # Now process_feed raises an RSSError instead of returning an error dict
+    from local_newsifier.errors.rss_error import RSSError
+    mock_rss_feed_service.process_feed.side_effect = RSSError("Failed to parse feed content")
     
     # Run command
     runner = CliRunner()
@@ -276,6 +269,7 @@ def test_feeds_process_error(mock_rss_feed_service, sample_feed):
     # Verify
     assert result.exit_code == 1  # Now exits with error code for proper error handling
     assert "Error" in result.output
+    assert "Failed to parse feed content" in result.output
     mock_rss_feed_service.get_feed.assert_called_once_with(1)
     mock_rss_feed_service.process_feed.assert_called_once()
 
@@ -284,7 +278,6 @@ def test_feeds_fetch(mock_rss_feed_service, sample_feed):
     # Setup mock
     mock_rss_feed_service.list_feeds.return_value = [sample_feed, sample_feed.copy()]
     mock_rss_feed_service.process_feed.return_value = {
-        "status": "success",
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 5,
@@ -314,24 +307,18 @@ def test_feeds_fetch_with_errors(mock_rss_feed_service, sample_feed):
     mock_rss_feed_service.list_feeds.return_value = [feed1, feed2]
     
     # Make the first feed succeed and the second fail
+    from local_newsifier.errors.rss_error import RSSError
+    
     def process_feed_side_effect(feed_id, task_queue_func=None):
         if feed_id == 1:
             return {
-                "status": "success",
                 "feed_id": 1,
                 "feed_name": "Test Feed",
                 "articles_found": 5,
                 "articles_added": 3,
             }
         else:
-            return {
-                "status": "error",
-                "feed_id": 2,
-                "feed_name": "Test Feed 2",
-                "message": "Failed to fetch",
-                "articles_found": 0,
-                "articles_added": 0,
-            }
+            raise RSSError("Failed to fetch")
     
     mock_rss_feed_service.process_feed.side_effect = process_feed_side_effect
     
@@ -357,16 +344,11 @@ def test_feeds_fetch_all_failed(mock_rss_feed_service, sample_feed):
     
     mock_rss_feed_service.list_feeds.return_value = [feed1, feed2]
     
-    # Make all feeds fail
+    # Make all feeds fail with RSSError exceptions
+    from local_newsifier.errors.rss_error import RSSError
+    
     def process_feed_side_effect(feed_id, task_queue_func=None):
-        return {
-            "status": "error",
-            "feed_id": feed_id,
-            "feed_name": f"Test Feed {feed_id}",
-            "message": "Failed to fetch",
-            "articles_found": 0,
-            "articles_added": 0,
-        }
+        raise RSSError(f"Failed to fetch feed {feed_id}")
     
     mock_rss_feed_service.process_feed.side_effect = process_feed_side_effect
     

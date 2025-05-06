@@ -241,17 +241,13 @@ def process_feed(id, no_process):
     # Use direct processing function if not skipping processing
     task_func = None if no_process else direct_process_article
     
+    # Process the feed - this will raise RSSError if there is an issue
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
-    # Check the status of the result
-    if result["status"] == "success":
-        click.echo(click.style("Processing completed successfully!", fg="green"))
-        click.echo(f"Articles found: {result['articles_found']}")
-        click.echo(f"Articles added: {result['articles_added']}")
-    else:
-        # This will be caught by the decorator and displayed properly
-        error_message = result.get("message", "Unknown error")
-        raise RSSError(error_message)
+    # If we get here, processing was successful
+    click.echo(click.style("Processing completed successfully!", fg="green"))
+    click.echo(f"Articles found: {result['articles_found']}")
+    click.echo(f"Articles added: {result['articles_added']}")
 
 
 @feeds_group.command(name="update")
@@ -323,16 +319,16 @@ def fetch_feeds(no_process, active_only):
                           item_show_func=lambda f: f["name"] if f else "") as feed_list:
         for feed in feed_list:
             try:
+                # Process the feed - if successful, we get a result dict
                 result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
-                if result["status"] == "success":
-                    successful += 1
-                else:
-                    # Log the error but continue processing other feeds
-                    error_message = result.get("message", "Unknown error")
-                    click.echo(f"\nError processing feed '{feed['name']}': {error_message}", err=True)
-                    failed += 1
-            except Exception as e:
+                successful += 1
+            except RSSError as e:
+                # Specific handling for RSS errors - capture the error message
                 click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
+                failed += 1
+            except Exception as e:
+                # Generic error handling for other exceptions
+                click.echo(f"\nUnexpected error processing feed '{feed['name']}': {str(e)}", err=True)
                 failed += 1
     
     # Show summary
