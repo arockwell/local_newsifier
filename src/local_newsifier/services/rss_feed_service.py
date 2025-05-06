@@ -32,6 +32,7 @@ class RSSFeedService:
         feed_processing_log_crud,
         article_service,
         session_factory: Callable,
+        container=None,
     ):
         """Initialize with dependencies.
 
@@ -40,11 +41,13 @@ class RSSFeedService:
             feed_processing_log_crud: CRUD for feed processing logs
             article_service: Service for article management
             session_factory: Factory for database sessions
+            container: Optional DI container for lazy dependency resolution
         """
         self.rss_feed_crud = rss_feed_crud
         self.feed_processing_log_crud = feed_processing_log_crud
         self.article_service = article_service
         self.session_factory = session_factory
+        self.container = container
 
     @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
