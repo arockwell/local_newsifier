@@ -47,9 +47,32 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
         try:
             import pytest
             if hasattr(pytest, "test_engine_plugin"):
-                engine = pytest.test_engine_plugin.get_engine()
+                # First try to get a worker-specific engine when running with pytest-xdist
+                try:
+                    # For pytest-xdist parallel execution, we can figure out the worker ID
+                    # from sys.argv or environment variable if available
+                    import sys
+                    import os
+                    
+                    # Check for xdist worker ID patterns
+                    worker_id = None
+                    # Look for gw0, gw1, etc. in sys.argv for xdist workers
+                    for arg in sys.argv:
+                        if arg.startswith('gw'):
+                            worker_id = arg
+                            break
+                            
+                    # If we didn't find it in sys.argv, check for PYTEST_XDIST_WORKER env var
+                    if not worker_id:
+                        worker_id = os.environ.get('PYTEST_XDIST_WORKER')
+                        
+                    engine = pytest.test_engine_plugin.get_engine(worker_id)
+                except (ImportError, AttributeError):
+                    # Fallback to the standard method if we can't determine worker ID
+                    engine = pytest.test_engine_plugin.get_engine()
+                
                 if engine:
-                    logger.info("Using shared test engine from pytest plugin")
+                    logger.info(f"Using shared test engine from pytest plugin (worker: {worker_id or 'master'})")
                     return engine
         except (ImportError, AttributeError):
             # We're not running under pytest or plugin isn't registered

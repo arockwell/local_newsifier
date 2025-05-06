@@ -7,6 +7,7 @@ This module provides commands for managing RSS feeds, including:
 - Showing feed details
 - Removing feeds
 - Processing feeds
+- Fetching all active feeds
 - Updating feed properties
 """
 
@@ -22,6 +23,7 @@ from local_newsifier.di.providers import (
     get_entity_tracking_flow,
     get_news_pipeline_flow,
 )
+from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
 
 
 @click.group(name="feeds")
@@ -284,3 +286,57 @@ def update_feed(id, name, description, active):
         click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
     else:
         click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
+
+
+@feeds_group.command(name="fetch")
+@click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@click.option("--active-only", is_flag=True, default=True, help="Process only active feeds (default: True)")
+@handle_rss_cli_errors
+def fetch_feeds(no_process, active_only):
+    """Fetch articles from all active feeds.
+    
+    This command fetches articles from all active RSS feeds.
+    It's useful for bulk processing multiple feeds at once.
+    """
+    rss_feed_service = get_rss_feed_service()
+    
+    # Show what we're about to do
+    click.echo(f"Fetching {'active ' if active_only else 'all '}feeds...")
+    
+    # Get all the feeds we need to process
+    feeds = rss_feed_service.list_feeds(active_only=active_only)
+    if not feeds:
+        click.echo("No feeds found to process.")
+        return
+    
+    # Set up processing function if needed
+    task_func = None if no_process else direct_process_article
+    
+    # Track success and failure
+    successful = 0
+    failed = 0
+    
+    # Process each feed
+    with click.progressbar(feeds, label="Processing feeds", 
+                          item_show_func=lambda f: f["name"] if f else "") as feed_list:
+        for feed in feed_list:
+            try:
+                result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
+                if result["status"] == "success":
+                    successful += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
+                failed += 1
+    
+    # Show summary
+    total = len(feeds)
+    click.echo(f"\nProcessed {total} feeds: {successful} successful, {failed} failed")
+    
+    if successful == total:
+        click.echo(click.style("All feeds processed successfully!", fg="green"))
+    elif successful > 0:
+        click.echo(click.style(f"Partially successful: {successful}/{total} feeds processed", fg="yellow"))
+    else:
+        click.echo(click.style("Failed to process any feeds", fg="red"), err=True)
