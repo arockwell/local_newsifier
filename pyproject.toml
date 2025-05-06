@@ -42,6 +42,7 @@ nf = "local_newsifier.cli.main:main"
 pytest = "^8.0.0"
 pytest-mock = "^3.12.0"
 pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.26.0"
 pre-commit = "^3.6.0"
 black = "^24.1.1"
 isort = "^5.13.2"
@@ -65,7 +66,8 @@ addopts = "-xvs"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "db: marks tests that require database connection",
-    "fast: marks tests that should run quickly"
+    "fast: marks tests that should run quickly",
+    "asyncio: mark a test as an asyncio test"
 ]
 
 # Configure pytest-asyncio to fix deprecation warning
