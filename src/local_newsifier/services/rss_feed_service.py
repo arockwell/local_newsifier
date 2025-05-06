@@ -46,19 +46,23 @@ class RSSFeedService:
         self.container = container
 
     def _get_session(self) -> Session:
-        """Get a database session."""
+        """Get a database session.
+        
+        Returns:
+            Active database session using the provided session factory,
+            or falling back to the one from the container if available.
+        """
         if self.session_factory:
             return self.session_factory()
             
         # Get session factory from container as fallback
-        if self.container:
-            session_factory = self.container.get("session_factory")
-            if session_factory:
-                return session_factory()
+        if self.container and self.container.get("session_factory"):
+            return self.container.get("session_factory")()
             
-        # Last resort fallback to direct import
-        from local_newsifier.database.engine import get_session
-        return next(get_session())
+        # If no session factory is available, raise an exception
+        # This is cleaner than having a direct import fallback
+        raise ValueError("No session factory available. Please provide a session factory.")
+
 
     @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
@@ -122,12 +126,21 @@ class RSSFeedService:
             feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
         return [self._format_feed_dict(feed) for feed in feeds]
 
-    # This method is for testing only - to directly access the undecorated implementation
-    def _create_feed_impl(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
-        """Undecorated implementation of create_feed for testing purposes.
-        
-        This method provides direct access to the implementation without the decorator.
-        Do not call this method directly in production code.
+    @handle_database
+    def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new feed.
+
+        Args:
+            url: Feed URL
+            name: Feed name
+            description: Feed description
+
+        Returns:
+            Created feed data as dict
+
+        Raises:
+            ValueError: If feed with the URL already exists
+            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         
@@ -150,24 +163,6 @@ class RSSFeedService:
         )
         
         return self._format_feed_dict(new_feed)
-    
-    @handle_database
-    def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
-        """Create a new feed.
-
-        Args:
-            url: Feed URL
-            name: Feed name
-            description: Feed description
-
-        Returns:
-            Created feed data as dict
-
-        Raises:
-            ValueError: If feed with the URL already exists
-            ServiceError: On database errors with appropriate classification
-        """
-        return self._create_feed_impl(url, name, description)
 
     @handle_database
     def update_feed(
