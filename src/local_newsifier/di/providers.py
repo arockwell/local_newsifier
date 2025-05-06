@@ -55,18 +55,7 @@ def get_session() -> Generator[Session, None, None]:
 
 # CRUD providers
 
-@injectable(use_cache=False)
-def get_apify_source_config_crud():
-    """Provide the apify source config CRUD component.
-    
-    Uses use_cache=False to create new instances for each injection, as CRUD 
-    components interact with the database and should not share state between operations.
-    
-    Returns:
-        ApifySourceConfigCRUD instance
-    """
-    from local_newsifier.crud.apify_source_config import apify_source_config
-    return apify_source_config
+# Removed ApifySourceConfig provider for Issue #256
 
 
 @injectable(use_cache=False)
@@ -408,32 +397,7 @@ def get_file_writer_tool():
 
 # Service providers
 
-@injectable(use_cache=False)
-def get_apify_source_config_service(
-    apify_source_config_crud: Annotated[Any, Depends(get_apify_source_config_crud)],
-    apify_service: Annotated[Any, Depends(get_apify_service)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the Apify source config service.
-    
-    Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations.
-    
-    Args:
-        apify_source_config_crud: Apify source config CRUD component
-        apify_service: Apify service
-        session: Database session
-        
-    Returns:
-        ApifySourceConfigService instance
-    """
-    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
-    
-    return ApifySourceConfigService(
-        apify_source_config_crud=apify_source_config_crud,
-        apify_service=apify_service,
-        session_factory=lambda: session
-    )
+# Removed ApifySourceConfigService provider for Issue #256
 
 @injectable(use_cache=False)
 def get_analysis_service(
