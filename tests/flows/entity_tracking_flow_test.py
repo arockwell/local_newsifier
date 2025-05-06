@@ -122,7 +122,6 @@ def test_process_method(mock_tracker_class, mock_resolver_class, mock_context_an
     mock_context_analyzer_class.return_value = mock_analyzer
     mock_resolver = Mock()
     mock_resolver_class.return_value = mock_resolver
-
     # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,

@@ -49,6 +49,44 @@ class RSSFeedService:
         self.session_factory = session_factory
         self.container = container
 
+    def _get_session(self) -> Session:
+        """Get a database session.
+
+        Returns:
+            Active database session using the provided session factory,
+            or falling back to the one from the container if available.
+
+        Raises:
+            ValueError: If no valid session factory is available
+        """
+        # Try using the provided session factory first
+        if self.session_factory:
+            try:
+                return self.session_factory()
+            except Exception as e:
+                logger.warning(f"Error using provided session factory: {str(e)}")
+                # Continue to fallbacks
+
+        # Try getting session factory from container
+        if self.container:
+            try:
+                session_factory = self.container.get("session_factory")
+                if session_factory:
+                    return session_factory()
+            except Exception as e:
+                logger.warning(f"Error getting session factory from container: {str(e)}")
+                # Continue to fallbacks
+
+        # Direct import fallback for backward compatibility
+        # This is needed to maintain compatibility with existing tests
+        try:
+            from local_newsifier.database.engine import get_session
+            return next(get_session())
+        except Exception as e:
+            logger.error(f"All session factory fallbacks failed: {str(e)}")
+
+        # If all fallbacks fail, raise a clear error
+        raise ValueError("No working session factory available. Please provide a valid session factory.")
     @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
