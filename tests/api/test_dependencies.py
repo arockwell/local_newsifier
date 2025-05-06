@@ -1,12 +1,14 @@
 """Tests for API dependencies."""
 
 import os
+import importlib
 import pytest
 from unittest.mock import Mock, patch, MagicMock, PropertyMock
 from fastapi import HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
+from local_newsifier.container import container
 from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 
 
@@ -101,19 +103,22 @@ class TestServiceDependencies:
     
     def test_get_article_service(self):
         """Test that get_article_service returns the service from the container."""
+        # This test is primarily checking the legacy container path
+        # For the new injectable path, we add more comprehensive tests separately
+        
         mock_service = Mock()
         
-        with patch("local_newsifier.api.dependencies.container") as mock_container:
-            # Set up the mock container to return our mock service
-            mock_container.get.return_value = mock_service
-            
-            # Get the service
-            service = get_article_service()
-            
-            # Verify the service is what we expect
-            assert service is mock_service
-            assert mock_container.get.called
-            assert mock_container.get.call_args[0][0] == "article_service"
+        # Patch the importlib.import_module call to raise ImportError
+        with patch.object(importlib, 'import_module', side_effect=ImportError):
+            # Patch the container.get call to return our mock service
+            with patch.object(container, 'get', return_value=mock_service):
+                # Call the function under test
+                result = get_article_service()
+                
+                # Verify we got the service from the container
+                assert result is mock_service
+                assert container.get.call_count > 0
+                assert "article_service" in [call[0][0] for call in container.get.call_args_list]
     
     def test_get_rss_feed_service(self):
         """Test that get_rss_feed_service returns the service from the container."""

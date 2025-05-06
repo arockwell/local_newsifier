@@ -420,8 +420,7 @@ def register_services(container):
             article_crud=c.get("article_crud"),
             analysis_result_crud=c.get("analysis_result_crud"),
             entity_service=c.get("entity_service"),  # Will be lazily loaded
-            session_factory=c.get("session_factory"),
-            container=c  # Inject the container itself
+            session_factory=c.get("session_factory")
         )
     )
     
@@ -431,8 +430,7 @@ def register_services(container):
             rss_feed_crud=c.get("rss_feed_crud"),
             feed_processing_log_crud=c.get("feed_processing_log_crud"),
             article_service=c.get("article_service"),  # Will be lazily loaded
-            session_factory=c.get("session_factory"),
-            container=c  # Inject the container itself
+            session_factory=c.get("session_factory")
         )
     )
     
@@ -440,6 +438,22 @@ def register_services(container):
     container.register_factory("apify_service", 
         lambda c: ApifyService()
     )
+    
+    # Import at runtime to avoid circular imports
+    try:
+        from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+        
+        # ApifySourceConfigService
+        container.register_factory("apify_source_config_service", 
+            lambda c: ApifySourceConfigService(
+                apify_source_config_crud=c.get("apify_source_config_crud"),
+                apify_service=c.get("apify_service"),
+                session_factory=c.get("session_factory")
+            )
+        )
+    except ImportError as e:
+        # Log error but continue initialization
+        logger.error(f"Error registering ApifySourceConfigService: {e}")
 
 
 def register_flows(container):
