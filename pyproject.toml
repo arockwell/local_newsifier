@@ -58,7 +58,8 @@ testpaths = ["tests"]
 norecursedirs = ["scripts"]
 python_files = ["test_*.py", "*_test.py"]
 
-# Configure test execution
+# Configure parallel test execution with xdist
+# Run tests in parallel by default (auto-detect CPU count)
 addopts = "-xvs"
 
 # Define custom markers for test categorization
