@@ -78,7 +78,8 @@ def get_article_service() -> ArticleService:
     """
     try:
         # Use importlib to dynamically import the provider module
-        from local_newsifier.di.providers import get_article_service as get_injectable_service
+        providers_module = importlib.import_module("local_newsifier.di.providers")
+        get_injectable_service = getattr(providers_module, "get_article_service")
         from local_newsifier.database.engine import get_session
         
         # First try to get from injectable providers
