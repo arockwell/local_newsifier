@@ -51,17 +51,39 @@ class RSSFeedService:
         Returns:
             Active database session using the provided session factory,
             or falling back to the one from the container if available.
+            
+        Raises:
+            ValueError: If no valid session factory is available
         """
+        # Try using the provided session factory first
         if self.session_factory:
-            return self.session_factory()
+            try:
+                return self.session_factory()
+            except Exception as e:
+                logger.warning(f"Error using provided session factory: {str(e)}")
+                # Continue to fallbacks
             
-        # Get session factory from container as fallback
-        if self.container and self.container.get("session_factory"):
-            return self.container.get("session_factory")()
+        # Try getting session factory from container
+        if self.container:
+            try:
+                session_factory = self.container.get("session_factory")
+                if session_factory:
+                    return session_factory()
+            except Exception as e:
+                logger.warning(f"Error getting session factory from container: {str(e)}")
+                # Continue to fallbacks
+        
+        # Direct import fallback for backward compatibility
+        # This is needed to maintain compatibility with existing tests
+        try:
+            from local_newsifier.database.engine import get_session
+            return next(get_session())
+        except Exception as e:
+            logger.error(f"All session factory fallbacks failed: {str(e)}")
             
-        # If no session factory is available, raise an exception
-        # This is cleaner than having a direct import fallback
-        raise ValueError("No session factory available. Please provide a session factory.")
+        # If all fallbacks fail, raise a clear error
+        raise ValueError("No working session factory available. Please provide a valid session factory.")
+
 
 
     @handle_database
