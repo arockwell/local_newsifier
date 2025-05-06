@@ -50,9 +50,6 @@ class ApifyService:
 
         Returns:
             Dict[str, Any]: Actor run results
-
-        Raises:
-            ServiceError: On Apify API errors with appropriate classification
         """
         # This will raise a clear error if token is missing via the client property
         return self.client.actor(actor_id).call(run_input=run_input)
@@ -405,9 +402,6 @@ class ApifyService:
 
         Returns:
             Dict[str, Any]: Dataset items in format {"items": [...], "error": "..."}
-
-        Raises:
-            ServiceError: On Apify API errors with appropriate classification
         """
         # Handle API call exceptions gracefully
         try:
@@ -435,8 +429,5 @@ class ApifyService:
 
         Returns:
             Dict[str, Any]: Actor details
-
-        Raises:
-            ServiceError: On Apify API errors with appropriate classification
         """
         return self.client.actor(actor_id).get()

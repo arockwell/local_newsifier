@@ -73,9 +73,6 @@ class RSSFeedService:
 
         Returns:
             Feed data as dict if found, None otherwise
-            
-        Raises:
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         feed = self.rss_feed_crud.get(session, id=feed_id)
@@ -92,9 +89,6 @@ class RSSFeedService:
 
         Returns:
             Feed data as dict if found, None otherwise
-            
-        Raises:
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         feed = self.rss_feed_crud.get_by_url(session, url=url)
@@ -115,9 +109,6 @@ class RSSFeedService:
 
         Returns:
             List of feed data as dicts
-            
-        Raises:
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         if active_only:
@@ -140,7 +131,6 @@ class RSSFeedService:
 
         Raises:
             ValueError: If feed with the URL already exists
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         
@@ -182,9 +172,6 @@ class RSSFeedService:
 
         Returns:
             Updated feed data as dict if found, None otherwise
-            
-        Raises:
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         
@@ -215,9 +202,6 @@ class RSSFeedService:
 
         Returns:
             Removed feed data as dict if found, None otherwise
-            
-        Raises:
-            ServiceError: On database errors with appropriate classification
         """
         session = self._get_session()
         
@@ -247,9 +231,6 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
-            
-        Raises:
-            ServiceError: On RSS or database errors with appropriate classification
         """
         session = self._get_session()
         
