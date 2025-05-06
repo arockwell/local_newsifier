@@ -850,6 +850,7 @@ def test_process_feed_success(mock_parse_rss_feed, mock_db_session, mock_session
 def test_process_feed_feed_not_found(mock_db_session, mock_session_factory):
     """Test handling when feed is not found."""
     # Arrange
+    from local_newsifier.errors.rss_error import RSSError
     feed_id = 999
     
     # Mock RSS feed - not found
@@ -864,20 +865,19 @@ def test_process_feed_feed_not_found(mock_db_session, mock_session_factory):
         session_factory=mock_session_factory
     )
     
-    # Act
-    result = service.process_feed(feed_id)
+    # Act & Assert
+    with pytest.raises(RSSError, match=f"Feed with ID {feed_id} not found"):
+        service.process_feed(feed_id)
     
-    # Assert
+    # Verify method was called
     mock_rss_feed_crud.get.assert_called_once_with(mock_db_session, id=feed_id)
-    
-    assert result["status"] == "error"
-    assert f"Feed with ID {feed_id} not found" in result["message"]
 
 
 @patch('local_newsifier.services.rss_feed_service.parse_rss_feed', side_effect=Exception("Mock parsing error"))
 def test_process_feed_parse_error(mock_parse_rss_feed, mock_db_session, mock_session_factory):
     """Test handling when RSS parsing fails."""
     # Arrange
+    from local_newsifier.errors.rss_error import RSSError
     feed_id = 1
     
     # Mock RSS feed
@@ -907,10 +907,11 @@ def test_process_feed_parse_error(mock_parse_rss_feed, mock_db_session, mock_ses
         session_factory=mock_session_factory
     )
     
-    # Act
-    result = service.process_feed(feed_id)
+    # Act & Assert
+    with pytest.raises(RSSError, match="RSS feed processing error: Mock parsing error"):
+        service.process_feed(feed_id)
     
-    # Assert
+    # Verify method calls
     mock_parse_rss_feed.assert_called_once_with(mock_feed.url)
     mock_feed_processing_log_crud.update_processing_completed.assert_called_once_with(
         mock_db_session,
@@ -918,10 +919,6 @@ def test_process_feed_parse_error(mock_parse_rss_feed, mock_db_session, mock_ses
         status="error",
         error_message="Mock parsing error",
     )
-    
-    assert result["status"] == "error"
-    assert result["feed_id"] == feed_id
-    assert "Mock parsing error" in result["message"]
 
 
 def test_get_feed_processing_logs(mock_db_session, mock_session_factory):

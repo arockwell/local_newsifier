@@ -24,6 +24,7 @@ from local_newsifier.di.providers import (
     get_news_pipeline_flow,
 )
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
+from local_newsifier.errors.rss_error import RSSError
 
 
 @click.group(name="feeds")
@@ -74,29 +75,27 @@ def list_feeds(active_only, json_output, limit, skip):
 @click.argument("url", required=True)
 @click.option("--name", help="Feed name (defaults to URL if not provided)")
 @click.option("--description", help="Feed description")
+@handle_rss_cli_errors
 def add_feed(url, name, description):
     """Add a new feed."""
     feed_name = name or url
     
-    try:
-        rss_feed_service = get_rss_feed_service()
-        feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
-        click.echo(f"Feed added successfully with ID: {feed['id']}")
-    except ValueError as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+    rss_feed_service = get_rss_feed_service()
+    feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
+    click.echo(f"Feed added successfully with ID: {feed['id']}")
 
 
 @feeds_group.command(name="show")
 @click.argument("id", type=int, required=True)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--show-logs", is_flag=True, help="Show processing logs")
+@handle_rss_cli_errors
 def show_feed(id, json_output, show_logs):
     """Show feed details."""
     rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     # Get logs if requested
     logs = []
@@ -159,13 +158,13 @@ def show_feed(id, json_output, show_logs):
 @feeds_group.command(name="remove")
 @click.argument("id", type=int, required=True)
 @click.option("--force", is_flag=True, help="Skip confirmation")
+@handle_rss_cli_errors
 def remove_feed(id, force):
     """Remove a feed."""
     rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     if not force:
         if not click.confirm(f"Are you sure you want to remove feed '{feed['name']}' (ID: {id})?"):
@@ -176,7 +175,7 @@ def remove_feed(id, force):
     if result:
         click.echo(f"Feed '{feed['name']}' (ID: {id}) removed successfully.")
     else:
-        click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
+        raise RSSError(f"Error removing feed with ID {id}")
 
 
 def direct_process_article(article_id):
@@ -228,28 +227,26 @@ def direct_process_article(article_id):
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
+@handle_rss_cli_errors
 def process_feed(id, no_process):
     """Process a specific feed."""
     rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
     
     # Use direct processing function if not skipping processing
     task_func = None if no_process else direct_process_article
     
+    # Process the feed - this will raise RSSError if there is an issue
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
     
-    if result["status"] == "success":
-        click.echo(click.style("Processing completed successfully!", fg="green"))
-        click.echo(f"Articles found: {result['articles_found']}")
-        click.echo(f"Articles added: {result['articles_added']}")
-    else:
-        click.echo(click.style("Processing failed.", fg="red"), err=True)
-        click.echo(click.style(f"Error: {result['message']}", fg="red"), err=True)
+    # If we get here, processing was successful
+    click.echo(click.style("Processing completed successfully!", fg="green"))
+    click.echo(f"Articles found: {result['articles_found']}")
+    click.echo(f"Articles added: {result['articles_added']}")
 
 
 @feeds_group.command(name="update")
@@ -257,13 +254,13 @@ def process_feed(id, no_process):
 @click.option("--name", help="New feed name")
 @click.option("--description", help="New feed description")
 @click.option("--active/--inactive", help="Set feed active or inactive")
+@handle_rss_cli_errors
 def update_feed(id, name, description, active):
     """Update feed properties."""
     rss_feed_service = get_rss_feed_service()
     feed = rss_feed_service.get_feed(id)
     if not feed:
-        click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
-        return
+        raise RSSError(f"Feed with ID {id} not found")
     
     # Check if at least one property to update was provided
     if name is None and description is None and active is None:
@@ -285,7 +282,7 @@ def update_feed(id, name, description, active):
     if updated_feed:
         click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
     else:
-        click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
+        raise RSSError(f"Error updating feed with ID {id}")
 
 
 @feeds_group.command(name="fetch")
@@ -321,13 +318,16 @@ def fetch_feeds(no_process, active_only):
                           item_show_func=lambda f: f["name"] if f else "") as feed_list:
         for feed in feed_list:
             try:
+                # Process the feed - if successful, we get a result dict
                 result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
-                if result["status"] == "success":
-                    successful += 1
-                else:
-                    failed += 1
-            except Exception as e:
+                successful += 1
+            except RSSError as e:
+                # Specific handling for RSS errors - capture the error message
                 click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
+                failed += 1
+            except Exception as e:
+                # Generic error handling for other exceptions
+                click.echo(f"\nUnexpected error processing feed '{feed['name']}': {str(e)}", err=True)
                 failed += 1
     
     # Show summary
@@ -339,4 +339,4 @@ def fetch_feeds(no_process, active_only):
     elif successful > 0:
         click.echo(click.style(f"Partially successful: {successful}/{total} feeds processed", fg="yellow"))
     else:
-        click.echo(click.style("Failed to process any feeds", fg="red"), err=True)
+        raise RSSError("Failed to process any feeds")

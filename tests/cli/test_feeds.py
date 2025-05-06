@@ -94,14 +94,15 @@ def test_feeds_add(mock_rss_feed_service, sample_feed):
 def test_feeds_add_error(mock_rss_feed_service):
     """Test the feeds add command with an error."""
     # Setup mock
-    mock_rss_feed_service.create_feed.side_effect = ValueError("Feed already exists")
+    from local_newsifier.errors.rss_error import RSSError
+    mock_rss_feed_service.create_feed.side_effect = RSSError("Feed already exists")
     
     # Run command
     runner = CliRunner()
     result = runner.invoke(cli, ["feeds", "add", "https://example.com/feed.xml"])
     
     # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for ValueError
+    assert result.exit_code == 1  # Now exits with an error code
     assert "Error" in result.output
     assert "Feed already exists" in result.output
 
@@ -156,6 +157,7 @@ def test_feeds_show_with_logs(mock_rss_feed_service, sample_feed):
 def test_feeds_show_not_found(mock_rss_feed_service):
     """Test the feeds show command with a non-existent feed."""
     # Setup mock
+    from local_newsifier.errors.rss_error import RSSError
     mock_rss_feed_service.get_feed.return_value = None
     
     # Run command
@@ -163,7 +165,7 @@ def test_feeds_show_not_found(mock_rss_feed_service):
     result = runner.invoke(cli, ["feeds", "show", "999"])
     
     # Verify
-    assert result.exit_code == 0  # CLI doesn't exit with an error for not found
+    assert result.exit_code == 1  # CLI exits with error code when feed not found
     assert "Error" in result.output
     assert "not found" in result.output
     mock_rss_feed_service.get_feed.assert_called_once_with(999)
@@ -214,7 +216,6 @@ def test_feeds_process(mock_rss_feed_service, sample_feed):
     # Setup mock
     mock_rss_feed_service.get_feed.return_value = sample_feed
     mock_rss_feed_service.process_feed.return_value = {
-        "status": "success",
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 10,
@@ -243,7 +244,6 @@ def test_feeds_fetch(mock_rss_feed_service, sample_feed):
     # Setup mock
     mock_rss_feed_service.list_feeds.return_value = [sample_feed, sample_feed.copy()]
     mock_rss_feed_service.process_feed.return_value = {
-        "status": "success",
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 5,
@@ -265,6 +265,8 @@ def test_feeds_fetch(mock_rss_feed_service, sample_feed):
 def test_feeds_fetch_with_errors(mock_rss_feed_service, sample_feed):
     """Test the feeds fetch command with a failing feed."""
     # Setup mocks
+    from local_newsifier.errors.rss_error import RSSError
+    
     feed1 = sample_feed
     feed2 = sample_feed.copy()
     feed2["id"] = 2
@@ -272,23 +274,17 @@ def test_feeds_fetch_with_errors(mock_rss_feed_service, sample_feed):
     
     mock_rss_feed_service.list_feeds.return_value = [feed1, feed2]
     
-    # Make the first feed succeed and the second fail
+    # Make the first feed succeed and the second fail with RSSError
     def process_feed_side_effect(feed_id, task_queue_func=None):
         if feed_id == 1:
             return {
-                "status": "success",
                 "feed_id": 1,
                 "feed_name": "Test Feed",
                 "articles_found": 5,
                 "articles_added": 3,
             }
         else:
-            return {
-                "status": "error",
-                "feed_id": 2,
-                "feed_name": "Test Feed 2",
-                "message": "Failed to fetch",
-            }
+            raise RSSError("Failed to fetch")
     
     mock_rss_feed_service.process_feed.side_effect = process_feed_side_effect
     

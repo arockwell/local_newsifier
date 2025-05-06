@@ -78,7 +78,6 @@ def test_feeds_process_with_injectable(sample_feed):
     mock_rss_service = MagicMock()
     mock_rss_service.get_feed.return_value = sample_feed
     mock_rss_service.process_feed.return_value = {
-        "status": "success", 
         "feed_id": 1,
         "feed_name": "Test Feed",
         "articles_found": 10,

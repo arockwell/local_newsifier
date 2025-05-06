@@ -218,21 +218,26 @@ class RSSFeedService:
 
         Returns:
             Result information including processed feed and article counts
+            
+        Raises:
+            RSSError: If feed not found or processing fails
         """
+        from local_newsifier.errors.rss_error import RSSError
+        
         session = self._get_session()
         
         # Get feed
         feed = self.rss_feed_crud.get(session, id=feed_id)
         if not feed:
-            return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
+            raise RSSError(f"Feed with ID {feed_id} not found")
         
         # Create processing log
         log = self.feed_processing_log_crud.create_processing_started(
             session, feed_id=feed_id
         )
         
-        # Parse the RSS feed
         try:
+            # Parse the RSS feed
             feed_data = parse_rss_feed(feed.url)
             
             articles_found = len(feed_data.get("entries", []))
@@ -282,7 +287,7 @@ class RSSFeedService:
                             article_id = temp_article_service.create_article_from_rss_entry(entry)
                         except Exception as temp_e:
                             logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
+                            raise RSSError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
                     
                     if article_id:
                         # Queue article processing
@@ -315,7 +320,6 @@ class RSSFeedService:
             )
             
             return {
-                "status": "success",
                 "feed_id": feed_id,
                 "feed_name": feed.name,
                 "articles_found": articles_found,
@@ -333,12 +337,12 @@ class RSSFeedService:
                 error_message=str(e),
             )
             
-            return {
-                "status": "error",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "message": str(e),
-            }
+            # Re-raise as RSSError if it's not already
+            if not isinstance(e, RSSError):
+                raise RSSError(f"RSS feed processing error: {str(e)}", e)
+            
+            # Otherwise just re-raise
+            raise
 
     def get_feed_processing_logs(
         self, feed_id: int, skip: int = 0, limit: int = 100
