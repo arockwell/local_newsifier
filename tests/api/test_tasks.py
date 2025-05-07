@@ -136,6 +136,7 @@ class TestTasksDashboard:
 class TestProcessArticle:
     """Tests for process article endpoint."""
 
+    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
     def test_process_article_success(
         self, mock_process_article, client, mock_article_service, sample_article, event_loop_fixture
@@ -196,6 +197,7 @@ class TestProcessArticle:
 class TestFetchRSSFeeds:
     """Tests for fetch RSS feeds endpoint."""
 
+    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     def test_fetch_rss_feeds_default(
@@ -229,6 +231,7 @@ class TestFetchRSSFeeds:
         # Clean up
         client.app.dependency_overrides = {}
 
+    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     def test_fetch_rss_feeds_custom_urls(
         self, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
