@@ -8,6 +8,14 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
 from unittest.mock import MagicMock, patch
 
+# Mock spacy before importing TrendAnalyzer
+mock_nlp = MagicMock()
+mock_doc = MagicMock()
+mock_doc.noun_chunks = []
+mock_doc.ents = []
+mock_nlp.return_value = mock_doc
+patch('spacy.load', return_value=mock_nlp).start()
+
 import pytest
 from sqlmodel import Session, select
 
@@ -28,7 +36,10 @@ class TestTrendAnalyzerImplementation:
     @pytest.fixture
     def trend_analyzer(self):
         """Create a TrendAnalyzer instance."""
-        return TrendAnalyzer()
+        # Create analyzer with mocked NLP (nlp will be non-None so it will use NLP-based extraction)
+        analyzer = TrendAnalyzer()
+        analyzer.nlp = mock_nlp
+        return analyzer
 
     @pytest.fixture
     def sample_articles(self, db_session):
@@ -75,6 +86,36 @@ class TestTrendAnalyzerImplementation:
             "Machine learning models help doctors analyze data"
         ]
         
+        # Set up mock to return some meaningful noun chunks and entities
+        mock_doc = MagicMock()
+        mock_nlp = trend_analyzer.nlp
+        
+        # Create mock noun chunks
+        mock_chunk1 = MagicMock()
+        mock_chunk1.text = "artificial intelligence"
+        mock_chunk1.__iter__.return_value = []  # No stop words
+        
+        mock_chunk2 = MagicMock()
+        mock_chunk2.text = "machine learning"
+        mock_chunk2.__iter__.return_value = []  # No stop words
+        
+        # Create mock entities
+        mock_entity1 = MagicMock()
+        mock_entity1.text = "AI"
+        mock_entity1.label_ = "ORG"
+        
+        mock_entity2 = MagicMock()
+        mock_entity2.text = "healthcare"
+        mock_entity2.label_ = "PERSON"
+        
+        # Set up the doc mock with chunks and entities
+        mock_doc.noun_chunks = [mock_chunk1, mock_chunk2]
+        mock_doc.ents = [mock_entity1, mock_entity2]
+        
+        # Update the mock NLP return value
+        mock_nlp.return_value = mock_doc
+        
+        # Run the test
         keywords = trend_analyzer.extract_keywords(headlines)
         
         # Verify keywords were extracted (should be a list of tuples)
