@@ -380,25 +380,11 @@ class TestMigration:
         """Test lifespan context manager."""
         # Arrange
         app = FastAPI()
-        register_app_mock = AsyncMock()
-        migrate_mock = AsyncMock()
         
-        # Create a mock async context manager
-        class MockAsyncContextManager:
-            async def __aenter__(self):
-                # This would run on startup
-                return None
-                
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                # This would run on shutdown
-                return None
-                
-        # Mock the lifespan function to return our mock context manager
-        with patch('local_newsifier.fastapi_injectable_adapter.lifespan_with_injectable', 
-                  return_value=MockAsyncContextManager()) as lifespan_mock:
+        # Act
+        # Just verify the function returns something without error
+        result = lifespan_with_injectable(app)
         
-            # Act - just verify the lifespan can be created
-            ctx_manager = lifespan_with_injectable(app)
-            
-            # Assert
-            assert isinstance(ctx_manager, MockAsyncContextManager)
+        # Assert it's a context manager (has __enter__ and __exit__)
+        assert hasattr(result, "__aenter__")
+        assert hasattr(result, "__aexit__")
