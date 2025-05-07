@@ -43,28 +43,20 @@ def flow_with_mocks(mock_session, mock_analysis_service):
 
 
 @pytest.mark.skip(reason="Skip due to database connectivity requirements. HeadlineTrendFlow initializes AnalysisService which requires database access. Will require database mocking solution.")
-def test_init_with_session(mock_session):
+def test_init_with_session(mock_session, mock_analysis_service):
     """Test initialization with provided session."""
-    flow = HeadlineTrendFlow(session=mock_session)
-    assert flow.session == mock_session
-    assert not flow._owns_session
+    flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service)
+    
+    assert flow.session is mock_session
+    assert flow.analysis_service is mock_analysis_service
+    assert flow._owns_session is False
 
 
 @pytest.mark.skip(reason="Skip due to database connectivity requirements. HeadlineTrendFlow initializes AnalysisService which requires database access. Will require database mocking solution.")
 def test_init_without_session():
     """Test initialization without session."""
-    # Create a mock version of dependencies that our test can control
-    mock_crud_modules = {
-        'analysis_result': MagicMock(),
-        'article': MagicMock(),
-        'entity': MagicMock(),
-    }
-    
-    # Set up all necessary patches to prevent database access
-    with patch("local_newsifier.database.engine.get_session") as mock_get_session, \
-         patch("local_newsifier.services.analysis_service.AnalysisService", autospec=True) as mock_analysis_service_class, \
-         patch("local_newsifier.flows.analysis.headline_trend_flow.AnalysisService") as mock_flow_analysis_service:
-        
+    # Set up necessary patches to prevent database access
+    with patch("local_newsifier.database.engine.get_session") as mock_get_session:
         # Create a proper mock session that the flow can use
         mock_session = MagicMock()
         # Make the get_session mock return a generator that yields our mock session
@@ -72,27 +64,12 @@ def test_init_without_session():
         mock_session_generator.__next__ = MagicMock(return_value=mock_session)
         mock_get_session.return_value = mock_session_generator
         
-        # Create real dependencies when the HeadlineTrendFlow instantiates the AnalysisService
-        def factory_side_effect(*args, **kwargs):
-            # Return our mocked session when creating a lambda factory
-            if 'session_factory' in kwargs:
-                # When the flow creates the analysis service with session_factory
-                return MagicMock()
-            return MagicMock()
-            
-        mock_flow_analysis_service.side_effect = factory_side_effect
-        
         # Now create the flow without providing a session
-        flow = HeadlineTrendFlow()
+        flow = HeadlineTrendFlow(analysis_service=MagicMock())
         
         # Verify the flow owns the session
         assert flow._owns_session
         assert flow.session is mock_session
-        
-        # Verify the analysis service was created with the right session factory
-        mock_flow_analysis_service.assert_called_once()
-        kwargs = mock_flow_analysis_service.call_args.kwargs
-        assert 'session_factory' in kwargs
 
 
 def test_analyze_recent_trends(flow_with_mocks):

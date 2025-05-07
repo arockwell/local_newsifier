@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import importlib
 from typing import Generator
 
 from fastapi import HTTPException, Request, status
@@ -70,7 +71,7 @@ def get_session() -> Generator[Session, None, None]:
 
 
 def get_article_service() -> ArticleService:
-    """Get the article service from the container.
+    """Get the article service.
 
     Returns:
         ArticleService: The article service instance
