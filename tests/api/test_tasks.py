@@ -136,6 +136,7 @@ class TestTasksDashboard:
 class TestProcessArticle:
     """Tests for process article endpoint."""
 
+    # Keep the ci_skip_async decorator for this test until we can fully fix it
     @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
     def test_process_article_success(
@@ -197,7 +198,6 @@ class TestProcessArticle:
 class TestFetchRSSFeeds:
     """Tests for fetch RSS feeds endpoint."""
 
-    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     def test_fetch_rss_feeds_default(
@@ -211,27 +211,31 @@ class TestFetchRSSFeeds:
         mock_task.id = "test-task-id"
         mock_fetch_rss_feeds.delay.return_value = mock_task
 
-        # Register the dependency override
-        client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
+        # Set up mock for any async operations
+        with patch("fastapi_injectable.concurrency.run_coroutine_sync") as mock_run_coroutine:
+            # Setup the mock to avoid actual asyncio operations
+            mock_run_coroutine.return_value = mock_rss_feed_service
+        
+            # Register the dependency override
+            client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
 
-        # Make the request
-        response = client.post("/tasks/fetch-rss-feeds")
+            # Make the request
+            response = client.post("/tasks/fetch-rss-feeds")
 
-        # Verify response
-        assert response.status_code == 200
-        response_data = response.json()
-        assert response_data["task_id"] == "test-task-id"
-        assert response_data["feed_count"] == len(mock_settings.RSS_FEED_URLS)
-        assert response_data["status"] == "queued"
-        assert response_data["task_url"] == f"/tasks/status/test-task-id"
+            # Verify response
+            assert response.status_code == 200
+            response_data = response.json()
+            assert response_data["task_id"] == "test-task-id"
+            assert response_data["feed_count"] == len(mock_settings.RSS_FEED_URLS)
+            assert response_data["status"] == "queued"
+            assert response_data["task_url"] == f"/tasks/status/test-task-id"
 
-        # Verify mocks were called
-        mock_fetch_rss_feeds.delay.assert_called_once_with(mock_settings.RSS_FEED_URLS)
+            # Verify mocks were called
+            mock_fetch_rss_feeds.delay.assert_called_once_with(mock_settings.RSS_FEED_URLS)
 
-        # Clean up
-        client.app.dependency_overrides = {}
+            # Clean up
+            client.app.dependency_overrides = {}
 
-    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     def test_fetch_rss_feeds_custom_urls(
         self, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
@@ -244,25 +248,30 @@ class TestFetchRSSFeeds:
         mock_task.id = "test-task-id"
         mock_fetch_rss_feeds.delay.return_value = mock_task
 
-        # Register the dependency override
-        client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
+        # Set up mock for any async operations
+        with patch("fastapi_injectable.concurrency.run_coroutine_sync") as mock_run_coroutine:
+            # Setup the mock to avoid actual asyncio operations
+            mock_run_coroutine.return_value = mock_rss_feed_service
+        
+            # Register the dependency override
+            client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
 
-        # Make the request
-        response = client.post("/tasks/fetch-rss-feeds", params={"feed_urls": custom_feeds})
+            # Make the request
+            response = client.post("/tasks/fetch-rss-feeds", params={"feed_urls": custom_feeds})
 
-        # Verify response
-        assert response.status_code == 200
-        response_data = response.json()
-        assert response_data["task_id"] == "test-task-id"
-        assert response_data["feed_count"] == len(custom_feeds)
-        assert response_data["status"] == "queued"
-        assert response_data["task_url"] == f"/tasks/status/test-task-id"
+            # Verify response
+            assert response.status_code == 200
+            response_data = response.json()
+            assert response_data["task_id"] == "test-task-id"
+            assert response_data["feed_count"] == len(custom_feeds)
+            assert response_data["status"] == "queued"
+            assert response_data["task_url"] == f"/tasks/status/test-task-id"
 
-        # Verify mocks were called
-        mock_fetch_rss_feeds.delay.assert_called_once_with(custom_feeds)
+            # Verify mocks were called
+            mock_fetch_rss_feeds.delay.assert_called_once_with(custom_feeds)
 
-        # Clean up
-        client.app.dependency_overrides = {}
+            # Clean up
+            client.app.dependency_overrides = {}
 
 
 class TestTaskStatus:

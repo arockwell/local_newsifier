@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.models.analysis_result import AnalysisResult
@@ -114,9 +114,8 @@ class TestAnalysisService:
             ),
         ]
 
-    @ci_skip("Event loop issues in CI")
     def test_analyze_headline_trends(
-        self, service, mock_session, mock_article_crud, mock_trend_analyzer, sample_articles, event_loop_fixture
+        self, service, mock_session, mock_article_crud, mock_trend_analyzer, sample_articles
     ):
         """Test analysis of headline trends."""
         # Setup mocks
@@ -132,6 +131,10 @@ class TestAnalysisService:
             }
         ]
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'analyze_headline_trends_async'):
+            service.analyze_headline_trends_async = AsyncMock()
+            
         # Call the method
         start_date = datetime.now(timezone.utc) - timedelta(days=7)
         end_date = datetime.now(timezone.utc)
@@ -150,14 +153,17 @@ class TestAnalysisService:
         mock_trend_analyzer.extract_keywords.assert_called()
         mock_trend_analyzer.detect_keyword_trends.assert_called_once()
 
-    @ci_skip("Event loop issues in CI")
     def test_analyze_headline_trends_empty(
-        self, service, mock_session, mock_article_crud, mock_trend_analyzer, event_loop_fixture
+        self, service, mock_session, mock_article_crud, mock_trend_analyzer
     ):
         """Test analysis of headline trends with no articles."""
         # Setup mocks
         mock_article_crud.get_by_date_range.return_value = []
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'analyze_headline_trends_async'):
+            service.analyze_headline_trends_async = AsyncMock()
+            
         # Call the method
         start_date = datetime.now(timezone.utc) - timedelta(days=7)
         end_date = datetime.now(timezone.utc)
@@ -167,7 +173,6 @@ class TestAnalysisService:
         assert "error" in result
         assert result["error"] == "No headlines found in the specified period"
 
-    @ci_skip("Event loop issues in CI")
     def test_detect_entity_trends(
         self,
         service,
@@ -176,8 +181,7 @@ class TestAnalysisService:
         mock_article_crud,
         mock_trend_analyzer,
         sample_entities,
-        sample_articles,
-        event_loop_fixture
+        sample_articles
     ):
         """Test detection of entity trends."""
         # Setup mocks
@@ -193,6 +197,10 @@ class TestAnalysisService:
         )
         mock_trend_analyzer.detect_entity_trends.return_value = [sample_trend]
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'detect_entity_trends_async'):
+            service.detect_entity_trends_async = AsyncMock()
+            
         # Call the method
         result = service.detect_entity_trends(
             entity_types=["PERSON", "ORG", "GPE"]
@@ -208,9 +216,8 @@ class TestAnalysisService:
         mock_article_crud.get_by_date_range.assert_called_once()
         mock_trend_analyzer.detect_entity_trends.assert_called_once()
 
-    @ci_skip("Event loop issues in CI")
     def test_save_analysis_result(
-        self, service, mock_session, mock_analysis_result_crud, event_loop_fixture
+        self, service, mock_session, mock_analysis_result_crud
     ):
         """Test saving an analysis result."""
         # Setup mock for non-existing result
@@ -221,6 +228,10 @@ class TestAnalysisService:
         analysis_type = "headline_trend"
         results = {"trending_terms": [{"term": "mayor", "growth_rate": 1.0}]}
         
+        # Patch any async methods if they exist
+        if hasattr(service, '_save_analysis_result_async'):
+            service._save_analysis_result_async = AsyncMock()
+            
         service._save_analysis_result(
             mock_session, article_id, analysis_type, results
         )
@@ -233,9 +244,8 @@ class TestAnalysisService:
         mock_session.commit.assert_called_once()
         mock_session.refresh.assert_called_once()
 
-    @ci_skip("Event loop issues in CI")
     def test_save_analysis_result_existing(
-        self, service, mock_session, mock_analysis_result_crud, event_loop_fixture
+        self, service, mock_session, mock_analysis_result_crud
     ):
         """Test updating an existing analysis result."""
         # Setup mock for existing result
@@ -246,6 +256,10 @@ class TestAnalysisService:
         )
         mock_analysis_result_crud.get_by_article_and_type.return_value = existing_result
         
+        # Patch any async methods if they exist
+        if hasattr(service, '_save_analysis_result_async'):
+            service._save_analysis_result_async = AsyncMock()
+            
         # Call the method
         article_id = 1
         analysis_type = "headline_trend"
@@ -263,9 +277,8 @@ class TestAnalysisService:
         mock_session.commit.assert_called_once()
         mock_session.refresh.assert_called_once()
 
-    @ci_skip("Event loop issues in CI")
     def test_get_analysis_result(
-        self, service, mock_session, mock_analysis_result_crud, event_loop_fixture
+        self, service, mock_session, mock_analysis_result_crud
     ):
         """Test getting an analysis result."""
         # Setup mock
@@ -276,6 +289,10 @@ class TestAnalysisService:
         )
         mock_analysis_result_crud.get_by_article_and_type.return_value = expected_result
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'get_analysis_result_async'):
+            service.get_analysis_result_async = AsyncMock()
+            
         # Call the method
         result = service.get_analysis_result(1, "headline_trend")
         
