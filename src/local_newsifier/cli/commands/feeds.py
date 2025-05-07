@@ -320,7 +320,13 @@ def fetch_feeds(no_process, active_only):
             try:
                 # Process the feed - if successful, we get a result dict
                 result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)
-                successful += 1
+                # Process all cases of success (with or without status field)
+                if isinstance(result, dict) and (result.get("status") == "success" or "status" not in result):
+                    successful += 1
+                else:
+                    # Something unexpected happened
+                    click.echo(f"\nUnexpected result for feed '{feed['name']}'", err=True)
+                    failed += 1
             except RSSError as e:
                 # Specific handling for RSS errors - capture the error message
                 click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
