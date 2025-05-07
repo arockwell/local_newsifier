@@ -261,7 +261,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_run_actor_with_input_file(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the run actor command with input file."""
         # Setup
@@ -303,7 +303,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_run_actor_with_output_file(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the run actor command with output to file."""
         # Setup
@@ -350,7 +350,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_get_dataset(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the get dataset command."""
         # Setup
@@ -383,7 +383,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_get_dataset_with_table_format(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the get dataset command with table format."""
         # Setup
@@ -418,7 +418,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_get_actor(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the get actor command."""
         # Setup
@@ -459,7 +459,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_scrape_content(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the scrape content command."""
         # Setup
@@ -511,7 +511,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_scrape_content_with_output(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the scrape content command with output to file."""
         # Setup
@@ -568,7 +568,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_web_scraper(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the web-scraper command."""
         # Setup
@@ -620,7 +620,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_web_scraper_with_options(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the web-scraper command with custom options."""
         # Setup
@@ -684,7 +684,7 @@ class TestApifyCommands:
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_web_scraper_with_output(
-        self, mock_get_client, mock_apify_service, runner, original_token
+        self, mock_get_client, runner, original_token
     ):
         """Test the web-scraper command with output to file."""
         # Setup
