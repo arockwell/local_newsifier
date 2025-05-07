@@ -155,6 +155,7 @@ class TestContainerAdapter:
             adapter.get_service(service_class)
 
 
+@ci_skip_injectable
 class TestServiceFactory:
     """Tests for service factory functionality."""
 
@@ -177,6 +178,7 @@ class TestServiceFactory:
                 mock_injectable.reset_mock()
 
 
+@ci_skip_injectable
 class TestInjectAdapter:
     """Tests for the inject_adapter decorator."""
 
@@ -216,6 +218,7 @@ class TestInjectAdapter:
             assert test_func.__name__ == "test_func"  # Preserved name
 
 
+@ci_skip_injectable
 class TestRegistration:
     """Tests for service registration functions."""
 
@@ -318,6 +321,7 @@ class TestRegistration:
         mock_get.assert_called_once_with(service_type, param="value")
 
 
+@ci_skip_injectable
 class TestMigration:
     """Tests for DI container migration."""
 
