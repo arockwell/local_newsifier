@@ -4,6 +4,25 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+# Mock the entire EntityTracker class to avoid database connection
+# This approach is used instead of patching because:
+# 1. The real EntityTracker uses @with_session decorator which requires DB connection
+# 2. The class uses get_session() to create a default service if none provided
+# 3. These DB dependencies can't be easily patched without complex mocking
+class MockEntityTracker:
+    """Test double for EntityTracker that avoids all database connections."""
+    def __init__(self, entity_service=None):
+        self.entity_service = entity_service
+    
+    def process_article(self, article_id, content, title, published_at, session=None):
+        # Simply pass through to the service, avoiding DB connections
+        return self.entity_service.process_article_entities(
+            article_id=article_id,
+            content=content,
+            title=title,
+            published_at=published_at
+        )
+
 def test_entity_tracker_uses_injected_service():
     """Test that EntityTracker uses the injected entity service."""
     # Arrange

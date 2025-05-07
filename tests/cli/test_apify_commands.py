@@ -79,21 +79,43 @@ def original_token():
 class TestApifyCommands:
     """Test the Apify CLI commands."""
 
-    def test_ensure_token_with_env_var(self, original_token):
+    @patch('os.environ.get')
+    def test_ensure_token_with_env_var(self, mock_environ_get, original_token):
         """Test ensuring the token with the env var."""
+        # Mock environment to not detect pytest
+        mock_environ_get.side_effect = lambda key, default=None: {
+            'PYTEST_CURRENT_TEST': None,
+            'APIFY_TOKEN': 'test_token'
+        }.get(key, default)
+        
+        # Ensure token is set for the test
         os.environ["APIFY_TOKEN"] = "test_token"
         assert _ensure_token() is True
         assert settings.APIFY_TOKEN == "test_token"
 
-    def test_ensure_token_with_settings(self, original_token):
+    @patch('os.environ.get')
+    def test_ensure_token_with_settings(self, mock_environ_get, original_token):
         """Test ensuring the token with settings."""
+        # Mock environment to not detect pytest
+        mock_environ_get.side_effect = lambda key, default=None: {
+            'PYTEST_CURRENT_TEST': None,
+            'APIFY_TOKEN': None 
+        }.get(key, default)
+        
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = "settings_token"
         assert _ensure_token() is True
 
-    def test_ensure_token_missing(self, runner, original_token):
+    @patch('os.environ.get')
+    def test_ensure_token_missing(self, mock_environ_get, runner, original_token):
         """Test ensuring the token when it's missing."""
+        # Mock environment to not detect pytest
+        mock_environ_get.side_effect = lambda key, default=None: {
+            'PYTEST_CURRENT_TEST': None,
+            'APIFY_TOKEN': None
+        }.get(key, default)
+        
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = None
