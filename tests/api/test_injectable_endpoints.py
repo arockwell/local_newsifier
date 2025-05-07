@@ -1,6 +1,5 @@
 """Tests for FastAPI endpoints using fastapi-injectable."""
 
-import os
 import pytest
 from unittest.mock import MagicMock, patch
 from typing import Annotated, Generator
@@ -12,6 +11,7 @@ from fastapi_injectable import injectable, register_app
 from sqlmodel import Session
 
 from tests.fixtures.event_loop import event_loop_fixture, injectable_app, injectable_service_fixture
+from tests.ci_skip_config import ci_skip_async
 
 
 class MockInjectableEntityService:
@@ -77,10 +77,7 @@ def client(test_app):
     return TestClient(test_app)
 
 
-@pytest.mark.skipif(
-    os.environ.get('CI') == 'true', 
-    reason="Skipped in CI due to event loop issues in GitHub Actions environment"
-)
+@ci_skip_async
 def test_injectable_endpoint(client, mock_injectable_entity_service):
     """Test an endpoint using injectable dependencies."""
     # Arrange
@@ -97,10 +94,7 @@ def test_injectable_endpoint(client, mock_injectable_entity_service):
 
 
 # Test middleware and lifespan usage with fastapi-injectable adapter
-@pytest.mark.skipif(
-    os.environ.get('CI') == 'true', 
-    reason="Skipped in CI due to event loop issues in GitHub Actions environment"
-)
+@ci_skip_async
 def test_injectable_app_lifespan(event_loop_fixture):
     """Test using the injectable app lifespan context manager."""
     # Arrange

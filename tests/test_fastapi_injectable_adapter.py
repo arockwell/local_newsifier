@@ -1,12 +1,12 @@
 """Tests for the fastapi-injectable adapter."""
 
-import os
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 import inspect
 from typing import Annotated, Any, Optional, Type, TypeVar
 
 from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip, ci_skip_async, ci_skip_injectable
 
 from fastapi import FastAPI, Depends
 
@@ -45,10 +45,7 @@ def mock_di_container():
 class TestContainerAdapter:
     """Tests for the ContainerAdapter class."""
 
-    @pytest.mark.skipif(
-        os.environ.get('CI') == 'true', 
-        reason="Skipped in CI due to container lookup issues in GitHub Actions environment"
-    )
+    @ci_skip_injectable
     def test_get_service_direct_match(self, mock_di_container):
         """Test getting a service with a direct name match."""
         # Arrange
@@ -67,10 +64,7 @@ class TestContainerAdapter:
         assert result is service
         mock_di_container.get.assert_any_call("test_service")
 
-    @pytest.mark.skipif(
-        os.environ.get('CI') == 'true', 
-        reason="Skipped in CI due to container lookup issues in GitHub Actions environment"
-    )
+    @ci_skip_injectable
     def test_get_service_with_module_prefix(self, mock_di_container):
         """Test getting a service with a module name prefix."""
         # Arrange
@@ -94,10 +88,7 @@ class TestContainerAdapter:
         assert result is service
         mock_di_container.get.assert_any_call("test_module_test_service")
 
-    @pytest.mark.skipif(
-        os.environ.get('CI') == 'true', 
-        reason="Skipped in CI due to container lookup issues in GitHub Actions environment"
-    )
+    @ci_skip_injectable
     def test_get_service_by_type(self, mock_di_container):
         """Test getting a service by checking type."""
         # Arrange
@@ -119,10 +110,7 @@ class TestContainerAdapter:
         # Assert
         assert result is service
 
-    @pytest.mark.skipif(
-        os.environ.get('CI') == 'true', 
-        reason="Skipped in CI due to container lookup issues in GitHub Actions environment"
-    )
+    @ci_skip_injectable
     def test_get_service_from_factory(self, mock_di_container):
         """Test getting a service by creating it from a factory."""
         # Arrange
@@ -149,10 +137,7 @@ class TestContainerAdapter:
         assert result is service
         mock_di_container._create_service.assert_called()
 
-    @pytest.mark.skipif(
-        os.environ.get('CI') == 'true', 
-        reason="Skipped in CI due to container lookup issues in GitHub Actions environment"
-    )
+    @ci_skip_injectable
     def test_get_service_not_found(self, mock_di_container):
         """Test error when service is not found."""
         # Arrange
@@ -335,7 +320,7 @@ class TestRegistration:
 class TestMigration:
     """Tests for DI container migration."""
 
-    @pytest.mark.skip(reason="Issues with fastapi-injectable, to be fixed in a separate PR")
+    @ci_skip("Issues with fastapi-injectable bulk service registration")
     def test_register_bulk_services_functionality(self, mock_di_container):
         """Test bulk service registration functionality."""
         # Arrange
