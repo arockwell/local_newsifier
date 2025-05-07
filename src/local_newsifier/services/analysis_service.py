@@ -1,27 +1,28 @@
 """Service layer for analysis operations."""
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Callable
 
 from sqlmodel import Session
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
-from local_newsifier.crud.analysis_result import analysis_result
-from local_newsifier.crud.article import article
-from local_newsifier.crud.entity import entity
-from local_newsifier.database.engine import SessionManager, get_session
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
 
+@injectable(use_cache=False)
 class AnalysisService:
     """Service for analyzing news data and managing analysis results."""
 
     def __init__(
         self,
-        analysis_result_crud=None,
-        article_crud=None,
-        entity_crud=None,
-        session_factory=None
+        analysis_result_crud,
+        article_crud,
+        entity_crud,
+        trend_analyzer,
+        session_factory: Callable
     ):
         """Initialize the analysis service.
 
@@ -29,23 +30,14 @@ class AnalysisService:
             analysis_result_crud: CRUD component for analysis results
             article_crud: CRUD component for articles
             entity_crud: CRUD component for entities
+            trend_analyzer: Tool for trend analysis
             session_factory: Factory function for creating database sessions
         """
-        self.analysis_result_crud = analysis_result_crud or analysis_result
-        self.article_crud = article_crud or article
-        self.entity_crud = entity_crud or entity
-        self.session_factory = session_factory or SessionManager
-        self._session = None
-        
-    def _get_session(self):
-        """Get a database session.
-        
-        Returns:
-            Active database session
-        """
-        if not self._session:
-            self._session = get_session().__next__()
-        return self._session
+        self.analysis_result_crud = analysis_result_crud
+        self.article_crud = article_crud
+        self.entity_crud = entity_crud
+        self.trend_analyzer = trend_analyzer
+        self.session_factory = session_factory
 
     def analyze_headline_trends(
         self,
@@ -65,11 +57,9 @@ class AnalysisService:
         Returns:
             Dictionary containing trend analysis results
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use the injected trend analyzer
+            trend_analyzer = self.trend_analyzer
             
             # Get headlines grouped by time interval
             grouped_headlines = self._get_headlines_by_period(
@@ -124,7 +114,6 @@ class AnalysisService:
         Returns:
             Dictionary mapping time periods to lists of headlines
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
         
         # Get all articles in the date range
         articles = self.article_crud.get_by_date_range(
@@ -137,7 +126,7 @@ class AnalysisService:
             if not article_obj.title:
                 continue
                 
-            interval_key = TrendAnalyzer.get_interval_key(article_obj.published_at, interval)
+            interval_key = self.trend_analyzer.get_interval_key(article_obj.published_at, interval)
             
             if interval_key not in grouped_headlines:
                 grouped_headlines[interval_key] = []
@@ -166,14 +155,12 @@ class AnalysisService:
         Returns:
             List of detected trends
         """
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-        
         if not entity_types:
             entity_types = ["PERSON", "ORG", "GPE"]
             
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use the injected trend analyzer
+            trend_analyzer = self.trend_analyzer
             
             # Get start and end dates based on time frame
             end_date = datetime.now()
@@ -280,6 +267,4 @@ class AnalysisService:
                 analysis_type=analysis_type
             )
             
-            if result:
-                return result.results
-            return None
+            return result.results if result else None

@@ -16,7 +16,7 @@ interact with the database or maintain state between operations.
 """
 
 import logging
-from typing import Annotated, Generator, Optional, TYPE_CHECKING, Any
+from typing import Annotated, Any, Generator, Optional, TYPE_CHECKING
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -24,6 +24,24 @@ from fastapi_injectable import injectable
 # Using injectable directly - no scope parameter in version 0.7.0
 # We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
+
+if TYPE_CHECKING:
+    from local_newsifier.crud.article import CRUDArticle
+    from local_newsifier.crud.entity import CRUDEntity
+    from local_newsifier.crud.analysis_result import CRUDAnalysisResult
+    from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
+    from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
+    from local_newsifier.crud.entity_profile import CRUDEntityProfile
+    from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
+    from local_newsifier.crud.rss_feed import CRUDRSSFeed
+    from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog
+    from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+    from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+    from local_newsifier.services.entity_service import EntityService
+    from local_newsifier.services.article_service import ArticleService
 
 # Tools imported for direct access
 from local_newsifier.tools.entity_tracker_service import EntityTracker
@@ -58,19 +76,6 @@ def get_session() -> Generator[Session, None, None]:
 
 
 # CRUD providers
-
-@injectable(use_cache=False)
-def get_apify_source_config_crud():
-    """Provide the apify source config CRUD component.
-    
-    Uses use_cache=False to create new instances for each injection, as CRUD 
-    components interact with the database and should not share state between operations.
-    
-    Returns:
-        ApifySourceConfigCRUD instance
-    """
-    from local_newsifier.crud.apify_source_config import apify_source_config
-    return apify_source_config
 
 
 @injectable(use_cache=False)
@@ -299,6 +304,20 @@ def get_context_analyzer_tool():
 
 
 @injectable(use_cache=False)
+def get_apify_service():
+    """Provide the Apify service.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with external APIs that require fresh client instances.
+    
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    return ApifyService()
+
+
+@injectable(use_cache=False)
 def get_entity_extractor():
     """Provide the entity extractor tool.
     
@@ -398,52 +417,52 @@ def get_file_writer_tool():
 
 # Service providers
 
+
 @injectable(use_cache=False)
-def get_article_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
+def get_analysis_service(
+    analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
+    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
+    trend_analyzer: Annotated["TrendAnalyzer", Depends(get_trend_analyzer_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the article service.
+    """Provide the analysis service.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     
     Args:
-        article_crud: Article CRUD component
         analysis_result_crud: Analysis result CRUD component
+        article_crud: Article CRUD component
+        entity_crud: Entity CRUD component
+        trend_analyzer: Trend analyzer tool
         session: Database session
         
     Returns:
-        ArticleService instance
+        AnalysisService instance
     """
-    from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.services.analysis_service import AnalysisService
     
-    # Simple function for lazy loading EntityService to break circular dependency
-    def get_entity_service_lazy():
-        # Import at runtime to avoid circular imports
-        from local_newsifier.di.providers import get_entity_service as get_entity_svc
-        return get_entity_svc()
-    
-    return ArticleService(
-        article_crud=article_crud,
+    return AnalysisService(
         analysis_result_crud=analysis_result_crud,
-        entity_service_factory=get_entity_service_lazy,
+        article_crud=article_crud,
+        entity_crud=entity_crud,
+        trend_analyzer=trend_analyzer,
         session_factory=lambda: session
     )
 
 
 @injectable(use_cache=False)
 def get_entity_service(
-    entity_crud: Annotated[Any, Depends(get_entity_crud)],
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
     entity_relationship_crud: Annotated[Any, Depends(get_entity_relationship_crud)],
-    canonical_entity_crud: Annotated[Any, Depends(get_canonical_entity_crud)],
-    entity_mention_context_crud: Annotated[Any, Depends(get_entity_mention_context_crud)],
-    entity_profile_crud: Annotated[Any, Depends(get_entity_profile_crud)],
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    entity_extractor: Annotated[Any, Depends(get_entity_extractor_tool)],
-    context_analyzer: Annotated[Any, Depends(get_context_analyzer_tool)],
-    entity_resolver: Annotated[Any, Depends(get_entity_resolver_tool)],
+    canonical_entity_crud: Annotated["CRUDCanonicalEntity", Depends(get_canonical_entity_crud)],
+    entity_mention_context_crud: Annotated["CRUDEntityMentionContext", Depends(get_entity_mention_context_crud)],
+    entity_profile_crud: Annotated["CRUDEntityProfile", Depends(get_entity_profile_crud)],
+    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
+    entity_extractor: Annotated["EntityExtractor", Depends(get_entity_extractor)],
+    context_analyzer: Annotated["ContextAnalyzer", Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated["EntityResolver", Depends(get_entity_resolver)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the entity service.
@@ -483,9 +502,44 @@ def get_entity_service(
 
 
 @injectable(use_cache=False)
+def get_article_service(
+    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
+    analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the article service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_crud: Article CRUD component
+        analysis_result_crud: Analysis result CRUD component
+        session: Database session
+        
+    Returns:
+        ArticleService instance
+    """
+    from local_newsifier.services.article_service import ArticleService
+    
+    # Simple function for lazy loading EntityService to break circular dependency
+    def get_entity_service_lazy():
+        # Import at runtime to avoid circular imports
+        from local_newsifier.di.providers import get_entity_service as get_entity_svc
+        return get_entity_svc()
+    
+    return ArticleService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        entity_service_factory=get_entity_service_lazy,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
 def get_rss_feed_service(
-    rss_feed_crud: Annotated[Any, Depends(get_rss_feed_crud)],
-    feed_processing_log_crud: Annotated[Any, Depends(get_feed_processing_log_crud)],
+    rss_feed_crud: Annotated["CRUDRSSFeed", Depends(get_rss_feed_crud)],
+    feed_processing_log_crud: Annotated["CRUDFeedProcessingLog", Depends(get_feed_processing_log_crud)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the RSS feed service.
@@ -518,14 +572,14 @@ def get_rss_feed_service(
 
 
 @injectable(use_cache=False)
-def get_analysis_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    analysis_result_crud: Annotated[Any, Depends(get_analysis_result_crud)],
-    entity_crud: Annotated[Any, Depends(get_entity_crud)],
-    trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+def get_analysis_service_legacy(
+    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
+    analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
+    trend_analyzer: Annotated["TrendAnalyzer", Depends(get_trend_analyzer_tool)],
     session: Annotated[Session, Depends(get_session)]
 ):
-    """Provide the analysis service.
+    """Provide the analysis service (legacy).
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.

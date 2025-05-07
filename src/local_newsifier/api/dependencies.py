@@ -76,15 +76,15 @@ def get_article_service() -> ArticleService:
     Returns:
         ArticleService: The article service instance
     """
+    # First try to get from injectable providers (preferred)
     try:
-        # Try to import and use the injectable provider
-        from local_newsifier.di.providers import get_article_service as get_injectable_service
+        from local_newsifier.di.providers import get_article_service as get_injectable_article_service
         from local_newsifier.database.engine import get_session
         
         # Get a session and pass it to the service
         with next(get_session()) as session:
-            return get_injectable_service(session=session)
-    except ImportError:
+            return get_injectable_article_service(session=session)
+    except (ImportError, NameError):
         # Fall back to container if injectable is not available
         return container.get("article_service")
 

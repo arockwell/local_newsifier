@@ -119,6 +119,43 @@ class NewsTrendAnalysisFlowBase(Flow):
         # Initialize trend analyzer via DI 
         self.trend_detector = trend_analyzer
         
+        # Use analysis service for all trend analysis operations
+        if not analysis_service:
+            try:
+                # Try to get dependencies from the injectable providers
+                from local_newsifier.di.providers import (
+                    get_analysis_result_crud, 
+                    get_article_crud, 
+                    get_entity_crud,
+                    get_trend_analyzer_tool,
+                    get_session
+                )
+                
+                # Get the dependencies 
+                analysis_result_crud = get_analysis_result_crud()
+                article_crud = get_article_crud() 
+                entity_crud = get_entity_crud()
+                trend_analyzer = get_trend_analyzer_tool()
+                session = next(get_session())
+                
+                # Create the service with all required dependencies
+                self.analysis_service = AnalysisService(
+                    analysis_result_crud=analysis_result_crud,
+                    article_crud=article_crud,
+                    entity_crud=entity_crud,
+                    session_factory=lambda: session
+                )
+                
+                # Store trend analyzer for later use
+                self.trend_detector = trend_analyzer
+            except (ImportError, NameError):
+                # If we can't get the providers, raise a more helpful error
+                raise RuntimeError(
+                    "Cannot initialize AnalysisService without required dependencies. "
+                    "Please provide an analysis_service instance or ensure the required "
+                    "dependencies are available through the DI container."
+                )
+        
         # For backwards compatibility with tests
         self.data_aggregator = data_aggregator or MagicMock()
         self.topic_analyzer = topic_analyzer or MagicMock()

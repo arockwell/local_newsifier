@@ -28,47 +28,55 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session=None):
+    def __init__(
+        self, 
+        analysis_service=None, 
+        session=None
+    ):
         """
         Initialize the headline trend analysis flow.
 
         Args:
+            analysis_service: Optional AnalysisService instance
             session: Optional SQLModel session to use
         """
         super().__init__()
         
-        # Store session
+        # Setup session management
         self.session = session
         self._owns_session = False
         
         if session is None:
             self._owns_session = True
             self.session = get_session().__next__()
-
-        # Initialize analysis service
-        # This should be properly mocked in tests
-        try:
-            from local_newsifier.services.analysis_service import AnalysisService
-            from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
-            from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-            
-            # Get required dependencies
-            analysis_result_crud = get_analysis_result_crud()
-            article_crud = get_article_crud()
-            entity_crud = get_entity_crud()
-            trend_analyzer = TrendAnalyzer(session=self.session)
-            
-            # Create service with all dependencies
-            self.analysis_service = AnalysisService(
-                analysis_result_crud=analysis_result_crud,
-                article_crud=article_crud,
-                entity_crud=entity_crud,
-                trend_analyzer=trend_analyzer,
-                session_factory=lambda: self.session
-            )
-        except (ImportError, NameError):
-            # This path is only for testing
-            self.analysis_service = None
+        
+        # Initialize analysis service if not provided
+        if analysis_service is not None:
+            self.analysis_service = analysis_service
+        else:
+            # Try to create the service with dependencies from DI
+            try:
+                from local_newsifier.services.analysis_service import AnalysisService
+                from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
+                from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
+                
+                # Get required dependencies
+                analysis_result_crud = get_analysis_result_crud()
+                article_crud = get_article_crud()
+                entity_crud = get_entity_crud()
+                trend_analyzer = TrendAnalyzer(session=self.session)
+                
+                # Create service with all dependencies
+                self.analysis_service = AnalysisService(
+                    analysis_result_crud=analysis_result_crud,
+                    article_crud=article_crud,
+                    entity_crud=entity_crud,
+                    trend_analyzer=trend_analyzer,
+                    session_factory=lambda: self.session
+                )
+            except (ImportError, NameError):
+                # This path is only for testing
+                self.analysis_service = None
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
