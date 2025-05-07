@@ -7,6 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip
+
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
 from local_newsifier.models.sentiment import SentimentVisualizationData
 
@@ -35,7 +38,7 @@ class TestPublicOpinionFlow:
             
             return flow
 
-    @pytest.mark.skip(reason="Database connection failure, to be fixed in a separate PR")
+    @ci_skip("Database connection used internally")
     def test_init_without_session(self):
         """Test initialization without a database session."""
         with patch('local_newsifier.database.engine.get_session') as mock_get_session, \
