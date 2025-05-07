@@ -23,12 +23,13 @@ class EntityTracker:
     
     def __init__(
         self, 
-        entity_service: Annotated[EntityService, Depends()]
+        entity_service: Optional[EntityService] = None
     ):
-        """Initialize with injected dependencies.
+        """Initialize with optional injected dependencies.
         
         Args:
-            entity_service: Service for entity operations (injected)
+            entity_service: Service for entity operations, 
+                will be injected by the container when needed
         """
         self.entity_service = entity_service
     

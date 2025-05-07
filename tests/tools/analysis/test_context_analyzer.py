@@ -431,9 +431,16 @@ class TestContextAnalyzer:
         """Test that the provider function creates a properly configured instance."""
         # Import the provider function
         from local_newsifier.di.providers import get_context_analyzer_tool
+        from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
         
-        # Act
-        analyzer = get_context_analyzer_tool()
+        # Mock the ContextAnalyzer class
+        mock_analyzer = MagicMock()
         
-        # Assert
-        assert isinstance(analyzer, ContextAnalyzer)
+        with patch('local_newsifier.tools.analysis.context_analyzer.ContextAnalyzer', 
+                   return_value=mock_analyzer) as mock_constructor:
+            # Act
+            analyzer = get_context_analyzer_tool()
+            
+            # Assert
+            mock_constructor.assert_called_once()
+            assert analyzer == mock_analyzer

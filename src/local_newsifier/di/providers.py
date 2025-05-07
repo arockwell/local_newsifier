@@ -371,22 +371,17 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
-def get_entity_tracker_tool(
-    entity_service: Annotated[Any, Depends(get_entity_service)]
-):
+def get_entity_tracker_tool():
     """Provide the entity tracker tool.
     
     Uses use_cache=False to create new instances for each injection, as this tool
     maintains state during the entity tracking process.
-    
-    Args:
-        entity_service: Entity service for entity operations
         
     Returns:
         EntityTracker instance
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service)
+    return EntityTracker()
 
 
 @injectable(use_cache=False)
