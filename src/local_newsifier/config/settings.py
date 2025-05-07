@@ -36,6 +36,15 @@ class Settings(BaseSettings):
         validate_default=True,
         extra="allow",  # Allow extra fields like computed DATABASE_URL
     )
+    
+    def is_test_mode(self) -> bool:
+        """Check if we're running in a test environment.
+        
+        Returns:
+            bool: True if running in a test environment, False otherwise
+        """
+        import os
+        return os.environ.get("PYTEST_CURRENT_TEST") is not None
 
     # OpenAI API key
     OPENAI_API_KEY: Optional[str] = None

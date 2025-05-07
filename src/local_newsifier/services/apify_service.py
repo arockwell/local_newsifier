@@ -3,7 +3,6 @@
 import inspect
 import json
 import logging
-import os
 import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -24,7 +23,8 @@ class ApifyService:
         """
         self._token = token
         self._client = None
-        self._test_mode = test_mode or os.environ.get("PYTEST_CURRENT_TEST") is not None
+        # Use settings.is_test_mode() for consistent test mode detection
+        self._test_mode = test_mode or settings.is_test_mode()
 
     @property
     def client(self) -> ApifyClient:

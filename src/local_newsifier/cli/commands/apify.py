@@ -33,7 +33,7 @@ def _ensure_token():
         bool: True if token is available, False otherwise
     """
     # Check if running in test mode
-    if os.environ.get("PYTEST_CURRENT_TEST") is not None:
+    if settings.is_test_mode():
         # In test mode, provide a default token if not set
         if not settings.APIFY_TOKEN:
             logging.warning("Running CLI in test mode with dummy APIFY_TOKEN")

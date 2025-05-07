@@ -304,17 +304,32 @@ def get_context_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_apify_service():
+def get_apify_token():
+    """Get the Apify token from settings.
+    
+    Returns:
+        Optional[str]: Apify API token from settings
+    """
+    from local_newsifier.config.settings import settings
+    return settings.APIFY_TOKEN
+
+@injectable(use_cache=False)
+def get_apify_service(
+    token: Annotated[Optional[str], Depends(get_apify_token)]
+):
     """Provide the Apify service.
     
     Uses use_cache=False to create new instances for each injection, as it
     interacts with external APIs that require fresh client instances.
     
+    Args:
+        token: Optional token override. If not provided, uses settings.APIFY_TOKEN
+        
     Returns:
         ApifyService instance
     """
     from local_newsifier.services.apify_service import ApifyService
-    return ApifyService()
+    return ApifyService(token=token)
 
 
 @injectable(use_cache=False)
