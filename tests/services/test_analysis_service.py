@@ -57,16 +57,21 @@ class TestAnalysisService:
         mock_entity_crud,
         mock_trend_analyzer,
         mock_session_factory,
+        event_loop_fixture,
     ):
         """Return an AnalysisService with mock dependencies."""
-        service = AnalysisService(
-            analysis_result_crud=mock_analysis_result_crud,
-            article_crud=mock_article_crud,
-            entity_crud=mock_entity_crud,
-            trend_analyzer=mock_trend_analyzer,
-            session_factory=mock_session_factory,
-        )
-        return service
+        with patch("fastapi_injectable.concurrency.run_coroutine_sync") as mock_run_coroutine:
+            # Setup mock to avoid actual asyncio operations
+            mock_run_coroutine.return_value = []
+            
+            service = AnalysisService(
+                analysis_result_crud=mock_analysis_result_crud,
+                article_crud=mock_article_crud,
+                entity_crud=mock_entity_crud,
+                trend_analyzer=mock_trend_analyzer,
+                session_factory=mock_session_factory,
+            )
+            return service
 
     @pytest.fixture
     def sample_articles(self):
