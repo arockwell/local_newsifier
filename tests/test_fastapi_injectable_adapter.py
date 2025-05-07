@@ -196,6 +196,7 @@ class TestInjectAdapter:
             # Assert
             assert result == 5
 
+    @ci_skip_injectable
     def test_inject_adapter_async(self, mock_di_container, event_loop_fixture):
         """Test inject_adapter with asynchronous function."""
         # Arrange
