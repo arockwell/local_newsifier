@@ -5,7 +5,7 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Annotated
+from typing import List, Optional, Dict, Annotated, Callable
 
 from crewai import Flow
 from fastapi import Depends
@@ -30,7 +30,8 @@ class RSSScrapingFlow(Flow):
         article_service: Optional[ArticleService] = None,
         rss_parser: Optional[RSSParser] = None,
         web_scraper: Optional[WebScraperTool] = None,
-        cache_dir: Optional[str] = None
+        cache_dir: Optional[str] = None,
+        session_factory: Optional[Callable] = None
     ):
         """
         Initialize the RSS scraping flow.
@@ -41,11 +42,13 @@ class RSSScrapingFlow(Flow):
             rss_parser: Tool for parsing RSS feeds
             web_scraper: Tool for scraping web content
             cache_dir: Optional directory to store cache files
+            session_factory: Function to create database sessions
         """
         super().__init__()
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.rss_feed_service = rss_feed_service
         self.article_service = article_service
+        self.session_factory = session_factory
 
         # Initialize or use provided tools
         cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None

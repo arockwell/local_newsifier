@@ -694,7 +694,8 @@ def get_rss_scraping_flow(
     rss_feed_service: Annotated[Any, Depends(get_rss_feed_service)],
     article_service: Annotated[Any, Depends(get_article_service)],
     rss_parser: Annotated[Any, Depends(get_rss_parser)],
-    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)]
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
+    session: Annotated[Session, Depends(get_session)]
 ) -> "RSSScrapingFlow":
     """Provide the RSS scraping flow.
     
@@ -706,6 +707,7 @@ def get_rss_scraping_flow(
         article_service: Article service
         rss_parser: RSS parser tool
         web_scraper: Web scraper tool
+        session: Database session
         
     Returns:
         RSSScrapingFlow instance
@@ -717,7 +719,8 @@ def get_rss_scraping_flow(
         article_service=article_service,
         rss_parser=rss_parser,
         web_scraper=web_scraper,
-        cache_dir="cache"
+        cache_dir="cache",
+        session_factory=lambda: session
     )
 
 
