@@ -1,6 +1,14 @@
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+
+# Mock spaCy and TextBlob before imports
+patch('spacy.load', MagicMock(return_value=MagicMock())).start()
+patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
+    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+))).start()
+patch('spacy.language.Language', MagicMock()).start()
+
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 

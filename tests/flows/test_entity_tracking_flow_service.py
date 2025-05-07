@@ -4,6 +4,13 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+# Mock spaCy and TextBlob before imports
+patch('spacy.load', MagicMock(return_value=MagicMock())).start()
+patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
+    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+))).start()
+patch('spacy.language.Language', MagicMock()).start()
+
 from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.services.entity_service import EntityService
