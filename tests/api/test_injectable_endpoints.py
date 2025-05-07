@@ -36,10 +36,22 @@ def mock_injectable_entity_service():
 @pytest.fixture
 def test_app(event_loop_fixture, mock_injectable_entity_service):
     """Create a test app with injectable dependencies."""
+    # Create an app with a simple test client configuration
     app = FastAPI()
     
-    # Register the app with fastapi-injectable using our event loop fixture
-    event_loop_fixture.run_until_complete(register_app(app))
+    # Use try/except to ensure we handle any event loop related errors
+    try:
+        # Register the app with fastapi-injectable using our event loop fixture
+        event_loop_fixture.run_until_complete(register_app(app))
+    except RuntimeError as e:
+        if "There is no current event loop" in str(e):
+            # Create a new event loop if needed
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(register_app(app))
+        else:
+            raise
     
     # Define injectable provider
     @injectable
