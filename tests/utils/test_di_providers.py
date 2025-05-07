@@ -7,6 +7,14 @@ from typing import Annotated, Generator, Any
 from fastapi import Depends
 from sqlmodel import Session
 
+# Import providers to test
+from local_newsifier.di.providers import (
+    get_session, get_article_crud, get_entity_crud, get_entity_relationship_crud,
+    get_rss_feed_crud, get_web_scraper_tool, get_entity_extractor, 
+    get_entity_resolver, get_rss_parser, get_article_service, get_entity_service,
+    get_rss_feed_service
+)
+
 # Mock the injectable decorator
 patch('local_newsifier.di.providers.injectable', lambda **kwargs: lambda x: x).start()
 
@@ -19,7 +27,7 @@ def test_get_session_provides_and_closes():
     mock_db_session_gen.__next__ = MagicMock(return_value=mock_session)
     
     # Act
-    with patch('local_newsifier.di.providers.get_db_session', 
+    with patch('local_newsifier.database.engine.get_session', 
                return_value=mock_db_session_gen):
         # Create generator and get session
         session_gen = get_session()
