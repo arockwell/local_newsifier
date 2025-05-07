@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Callable
 
 from sqlmodel import Session
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
 from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
@@ -19,16 +22,16 @@ from local_newsifier.tools.rss_parser import parse_rss_feed
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class RSSFeedService:
     """Service for RSS feed management."""
 
     def __init__(
         self,
-        rss_feed_crud=None,
-        feed_processing_log_crud=None,
-        article_service=None,
-        session_factory=None,
-        container=None,
+        rss_feed_crud,
+        feed_processing_log_crud,
+        article_service,
+        session_factory: Callable,
     ):
         """Initialize with dependencies.
 
@@ -37,52 +40,11 @@ class RSSFeedService:
             feed_processing_log_crud: CRUD for feed processing logs
             article_service: Service for article management
             session_factory: Factory for database sessions
-            container: The DI container for resolving additional dependencies
         """
-        self.rss_feed_crud = rss_feed_crud or rss_feed
-        self.feed_processing_log_crud = feed_processing_log_crud or feed_processing_log
+        self.rss_feed_crud = rss_feed_crud
+        self.feed_processing_log_crud = feed_processing_log_crud
         self.article_service = article_service
         self.session_factory = session_factory
-        self.container = container
-
-    def _get_session(self) -> Session:
-        """Get a database session.
-        
-        Returns:
-            Active database session using the provided session factory,
-            or falling back to the one from the container if available.
-            
-        Raises:
-            ValueError: If no valid session factory is available
-        """
-        # Try using the provided session factory first
-        if self.session_factory:
-            try:
-                return self.session_factory()
-            except Exception as e:
-                logger.warning(f"Error using provided session factory: {str(e)}")
-                # Continue to fallbacks
-            
-        # Try getting session factory from container
-        if self.container:
-            try:
-                session_factory = self.container.get("session_factory")
-                if session_factory:
-                    return session_factory()
-            except Exception as e:
-                logger.warning(f"Error getting session factory from container: {str(e)}")
-                # Continue to fallbacks
-        
-        # Direct import fallback for backward compatibility
-        # This is needed to maintain compatibility with existing tests
-        try:
-            from local_newsifier.database.engine import get_session
-            return next(get_session())
-        except Exception as e:
-            logger.error(f"All session factory fallbacks failed: {str(e)}")
-            
-        # If all fallbacks fail, raise a clear error
-        raise ValueError("No working session factory available. Please provide a valid session factory.")
 
 
 
@@ -96,11 +58,11 @@ class RSSFeedService:
         Returns:
             Feed data as dict if found, None otherwise
         """
-        session = self._get_session()
-        feed = self.rss_feed_crud.get(session, id=feed_id)
-        if not feed:
-            return None
-        return self._format_feed_dict(feed)
+        with self.session_factory() as session:
+            feed = self.rss_feed_crud.get(session, id=feed_id)
+            if not feed:
+                return None
+            return self._format_feed_dict(feed)
 
     @handle_database
     def get_feed_by_url(self, url: str) -> Optional[Dict[str, Any]]:
@@ -112,11 +74,11 @@ class RSSFeedService:
         Returns:
             Feed data as dict if found, None otherwise
         """
-        session = self._get_session()
-        feed = self.rss_feed_crud.get_by_url(session, url=url)
-        if not feed:
-            return None
-        return self._format_feed_dict(feed)
+        with self.session_factory() as session:
+            feed = self.rss_feed_crud.get_by_url(session, url=url)
+            if not feed:
+                return None
+            return self._format_feed_dict(feed)
 
     @handle_database
     def list_feeds(
@@ -132,12 +94,12 @@ class RSSFeedService:
         Returns:
             List of feed data as dicts
         """
-        session = self._get_session()
-        if active_only:
-            feeds = self.rss_feed_crud.get_active_feeds(session, skip=skip, limit=limit)
-        else:
-            feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
-        return [self._format_feed_dict(feed) for feed in feeds]
+        with self.session_factory() as session:
+            if active_only:
+                feeds = self.rss_feed_crud.get_active_feeds(session, skip=skip, limit=limit)
+            else:
+                feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
+            return [self._format_feed_dict(feed) for feed in feeds]
 
     @handle_database
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
@@ -154,27 +116,26 @@ class RSSFeedService:
         Raises:
             ValueError: If feed with the URL already exists
         """
-        session = self._get_session()
-        
-        # Check if feed already exists
-        existing = self.rss_feed_crud.get_by_url(session, url=url)
-        if existing:
-            raise ValueError(f"Feed with URL '{url}' already exists")
+        with self.session_factory() as session:
+            # Check if feed already exists
+            existing = self.rss_feed_crud.get_by_url(session, url=url)
+            if existing:
+                raise ValueError(f"Feed with URL '{url}' already exists")
             
-        # Create new feed
-        new_feed = self.rss_feed_crud.create(
-            session,
-            obj_in={
-                "url": url,
-                "name": name,
-                "description": description,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc),
-                "updated_at": datetime.now(timezone.utc),
-            },
-        )
-        
-        return self._format_feed_dict(new_feed)
+            # Create new feed
+            new_feed = self.rss_feed_crud.create(
+                session,
+                obj_in={
+                    "url": url,
+                    "name": name,
+                    "description": description,
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                },
+            )
+            
+            return self._format_feed_dict(new_feed)
 
     @handle_database
     def update_feed(
@@ -195,25 +156,24 @@ class RSSFeedService:
         Returns:
             Updated feed data as dict if found, None otherwise
         """
-        session = self._get_session()
-        
-        # Get feed
-        feed = self.rss_feed_crud.get(session, id=feed_id)
-        if not feed:
-            return None
-        
-        # Prepare update data
-        update_data = {"updated_at": datetime.now(timezone.utc)}
-        if name is not None:
-            update_data["name"] = name
-        if description is not None:
-            update_data["description"] = description
-        if is_active is not None:
-            update_data["is_active"] = is_active
-        
-        # Update feed
-        updated = self.rss_feed_crud.update(session, db_obj=feed, obj_in=update_data)
-        return self._format_feed_dict(updated)
+        with self.session_factory() as session:
+            # Get feed
+            feed = self.rss_feed_crud.get(session, id=feed_id)
+            if not feed:
+                return None
+            
+            # Prepare update data
+            update_data = {"updated_at": datetime.now(timezone.utc)}
+            if name is not None:
+                update_data["name"] = name
+            if description is not None:
+                update_data["description"] = description
+            if is_active is not None:
+                update_data["is_active"] = is_active
+            
+            # Update feed
+            updated = self.rss_feed_crud.update(session, db_obj=feed, obj_in=update_data)
+            return self._format_feed_dict(updated)
 
     @handle_database
     def remove_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
@@ -225,19 +185,18 @@ class RSSFeedService:
         Returns:
             Removed feed data as dict if found, None otherwise
         """
-        session = self._get_session()
-        
-        # Get feed
-        feed = self.rss_feed_crud.get(session, id=feed_id)
-        if not feed:
-            return None
-        
-        # Remove feed
-        removed = self.rss_feed_crud.remove(session, id=feed_id)
-        if not removed:
-            return None
-        
-        return self._format_feed_dict(removed)
+        with self.session_factory() as session:
+            # Get feed
+            feed = self.rss_feed_crud.get(session, id=feed_id)
+            if not feed:
+                return None
+            
+            # Remove feed
+            removed = self.rss_feed_crud.remove(session, id=feed_id)
+            if not removed:
+                return None
+            
+            return self._format_feed_dict(removed)
 
 
     @handle_rss
@@ -254,126 +213,75 @@ class RSSFeedService:
         Returns:
             Result information including processed feed and article counts
         """
-        session = self._get_session()
-        
-        # Get feed
-        feed = self.rss_feed_crud.get(session, id=feed_id)
-        if not feed:
-            return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
-        
-        # Create processing log
-        log = self.feed_processing_log_crud.create_processing_started(
-            session, feed_id=feed_id
-        )
-        
-        # Parse the RSS feed
-        try:
-            feed_data = parse_rss_feed(feed.url)
+        with self.session_factory() as session:
+            # Get feed
+            feed = self.rss_feed_crud.get(session, id=feed_id)
+            if not feed:
+                return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
             
-            articles_found = len(feed_data.get("entries", []))
-            articles_added = 0
+            # Create processing log
+            log = self.feed_processing_log_crud.create_processing_started(
+                session, feed_id=feed_id
+            )
             
-            # Process each article in the feed
-            for entry in feed_data.get("entries", []):
-                try:
-                    # Create article - protect against None article_service
-                    article_id = None
-                    
-                    # Get article service - try instance first, then container, then fallback
-                    article_service = self.article_service
-                    
-                    if article_service is None:
-                        # Try to get from container
-                        try:
-                            if self.container:
-                                article_service = self.container.get("article_service")
-                        except:
-                            # If container access fails, continue with None
-                            article_service = None
+            # Parse the RSS feed
+            try:
+                feed_data = parse_rss_feed(feed.url)
+                
+                articles_found = len(feed_data.get("entries", []))
+                articles_added = 0
+                
+                # Process each article in the feed
+                for entry in feed_data.get("entries", []):
+                    try:
+                        # Create article using the article_service
+                        article_id = self.article_service.create_article_from_rss_entry(entry)
                         
-                    if article_service is not None:
-                        # Use available article service
-                        article_id = article_service.create_article_from_rss_entry(entry)
-                    else:
-                        # Last resort fallback - direct creation of service
-                        # This should never happen when using the container
-                        logger.warning("No article_service available - creating temporary instance")
-                        try:
-                            # Import modules at runtime to avoid circular imports
-                            from local_newsifier.services.article_service import ArticleService
-                            from local_newsifier.crud.article import article as article_crud
-                            from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-                            from local_newsifier.database.engine import SessionManager
-
-                            # Create temporary ArticleService for this single article
-                            temp_article_service = ArticleService(
-                                article_crud=article_crud,
-                                analysis_result_crud=analysis_result_crud,
-                                entity_service=None,  # Not needed for creating articles from RSS
-                                session_factory=lambda: SessionManager()
-                            )
-                            
-                            # Use the temporary service to create the article
-                            article_id = temp_article_service.create_article_from_rss_entry(entry)
-                        except Exception as temp_e:
-                            logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
-                    
-                    if article_id:
-                        # Queue article processing
-                        if task_queue_func:
-                            task_queue_func(article_id)
-                        else:
-                            # Get process_article_task from container
-                            process_article_task = None
-                            if self.container:
-                                process_article_task = self.container.get("process_article_task")
-                            
-                            if process_article_task:
-                                process_article_task.delay(article_id)
-                            else:
-                                logger.warning(f"No task function available to process article {article_id}")
-                        articles_added += 1
-                except Exception as e:
-                    logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
-            
-            # Update feed last fetched timestamp
-            self.rss_feed_crud.update_last_fetched(session, id=feed_id)
-            
-            # Update processing log
-            self.feed_processing_log_crud.update_processing_completed(
-                session,
-                log_id=log.id,
-                status="success",
-                articles_found=articles_found,
-                articles_added=articles_added,
-            )
-            
-            return {
-                "status": "success",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "articles_found": articles_found,
-                "articles_added": articles_added,
-            }
-            
-        except Exception as e:
-            logger.exception(f"Error processing feed {feed_id}: {str(e)}")
-            
-            # Update processing log with error
-            self.feed_processing_log_crud.update_processing_completed(
-                session,
-                log_id=log.id,
-                status="error",
-                error_message=str(e),
-            )
-            
-            return {
-                "status": "error",
-                "feed_id": feed_id,
-                "feed_name": feed.name,
-                "message": str(e),
-            }
+                        if article_id:
+                            # Queue article processing if task function provided
+                            if task_queue_func:
+                                task_queue_func(article_id)
+                            articles_added += 1
+                    except Exception as e:
+                        logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
+                
+                # Update feed last fetched timestamp
+                self.rss_feed_crud.update_last_fetched(session, id=feed_id)
+                
+                # Update processing log
+                self.feed_processing_log_crud.update_processing_completed(
+                    session,
+                    log_id=log.id,
+                    status="success",
+                    articles_found=articles_found,
+                    articles_added=articles_added,
+                )
+                
+                return {
+                    "status": "success",
+                    "feed_id": feed_id,
+                    "feed_name": feed.name,
+                    "articles_found": articles_found,
+                    "articles_added": articles_added,
+                }
+                
+            except Exception as e:
+                logger.exception(f"Error processing feed {feed_id}: {str(e)}")
+                
+                # Update processing log with error
+                self.feed_processing_log_crud.update_processing_completed(
+                    session,
+                    log_id=log.id,
+                    status="error",
+                    error_message=str(e),
+                )
+                
+                return {
+                    "status": "error",
+                    "feed_id": feed_id,
+                    "feed_name": feed.name,
+                    "message": str(e),
+                }
 
     @handle_database
     def get_feed_processing_logs(
@@ -392,14 +300,13 @@ class RSSFeedService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        session = self._get_session()
-        
-        # Get logs
-        logs = self.feed_processing_log_crud.get_by_feed_id(
-            session, feed_id=feed_id, skip=skip, limit=limit
-        )
-        
-        return [self._format_log_dict(log) for log in logs]
+        with self.session_factory() as session:
+            # Get logs
+            logs = self.feed_processing_log_crud.get_by_feed_id(
+                session, feed_id=feed_id, skip=skip, limit=limit
+            )
+            
+            return [self._format_log_dict(log) for log in logs]
 
     def _format_feed_dict(self, feed: RSSFeed) -> Dict[str, Any]:
         """Format feed as a dict.

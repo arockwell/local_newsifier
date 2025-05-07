@@ -1,7 +1,11 @@
 """Entity service for coordinating entity-related operations."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
+
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
@@ -9,6 +13,7 @@ from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackin
 from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
 
+@injectable(use_cache=False)
 class EntityService:
     """Service for entity-related operations using the new refactored tools."""
     
@@ -22,7 +27,7 @@ class EntityService:
         entity_extractor,
         context_analyzer,
         entity_resolver,
-        session_factory=None
+        session_factory: Callable
     ):
         """Initialize with dependencies.
         
@@ -45,7 +50,7 @@ class EntityService:
         self.entity_extractor = entity_extractor
         self.context_analyzer = context_analyzer
         self.entity_resolver = entity_resolver
-        self.session_factory = session_factory or SessionManager
+        self.session_factory = session_factory
     
     @handle_database
     def process_article_entities(

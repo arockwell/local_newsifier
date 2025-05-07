@@ -34,3 +34,20 @@ def test_feeds_group():
     assert "remove" in result.output
     assert "process" in result.output
     assert "update" in result.output
+
+
+def test_apify_group():
+    """Test that the apify command group loads without errors."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["apify", "--help"])
+    assert result.exit_code == 0
+    assert "test" in result.output
+    assert "run-actor" in result.output
+    assert "scrape-content" in result.output
+    assert "web-scraper" in result.output
+
+
+@pytest.mark.skip(reason="apify-config has been removed")
+def test_apify_config_group():
+    """Test skipped as apify-config command group has been removed."""
+    pass

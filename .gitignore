@@ -63,3 +63,5 @@ venv.bak/
 .env.test
 
 **/.claude/settings.local.json
+
+**/CLAUDE.local.md
