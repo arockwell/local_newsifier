@@ -463,7 +463,29 @@ class TestApifyCommands:
     ):
         """Test the scrape content command."""
         # Setup
-        mock_service_class.return_value = mock_apify_service
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
+        # Mock actor client
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        
+        # Mock actor run
+        mock_actor.call.return_value = {
+            "id": "test_run",
+            "status": "SUCCEEDED",
+            "defaultDatasetId": "test_dataset",
+        }
+        
+        # Mock dataset client for getting results
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        
+        # Mock items list - one page of content
+        mock_dataset.list_items.return_value = {
+            "items": [{"id": 1, "url": "https://example.com", "html": "<html></html>"}]
+        }
+        
         os.environ["APIFY_TOKEN"] = "test_token"
 
         # Run the command
@@ -476,16 +498,16 @@ class TestApifyCommands:
         assert "Scraping complete!" in result.output
         assert "Retrieved 1 pages of content" in result.output
 
-        # Check the actor input
-        expected_input = {
-            "startUrls": [{"url": "https://example.com"}],
-            "maxCrawlPages": 5,
-            "maxCrawlDepth": 1,
-            "maxPagesPerCrawl": 5,
-        }
-        mock_apify_service.run_actor.assert_called_once_with(
-            "apify/website-content-crawler", expected_input
-        )
+        # Check that actor was called with the correct input
+        mock_get_client.assert_called_once_with(None)
+        mock_client.actor.assert_called_once_with("apify/website-content-crawler")
+        
+        # Verify the actor call had the expected input
+        actor_call_args = mock_actor.call.call_args[1]["run_input"]
+        assert actor_call_args["startUrls"] == [{"url": "https://example.com"}]
+        assert actor_call_args["maxCrawlPages"] == 5
+        assert actor_call_args["maxCrawlDepth"] == 1
+        assert actor_call_args["maxPagesPerCrawl"] == 5
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_scrape_content_with_output(
@@ -493,7 +515,29 @@ class TestApifyCommands:
     ):
         """Test the scrape content command with output to file."""
         # Setup
-        mock_service_class.return_value = mock_apify_service
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
+        # Mock actor client
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        
+        # Mock actor run
+        mock_actor.call.return_value = {
+            "id": "test_run",
+            "status": "SUCCEEDED",
+            "defaultDatasetId": "test_dataset",
+        }
+        
+        # Mock dataset client for getting results
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        
+        # Mock items list - one page of content
+        mock_dataset.list_items.return_value = {
+            "items": [{"id": 1, "url": "https://example.com", "html": "<html></html>"}]
+        }
+        
         os.environ["APIFY_TOKEN"] = "test_token"
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -514,6 +558,10 @@ class TestApifyCommands:
                 output_content = json.load(f)
                 assert len(output_content) == 1
                 assert output_content[0]["id"] == 1
+                
+            # Check that actor was called with the correct input
+            mock_get_client.assert_called_once_with(None)
+            mock_client.actor.assert_called_once_with("apify/website-content-crawler")
         finally:
             # Clean up
             os.unlink(output_file)
@@ -524,7 +572,29 @@ class TestApifyCommands:
     ):
         """Test the web-scraper command."""
         # Setup
-        mock_service_class.return_value = mock_apify_service
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
+        # Mock actor client
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        
+        # Mock actor run
+        mock_actor.call.return_value = {
+            "id": "test_run",
+            "status": "SUCCEEDED",
+            "defaultDatasetId": "test_dataset",
+        }
+        
+        # Mock dataset client for getting results
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        
+        # Mock items list - one page of content
+        mock_dataset.list_items.return_value = {
+            "items": [{"id": 1, "url": "https://example.com", "html": "<html></html>"}]
+        }
+        
         os.environ["APIFY_TOKEN"] = "test_token"
 
         # Run the command
@@ -536,14 +606,17 @@ class TestApifyCommands:
         assert "Using selector: a, max pages: 5" in result.output
         assert "Retrieved 1 pages of data" in result.output
 
-        # Check the correct actor was called with required fields
-        mock_apify_service.run_actor.assert_called_once()
-        call_args = mock_apify_service.run_actor.call_args[0]
-        assert call_args[0] == "apify/web-scraper"
-        assert "startUrls" in call_args[1]
-        assert "linkSelector" in call_args[1]
-        assert "pageFunction" in call_args[1]
-        assert "maxPagesPerCrawl" in call_args[1]
+        # Check that actor was called with the correct input
+        mock_get_client.assert_called_once_with(None)
+        mock_client.actor.assert_called_once_with("apify/web-scraper")
+        
+        # Verify the actor input fields
+        actor_call_args = mock_actor.call.call_args[1]["run_input"]
+        assert "startUrls" in actor_call_args
+        assert "linkSelector" in actor_call_args
+        assert "pageFunction" in actor_call_args
+        assert "maxPagesPerCrawl" in actor_call_args
+        assert actor_call_args["startUrls"][0]["url"] == "https://example.com"
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_web_scraper_with_options(
@@ -551,7 +624,29 @@ class TestApifyCommands:
     ):
         """Test the web-scraper command with custom options."""
         # Setup
-        mock_service_class.return_value = mock_apify_service
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
+        # Mock actor client
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        
+        # Mock actor run
+        mock_actor.call.return_value = {
+            "id": "test_run",
+            "status": "SUCCEEDED",
+            "defaultDatasetId": "test_dataset",
+        }
+        
+        # Mock dataset client for getting results
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        
+        # Mock items list - one page of content
+        mock_dataset.list_items.return_value = {
+            "items": [{"id": 1, "url": "https://example.com", "html": "<html></html>"}]
+        }
+        
         os.environ["APIFY_TOKEN"] = "test_token"
 
         # Run the command with options
@@ -575,15 +670,17 @@ class TestApifyCommands:
         assert "Scraping website from https://example.com" in result.output
         assert "Using selector: article a, max pages: 10" in result.output
 
-        # Check the correct options were passed
-        mock_apify_service.run_actor.assert_called_once()
-        call_args = mock_apify_service.run_actor.call_args[0]
-        input_config = call_args[1]
-        assert input_config["startUrls"][0]["url"] == "https://example.com"
-        assert input_config["linkSelector"] == "article a"
-        assert input_config["maxPagesPerCrawl"] == 10
-        assert input_config["waitFor"] == "#content"
-        assert "async function pageFunction" in input_config["pageFunction"]
+        # Check that actor was called with the correct input
+        mock_get_client.assert_called_once_with(None)
+        mock_client.actor.assert_called_once_with("apify/web-scraper")
+        
+        # Verify the actor input fields
+        actor_call_args = mock_actor.call.call_args[1]["run_input"]
+        assert actor_call_args["startUrls"][0]["url"] == "https://example.com"
+        assert actor_call_args["linkSelector"] == "article a"
+        assert actor_call_args["maxPagesPerCrawl"] == 10
+        assert actor_call_args["waitFor"] == "#content"
+        assert "async function pageFunction" in actor_call_args["pageFunction"]
 
     @patch("local_newsifier.cli.commands.apify._get_apify_client")
     def test_web_scraper_with_output(
@@ -591,7 +688,29 @@ class TestApifyCommands:
     ):
         """Test the web-scraper command with output to file."""
         # Setup
-        mock_service_class.return_value = mock_apify_service
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
+        # Mock actor client
+        mock_actor = MagicMock()
+        mock_client.actor.return_value = mock_actor
+        
+        # Mock actor run
+        mock_actor.call.return_value = {
+            "id": "test_run",
+            "status": "SUCCEEDED",
+            "defaultDatasetId": "test_dataset",
+        }
+        
+        # Mock dataset client for getting results
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+        
+        # Mock items list - one page of content
+        mock_dataset.list_items.return_value = {
+            "items": [{"id": 1, "url": "https://example.com", "html": "<html></html>"}]
+        }
+        
         os.environ["APIFY_TOKEN"] = "test_token"
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -612,6 +731,10 @@ class TestApifyCommands:
                 output_content = json.load(f)
                 assert len(output_content) == 1
                 assert output_content[0]["id"] == 1
+                
+            # Check that actor was called with the correct input
+            mock_get_client.assert_called_once_with(None)
+            mock_client.actor.assert_called_once_with("apify/web-scraper")
         finally:
             # Clean up
             os.unlink(output_file)
