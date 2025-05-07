@@ -16,25 +16,27 @@ There are several ways to run tests in this project:
 
 ### Basic Test Execution
 
-Run all tests serially:
+Run all tests in parallel (using all available CPU cores):
 
 ```bash
 make test  # Runs: poetry run pytest
 ```
 
-This is the simplest method, but it's slower than parallel execution.
+This is the default behavior and provides the fastest execution, especially on multi-core machines.
 
-### Parallel Test Execution
+### Serial Test Execution
 
-Run tests in parallel using all available CPU cores:
+In some cases, especially for debugging, you might want to run tests serially:
 
 ```bash
-make test-parallel  # Runs: poetry run pytest -n auto
+make test-serial  # Runs: poetry run pytest -n 0
 ```
 
-This is significantly faster than serial execution, especially on multi-core machines.
+This is slower but can be helpful for troubleshooting test interactions or when debugging.
 
-You can also manually specify the number of parallel processes:
+### Custom Parallel Execution
+
+You can manually specify the number of parallel processes:
 
 ```bash
 poetry run pytest -n 4  # Uses 4 worker processes
