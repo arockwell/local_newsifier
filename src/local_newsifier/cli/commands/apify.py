@@ -15,9 +15,13 @@ import os
 import click
 from tabulate import tabulate
 
-# Import directly instead of using container to avoid loading flow dependencies
 from local_newsifier.config.settings import settings
-from local_newsifier.services.apify_service import ApifyService
+try:
+    # Try to import injectable dependencies
+    from local_newsifier.di.providers import get_apify_client
+except ImportError:
+    # If not available, we'll fall back to direct import
+    get_apify_client = None
 
 
 @click.group(name="apify")
@@ -58,6 +62,28 @@ def _ensure_token():
     return False
 
 
+def _get_apify_client(token=None):
+    """Get an Apify client.
+    
+    Args:
+        token: Optional override token
+        
+    Returns:
+        ApifyClient instance
+    """
+    if get_apify_client:
+        try:
+            # Use injectable client provider
+            return get_apify_client(token=token)
+        except Exception as e:
+            logging.warning(f"Failed to get Apify client from provider: {e}")
+    
+    # Fall back to direct service import
+    from local_newsifier.services.apify_service import ApifyService
+    apify_service = ApifyService(token)
+    return apify_service.client
+
+
 @apify_group.command(name="test")
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def test_connection(token):
@@ -68,11 +94,8 @@ def test_connection(token):
         return
 
     try:
-        # Create the Apify service directly
-        apify_service = ApifyService(token)
-
-        # Test if we can access the client
-        client = apify_service.client
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Simple test operation - get user info
         user = client.user().get()
@@ -137,19 +160,19 @@ def run_actor(actor_id, input, wait, token, output):
                 return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
-        result = apify_service.run_actor(actor_id, run_input)
+        run = client.actor(actor_id).call(run_input=run_input, wait_secs=0 if not wait else None)
 
         # Process result
         if wait:
             click.echo(click.style("✓ Actor run completed!", fg="green"))
 
             # Get the dataset ID
-            dataset_id = result.get("defaultDatasetId")
+            dataset_id = run.get("defaultDatasetId")
             if dataset_id:
                 click.echo(f"Default dataset ID: {dataset_id}")
                 click.echo(f"To retrieve the data: nf apify get-dataset {dataset_id}")
@@ -160,10 +183,10 @@ def run_actor(actor_id, input, wait, token, output):
         # Display or save output
         if output:
             with open(output, "w") as f:
-                json.dump(result, f, indent=2)
+                json.dump(run, f, indent=2)
             click.echo(f"Output saved to {output}")
         else:
-            click.echo(json.dumps(result, indent=2))
+            click.echo(json.dumps(run, indent=2))
 
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
@@ -201,13 +224,20 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
-        result = apify_service.get_dataset_items(dataset_id, limit=limit, offset=offset)
-
+        
+        # Get the dataset and items
+        dataset = client.dataset(dataset_id)
+        dataset_items = dataset.list_items(limit=limit, offset=offset).get("items", [])
+        
+        result = {
+            "items": dataset_items
+        }
+        
         items = result.get("items", [])
         count = len(items)
 
@@ -280,12 +310,12 @@ def get_actor(actor_id, token):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Get actor details
         click.echo(f"Retrieving details for actor {actor_id}...")
-        actor = apify_service.get_actor_details(actor_id)
+        actor = client.actor(actor_id).get()
 
         click.echo(click.style("✓ Actor details retrieved!", fg="green"))
         click.echo(f"Name: {actor.get('name')}")
@@ -335,8 +365,8 @@ def scrape_content(url, max_pages, max_depth, token, output):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Configure the actor input
         run_input = {
@@ -350,10 +380,10 @@ def scrape_content(url, max_pages, max_depth, token, output):
         click.echo(f"Scraping content from {url}...")
         click.echo(f"Using max pages: {max_pages}, max depth: {max_depth}")
 
-        result = apify_service.run_actor("apify/website-content-crawler", run_input)
+        run = client.actor("apify/website-content-crawler").call(run_input=run_input)
 
         # Get the dataset ID
-        dataset_id = result.get("defaultDatasetId")
+        dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
@@ -363,8 +393,8 @@ def scrape_content(url, max_pages, max_depth, token, output):
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
         # Get the dataset items
-        dataset = apify_service.get_dataset_items(dataset_id)
-        items = dataset.get("items", [])
+        dataset = client.dataset(dataset_id)
+        items = dataset.list_items().get("items", [])
 
         click.echo(
             click.style(f"✓ Retrieved {len(items)} pages of content!", fg="green")
@@ -432,8 +462,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get the Apify client
+        client = _get_apify_client(token)
 
         # Default page function if not provided
         default_page_function = """
@@ -475,10 +505,10 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         click.echo(f"Scraping website from {url}...")
         click.echo(f"Using selector: {selector}, max pages: {max_pages}")
 
-        result = apify_service.run_actor("apify/web-scraper", run_input)
+        run = client.actor("apify/web-scraper").call(run_input=run_input)
 
         # Get the dataset ID
-        dataset_id = result.get("defaultDatasetId")
+        dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
@@ -488,8 +518,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
         # Get the dataset items
-        dataset = apify_service.get_dataset_items(dataset_id)
-        items = dataset.get("items", [])
+        dataset = client.dataset(dataset_id)
+        items = dataset.list_items().get("items", [])
 
         click.echo(click.style(f"✓ Retrieved {len(items)} pages of data!", fg="green"))
 

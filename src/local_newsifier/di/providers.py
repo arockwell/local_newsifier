@@ -734,3 +734,87 @@ def get_rss_scraping_flow():
         web_scraper=web_scraper,
         cache_dir="cache"
     )
+
+
+# CLI Command Provider Functions
+
+@injectable(use_cache=False)
+def get_db_stats():
+    """Provide database statistics.
+    
+    Uses use_cache=False to ensure fresh statistics on each call.
+    
+    Returns:
+        Tuple: (article_count, latest_article, oldest_article, feed_count, active_feed_count, 
+               feed_processing_log_count, entity_count)
+    """
+    from sqlmodel import select, Session
+    from sqlalchemy import func
+    from local_newsifier.models.article import Article
+    from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
+    from local_newsifier.models.entity import Entity
+    
+    session = next(get_session())
+    
+    # Article stats
+    article_count = session.exec(select(func.count()).select_from(Article)).one()
+    latest_article = session.exec(
+        select(Article).order_by(Article.created_at.desc()).limit(1)
+    ).first()
+    oldest_article = session.exec(
+        select(Article).order_by(Article.created_at).limit(1)
+    ).first()
+    
+    # RSS Feed stats
+    feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
+    active_feed_count = session.exec(
+        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
+    ).one()
+    
+    # Feed processing logs stats
+    processing_log_count = session.exec(
+        select(func.count()).select_from(RSSFeedProcessingLog)
+    ).one()
+    
+    # Entity stats
+    entity_count = session.exec(select(func.count()).select_from(Entity)).one()
+    
+    return (
+        article_count, 
+        latest_article, 
+        oldest_article, 
+        feed_count, 
+        active_feed_count, 
+        processing_log_count, 
+        entity_count
+    )
+
+
+@injectable(use_cache=False)
+def get_apify_client(token: Optional[str] = None, test_mode: bool = False):
+    """Provide the Apify client.
+    
+    Uses use_cache=False to create new clients with potentially different tokens.
+    
+    Args:
+        token: Optional Apify API token
+        test_mode: Whether to use test mode
+        
+    Returns:
+        ApifyClient instance
+    """
+    from local_newsifier.config.settings import settings
+    from apify_client import ApifyClient
+    
+    # Use provided token, or fallback to settings
+    token = token or settings.APIFY_TOKEN
+    
+    if not token and not test_mode:
+        raise ValueError("Apify token not set. Please provide a token or set APIFY_TOKEN in environment variables.")
+    
+    # Create the client
+    # In test mode, we return a dummy client
+    if test_mode:
+        return None
+    
+    return ApifyClient(token)

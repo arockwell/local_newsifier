@@ -20,8 +20,8 @@ from local_newsifier.database.engine import get_session
 from local_newsifier.models.article import Article
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.models.entity import Entity
-from local_newsifier.crud.article import article as article_crud
-from local_newsifier.crud.rss_feed import rss_feed as rss_feed_crud
+from local_newsifier.di.providers import get_session as get_injectable_session
+from local_newsifier.di.providers import get_db_stats, get_article_crud, get_rss_feed_crud
 
 
 @click.group(name="db")
@@ -34,19 +34,38 @@ def db_group():
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def db_stats(json_output: bool):
     """Show database statistics for all major tables."""
-    session = next(get_session())
+    try:
+        # Use injectable provider function for database stats
+        article_count, latest_article, oldest_article, feed_count, active_feed_count, processing_log_count, entity_count = get_db_stats()
+    except ImportError:
+        # Fallback to direct DB query if injectable not available
+        session = next(get_session())
+        
+        # Article stats
+        article_count = session.exec(select(func.count()).select_from(Article)).one()
+        latest_article = session.exec(
+            select(Article).order_by(Article.created_at.desc()).limit(1)
+        ).first()
+        oldest_article = session.exec(
+            select(Article).order_by(Article.created_at).limit(1)
+        ).first()
+        
+        # RSS Feed stats
+        feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
+        active_feed_count = session.exec(
+            select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
+        ).one()
+        
+        # RSSFeedProcessingLog stats
+        processing_log_count = session.exec(
+            select(func.count()).select_from(RSSFeedProcessingLog)
+        ).one()
+        
+        # Entity stats
+        entity_count = session.exec(select(func.count()).select_from(Entity)).one()
     
     # Collect table statistics
     stats = {}
-    
-    # Article stats
-    article_count = session.exec(select(func.count()).select_from(Article)).one()
-    latest_article = session.exec(
-        select(Article).order_by(Article.created_at.desc()).limit(1)
-    ).first()
-    oldest_article = session.exec(
-        select(Article).order_by(Article.created_at).limit(1)
-    ).first()
     
     stats["articles"] = {
         "count": article_count,
@@ -54,29 +73,15 @@ def db_stats(json_output: bool):
         "oldest": format_datetime(oldest_article.created_at) if oldest_article else None,
     }
     
-    # RSS Feed stats
-    feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
-    active_feed_count = session.exec(
-        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
-    ).one()
-    
     stats["rss_feeds"] = {
         "count": feed_count,
         "active": active_feed_count,
         "inactive": feed_count - active_feed_count,
     }
     
-    # RSSFeedProcessingLog stats
-    processing_log_count = session.exec(
-        select(func.count()).select_from(RSSFeedProcessingLog)
-    ).one()
-    
     stats["feed_processing_logs"] = {
         "count": processing_log_count,
     }
-    
-    # Entity stats
-    entity_count = session.exec(select(func.count()).select_from(Entity)).one()
     
     stats["entities"] = {
         "count": entity_count,
@@ -118,7 +123,12 @@ def db_stats(json_output: bool):
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def check_duplicates(limit: int, json_output: bool):
     """Find duplicate articles (same URL) and show details."""
-    session = next(get_session())
+    try:
+        # Use injectable session
+        session = get_injectable_session()
+    except ImportError:
+        # Fallback to direct session
+        session = next(get_session())
     
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
@@ -196,7 +206,12 @@ def list_articles(source: Optional[str], status: Optional[str],
                  before: Optional[str], after: Optional[str], 
                  limit: int, json_output: bool):
     """List articles with filtering options."""
-    session = next(get_session())
+    try:
+        # Use injectable session
+        session = get_injectable_session()
+    except ImportError:
+        # Fallback to direct session
+        session = next(get_session())
     
     # Build the query with filters
     query = select(Article)
@@ -284,12 +299,21 @@ def list_articles(source: Optional[str], status: Optional[str],
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def inspect_record(table: str, id: int, json_output: bool):
     """Inspect a specific database record in detail."""
-    session = next(get_session())
+    try:
+        # Use injectable session and CRUD components
+        session = get_injectable_session()
+        article_crud_component = get_article_crud()
+        rss_feed_crud_component = get_rss_feed_crud()
+    except ImportError:
+        # Fallback to direct imports
+        session = next(get_session())
+        from local_newsifier.crud.article import article as article_crud_component
+        from local_newsifier.crud.rss_feed import rss_feed as rss_feed_crud_component
     
     result = None
     
     if table == "article":
-        article = article_crud.get(session, id=id)
+        article = article_crud_component.get(session, id=id)
         if not article:
             click.echo(click.style(f"Error: Article with ID {id} not found", fg="red"), err=True)
             return
@@ -309,7 +333,7 @@ def inspect_record(table: str, id: int, json_output: bool):
         }
         
     elif table == "rss_feed":
-        feed = rss_feed_crud.get(session, id=id)
+        feed = rss_feed_crud_component.get(session, id=id)
         if not feed:
             click.echo(click.style(f"Error: RSS Feed with ID {id} not found", fg="red"), err=True)
             return
@@ -423,7 +447,12 @@ def inspect_record(table: str, id: int, json_output: bool):
 @click.confirmation_option(prompt="This will delete duplicate articles. Are you sure?")
 def purge_duplicates(dry_run: bool, json_output: bool):
     """Remove duplicate articles, keeping the oldest version."""
-    session = next(get_session())
+    try:
+        # Use injectable session
+        session = get_injectable_session()
+    except ImportError:
+        # Fallback to direct session
+        session = next(get_session())
     
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
