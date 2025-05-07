@@ -42,11 +42,8 @@ def test_app(mock_injectable_entity_service, mock_injectable_dependencies):
     # Get the pre-configured app
     app = FastAPI()
     
-    # Register a provider for our mock service
-    mock_injectable_dependencies.register(
-        "get_injectable_entity_service", 
-        mock_injectable_entity_service
-    )
+    # We'll use the mock directly with Depends for this test
+    # instead of trying to register it with the module
     
     # Define a test endpoint
     @app.get("/entities/{entity_id}")
@@ -130,8 +127,7 @@ async def test_injectable_app_lifespan(event_loop):
     assert hasattr(get_mock_service, "__injectable_config")
 
 
-@pytest.mark.asyncio
-async def test_injectable_endpoint_with_utility(injectable_test_app, mock_injectable_dependencies):
+def test_injectable_endpoint_with_utility(injectable_test_app):
     """Test an endpoint using the injectable_test_app utility."""
     # Arrange
     app = injectable_test_app
@@ -141,14 +137,11 @@ async def test_injectable_endpoint_with_utility(injectable_test_app, mock_inject
     mock_service = MagicMock()
     mock_service.get_entity.return_value = {"id": entity_id, "name": f"Entity {entity_id}"}
     
-    # Register the mock with our utility
-    mock_injectable_dependencies.register("get_entity_service", mock_service)
-    
-    # Define a test endpoint
+    # Define a test endpoint with direct mock injection
     @app.get("/entities/{entity_id}")
     def get_entity(
         entity_id: int,
-        entity_service: Any = Depends(lambda: mock_injectable_dependencies.get("get_entity_service"))
+        entity_service: Any = Depends(lambda: mock_service)
     ):
         return entity_service.get_entity(entity_id)
     

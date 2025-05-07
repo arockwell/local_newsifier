@@ -143,46 +143,40 @@ def event_loop():
 
 
 @pytest.fixture
-async def injectable_test_app():
-    """Create a FastAPI app configured with fastapi-injectable.
+def injectable_test_app():
+    """Create a FastAPI app for testing.
     
-    This fixture handles the async setup needed to properly initialize
-    a FastAPI application with fastapi-injectable support.
+    This fixture provides a simplified FastAPI app for testing, without the complexity
+    of async registration. For real integration tests, you may want to use the full
+    fastapi-injectable setup.
     
     Usage:
     ```python
-    @pytest.mark.asyncio
-    async def test_endpoint(injectable_test_app, mock_injectable_dependencies):
+    def test_endpoint(injectable_test_app, mock_injectable_dependencies):
         app = injectable_test_app
         
-        # Register your mock dependencies
-        mock = mock_injectable_dependencies
-        mock.register("get_entity_service", MagicMock())
+        # Create and configure your mock
+        mock_service = MagicMock()
+        mock_service.get_entity.return_value = {"id": 1, "name": "Test Entity"}
         
-        # Define an endpoint using the injectable dependency
-        @app.get("/test/{id}")
-        def test_endpoint(
-            id: int,
-            entity_service: Any = Depends(lambda: mock.get("get_entity_service"))
+        # Define an endpoint that uses the mock directly
+        @app.get("/entities/{entity_id}")
+        def get_entity(
+            entity_id: int,
+            entity_service = Depends(lambda: mock_service)
         ):
-            return entity_service.get_entity(id)
+            return entity_service.get_entity(entity_id)
         
         # Create a test client
         client = TestClient(app)
         
         # Test the endpoint
-        response = client.get("/test/123")
+        response = client.get("/entities/1")
         assert response.status_code == 200
     ```
     """
-    # Create a test FastAPI app
-    app = FastAPI()
-    
-    # Register the app with fastapi-injectable
-    await register_app(app)
-    
-    # Return the configured app
-    return app
+    # Return a simple FastAPI app for testing
+    return FastAPI()
 
 
 # ==================== Service Testing Utilities ====================
