@@ -140,7 +140,7 @@ def test_db_inspect_article_not_found_injectable(mock_get_article_crud, mock_get
     assert "not found" in result.output
     
     # Verify that article crud's get method was called correctly
-    mock_article_crud.get.assert_called_once_with(mock_session, 999)
+    mock_article_crud.get.assert_called_once_with(mock_session, id=999)
 
 
 @patch('local_newsifier.cli.commands.db.get_injectable_session')
