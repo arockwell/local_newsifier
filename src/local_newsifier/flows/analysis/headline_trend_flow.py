@@ -31,10 +31,6 @@ class HeadlineTrendFlow(Flow):
     def __init__(
         self, 
         analysis_service=None, 
-        article_service=None, 
-        trend_analyzer=None, 
-        trend_reporter=None, 
-        session_factory=None,
         session=None
     ):
         """
@@ -42,19 +38,15 @@ class HeadlineTrendFlow(Flow):
 
         Args:
             analysis_service: Optional AnalysisService instance
-            article_service: Optional ArticleService instance
-            trend_analyzer: Optional TrendAnalyzer instance
-            trend_reporter: Optional TrendReporter instance
-            session_factory: Optional session factory function
             session: Optional SQLModel session to use
         """
         super().__init__()
         
-        # Store session
+        # Setup session management
         self.session = session
         self._owns_session = False
         
-        if session is None and session_factory is None:
+        if session is None:
             self._owns_session = True
             self.session = get_session().__next__()
         
