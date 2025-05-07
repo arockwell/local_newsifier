@@ -335,8 +335,11 @@ class TestSentimentTracker:
         assert results[0]["article_id"] == 1
         assert "topic_sentiments" in results[0]
 
-    def test_get_sentiment_by_period(self, tracker):
+    def test_get_sentiment_by_period(self):
         """Test getting sentiment data grouped by period."""
+        # Create a standalone tracker without using the fixture
+        tracker = SentimentTracker()
+        
         # Mock methods
         with patch.object(
             tracker, '_get_articles_in_range'
@@ -408,8 +411,11 @@ class TestSentimentTracker:
             assert mock_calc_period.call_count == 2
             assert mock_calc_topic.call_count == 2
 
-    def test_get_entity_sentiment_trends(self, tracker):
+    def test_get_entity_sentiment_trends(self):
         """Test getting entity sentiment trends."""
+        # Create a standalone tracker without using the fixture
+        tracker = SentimentTracker()
+        
         # Mock methods
         with patch.object(
             tracker, '_get_articles_in_range'
@@ -488,8 +494,11 @@ class TestSentimentTracker:
             
             assert results == {}
 
-    def test_detect_sentiment_shifts(self, tracker):
+    def test_detect_sentiment_shifts(self):
         """Test detecting sentiment shifts."""
+        # Create a standalone tracker without using the fixture
+        tracker = SentimentTracker()
+        
         # Mock get_sentiment_by_period
         with patch.object(
             tracker, 'get_sentiment_by_period'
@@ -547,8 +556,11 @@ class TestSentimentTracker:
             
             assert mock_detect_shifts.call_count == 2
 
-    def test_calculate_topic_correlation(self, tracker):
+    def test_calculate_topic_correlation(self):
         """Test calculating correlation between topics."""
+        # Create a standalone tracker without using the fixture
+        tracker = SentimentTracker()
+        
         # Mock get_sentiment_by_period
         with patch.object(
             tracker, 'get_sentiment_by_period'
@@ -581,7 +593,7 @@ class TestSentimentTracker:
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
             
             # Create a mock session
-            mock_sess = MagicMock()
+            mock_sess = MagicMock(spec=Session)
             
             result = tracker.calculate_topic_correlation(
                 topic1="climate",
