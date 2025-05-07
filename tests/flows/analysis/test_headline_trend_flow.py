@@ -32,26 +32,15 @@ def flow_with_mocks(mock_session, mock_analysis_service):
         return flow, mock_session, mock_analysis_service
 
 
-@pytest.mark.skip(reason="Incompatible with injectable pattern changes in Issue #251 - see test_headline_trend_flow_simple.py instead")
-def test_init_with_session(mock_session):
+def test_init_with_session(mock_session, mock_analysis_service):
     """Test initialization with provided session."""
-    # This test is incompatible with injectable pattern changes in Issue #251.
-    # We test the functionality in test_headline_trend_flow_simple.py instead.
+    flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service)
     
-    # Mock the core class so we can at least inspect the call
-    with patch("local_newsifier.flows.analysis.headline_trend_flow.HeadlineTrendFlow") as mock_flow_class:
-        # Configure the mock
-        mock_flow_instance = MagicMock()
-        mock_flow_class.return_value = mock_flow_instance
-        
-        # Try to create a flow - won't actually run the real code
-        flow = HeadlineTrendFlow(session=mock_session)
-        
-        # Just assert something trivial to pass the test
-        assert True
+    assert flow.session is mock_session
+    assert flow.analysis_service is mock_analysis_service
+    assert flow._owns_session is False
 
 
-@pytest.mark.skip(reason="Test requires database connection - skipped in PR #174")
 def test_init_without_session():
     """Test initialization without session."""
     with patch("local_newsifier.database.engine.get_session") as mock_get_session:
@@ -198,11 +187,13 @@ def test_generate_report_with_error(flow_with_mocks):
     assert "Error: Something went wrong" in report
 
 
-@pytest.mark.skip(reason="Incompatible with injectable pattern changes in Issue #251 - see test_headline_trend_flow_simple.py instead")
 def test_cleanup_on_delete(mock_session):
     """Test that the session is closed when the flow is deleted."""
-    # This test is incompatible with injectable pattern changes in Issue #251.
-    # We test the functionality in test_headline_trend_flow_simple.py instead.
+    flow = HeadlineTrendFlow(session=mock_session)
+    flow._owns_session = True
     
-    # Just asserting True to pass the test
-    assert True
+    # Simulate __del__ being called
+    flow.__del__()
+    
+    # Verify session was closed
+    mock_session.close.assert_called_once()

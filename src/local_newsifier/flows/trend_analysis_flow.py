@@ -132,9 +132,11 @@ class NewsTrendAnalysisFlow(Flow):
                     analysis_result_crud=analysis_result_crud,
                     article_crud=article_crud,
                     entity_crud=entity_crud,
-                    trend_analyzer=trend_analyzer,
                     session_factory=lambda: session
                 )
+                
+                # Store trend analyzer for later use
+                self.trend_analyzer = trend_analyzer
             except (ImportError, NameError):
                 # If we can't get the providers, raise a more helpful error
                 raise RuntimeError(
@@ -207,23 +209,13 @@ class NewsTrendAnalysisFlow(Flow):
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting trend detection")
 
-            # First try to use the analysis service
-            try:
-                entity_trends = self.analysis_service.detect_entity_trends(
-                    entity_types=state.config.entity_types,
-                    min_significance=state.config.significance_threshold,
-                    min_mentions=state.config.min_articles,
-                    max_trends=state.config.topic_limit
-                )
-            except (AttributeError, Exception) as e:
-                # Fall back to using trend_detector directly for tests
-                entity_trends = self.trend_detector.detect_entity_trends(
-                    entity_types=state.config.entity_types,
-                    min_significance=state.config.significance_threshold,
-                    min_mentions=state.config.min_articles,
-                    max_trends=state.config.topic_limit,
-                    session=getattr(self.analysis_service, '_get_session', lambda: None)()
-                )
+            # Use analysis service for entity trend detection
+            entity_trends = self.analysis_service.detect_entity_trends(
+                entity_types=state.config.entity_types,
+                min_significance=state.config.significance_threshold,
+                min_mentions=state.config.min_articles,
+                max_trends=state.config.topic_limit
+            )
             
             # Detect anomalous patterns
             anomaly_trends = self.trend_detector.detect_anomalous_patterns()

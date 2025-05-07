@@ -68,8 +68,12 @@ class AnalysisService:
         from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
 
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use existing trend_analyzer or create a new one
+            if hasattr(self, 'trend_analyzer'):
+                trend_analyzer = self.trend_analyzer
+            else:
+                trend_analyzer = TrendAnalyzer(session=session)
+                self.trend_analyzer = trend_analyzer
             
             # Get headlines grouped by time interval
             grouped_headlines = self._get_headlines_by_period(
@@ -136,8 +140,12 @@ class AnalysisService:
         for article_obj in articles:
             if not article_obj.title:
                 continue
-                
-            interval_key = TrendAnalyzer.get_interval_key(article_obj.published_at, interval)
+            
+            # Use the static method directly to get the interval key    
+            if hasattr(self, 'trend_analyzer'):
+                interval_key = self.trend_analyzer.get_interval_key(article_obj.published_at, interval)
+            else:
+                interval_key = TrendAnalyzer.get_interval_key(article_obj.published_at, interval)
             
             if interval_key not in grouped_headlines:
                 grouped_headlines[interval_key] = []
@@ -172,8 +180,12 @@ class AnalysisService:
             entity_types = ["PERSON", "ORG", "GPE"]
             
         with self.session_factory() as session:
-            # Create trend analyzer
-            trend_analyzer = TrendAnalyzer(session=session)
+            # Use existing trend_analyzer or create a new one
+            if hasattr(self, 'trend_analyzer'):
+                trend_analyzer = self.trend_analyzer
+            else:
+                trend_analyzer = TrendAnalyzer(session=session)
+                self.trend_analyzer = trend_analyzer
             
             # Get start and end dates based on time frame
             end_date = datetime.now()

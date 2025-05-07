@@ -28,11 +28,24 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session=None):
+    def __init__(
+        self, 
+        analysis_service=None, 
+        article_service=None, 
+        trend_analyzer=None, 
+        trend_reporter=None, 
+        session_factory=None,
+        session=None
+    ):
         """
         Initialize the headline trend analysis flow.
 
         Args:
+            analysis_service: Optional AnalysisService instance
+            article_service: Optional ArticleService instance
+            trend_analyzer: Optional TrendAnalyzer instance
+            trend_reporter: Optional TrendReporter instance
+            session_factory: Optional session factory function
             session: Optional SQLModel session to use
         """
         super().__init__()
@@ -41,34 +54,12 @@ class HeadlineTrendFlow(Flow):
         self.session = session
         self._owns_session = False
         
-        if session is None:
+        if session is None and session_factory is None:
             self._owns_session = True
             self.session = get_session().__next__()
-
-        # Initialize analysis service
-        # This should be properly mocked in tests
-        try:
-            from local_newsifier.services.analysis_service import AnalysisService
-            from local_newsifier.di.providers import get_analysis_result_crud, get_article_crud, get_entity_crud
-            from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-            
-            # Get required dependencies
-            analysis_result_crud = get_analysis_result_crud()
-            article_crud = get_article_crud()
-            entity_crud = get_entity_crud()
-            trend_analyzer = TrendAnalyzer(session=self.session)
-            
-            # Create service with all dependencies
-            self.analysis_service = AnalysisService(
-                analysis_result_crud=analysis_result_crud,
-                article_crud=article_crud,
-                entity_crud=entity_crud,
-                trend_analyzer=trend_analyzer,
-                session_factory=lambda: self.session
-            )
-        except (ImportError, NameError):
-            # This path is only for testing
-            self.analysis_service = None
+        
+        # Store analysis service
+        self.analysis_service = analysis_service
 
     def __del__(self):
         """Clean up resources when the object is deleted."""

@@ -57,13 +57,15 @@ class TestAnalysisService:
         mock_session_factory,
     ):
         """Return an AnalysisService with mock dependencies."""
-        return AnalysisService(
+        service = AnalysisService(
             analysis_result_crud=mock_analysis_result_crud,
             article_crud=mock_article_crud,
             entity_crud=mock_entity_crud,
-            trend_analyzer=mock_trend_analyzer,
             session_factory=mock_session_factory,
         )
+        # Add the trend_analyzer as an attribute for tests
+        service.trend_analyzer = mock_trend_analyzer
+        return service
 
     @pytest.fixture
     def sample_articles(self):
