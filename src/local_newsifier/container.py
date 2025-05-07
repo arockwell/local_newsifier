@@ -212,9 +212,8 @@ def register_services(container):
             lambda c: ArticleService(
                 article_crud=c.get("article_crud"),
                 analysis_result_crud=c.get("analysis_result_crud"),
-                entity_service=c.get("entity_service"),  # Will be lazily loaded
-                session_factory=c.get("session_factory"),
-                container=c  # Inject the container itself
+                entity_service_factory=lambda: c.get("entity_service"),  # Lambda for lazy loading
+                session_factory=c.get("session_factory")
             ),
             scope=Scope.SINGLETON
         )
@@ -419,7 +418,7 @@ def register_services(container):
         lambda c: ArticleService(
             article_crud=c.get("article_crud"),
             analysis_result_crud=c.get("analysis_result_crud"),
-            entity_service=c.get("entity_service"),  # Will be lazily loaded
+            entity_service_factory=lambda: c.get("entity_service"),  # Lambda for lazy loading
             session_factory=c.get("session_factory")
         )
     )
@@ -430,7 +429,8 @@ def register_services(container):
             rss_feed_crud=c.get("rss_feed_crud"),
             feed_processing_log_crud=c.get("feed_processing_log_crud"),
             article_service=c.get("article_service"),  # Will be lazily loaded
-            session_factory=c.get("session_factory")
+            session_factory=c.get("session_factory"),
+            container=c  # Inject the container itself
         )
     )
     
@@ -438,8 +438,6 @@ def register_services(container):
     container.register_factory("apify_service", 
         lambda c: ApifyService()
     )
-    
-    # Core services have been registered
 
 
 def register_flows(container):

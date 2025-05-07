@@ -126,7 +126,7 @@ class OpinionVisualizerTool:
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
                 "interval": interval,
-            },
+            }
         )
 
     @with_session

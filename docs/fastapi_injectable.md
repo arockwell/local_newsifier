@@ -81,7 +81,7 @@ def should_cache(scope: str) -> bool:
 Provider functions in `di/providers.py` expose dependencies to be injected:
 
 ```python
-from typing import Annotated, Generator
+from typing import Annotated, Generator, Any
 from fastapi import Depends
 from fastapi_injectable import injectable
 from sqlmodel import Session
@@ -106,6 +106,32 @@ def get_entity_crud():
     """
     from local_newsifier.crud.entity import entity
     return entity
+
+# Tool providers
+@injectable(use_cache=False)
+def get_entity_tracker_tool(
+    entity_service: Annotated[Any, Depends(get_entity_service)] = None,
+    session: Annotated[Session, Depends(get_session)] = None
+):
+    """Provide the entity tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as the entity
+    tracker uses database operations and maintains state during processing.
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker(entity_service=entity_service, session=session)
+
+@injectable(use_cache=False)
+def get_opinion_visualizer_tool(session: Annotated[Session, Depends(get_session)] = None):
+    """Provide the opinion visualizer tool."""
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+    return OpinionVisualizerTool(session=session)
+
+@injectable(use_cache=False)
+def get_file_writer_tool(output_dir: str = "output"):
+    """Provide the file writer tool."""
+    from local_newsifier.tools.file_writer import FileWriterTool
+    return FileWriterTool(output_dir=output_dir)
 ```
 
 ### 3. Adapter Layer
@@ -227,7 +253,7 @@ def get_article_service(
     )
 ```
 
-### Step 4: Migrate Services
+### Step 4: Migrate Services and Flows
 
 Convert services to use the `@injectable` decorator with appropriate scope:
 
@@ -248,6 +274,34 @@ class InjectableEntityService:
         self.entity_crud = entity_crud
         self.canonical_entity_crud = canonical_entity_crud
         self.session = session
+```
+
+Flow classes should also be updated to use dependency injection:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from crewai import Flow
+from sqlmodel import Session
+
+class EntityTrackingFlow(Flow):
+    """Flow for tracking entities across news articles using state-based pattern."""
+
+    def __init__(
+        self, 
+        entity_service: Annotated[EntityService, Depends(get_entity_service)] = None,
+        entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)] = None,
+        session: Annotated[Session, Depends(get_session)] = None,
+        session_factory: Optional[callable] = None
+    ):
+        """Initialize the entity tracking flow."""
+        super().__init__()
+        self.session = session
+        self.entity_service = entity_service
+        self._entity_tracker = entity_tracker
+        
+        # If session_factory was provided, use it; otherwise create one
+        self._session_factory = session_factory or (lambda: session)
 ```
 
 ### Step 5: Update API Endpoints

@@ -25,8 +25,10 @@ class RSSFeedService:
         self,
         rss_feed_crud=None,
         feed_processing_log_crud=None,
-        article_service=None,
+        article_service_factory: Optional[Callable[[], Any]] = None,
         session_factory=None,
+        # For backwards compatibility; will be removed
+        article_service=None,
         container=None,
     ):
         """Initialize with dependencies.
@@ -34,14 +36,18 @@ class RSSFeedService:
         Args:
             rss_feed_crud: CRUD for RSS feeds
             feed_processing_log_crud: CRUD for feed processing logs
-            article_service: Service for article management
+            article_service_factory: Factory function to get ArticleService instances
             session_factory: Factory for database sessions
-            container: The DI container for resolving additional dependencies
+            article_service: Direct ArticleService instance (legacy, will be deprecated)
+            container: The DI container for resolving dependencies (legacy, will be deprecated)
         """
         self.rss_feed_crud = rss_feed_crud or rss_feed
         self.feed_processing_log_crud = feed_processing_log_crud or feed_processing_log
-        self.article_service = article_service
+        self._article_service_factory = article_service_factory
         self.session_factory = session_factory
+        
+        # Legacy support - will be removed in future
+        self.article_service = article_service
         self.container = container
 
     def _get_session(self) -> Session:
@@ -58,6 +64,43 @@ class RSSFeedService:
         # Last resort fallback to direct import
         from local_newsifier.database.engine import get_session
         return next(get_session())
+        
+    def _get_article_service(self) -> Any:
+        """Get the article service using the factory or fallback methods.
+        
+        Returns:
+            ArticleService instance
+        """
+        # First try the factory-based approach (new)
+        if self._article_service_factory is not None:
+            return self._article_service_factory()
+            
+        # Then try direct instance (legacy)
+        if self.article_service is not None:
+            return self.article_service
+            
+        # Finally try container (legacy)
+        if self.container is not None:
+            return self.container.get("article_service")
+            
+        # Last resort fallback - direct creation of service
+        # This should never happen when using proper DI
+        logger.warning("No article_service available - creating temporary instance")
+        try:
+            # Import modules at runtime to avoid circular imports
+            from local_newsifier.services.article_service import ArticleService
+            from local_newsifier.crud.article import article as article_crud
+            from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+            
+            # Create temporary ArticleService for this operation
+            return ArticleService(
+                article_crud=article_crud,
+                analysis_result_crud=analysis_result_crud,
+                session_factory=self._get_session
+            )
+        except Exception as e:
+            logger.error(f"Failed to create temporary article service: {e}")
+            return None
 
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
@@ -244,46 +287,16 @@ class RSSFeedService:
                     # Create article - protect against None article_service
                     article_id = None
                     
-                    # Get article service - try instance first, then container, then fallback
-                    article_service = self.article_service
-                    
-                    if article_service is None:
-                        # Try to get from container
-                        try:
-                            if self.container:
-                                article_service = self.container.get("article_service")
-                        except:
-                            # If container access fails, continue with None
-                            article_service = None
+                    # Get article service using our new helper method
+                    article_service = self._get_article_service()
                         
                     if article_service is not None:
                         # Use available article service
                         article_id = article_service.create_article_from_rss_entry(entry)
                     else:
-                        # Last resort fallback - direct creation of service
-                        # This should never happen when using the container
-                        logger.warning("No article_service available - creating temporary instance")
-                        try:
-                            # Import modules at runtime to avoid circular imports
-                            from local_newsifier.services.article_service import ArticleService
-                            from local_newsifier.crud.article import article as article_crud
-                            from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-                            from local_newsifier.database.engine import SessionManager
-
-                            # Create temporary ArticleService for this single article
-                            temp_article_service = ArticleService(
-                                article_crud=article_crud,
-                                analysis_result_crud=analysis_result_crud,
-                                entity_service=None,  # Not needed for creating articles from RSS
-                                session_factory=lambda: SessionManager()
-                            )
-                            
-                            # Use the temporary service to create the article
-                            article_id = temp_article_service.create_article_from_rss_entry(entry)
-                        except Exception as temp_e:
-                            logger.error(f"Failed to create temporary article service: {str(temp_e)}")
-                            raise ValueError(f"Article service not initialized and failed to create temporary service: {str(temp_e)}")
-                    
+                        # No article service available - log error and skip this entry
+                        logger.error("Cannot process RSS entry - article service unavailable")
+                        continue
                     if article_id:
                         # Queue article processing
                         if task_queue_func:

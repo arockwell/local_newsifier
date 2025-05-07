@@ -226,26 +226,26 @@ def test_temporary_service_creation():
     mock_log.id = 1
     mock_feed_processing_log_crud.create_processing_started.return_value = mock_log
     
-    # Create a service instance with no article_service
+    # Create a mock for the article service
+    mock_temp_article_service = MagicMock()
+    mock_temp_article_service.create_article_from_rss_entry.side_effect = [301, 302]
+    
+    # Create a mock article service factory
+    mock_article_service_factory = MagicMock(return_value=mock_temp_article_service)
+    
+    # Create a service instance with no article_service but with factory
     service = RSSFeedService(
         rss_feed_crud=mock_rss_feed_crud,
         feed_processing_log_crud=mock_feed_processing_log_crud,
         article_service=None,  # No article service
+        article_service_factory=mock_article_service_factory,  # Use factory
         session_factory=mock_session_factory
     )
     
-    # Create a mock container
+    # Create a mock container (for backwards compatibility)
     mock_container = MagicMock()
-    
-    # Configure container to return None for article_service
     mock_container.get.return_value = None
-    
-    # Add the container to the service
     service.container = mock_container
-    
-    # Create a mock for the temporary article service
-    mock_temp_article_service = MagicMock()
-    mock_temp_article_service.create_article_from_rss_entry.side_effect = [301, 302]
     
     # Configure the processing log for error handling
     error_log = MagicMock()
@@ -261,18 +261,20 @@ def test_temporary_service_creation():
     # Create a mock task_queue_func
     mock_task_queue_func = MagicMock()
     
-    # Test with a temporary ArticleService
+    # Test with the article service factory
     with patch('local_newsifier.services.rss_feed_service.parse_rss_feed', return_value=mock_feed_data):
-        with patch('local_newsifier.services.article_service.ArticleService', return_value=mock_temp_article_service):
-            # Execute the method
-            result = service.process_feed(1, task_queue_func=mock_task_queue_func)
-            
-            # Verify result
-            assert result["status"] == "success"
-            assert result["articles_added"] == 2
-            
-            # Verify the temporary article service was used
-            assert mock_temp_article_service.create_article_from_rss_entry.call_count == 2
+        # Execute the method
+        result = service.process_feed(1, task_queue_func=mock_task_queue_func)
+        
+        # Verify result
+        assert result["status"] == "success"
+        assert result["articles_added"] == 2
+        
+        # Verify the article service factory was used
+        assert mock_article_service_factory.call_count == 2
+        
+        # Verify the temp article service was used
+        assert mock_temp_article_service.create_article_from_rss_entry.call_count == 2
 
 
 def test_register_article_service_with_container():

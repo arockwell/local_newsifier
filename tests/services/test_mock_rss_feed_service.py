@@ -140,6 +140,10 @@ def test_process_feed_no_service_with_container(mock_db_session, mock_session_fa
         return None
     mock_container.get.side_effect = mock_get
     
+    # Create a mock article service factory that returns our mock_article_service
+    mock_article_service_factory = MagicMock()
+    mock_article_service_factory.return_value = mock_article_service
+    
     with patch('local_newsifier.services.rss_feed_service.parse_rss_feed') as mock_parse_rss_feed:
         # Setup mock feed data
         mock_parse_rss_feed.return_value = {
@@ -147,37 +151,29 @@ def test_process_feed_no_service_with_container(mock_db_session, mock_session_fa
             "entries": [{"title": "Article 1"}, {"title": "Article 2"}]
         }
         
-        # Setup mock for temporary article service creation
-        with patch('local_newsifier.services.article_service.ArticleService') as mock_article_service_class:
-            mock_article_service_class.return_value = mock_article_service
-            
-            # Ensure our imports will work by mocking them
-            with patch('local_newsifier.crud.article.article'):
-                with patch('local_newsifier.crud.analysis_result.analysis_result'):
-                    with patch('local_newsifier.database.engine.SessionManager'):
-                                
-                                # Create service instance with mock container
-                                service = RSSFeedService(
-                                    rss_feed_crud=mock_rss_feed_crud,
-                                    feed_processing_log_crud=mock_feed_processing_log_crud,
-                                    article_service=None,  # No article service
-                                    session_factory=mock_session_factory,
-                                    container=mock_container
-                                )
-                                
-                                # Act
-                                result = service.process_feed(feed_id)
-                                
-                                # Assert
-                                # The service creates a temporary ArticleService for each entry in the feed
-                                assert mock_article_service_class.call_count == 2
-                                assert mock_article_service.create_article_from_rss_entry.call_count == 2
-                                
-                                assert result["status"] == "success"
-                                assert result["feed_id"] == feed_id
-                                assert result["feed_name"] == "Example Feed"
-                                assert result["articles_found"] == 2
-                                assert result["articles_added"] == 2
+        # Create service instance with mock container and factory
+        service = RSSFeedService(
+            rss_feed_crud=mock_rss_feed_crud,
+            feed_processing_log_crud=mock_feed_processing_log_crud,
+            article_service=None,  # No direct article service
+            article_service_factory=mock_article_service_factory,  # Use factory instead
+            session_factory=mock_session_factory,
+            container=mock_container
+        )
+        
+        # Act
+        result = service.process_feed(feed_id)
+        
+        # Assert
+        # The service should use the factory to get the article service
+        assert mock_article_service_factory.call_count == 2  # Called once for each article
+        assert mock_article_service.create_article_from_rss_entry.call_count == 2
+        
+        assert result["status"] == "success"
+        assert result["feed_id"] == feed_id
+        assert result["feed_name"] == "Example Feed"
+        assert result["articles_found"] == 2
+        assert result["articles_added"] == 2
 
 
 def test_process_feed_temp_service_fails(mock_db_session, mock_session_factory):

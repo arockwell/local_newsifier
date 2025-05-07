@@ -7,11 +7,24 @@ from unittest.mock import MagicMock, patch
 def test_news_pipeline_with_entity_service():
     """Test that the news pipeline works with the entity service."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase as NewsPipelineFlow
     from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
     
+    # Create mocked dependencies first
+    mock_scraper = MagicMock()
+    mock_article_service = MagicMock()
+    mock_file_writer = MagicMock()
+    mock_entity_service = MagicMock()
+    mock_pipeline_service = MagicMock()
+    
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow()
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        article_service=mock_article_service,
+        file_writer=mock_file_writer,
+        entity_service=mock_entity_service,
+        pipeline_service=mock_pipeline_service
+    )
     
     # Mock the scraper to return test data
     pipeline.scraper.scrape = MagicMock(return_value=NewsAnalysisState(
@@ -112,10 +125,23 @@ def test_news_pipeline_with_entity_service():
 def test_process_url_directly():
     """Test processing a URL directly using the pipeline service."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase as NewsPipelineFlow
+    
+    # Create mocked dependencies first
+    mock_scraper = MagicMock()
+    mock_article_service = MagicMock()
+    mock_file_writer = MagicMock()
+    mock_entity_service = MagicMock()
+    mock_pipeline_service = MagicMock()
     
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow()
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        article_service=mock_article_service,
+        file_writer=mock_file_writer,
+        entity_service=mock_entity_service,
+        pipeline_service=mock_pipeline_service
+    )
     
     # Mock the pipeline service
     pipeline.pipeline_service.process_url = MagicMock(return_value={
@@ -158,11 +184,24 @@ def test_process_url_directly():
 def test_integration_with_entity_tracking():
     """Test integration with entity tracking components."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase as NewsPipelineFlow
     from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
     
+    # Create mocked dependencies first
+    mock_scraper = MagicMock()
+    mock_article_service = MagicMock()
+    mock_file_writer = MagicMock()
+    mock_entity_service = MagicMock()
+    mock_pipeline_service = MagicMock()
+    
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow()
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        article_service=mock_article_service,
+        file_writer=mock_file_writer,
+        entity_service=mock_entity_service,
+        pipeline_service=mock_pipeline_service
+    )
     
     # Mock the article service to avoid database operations
     pipeline.article_service.process_article = MagicMock(return_value={

@@ -22,6 +22,9 @@ from local_newsifier.models.trend import (
 )
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+from local_newsifier.di.providers import (
+    get_analysis_service, get_trend_reporter_tool, get_trend_analyzer_tool
+)
 
 # Global logger
 logger = logging.getLogger(__name__)
@@ -72,13 +75,18 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
-class NewsTrendAnalysisFlow(Flow):
-    """Flow for detecting and analyzing trends in local news coverage."""
-
+# Base class without DI for testing
+class NewsTrendAnalysisFlowBase(Flow):
+    """Base flow for detecting and analyzing trends in local news coverage.
+    
+    This non-injectable version is used for testing.
+    """
+    
     def __init__(
         self,
-        analysis_service: Optional[AnalysisService] = None,
-        trend_reporter: Optional[TrendReporter] = None,
+        analysis_service: AnalysisService,
+        trend_reporter: TrendReporter,
+        trend_analyzer: Any,
         data_aggregator: Optional[Any] = None,
         topic_analyzer: Optional[Any] = None,
         trend_detector: Optional[Any] = None,
@@ -90,63 +98,30 @@ class NewsTrendAnalysisFlow(Flow):
         Initialize the trend analysis flow.
 
         Args:
-            analysis_service: Service for analysis operations
-            trend_reporter: Tool for generating trend reports
+            analysis_service: Service for analysis operations (injected)
+            trend_reporter: Tool for generating trend reports (injected)
+            trend_analyzer: Tool for analyzing trends (injected)
             data_aggregator: Tool for aggregating data (for backwards compatibility)
             topic_analyzer: Tool for analyzing topics (for backwards compatibility)
             trend_detector: Tool for detecting trends (for backwards compatibility)
             session: Database session
             config: Configuration for trend analysis
-            output_dir: Directory for report output
+            output_dir: Directory for output files
         """
         super().__init__()
         self.config = config or TrendAnalysisConfig()
         self.session = session
         
-        # Initialize reporter
-        self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
+        # Use injected services and tools
+        self.reporter = trend_reporter
+        self.analysis_service = analysis_service
         
-        # Use analysis service for all trend analysis operations
-        if analysis_service:
-            self.analysis_service = analysis_service
-        else:
-            try:
-                # Try to get dependencies from the injectable providers
-                from local_newsifier.di.providers import (
-                    get_analysis_result_crud, 
-                    get_article_crud, 
-                    get_entity_crud,
-                    get_trend_analyzer_tool,
-                    get_session
-                )
-                
-                # Get the dependencies 
-                analysis_result_crud = get_analysis_result_crud()
-                article_crud = get_article_crud() 
-                entity_crud = get_entity_crud()
-                trend_analyzer = get_trend_analyzer_tool()
-                session = next(get_session())
-                
-                # Create the service with all required dependencies
-                self.analysis_service = AnalysisService(
-                    analysis_result_crud=analysis_result_crud,
-                    article_crud=article_crud,
-                    entity_crud=entity_crud,
-                    trend_analyzer=trend_analyzer,
-                    session_factory=lambda: session
-                )
-            except (ImportError, NameError):
-                # If we can't get the providers, raise a more helpful error
-                raise RuntimeError(
-                    "Cannot initialize AnalysisService without required dependencies. "
-                    "Please provide an analysis_service instance or ensure the required "
-                    "dependencies are available through the DI container."
-                )
+        # Initialize trend analyzer via DI 
+        self.trend_detector = trend_analyzer
         
         # For backwards compatibility with tests
         self.data_aggregator = data_aggregator or MagicMock()
         self.topic_analyzer = topic_analyzer or MagicMock()
-        self.trend_detector = trend_detector or MagicMock()
         
     def aggregate_historical_data(
         self, state: TrendAnalysisState
@@ -207,26 +182,41 @@ class NewsTrendAnalysisFlow(Flow):
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting trend detection")
 
-            # First try to use the analysis service
-            try:
-                entity_trends = self.analysis_service.detect_entity_trends(
+            # Calculate date range based on configuration
+            end_date = datetime.now(timezone.utc)
+            if state.config.time_frame == TimeFrame.DAY:
+                start_date = end_date - timedelta(days=1)
+            elif state.config.time_frame == TimeFrame.WEEK:
+                start_date = end_date - timedelta(days=7)
+            elif state.config.time_frame == TimeFrame.MONTH:
+                start_date = end_date - timedelta(days=30)
+            else:
+                start_date = end_date - timedelta(days=90)
+                
+            state.add_log(f"Analyzing trends from {start_date.isoformat()} to {end_date.isoformat()}")
+            
+            # Detect entity-based trends using TrendAnalyzer via DI
+            # If this is a proper TrendAnalyzer instance
+            if hasattr(self.trend_detector, 'detect_entity_trends'):
+                entity_trends = self.trend_detector.detect_entity_trends(
                     entity_types=state.config.entity_types,
                     min_significance=state.config.significance_threshold,
                     min_mentions=state.config.min_articles,
                     max_trends=state.config.topic_limit
                 )
-            except (AttributeError, Exception) as e:
-                # Fall back to using trend_detector directly for tests
-                entity_trends = self.trend_detector.detect_entity_trends(
+                
+                # Try to detect anomalous patterns
+                if hasattr(self.trend_detector, 'detect_anomalous_patterns'):
+                    anomaly_trends = self.trend_detector.detect_anomalous_patterns()
+            else:
+                # Fallback to using analysis_service directly
+                entity_trends = self.analysis_service.detect_entity_trends(
                     entity_types=state.config.entity_types,
+                    time_frame=state.config.time_frame,
                     min_significance=state.config.significance_threshold,
                     min_mentions=state.config.min_articles,
-                    max_trends=state.config.topic_limit,
-                    session=getattr(self.analysis_service, '_get_session', lambda: None)()
+                    max_trends=state.config.topic_limit
                 )
-            
-            # Detect anomalous patterns
-            anomaly_trends = self.trend_detector.detect_anomalous_patterns()
 
             # Store the trends
             state.detected_trends = entity_trends
@@ -237,6 +227,7 @@ class NewsTrendAnalysisFlow(Flow):
         except Exception as e:
             state.status = AnalysisStatus.ANALYSIS_FAILED
             state.set_error(f"Error during trend detection: {str(e)}")
+            logger.exception("Error during trend detection")
 
         return state
 
@@ -317,3 +308,48 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log("Completed trend analysis flow with errors")
 
         return state
+
+@injectable(use_cache=False)
+class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
+    """Flow for detecting and analyzing trends in local news coverage.
+    
+    This version uses dependency injection.
+    """
+    
+    def __init__(
+        self,
+        analysis_service: Annotated[AnalysisService, Depends(get_analysis_service)],
+        trend_reporter: Annotated[TrendReporter, Depends(get_trend_reporter_tool)],
+        trend_analyzer: Annotated[Any, Depends(get_trend_analyzer_tool)],
+        data_aggregator: Optional[Any] = None,
+        topic_analyzer: Optional[Any] = None,
+        trend_detector: Optional[Any] = None,
+        session: Optional[Session] = None,
+        config: Optional[TrendAnalysisConfig] = None,
+        output_dir: str = "trend_output"
+    ):
+        """
+        Initialize the trend analysis flow.
+
+        Args:
+            analysis_service: Service for analysis operations (injected)
+            trend_reporter: Tool for generating trend reports (injected)
+            trend_analyzer: Tool for analyzing trends (injected)
+            data_aggregator: Tool for aggregating data (for backwards compatibility)
+            topic_analyzer: Tool for analyzing topics (for backwards compatibility)
+            trend_detector: Tool for detecting trends (for backwards compatibility)
+            session: Database session
+            config: Configuration for trend analysis
+            output_dir: Directory for output files
+        """
+        super().__init__(
+            analysis_service=analysis_service,
+            trend_reporter=trend_reporter,
+            trend_analyzer=trend_analyzer,
+            data_aggregator=data_aggregator,
+            topic_analyzer=topic_analyzer,
+            trend_detector=trend_detector,
+            session=session,
+            config=config,
+            output_dir=output_dir
+        )

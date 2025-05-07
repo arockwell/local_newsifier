@@ -1,12 +1,16 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Callable
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
+
+# Forward references
+if TYPE_CHECKING:
+    from local_newsifier.services.entity_service import EntityService
 
 
 class ArticleService:
@@ -16,33 +20,28 @@ class ArticleService:
         self,
         article_crud,
         analysis_result_crud,
-        entity_service=None,
-        session_factory=None,
-        container=None
+        # Use callable for lazy resolution
+        entity_service_factory: Optional[Callable[[], 'EntityService']] = None,
+        session_factory=None
     ):
         """Initialize with dependencies.
         
         Args:
             article_crud: CRUD for articles
             analysis_result_crud: CRUD for analysis results
-            entity_service: Service for entity operations
+            entity_service_factory: Factory function for EntityService (lazy resolution)
             session_factory: Factory for database sessions
-            container: DI container for resolving dependencies
         """
         self.article_crud = article_crud
         self.analysis_result_crud = analysis_result_crud
-        self.entity_service = entity_service
+        self._entity_service_factory = entity_service_factory
         self.session_factory = session_factory
-        self.container = container
     
     def _get_entity_service(self):
-        """Get the entity service, either from instance or container."""
-        if self.entity_service is not None:
-            return self.entity_service
-            
-        if self.container is not None:
-            return self.container.get("entity_service")
-            
+        """Get the entity service using lazy resolution."""
+        if self._entity_service_factory is not None:
+            return self._entity_service_factory()
+        
         return None
         
     @handle_database

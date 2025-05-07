@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlowBase as EntityTrackingFlow
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")

@@ -7,9 +7,20 @@ Database configuration is handled in the root conftest.py.
 from datetime import datetime, timezone
 import os
 from typing import Dict, List, Generator
+from unittest import mock
 
 import pytest
 from sqlmodel import Session
+
+# Patch for injectable decorator to make tests work
+# This allows injected classes to be instantiated directly in tests
+@pytest.fixture(autouse=True)
+def patch_injectable():
+    """Mock the injectable decorator to make testing easier."""
+    with mock.patch("fastapi_injectable.injectable") as mock_injectable:
+        # Make it act like a simple identity decorator during tests
+        mock_injectable.side_effect = lambda use_cache=None: lambda cls: cls
+        yield mock_injectable
 
 # Import model classes only for type hints
 from local_newsifier.models.article import Article
