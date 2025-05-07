@@ -515,3 +515,16 @@ class TestRSSParser:
         # The implementation might not include an error field, but should have empty entries
         assert len(result["entries"]) == 0
         assert result["feed_url"] == "http://example.com/error"
+        
+    def test_provider_function(self):
+        """Test that the provider function creates a properly configured instance."""
+        # Import the provider function
+        from local_newsifier.di.providers import get_rss_parser
+        
+        # Act
+        parser = get_rss_parser()
+        
+        # Assert
+        assert isinstance(parser, RSSParser)
+        assert parser.cache_file is None
+        assert parser.processed_urls == set()

@@ -4,10 +4,12 @@ import logging
 import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple, Set, Any, Union
+from typing import Annotated, Dict, List, Optional, Tuple, Set, Any, Union
 
 import numpy as np
 import spacy
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.models.article import Article
@@ -25,6 +27,7 @@ from local_newsifier.models.trend import (
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class TrendAnalyzer:
     """Consolidated tool for analyzing trends in news articles.
 
@@ -37,11 +40,11 @@ class TrendAnalyzer:
     It provides a unified interface for trend analysis operations.
     """
 
-    def __init__(self, session: Optional[Session] = None, nlp_model: Optional[str] = "en_core_web_lg"):
-        """Initialize the trend analyzer.
+    def __init__(self, session: Annotated[Session, Depends()], nlp_model: str = "en_core_web_lg"):
+        """Initialize the trend analyzer with injected dependencies.
         
         Args:
-            session: Optional SQLAlchemy session for database access
+            session: Database session (injected)
             nlp_model: Name of the spaCy model to use
         """
         self.session = session

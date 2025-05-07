@@ -3,12 +3,19 @@
 from typing import Dict, List, Optional, Any
 
 import spacy
+from fastapi_injectable import injectable
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 
 
+@injectable(use_cache=False)
 class ContextAnalyzer:
-    """Tool for analyzing the context of entity mentions."""
+    """Tool for analyzing the context of entity mentions.
+    
+    This tool uses spaCy NLP to analyze the sentiment and framing of text
+    contexts surrounding entity mentions. It is used for entity tracking
+    and opinion analysis workflows.
+    """
     
     def __init__(self, model_name: str = "en_core_web_lg"):
         """Initialize with spaCy model.

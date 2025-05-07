@@ -211,59 +211,79 @@ def get_web_scraper_tool():
 
 
 @injectable(use_cache=False)
-def get_sentiment_analyzer_tool():
+def get_sentiment_analyzer_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the sentiment analyzer tool.
     
     Uses use_cache=False to create new instances for each injection, as sentiment
     analysis tools may maintain state during processing and interact with NLP models.
     
+    Args:
+        session: Database session for data access
+        
     Returns:
         SentimentAnalysisTool instance
     """
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-    return SentimentAnalysisTool()
+    return SentimentAnalysisTool(session=session)
 
 
 @injectable(use_cache=False)
-def get_sentiment_tracker_tool():
+def get_sentiment_tracker_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the sentiment tracker tool.
     
     Uses use_cache=False to create new instances for each injection, as it 
     interacts with database and maintains state during tracking.
     
+    Args:
+        session: Database session for data access
+        
     Returns:
         SentimentTracker instance
     """
     from local_newsifier.tools.sentiment_tracker import SentimentTracker
-    return SentimentTracker()
+    return SentimentTracker(session=session)
 
 
 @injectable(use_cache=False)
-def get_opinion_visualizer_tool():
+def get_opinion_visualizer_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the opinion visualizer tool.
     
     Uses use_cache=False to create new instances for each injection, as it
     interacts with database and maintains state during visualization generation.
     
+    Args:
+        session: Database session for data access
+        
     Returns:
         OpinionVisualizerTool instance
     """
     from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-    return OpinionVisualizerTool()
+    return OpinionVisualizerTool(session=session)
 
 
 @injectable(use_cache=False)
-def get_trend_analyzer_tool():
+def get_trend_analyzer_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the trend analyzer tool.
     
     Uses use_cache=False to create new instances for each injection, as it 
     performs complex analysis that may maintain state during processing.
     
+    Args:
+        session: Database session for data access
+        
     Returns:
         TrendAnalyzer instance
     """
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-    return TrendAnalyzer()
+    return TrendAnalyzer(session=session)
 
 
 @injectable(use_cache=False)
@@ -274,7 +294,7 @@ def get_trend_reporter_tool():
     maintains state during report generation and handles file operations.
     
     Returns:
-        TrendReporter instance
+        TrendReporter instance with configured output directory
     """
     from local_newsifier.tools.trend_reporter import TrendReporter
     return TrendReporter(output_dir="trend_output")
@@ -351,17 +371,22 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
-def get_entity_tracker_tool():
+def get_entity_tracker_tool(
+    entity_service: Annotated[Any, Depends(get_entity_service)]
+):
     """Provide the entity tracker tool.
     
     Uses use_cache=False to create new instances for each injection, as this tool
     maintains state during the entity tracking process.
     
+    Args:
+        entity_service: Entity service for entity operations
+        
     Returns:
         EntityTracker instance
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker()
+    return EntityTracker(entity_service=entity_service)
 
 
 @injectable(use_cache=False)

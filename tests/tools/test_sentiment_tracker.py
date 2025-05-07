@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
+from sqlmodel import Session
 
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
@@ -16,12 +17,23 @@ class TestSentimentTracker:
     @pytest.fixture
     def mock_session(self):
         """Create a mock database session."""
-        return MagicMock()
+        return MagicMock(spec=Session)
 
     @pytest.fixture
     def tracker(self, mock_session):
         """Create a sentiment tracker instance."""
         return SentimentTracker(session=mock_session)
+        
+    def test_initialization(self):
+        """Test that the class can be initialized properly with dependencies."""
+        # Create a mock session
+        mock_session = MagicMock(spec=Session)
+        
+        # Initialize the tool directly
+        tracker = SentimentTracker(session=mock_session)
+        
+        # Assert
+        assert tracker.session == mock_session
 
     def test_get_period_key(self, tracker):
         """Test period key generation."""

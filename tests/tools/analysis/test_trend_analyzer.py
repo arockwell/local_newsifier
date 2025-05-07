@@ -2,8 +2,9 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import numpy as np
+from sqlmodel import Session
 
 from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
 from local_newsifier.models.article import Article
@@ -16,19 +17,24 @@ class TestTrendAnalyzer:
 
     def test_init(self):
         """Test initialization of the TrendAnalyzer."""
-        # Test with default parameters
-        analyzer = TrendAnalyzer()
-        assert analyzer.session is None
-        assert analyzer._cache == {}
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
         
-        # Test with session
-        mock_session = MagicMock()
+        # Create analyzer with injected session
         analyzer = TrendAnalyzer(session=mock_session)
+        
+        # Verify initialization
         assert analyzer.session is mock_session
+        assert analyzer._cache == {}
 
     def test_extract_keywords(self):
         """Test extraction of keywords from headlines."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
+        
         # Mock nlp to avoid loading spaCy model
         analyzer.nlp = None
         
@@ -55,7 +61,11 @@ class TestTrendAnalyzer:
 
     def test_detect_keyword_trends(self):
         """Test detection of trending keywords."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
         
         # Test with empty data
         assert analyzer.detect_keyword_trends({}) == []
@@ -102,7 +112,11 @@ class TestTrendAnalyzer:
 
     def test_calculate_date_range(self):
         """Test date range calculation based on time frame."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
         now = datetime.now(timezone.utc)
 
         # Test for DAY time frame
@@ -139,7 +153,11 @@ class TestTrendAnalyzer:
 
     def test_calculate_statistical_significance(self):
         """Test calculation of statistical significance."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
 
         # Test with no baseline (new topic)
         z_score, is_significant = analyzer.calculate_statistical_significance(
@@ -184,7 +202,11 @@ class TestTrendAnalyzer:
 
     def test_analyze_frequency_patterns(self):
         """Test analysis of frequency patterns."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
 
         # Test with insufficient data points
         result = analyzer.analyze_frequency_patterns({"2023-01-01": 1, "2023-01-02": 2})
@@ -209,7 +231,11 @@ class TestTrendAnalyzer:
 
     def test_find_related_entities(self):
         """Test finding related entities."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
 
         # Create test entities
         main_entity = Entity(
@@ -286,7 +312,11 @@ class TestTrendAnalyzer:
             Entity(id=4, article_id=3, text="University of Florida", entity_type="ORG", sentence_context="The University of Florida received new funding.")
         ]
         
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
         trends = analyzer.detect_entity_trends(
             entities=entities,
             articles=articles,
@@ -315,7 +345,11 @@ class TestTrendAnalyzer:
 
     def test_clear_cache(self):
         """Test cache clearing."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
         analyzer._cache = {"key1": "value1", "key2": "value2"}
         
         analyzer.clear_cache()
@@ -323,7 +357,11 @@ class TestTrendAnalyzer:
         
     def test_generate_trend_description(self):
         """Test generation of trend descriptions."""
-        analyzer = TrendAnalyzer()
+        # Create a mock session for injection
+        mock_session = MagicMock(spec=Session)
+        
+        # Create analyzer with injected session
+        analyzer = TrendAnalyzer(session=mock_session)
         data = {"mention_count": 3}
         
         # Test different trend types
@@ -352,3 +390,26 @@ class TestTrendAnalyzer:
             "Test", "TEST", "UNKNOWN_TYPE", data
         )
         assert "Unusual pattern in mentions" in fallback_desc
+        
+    def test_provider_function(self, monkeypatch):
+        """Test that the provider function creates a properly configured instance."""
+        # Create a mock session
+        mock_session = MagicMock(spec=Session)
+        
+        # Mock the session provider
+        def mock_get_session():
+            return mock_session
+        
+        monkeypatch.setattr(
+            "local_newsifier.di.providers.get_session", 
+            mock_get_session
+        )
+        
+        # Import the provider function
+        from local_newsifier.di.providers import get_trend_analyzer_tool
+        
+        # Act
+        analyzer = get_trend_analyzer_tool(session=mock_session)
+        
+        # Assert
+        assert analyzer.session == mock_session

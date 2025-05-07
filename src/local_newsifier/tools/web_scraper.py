@@ -4,6 +4,7 @@ from typing import Dict, Optional, Any
 
 import requests
 from bs4 import BeautifulSoup
+from fastapi_injectable import injectable
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -16,8 +17,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
 
+@injectable(use_cache=False)
 class WebScraperTool:
-    """Tool for scraping web content with robust error handling."""
+    """Tool for scraping web content with robust error handling.
+    
+    This tool handles fetching web content, extracting article text,
+    and managing error conditions with retries and fallback mechanisms.
+    """
 
     def __init__(self, user_agent: Optional[str] = None):
         """Initialize the scraper with optional custom user agent."""

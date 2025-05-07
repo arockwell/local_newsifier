@@ -199,3 +199,19 @@ def test_resolve_entities_missing_fields(entity_resolver):
     # Verify results - only the first entity should be processed
     assert len(results) == 1
     assert results[0]["text"] == "Joe Biden"
+
+
+def test_provider_functions():
+    """Test that the provider functions create properly configured instances."""
+    # Import the provider functions
+    from local_newsifier.di.providers import get_entity_resolver, get_entity_resolver_tool
+    
+    # Act
+    resolver1 = get_entity_resolver()
+    resolver2 = get_entity_resolver_tool()
+    
+    # Assert
+    assert isinstance(resolver1, EntityResolver)
+    assert isinstance(resolver2, EntityResolver)
+    assert resolver1.similarity_threshold == 0.85
+    assert resolver2.similarity_threshold == 0.85

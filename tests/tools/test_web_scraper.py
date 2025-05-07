@@ -731,3 +731,19 @@ class TestWebScraper:
             
             assert result is not None
             assert result["title"] == "Article Title | News Site"
+    
+    def test_provider_function(self):
+        """Test that the provider function creates a properly configured instance."""
+        with patch("local_newsifier.tools.web_scraper.WebScraperTool") as mock_class:
+            mock_instance = MagicMock()
+            mock_class.return_value = mock_instance
+            
+            # Import the provider function
+            from local_newsifier.di.providers import get_web_scraper_tool
+            
+            # Act
+            scraper = get_web_scraper_tool()
+            
+            # Assert
+            assert scraper == mock_instance
+            mock_class.assert_called_once()

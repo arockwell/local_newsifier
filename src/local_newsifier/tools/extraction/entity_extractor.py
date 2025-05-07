@@ -3,12 +3,18 @@
 from typing import Dict, List, Optional, Set
 
 import spacy
+from fastapi_injectable import injectable
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 
 
+@injectable(use_cache=False)
 class EntityExtractor:
-    """Tool for extracting entities from text content."""
+    """Tool for extracting entities from text content.
+    
+    This tool uses spaCy's named entity recognition to extract entities from text,
+    with options to filter by entity type and expand context window.
+    """
     
     def __init__(self, model_name: str = "en_core_web_lg"):
         """Initialize with spaCy model.

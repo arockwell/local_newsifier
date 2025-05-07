@@ -4,9 +4,16 @@ import re
 from typing import Dict, List, Optional, Any
 from difflib import SequenceMatcher
 
+from fastapi_injectable import injectable
 
+
+@injectable(use_cache=False)
 class EntityResolver:
-    """Tool for resolving entity mentions to canonical forms."""
+    """Tool for resolving entity mentions to canonical forms.
+    
+    This tool normalizes, compares, and resolves entity mentions to canonical forms,
+    handling variations in naming conventions and matching similar entity references.
+    """
 
     def __init__(self, similarity_threshold: float = 0.85):
         """Initialize the entity resolver.

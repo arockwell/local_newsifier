@@ -5,11 +5,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
+from fastapi_injectable import injectable
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 
+@injectable(use_cache=False)
 class FileWriterTool:
-    """Tool for saving analysis results to files with atomic writes."""
+    """Tool for saving analysis results to files with atomic writes.
+    
+    This tool handles the saving of analysis results to JSON files,
+    with support for atomic writes to prevent data corruption.
+    """
 
     def __init__(self, output_dir: str = "output"):
         """

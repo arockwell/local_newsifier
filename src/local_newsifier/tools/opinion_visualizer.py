@@ -2,8 +2,10 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any, Tuple, Union, Annotated
 
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
@@ -12,15 +14,22 @@ from local_newsifier.models.sentiment import SentimentVisualizationData
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class OpinionVisualizerTool:
-    """Tool for generating visualizations of sentiment and opinion data."""
+    """Tool for generating visualizations of sentiment and opinion data.
+    
+    This tool prepares data for visualizing sentiment trends over time, creates
+    comparative analysis between topics, and generates reports in various formats
+    including text, HTML, and markdown. It interfaces with the database to fetch
+    sentiment analysis results and presents them in structured formats.
+    """
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session: Annotated[Optional[Session], Depends()] = None):
         """
-        Initialize the opinion visualizer.
+        Initialize the opinion visualizer with injected dependencies.
 
         Args:
-            session: Optional SQLModel session
+            session: SQLAlchemy session for database access (injected)
         """
         self.session = session
 

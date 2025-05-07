@@ -26,9 +26,13 @@ class TestTrendAnalyzerImplementation:
     """Test the implementation of TrendAnalyzer directly."""
 
     @pytest.fixture
-    def trend_analyzer(self):
-        """Create a TrendAnalyzer instance."""
-        return TrendAnalyzer()
+    def trend_analyzer(self, monkeypatch):
+        """Create a TrendAnalyzer instance with a mock session."""
+        # Create a mock session
+        mock_session = MagicMock(spec=Session)
+        
+        # Return TrendAnalyzer with injected session
+        return TrendAnalyzer(session=mock_session)
 
     @pytest.fixture
     def sample_articles(self, db_session):

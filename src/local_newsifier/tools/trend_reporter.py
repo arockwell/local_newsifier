@@ -4,7 +4,9 @@ import json
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Annotated
+
+from fastapi_injectable import injectable
 
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
 
@@ -17,8 +19,14 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
+@injectable(use_cache=False)
 class TrendReporter:
-    """Tool for creating reports of detected trends."""
+    """Tool for creating reports of detected trends.
+    
+    This tool generates formatted reports of news trends in various output formats
+    including text, markdown and JSON. It handles summarization of trend data,
+    and can save reports to the filesystem.
+    """
 
     def __init__(self, output_dir: str = "output"):
         """

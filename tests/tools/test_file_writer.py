@@ -455,3 +455,16 @@ def test_filename_generation(tmp_path):
     state.target_url = "https://example.com/article#section1"
     filename = writer._generate_filename(state)
     assert "example.com" in filename
+
+
+def test_provider_function():
+    """Test that the provider function creates a properly configured instance."""
+    # Import the provider function
+    from local_newsifier.di.providers import get_file_writer_tool
+    
+    # Act
+    writer = get_file_writer_tool()
+    
+    # Assert
+    assert isinstance(writer, FileWriterTool)
+    assert writer.output_dir == Path("output")

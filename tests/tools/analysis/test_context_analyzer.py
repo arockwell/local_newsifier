@@ -426,3 +426,14 @@ class TestContextAnalyzer:
         assert context_result["framing"]["category"] == "neutral"
         assert context_result["length"] == 0
         assert context_result["word_count"] == 0
+        
+    def test_provider_function(self):
+        """Test that the provider function creates a properly configured instance."""
+        # Import the provider function
+        from local_newsifier.di.providers import get_context_analyzer_tool
+        
+        # Act
+        analyzer = get_context_analyzer_tool()
+        
+        # Assert
+        assert isinstance(analyzer, ContextAnalyzer)

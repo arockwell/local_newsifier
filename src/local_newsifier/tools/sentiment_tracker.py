@@ -3,8 +3,10 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Annotated
 
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
@@ -17,15 +19,21 @@ from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class SentimentTracker:
-    """Tool for tracking and analyzing sentiment trends over time."""
+    """Tool for tracking and analyzing sentiment trends over time.
+    
+    This tool analyzes sentiment data across time periods, tracks shifts in sentiment,
+    calculates topic correlations, and identifies trends in opinion data. It provides 
+    functionality for temporal analysis of entity and topic sentiment in news articles.
+    """
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session: Annotated[Optional[Session], Depends()] = None):
         """
-        Initialize the sentiment tracker.
+        Initialize the sentiment tracker with injected dependencies.
 
         Args:
-            session: Optional SQLAlchemy session
+            session: SQLAlchemy session for database access (injected)
         """
         self.session = session
 

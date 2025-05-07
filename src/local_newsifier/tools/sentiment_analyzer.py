@@ -2,9 +2,11 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast
+from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast, Annotated
 
 import spacy
+from fastapi import Depends
+from fastapi_injectable import injectable
 from spacy.language import Language
 from sqlmodel import Session
 from textblob import TextBlob
@@ -45,14 +47,20 @@ class EntitySentimentError(SentimentAnalysisError):
     pass
 
 
+@injectable(use_cache=False)
 class SentimentAnalysisTool:
-    """Tool for performing sentiment analysis on news article content."""
+    """Tool for performing sentiment analysis on news article content.
+    
+    This tool analyzes the sentiment of articles, extracts entity and topic sentiments,
+    and stores analysis results in the database. It uses TextBlob for sentiment analysis
+    and spaCy for entity and topic extraction.
+    """
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session: Annotated[Optional[Session], Depends()] = None):
         """Initialize the sentiment analysis tool with required models.
         
         Args:
-            session: Optional SQLAlchemy session for database access
+            session: SQLAlchemy session for database access (injected)
         """
         self.nlp = spacy.load("en_core_web_sm")
         self.session = session

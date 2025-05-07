@@ -250,3 +250,13 @@ def test_save_report(mock_file, sample_trends):
         
         assert filepath == os.path.join("test_output", "custom_report.json")
         mock_file.assert_called_with(filepath, "w")
+
+
+def test_initialization():
+    """Test that the class can be initialized properly with dependencies."""
+    # Initialize the tool directly
+    reporter = TrendReporter(output_dir="test_output_dir")
+    
+    # Assert
+    assert reporter.output_dir == "test_output_dir"
+    assert isinstance(reporter, TrendReporter)
