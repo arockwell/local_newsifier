@@ -267,6 +267,4 @@ class AnalysisService:
                 analysis_type=analysis_type
             )
             
-            if result:
-                return result.results
-            return None
+            return result.results if result else None

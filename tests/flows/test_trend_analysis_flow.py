@@ -33,24 +33,25 @@ def mock_tools():
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Fixture to mock dependencies."""
-    # Only mock AnalysisService since that's what the implementation uses
-    with patch("local_newsifier.services.analysis_service.AnalysisService") as mock_service, \
-         patch("local_newsifier.tools.trend_reporter.TrendReporter") as mock_reporter:
-         
-        mock_service.return_value = MagicMock()
-        mock_reporter.return_value = MagicMock()
-        
-        # Create mocks for the tool objects that will be returned during imports
-        mock_data_aggregator = MagicMock()
-        mock_topic_analyzer = MagicMock()
-        mock_trend_detector = MagicMock()
+    # Create mock objects
+    mock_analysis_service = MagicMock()
+    mock_reporter = MagicMock()
+    mock_data_aggregator = MagicMock()
+    mock_topic_analyzer = MagicMock()
+    mock_trend_detector = MagicMock()
+    mock_session = MagicMock()
+    
+    # Mock the core services
+    with patch("local_newsifier.services.analysis_service.AnalysisService", return_value=mock_analysis_service), \
+         patch("local_newsifier.tools.trend_reporter.TrendReporter", return_value=mock_reporter):
         
         yield {
-            "service": mock_service,
+            "service": mock_analysis_service,
             "reporter": mock_reporter,
             "data_aggregator": mock_data_aggregator,
             "topic_analyzer": mock_topic_analyzer,
-            "trend_detector": mock_trend_detector
+            "trend_detector": mock_trend_detector,
+            "session": mock_session
         }
 
 
