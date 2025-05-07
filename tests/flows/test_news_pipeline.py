@@ -92,7 +92,12 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
     # Set up function to fix session_factory access
     mock_session_factory_fn = lambda: Mock()
     
-    with patch('local_newsifier.flows.news_pipeline.injectable', lambda **kwargs: lambda cls: cls):
+    # Disable the injectable decorator and mock directly
+    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
+        # Import locally to avoid top-level import issues
+        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+        
+        # Create pipeline instance
         pipeline = NewsPipelineFlow(
             web_scraper=mock_scraper,
             file_writer=mock_file_writer,
