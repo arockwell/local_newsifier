@@ -10,6 +10,8 @@ from fastapi_injectable import injectable, register_app
 
 from sqlmodel import Session
 
+from tests.fixtures.event_loop import event_loop_fixture, injectable_app, injectable_service_fixture
+
 
 class MockInjectableEntityService:
     """Mock entity service for testing injectable endpoints."""
@@ -32,18 +34,12 @@ def mock_injectable_entity_service():
 
 
 @pytest.fixture
-def test_app(mock_injectable_entity_service):
+def test_app(event_loop_fixture, mock_injectable_entity_service):
     """Create a test app with injectable dependencies."""
     app = FastAPI()
     
-    # Register the app with fastapi-injectable
-    # Using async_to_sync to handle coroutine
-    import asyncio
-    
-    # Create and run event loop to register app
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(register_app(app))
+    # Register the app with fastapi-injectable using our event loop fixture
+    event_loop_fixture.run_until_complete(register_app(app))
     
     # Define injectable provider
     @injectable
@@ -68,7 +64,6 @@ def client(test_app):
     return TestClient(test_app)
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_injectable_endpoint(client, mock_injectable_entity_service):
     """Test an endpoint using injectable dependencies."""
     # Arrange
@@ -85,8 +80,7 @@ def test_injectable_endpoint(client, mock_injectable_entity_service):
 
 
 # Test middleware and lifespan usage with fastapi-injectable adapter
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_injectable_app_lifespan():
+def test_injectable_app_lifespan(event_loop_fixture):
     """Test using the injectable app lifespan context manager."""
     # Arrange
     app = FastAPI()
