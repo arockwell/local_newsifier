@@ -88,20 +88,23 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
     mock_entity_extractor = Mock()
     mock_context_analyzer = Mock()
     mock_entity_resolver = Mock()
-    mock_session_factory = Mock()
     
-    pipeline = NewsPipelineFlow(
-        web_scraper=mock_scraper,
-        file_writer=mock_file_writer,
-        article_service=mock_article_service,
-        pipeline_service=mock_pipeline_service,
-        entity_service=mock_entity_service,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver,
-        session_factory=mock_session_factory,
-        output_dir="test_output"
-    )
+    # Set up function to fix session_factory access
+    mock_session_factory_fn = lambda: Mock()
+    
+    with patch('local_newsifier.flows.news_pipeline.injectable', lambda **kwargs: lambda cls: cls):
+        pipeline = NewsPipelineFlow(
+            web_scraper=mock_scraper,
+            file_writer=mock_file_writer,
+            article_service=mock_article_service,
+            pipeline_service=mock_pipeline_service,
+            entity_service=mock_entity_service,
+            entity_extractor=mock_entity_extractor,
+            context_analyzer=mock_context_analyzer,
+            entity_resolver=mock_entity_resolver,
+            session_factory=mock_session_factory_fn,
+            output_dir="test_output"
+        )
     return pipeline
 
 
