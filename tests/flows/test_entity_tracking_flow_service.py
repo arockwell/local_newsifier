@@ -9,7 +9,15 @@ from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.services.entity_service import EntityService
 
 
-def test_entity_tracking_flow_uses_service():
+@patch("local_newsifier.flows.entity_tracking_flow.EntityService")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_entity_tracking_flow_uses_service(
+    mock_tracker_class, mock_resolver_class, mock_analyzer_class, 
+    mock_extractor_class, mock_service_class
+):
     """Test that EntityTrackingFlow uses the EntityService."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
@@ -26,6 +34,20 @@ def test_entity_tracking_flow_uses_service():
         }
     ]
     mock_service.process_article_with_state.return_value = mock_result_state
+    mock_service_class.return_value = mock_service
+    
+    # Create mocks for required components
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
+    
+    mock_tracker = MagicMock()
+    mock_tracker_class.return_value = mock_tracker
     
     # Create test state
     state = EntityTrackingState(
@@ -91,11 +113,33 @@ def test_entity_tracking_flow_creates_default_service(
     assert flow._entity_tracker is mock_tracker
 
 
-def test_entity_tracking_flow_handles_errors():
+@patch("local_newsifier.flows.entity_tracking_flow.EntityService")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_entity_tracking_flow_handles_errors(
+    mock_tracker_class, mock_resolver_class, mock_analyzer_class, 
+    mock_extractor_class, mock_service_class
+):
     """Test that EntityTrackingFlow properly handles errors during processing."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
     mock_service.process_article_with_state.side_effect = Exception("Test error")
+    mock_service_class.return_value = mock_service
+    
+    # Create mocks for required components
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
+    
+    mock_tracker = MagicMock()
+    mock_tracker_class.return_value = mock_tracker
     
     # Create test state
     state = EntityTrackingState(
