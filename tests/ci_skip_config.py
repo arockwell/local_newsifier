@@ -84,13 +84,27 @@ def ci_skip(reason: str = "Test skipped in CI environment") -> Callable:
 
 
 # Shorthand decorator for tests that have async event loop issues
-ci_skip_async = functools.partial(
-    ci_skip, 
-    reason="Skipped in CI due to async event loop issues in CI environment"
-)
+def ci_skip_async(test_item=None):
+    """Decorator to skip tests with async event loop issues in CI environments.
+    
+    This is a convenience wrapper around ci_skip with a specific reason message.
+    """
+    reason = "Skipped in CI due to async event loop issues in CI environment"
+    if test_item is None:
+        # Called without arguments
+        return ci_skip(reason=reason)
+    # Called with the function as argument
+    return ci_skip(reason=reason)(test_item)
 
 # Shorthand decorator for tests that have fastapi-injectable issues
-ci_skip_injectable = functools.partial(
-    ci_skip, 
-    reason="Skipped in CI due to fastapi-injectable issues in CI environment"
-)
+def ci_skip_injectable(test_item=None):
+    """Decorator to skip tests with fastapi-injectable issues in CI environments.
+    
+    This is a convenience wrapper around ci_skip with a specific reason message.
+    """
+    reason = "Skipped in CI due to fastapi-injectable issues in CI environment"
+    if test_item is None:
+        # Called without arguments
+        return ci_skip(reason=reason)
+    # Called with the function as argument
+    return ci_skip(reason=reason)(test_item)
