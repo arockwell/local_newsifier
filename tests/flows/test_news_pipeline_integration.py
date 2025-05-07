@@ -2,13 +2,13 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
 
-@ci_skip("News pipeline integration issues in CI")
-def test_news_pipeline_with_entity_service(event_loop_fixture):
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_news_pipeline_with_entity_service(mock_entity_service_class):
     """Test that the news pipeline works with the entity service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -19,6 +19,10 @@ def test_news_pipeline_with_entity_service(event_loop_fixture):
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
     
     # Create mocks
     mock_scraper = MagicMock(spec=WebScraperTool)
@@ -38,13 +42,14 @@ def test_news_pipeline_with_entity_service(event_loop_fixture):
     )
     
     # Mock the scraper to return test data
-    pipeline.scraper.scrape = MagicMock(return_value=NewsAnalysisState(
+    mock_state = NewsAnalysisState(
         target_url="https://example.com",
         scraped_text="John Doe visited New York City yesterday.",
         scraped_title="Local Visit",
         scraped_at=datetime(2025, 1, 1),
         status=AnalysisStatus.SCRAPE_SUCCEEDED
-    ))
+    )
+    pipeline.scraper.scrape = MagicMock(return_value=mock_state)
     
     # Mock the article service
     pipeline.article_service.process_article = MagicMock(return_value={
@@ -93,7 +98,7 @@ def test_news_pipeline_with_entity_service(event_loop_fixture):
     })
     
     # Mock the file writer
-    pipeline.writer.save = MagicMock(return_value=NewsAnalysisState(
+    mock_result_state = NewsAnalysisState(
         target_url="https://example.com",
         scraped_text="John Doe visited New York City yesterday.",
         scraped_title="Local Visit",
@@ -120,9 +125,18 @@ def test_news_pipeline_with_entity_service(event_loop_fixture):
                 "total_entities": 2
             }
         }
-    ))
+    )
+    pipeline.writer.save = MagicMock(return_value=mock_result_state)
     
-    # Act
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'start_pipeline_async'):
+        pipeline.start_pipeline_async = AsyncMock(return_value=mock_result_state)
+    if hasattr(pipeline.scraper, 'scrape_async'):
+        pipeline.scraper.scrape_async = AsyncMock(return_value=mock_state)
+    if hasattr(pipeline.writer, 'save_async'):
+        pipeline.writer.save_async = AsyncMock(return_value=mock_result_state)
+    
+    # Act - Use the synchronous method directly
     result = pipeline.start_pipeline("https://example.com")
     
     # Assert
@@ -133,8 +147,8 @@ def test_news_pipeline_with_entity_service(event_loop_fixture):
     # Verify service was called
     pipeline.article_service.process_article.assert_called_once()
 
-@ci_skip("Direct URL processing issues in CI")
-def test_process_url_directly(event_loop_fixture):
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_process_url_directly(mock_entity_service_class):
     """Test processing a URL directly using the pipeline service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -144,6 +158,10 @@ def test_process_url_directly(event_loop_fixture):
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
     
     # Create mocks
     mock_scraper = MagicMock(spec=WebScraperTool)
@@ -162,8 +180,8 @@ def test_process_url_directly(event_loop_fixture):
         pipeline_service=mock_pipeline_service
     )
     
-    # Mock the pipeline service
-    pipeline.pipeline_service.process_url = MagicMock(return_value={
+    # The expected result
+    expected_result = {
         "article_id": 1,
         "title": "Test Article",
         "url": "https://example.com",
@@ -186,9 +204,18 @@ def test_process_url_directly(event_loop_fixture):
                 "total_entities": 1
             }
         }
-    })
+    }
     
-    # Act
+    # Mock the pipeline service
+    pipeline.pipeline_service.process_url = MagicMock(return_value=expected_result)
+    
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'process_url_directly_async'):
+        pipeline.process_url_directly_async = AsyncMock(return_value=expected_result)
+    if hasattr(pipeline.pipeline_service, 'process_url_async'):
+        pipeline.pipeline_service.process_url_async = AsyncMock(return_value=expected_result)
+    
+    # Act - Use the synchronous method directly
     result = pipeline.process_url_directly("https://example.com")
     
     # Assert
@@ -200,8 +227,8 @@ def test_process_url_directly(event_loop_fixture):
     # Verify service was called
     pipeline.pipeline_service.process_url.assert_called_once_with("https://example.com")
 
-@ci_skip("Entity tracking integration issues in CI")
-def test_integration_with_entity_tracking(event_loop_fixture):
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_integration_with_entity_tracking(mock_entity_service_class):
     """Test integration with entity tracking components."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -212,6 +239,10 @@ def test_integration_with_entity_tracking(event_loop_fixture):
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
     
     # Create mocks
     mock_scraper = MagicMock(spec=WebScraperTool)
@@ -230,8 +261,8 @@ def test_integration_with_entity_tracking(event_loop_fixture):
         pipeline_service=mock_pipeline_service
     )
     
-    # Mock the article service to avoid database operations
-    pipeline.article_service.process_article = MagicMock(return_value={
+    # The expected article service result
+    article_result = {
         "article_id": 1,
         "title": "Local Visit",
         "url": "https://example.com",
@@ -260,19 +291,21 @@ def test_integration_with_entity_tracking(event_loop_fixture):
                 "total_entities": 1
             }
         }
-    })
+    }
     
-    # Mock the scraper to return test data
-    pipeline.scraper.scrape = MagicMock(return_value=NewsAnalysisState(
+    # Mock the article service to avoid database operations
+    pipeline.article_service.process_article = MagicMock(return_value=article_result)
+    
+    # Mock states for scraper and writer
+    scraper_state = NewsAnalysisState(
         target_url="https://example.com",
         scraped_text="John Doe visited New York City yesterday.",
         scraped_title="Local Visit",
         scraped_at=datetime(2025, 1, 1),
         status=AnalysisStatus.SCRAPE_SUCCEEDED
-    ))
+    )
     
-    # Mock the file writer
-    pipeline.writer.save = MagicMock(return_value=NewsAnalysisState(
+    writer_state = NewsAnalysisState(
         target_url="https://example.com",
         scraped_text="John Doe visited New York City yesterday.",
         scraped_title="Local Visit",
@@ -293,9 +326,23 @@ def test_integration_with_entity_tracking(event_loop_fixture):
                 "total_entities": 1
             }
         }
-    ))
+    )
     
-    # Act
+    # Mock the service methods
+    pipeline.scraper.scrape = MagicMock(return_value=scraper_state)
+    pipeline.writer.save = MagicMock(return_value=writer_state)
+    
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'start_pipeline_async'):
+        pipeline.start_pipeline_async = AsyncMock(return_value=writer_state)
+    if hasattr(pipeline.article_service, 'process_article_async'):
+        pipeline.article_service.process_article_async = AsyncMock(return_value=article_result)
+    if hasattr(pipeline.scraper, 'scrape_async'):
+        pipeline.scraper.scrape_async = AsyncMock(return_value=scraper_state)
+    if hasattr(pipeline.writer, 'save_async'):
+        pipeline.writer.save_async = AsyncMock(return_value=writer_state)
+    
+    # Act - Use the synchronous method directly
     result = pipeline.start_pipeline("https://example.com")
     
     # Assert

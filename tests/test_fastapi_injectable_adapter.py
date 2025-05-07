@@ -6,7 +6,7 @@ import inspect
 from typing import Annotated, Any, Optional, Type, TypeVar
 
 from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip, ci_skip_async, ci_skip_injectable
+from tests.ci_skip_config import ci_skip
 
 from fastapi import FastAPI, Depends
 
@@ -45,7 +45,6 @@ def mock_di_container():
 class TestContainerAdapter:
     """Tests for the ContainerAdapter class."""
 
-    @ci_skip_injectable
     def test_get_service_direct_match(self, mock_di_container):
         """Test getting a service with a direct name match."""
         # Arrange
@@ -64,7 +63,6 @@ class TestContainerAdapter:
         assert result is service
         mock_di_container.get.assert_any_call("test_service")
 
-    @ci_skip_injectable
     def test_get_service_with_module_prefix(self, mock_di_container):
         """Test getting a service with a module name prefix."""
         # Arrange
@@ -88,7 +86,6 @@ class TestContainerAdapter:
         assert result is service
         mock_di_container.get.assert_any_call("test_module_test_service")
 
-    @ci_skip_injectable
     def test_get_service_by_type(self, mock_di_container):
         """Test getting a service by checking type."""
         # Arrange
@@ -100,7 +97,9 @@ class TestContainerAdapter:
         
         # Make direct name lookup fail, but instance check succeed
         mock_di_container.get.return_value = None
-        mock_di_container._services = {"other_service": service}
+        
+        # Set up the get_all_services correctly
+        mock_di_container.get_all_services.return_value = {"other_service": service}
         
         # Act
         with patch('local_newsifier.fastapi_injectable_adapter.isinstance', 
@@ -110,7 +109,6 @@ class TestContainerAdapter:
         # Assert
         assert result is service
 
-    @ci_skip_injectable
     def test_get_service_from_factory(self, mock_di_container):
         """Test getting a service by creating it from a factory."""
         # Arrange
@@ -119,14 +117,22 @@ class TestContainerAdapter:
         service_class.__module__ = "local_newsifier.test"
         
         service = MagicMock()  # No spec to avoid InvalidSpecError
+        factory_mock = MagicMock()
         
-        # Make direct name lookup and instance check fail
-        mock_di_container.get.return_value = None
-        mock_di_container._services = {}
+        # Make direct name lookup fail for the standard paths
+        def get_side_effect(name, **kwargs):
+            # Return service only for factory call
+            if name == "factory_service":
+                return service
+            return None
+            
+        mock_di_container.get.side_effect = get_side_effect
         
-        # But make factory creation work
-        mock_di_container._factories = {"factory_service": MagicMock()}
-        mock_di_container._create_service.return_value = service
+        # Empty services dict for first lookup path
+        mock_di_container.get_all_services.return_value = {}
+        
+        # Add factory for the factory lookup path
+        mock_di_container.get_all_factories.return_value = {"factory_service": factory_mock}
         
         # Act
         with patch('local_newsifier.fastapi_injectable_adapter.isinstance', 
@@ -135,9 +141,8 @@ class TestContainerAdapter:
         
         # Assert
         assert result is service
-        mock_di_container._create_service.assert_called()
+        assert mock_di_container.get.call_count >= 2  # Called for direct path and factory path
 
-    @ci_skip_injectable
     def test_get_service_not_found(self, mock_di_container):
         """Test error when service is not found."""
         # Arrange
@@ -155,7 +160,6 @@ class TestContainerAdapter:
             adapter.get_service(service_class)
 
 
-@ci_skip_injectable
 class TestServiceFactory:
     """Tests for service factory functionality."""
 
@@ -178,7 +182,6 @@ class TestServiceFactory:
                 mock_injectable.reset_mock()
 
 
-@ci_skip_injectable
 class TestInjectAdapter:
     """Tests for the inject_adapter decorator."""
 
@@ -198,7 +201,6 @@ class TestInjectAdapter:
             # Assert
             assert result == 5
 
-    @ci_skip_injectable
     def test_inject_adapter_async(self, mock_di_container, event_loop_fixture):
         """Test inject_adapter with asynchronous function."""
         # Arrange
@@ -209,16 +211,20 @@ class TestInjectAdapter:
         # Check that it correctly identifies as async
         assert inspect.iscoroutinefunction(test_func)
         
-        # Mock get_injected_obj to pass through
+        # We need to make get_injected_obj return a coroutine-compatible object
+        async def mock_get_injected_obj(func, args, kwargs):
+            # Simply return the sum - this simulates what our function would do
+            return args[0] + args[1] + (args[2] if len(args) > 2 else 0)
+            
+        # Mock get_injected_obj to use our async function
         with patch('local_newsifier.fastapi_injectable_adapter.get_injected_obj', 
-                   return_value=5):
+                   mock_get_injected_obj):
             # Act & Assert - now we can run it in our test event loop
             result = event_loop_fixture.run_until_complete(test_func(1, 2, 3))
-            assert result == 5
+            assert result == 6  # 1 + 2 + 3 = 6
             assert test_func.__name__ == "test_func"  # Preserved name
 
 
-@ci_skip_injectable
 class TestRegistration:
     """Tests for service registration functions."""
 
@@ -246,41 +252,45 @@ class TestRegistration:
         service_class = MagicMock()
         service.__class__ = service_class
         
-        mock_di_container.get.return_value = service
-        
-        # Act
-        with patch('local_newsifier.fastapi_injectable_adapter.register_with_injectable') as mock_register:
-            mock_factory = MagicMock()
-            mock_register.return_value = mock_factory
-            result = register_container_service(service_name)
-        
-        # Assert
-        mock_register.assert_called_once_with(service_name, service_class)
-        assert result is mock_factory
+        # In the implementation, container.get() is called and need to return a service
+        # We should patch it separately from the fixture setup
+        with patch('local_newsifier.fastapi_injectable_adapter.di_container.get', return_value=service):
+            # Act
+            with patch('local_newsifier.fastapi_injectable_adapter.register_with_injectable') as mock_register:
+                mock_factory = MagicMock()
+                mock_register.return_value = mock_factory
+                result = register_container_service(service_name)
+            
+            # Assert
+            mock_register.assert_called_once_with(service_name, service_class)
+            assert result is mock_factory
 
     def test_register_container_service_not_found(self, mock_di_container):
         """Test handling when service is not found."""
         # Arrange
         service_name = "nonexistent_service"
-        mock_di_container.get.return_value = None
         
-        # Act
-        result = register_container_service(service_name)
-        
-        # Assert
-        assert result is None
+        # In the implementation, di_container.get() is called directly
+        with patch('local_newsifier.fastapi_injectable_adapter.di_container.get', return_value=None):
+            # Act
+            result = register_container_service(service_name)
+            
+            # Assert
+            assert result is None
 
     def test_register_container_service_error(self, mock_di_container):
         """Test error handling during service registration."""
         # Arrange
         service_name = "error_service"
-        mock_di_container.get.side_effect = TypeError("Test error")
         
-        # Act
-        result = register_container_service(service_name)
-        
-        # Assert
-        assert result is None
+        # In the implementation, di_container.get() is called directly
+        with patch('local_newsifier.fastapi_injectable_adapter.di_container.get', 
+                  side_effect=TypeError("Test error")):
+            # Act
+            result = register_container_service(service_name)
+            
+            # Assert
+            assert result is None
 
     def test_register_bulk_services(self, mock_di_container):
         """Test registering multiple services at once."""
@@ -321,11 +331,9 @@ class TestRegistration:
         mock_get.assert_called_once_with(service_type, param="value")
 
 
-@ci_skip_injectable
 class TestMigration:
     """Tests for DI container migration."""
 
-    @ci_skip("Issues with fastapi-injectable bulk service registration")
     def test_register_bulk_services_functionality(self, mock_di_container):
         """Test bulk service registration functionality."""
         # Arrange
@@ -351,12 +359,10 @@ class TestMigration:
         assert result["service1"] is mock_factories["service1"]
         assert result["service2"] is mock_factories["service2"]
         
-    @ci_skip_injectable
     def test_migrate_container_services(self, mock_di_container, event_loop_fixture):
         """Test migrating services from DIContainer."""
         # Arrange
         app = FastAPI()
-        mock_register_app = MagicMock()
         mock_services = {"service1": MagicMock(), "service2": MagicMock()}
         mock_factories = {"factory1": lambda: MagicMock(), "factory2": lambda: MagicMock()}
         
@@ -365,28 +371,30 @@ class TestMigration:
         mock_di_container.get_all_factories.return_value = mock_factories
         mock_di_container.get.side_effect = lambda name, **kwargs: MagicMock() if name in mock_factories else None
         
+        # Need an async mock for register_app
+        async_register_app_mock = AsyncMock()
+        
         # Act
-        with patch('local_newsifier.fastapi_injectable_adapter.register_app', mock_register_app):
+        with patch('local_newsifier.fastapi_injectable_adapter.register_app', async_register_app_mock):
             with patch('local_newsifier.fastapi_injectable_adapter.get_service_factory', return_value=MagicMock()):
                 # Run the async function in our event loop
                 event_loop_fixture.run_until_complete(migrate_container_services(app))
         
         # Assert
-        mock_register_app.assert_called_once_with(app)
+        async_register_app_mock.assert_called_once_with(app)
         assert mock_di_container.get_all_services.called
         assert mock_di_container.get_all_factories.called
         
-    @ci_skip_injectable
     def test_lifespan_with_injectable(self, mock_di_container, event_loop_fixture):
         """Test lifespan context manager."""
         # Arrange
         app = FastAPI()
-        mock_register_app = MagicMock()
-        mock_migrate = MagicMock()
+        async_register_app_mock = AsyncMock()
+        async_migrate_mock = AsyncMock()
         
         # Act
-        with patch('local_newsifier.fastapi_injectable_adapter.register_app', mock_register_app):
-            with patch('local_newsifier.fastapi_injectable_adapter.migrate_container_services', mock_migrate):
+        with patch('local_newsifier.fastapi_injectable_adapter.register_app', async_register_app_mock):
+            with patch('local_newsifier.fastapi_injectable_adapter.migrate_container_services', async_migrate_mock):
                 # Run the async context manager in our event loop
                 async def test_lifespan():
                     async with lifespan_with_injectable(app):
@@ -396,5 +404,5 @@ class TestMigration:
                 event_loop_fixture.run_until_complete(test_lifespan())
         
         # Assert
-        mock_register_app.assert_called_once_with(app)
-        mock_migrate.assert_called_once_with(app)
+        async_register_app_mock.assert_called_once_with(app)
+        async_migrate_mock.assert_called_once_with(app)

@@ -45,7 +45,6 @@ def flow_with_mocks(mock_session, mock_analysis_service):
     return mock_flow, mock_session, mock_analysis_service
 
 
-@ci_skip("Database connectivity requirements")
 def test_init_with_session(mock_session, mock_analysis_service):
     """Test initialization with provided session."""
     flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service)
