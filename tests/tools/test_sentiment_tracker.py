@@ -1,6 +1,7 @@
 """Tests for the SentimentTracker."""
 
 import unittest
+import importlib
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -8,8 +9,16 @@ import pytest
 from pytest_mock import MockFixture
 
 # Mock imports that could cause issues
-with patch('textblob.TextBlob'):
-    with patch('spacy.load'):
+with patch('spacy.load') as mock_spacy_load:
+    with patch('textblob.TextBlob') as mock_textblob:
+        # Setup mocks
+        mock_spacy_load.return_value = MagicMock()
+        mock_blob = MagicMock()
+        mock_blob.sentiment.polarity = 0.5
+        mock_blob.sentiment.subjectivity = 0.7
+        mock_textblob.return_value = mock_blob
+        
+        # Import after mocking
         from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
 
