@@ -66,6 +66,7 @@ class PublicOpinionFlow(Flow):
         else:
             self.session = session
             self._owns_session = False
+            self.session_factory = lambda: session
 
         # Initialize tools or use provided ones
         self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)

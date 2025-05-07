@@ -6,12 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
-                                                         ReportFormat,
-                                                         TrendAnalysisState)
+                                                      ReportFormat,
+                                                      TrendAnalysisState)
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
-                                            TrendAnalysisConfig, TrendStatus,
-                                            TrendType)
+                                          TrendAnalysisConfig, TrendStatus,
+                                          TrendType)
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def mock_tools():
     }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_dependencies():
     """Fixture to mock dependencies."""
     # Create mock objects
@@ -41,13 +41,12 @@ def mock_dependencies():
     mock_trend_detector = MagicMock()
     mock_session = MagicMock()
     
-    # Mock the core services
     with patch("local_newsifier.services.analysis_service.AnalysisService", return_value=mock_analysis_service), \
          patch("local_newsifier.tools.trend_reporter.TrendReporter", return_value=mock_reporter):
         
         yield {
-            "service": mock_analysis_service,
-            "reporter": mock_reporter,
+            "analysis_service": mock_analysis_service,
+            "trend_reporter": mock_reporter,
             "data_aggregator": mock_data_aggregator,
             "topic_analyzer": mock_topic_analyzer,
             "trend_detector": mock_trend_detector,
@@ -122,8 +121,12 @@ def test_trend_analysis_state_methods():
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_news_trend_analysis_flow_init(mock_dependencies):
     """Test NewsTrendAnalysisFlow initialization."""
-    # Test with default parameters
-    flow = NewsTrendAnalysisFlow()
+    # Test with default configuration
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=mock_dependencies["analysis_service"],
+        trend_reporter=mock_dependencies["trend_reporter"],
+        session=mock_dependencies["session"]
+    )
     assert isinstance(flow.config, TrendAnalysisConfig)
 
     # Test with custom parameters
@@ -131,14 +134,23 @@ def test_news_trend_analysis_flow_init(mock_dependencies):
         time_frame=TimeFrame.MONTH,
         min_articles=5,
     )
-    flow = NewsTrendAnalysisFlow(config=custom_config, output_dir="custom_output")
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=mock_dependencies["analysis_service"],
+        trend_reporter=mock_dependencies["trend_reporter"],
+        session=mock_dependencies["session"],
+        config=custom_config
+    )
     assert flow.config == custom_config
 
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_aggregate_historical_data(mock_dependencies):
     """Test historical data aggregation in the flow."""
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=mock_dependencies["analysis_service"],
+        trend_reporter=mock_dependencies["trend_reporter"],
+        session=mock_dependencies["session"]
+    )
     state = TrendAnalysisState()
     
     # Test successful data aggregation
@@ -168,9 +180,13 @@ def test_aggregate_historical_data(mock_dependencies):
 def test_detect_trends(mock_dependencies, sample_trends):
     """Test trend detection in the flow."""
     # Setup mock behavior for the analysis service
-    mock_dependencies["service"].return_value.detect_entity_trends.return_value = sample_trends
+    mock_dependencies["analysis_service"].detect_entity_trends.return_value = sample_trends
     
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=mock_dependencies["analysis_service"],
+        trend_reporter=mock_dependencies["trend_reporter"],
+        session=mock_dependencies["session"]
+    )
     state = TrendAnalysisState()
     
     # Patch the trend_detector directly for testing
@@ -206,9 +222,13 @@ def test_detect_trends(mock_dependencies, sample_trends):
 def test_generate_report(mock_dependencies, sample_trends):
     """Test report generation in the flow."""
     # Setup reporter mock behavior
-    mock_dependencies["reporter"].return_value.save_report.return_value = "/path/to/report.md"
+    mock_dependencies["trend_reporter"].save_report.return_value = "/path/to/report.md"
     
-    flow = NewsTrendAnalysisFlow()
+    flow = NewsTrendAnalysisFlow(
+        analysis_service=mock_dependencies["analysis_service"],
+        trend_reporter=mock_dependencies["trend_reporter"],
+        session=mock_dependencies["session"]
+    )
     
     # Patch the reporter directly
     with patch.object(flow, 'reporter') as mock_reporter:
@@ -277,7 +297,11 @@ def test_run_analysis(mock_dependencies, sample_trends):
         mock_detect.side_effect = detect_success
         mock_generate.side_effect = generate_success
         
-        flow = NewsTrendAnalysisFlow()
+        flow = NewsTrendAnalysisFlow(
+            analysis_service=mock_dependencies["analysis_service"],
+            trend_reporter=mock_dependencies["trend_reporter"],
+            session=mock_dependencies["session"]
+        )
         
         # Test successful complete flow
         result = flow.run_analysis()

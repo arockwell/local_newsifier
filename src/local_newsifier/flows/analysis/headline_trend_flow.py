@@ -15,23 +15,27 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Annotated
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import get_session, with_session
 from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
     def __init__(
         self, 
-        analysis_service=None, 
-        session=None
+        analysis_service: Optional[AnalysisService] = None, 
+        session: Optional[Session] = None
     ):
         """
         Initialize the headline trend analysis flow.

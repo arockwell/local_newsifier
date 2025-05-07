@@ -42,6 +42,12 @@ if TYPE_CHECKING:
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+    from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
+    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+    from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
 
 from local_newsifier.tools.entity_tracker_service import EntityTracker
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
@@ -526,6 +532,37 @@ def get_article_service(
 
 
 @injectable(use_cache=False)
+def get_news_pipeline_service(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
+    file_writer: Annotated[Any, Depends(get_file_writer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the news pipeline service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_service: Article service
+        web_scraper: Web scraper tool
+        file_writer: File writer tool
+        session: Database session
+        
+    Returns:
+        NewsPipelineService instance
+    """
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    
+    return NewsPipelineService(
+        article_service=article_service,
+        web_scraper=web_scraper,
+        file_writer=file_writer,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
 def get_rss_feed_service(
     rss_feed_crud: Annotated["CRUDRSSFeed", Depends(get_rss_feed_crud)],
     feed_processing_log_crud: Annotated["CRUDFeedProcessingLog", Depends(get_feed_processing_log_crud)],
@@ -589,92 +626,170 @@ def get_analysis_service_legacy(
 
 # Flow providers
 
-def get_entity_tracking_flow():
-    """Factory function to provide the entity tracking flow.
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated["EntityService", Depends(get_entity_service)],
+    entity_tracker: Annotated["EntityTracker", Depends(get_entity_tracker_tool)],
+    entity_extractor: Annotated["EntityExtractor", Depends(get_entity_extractor_tool)],
+    context_analyzer: Annotated["ContextAnalyzer", Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated["EntityResolver", Depends(get_entity_resolver_tool)],
+    session: Annotated[Session, Depends(get_session)]
+) -> "EntityTrackingFlow":
+    """Provide the entity tracking flow.
     
-    This function creates a new EntityTrackingFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     
+    Args:
+        entity_service: Entity service
+        entity_tracker: Entity tracker tool
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
+        session: Database session
+        
     Returns:
         EntityTrackingFlow instance
     """
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     
-    # Get all required dependencies
-    entity_service = get_entity_service()
-    entity_tracker = get_entity_tracker_tool()
-    entity_extractor = get_entity_extractor_tool()
-    context_analyzer = get_context_analyzer_tool()
-    entity_resolver = get_entity_resolver_tool()
-    session = next(get_session())
-    
-    # Create and return the flow with explicit dependencies
     return EntityTrackingFlow(
         entity_service=entity_service,
         entity_tracker=entity_tracker,
         entity_extractor=entity_extractor,
         context_analyzer=context_analyzer,
         entity_resolver=entity_resolver,
+        session=session,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_headline_trend_flow(
+    analysis_service: Annotated[Any, Depends(get_analysis_service)],
+    session: Annotated[Session, Depends(get_session)]
+) -> "HeadlineTrendFlow":
+    """Provide the headline trend flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        analysis_service: Analysis service
+        session: Database session
+        
+    Returns:
+        HeadlineTrendFlow instance
+    """
+    from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
+    
+    return HeadlineTrendFlow(
+        analysis_service=analysis_service,
         session=session
     )
 
 
-def get_news_pipeline_flow():
-    """Factory function to provide the news pipeline flow.
+@injectable(use_cache=False)
+def get_rss_scraping_flow(
+    rss_feed_service: Annotated[Any, Depends(get_rss_feed_service)],
+    article_service: Annotated[Any, Depends(get_article_service)],
+    rss_parser: Annotated[Any, Depends(get_rss_parser)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)]
+) -> "RSSScrapingFlow":
+    """Provide the RSS scraping flow.
     
-    This function creates a new NewsPipelineFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     
+    Args:
+        rss_feed_service: RSS feed service
+        article_service: Article service
+        rss_parser: RSS parser tool
+        web_scraper: Web scraper tool
+        
+    Returns:
+        RSSScrapingFlow instance
+    """
+    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
+    
+    return RSSScrapingFlow(
+        rss_feed_service=rss_feed_service,
+        article_service=article_service,
+        rss_parser=rss_parser,
+        web_scraper=web_scraper,
+        cache_dir="cache"
+    )
+
+
+@injectable(use_cache=False)
+def get_news_pipeline_flow(
+    article_service: Annotated[Any, Depends(get_article_service)],
+    entity_service: Annotated[Any, Depends(get_entity_service)],
+    pipeline_service: Annotated[Any, Depends(get_news_pipeline_service)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
+    file_writer: Annotated[Any, Depends(get_file_writer_tool)],
+    entity_extractor: Annotated[Any, Depends(get_entity_extractor_tool)],
+    context_analyzer: Annotated[Any, Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated[Any, Depends(get_entity_resolver_tool)],
+    session: Annotated[Session, Depends(get_session)]
+) -> "NewsPipelineFlow":
+    """Provide the news pipeline flow.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        article_service: Article service
+        entity_service: Entity service
+        pipeline_service: News pipeline service
+        web_scraper: Web scraper tool
+        file_writer: File writer tool
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
+        session: Database session
+        
     Returns:
         NewsPipelineFlow instance
     """
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.services.news_pipeline_service import NewsPipelineService
     
-    # Get all required dependencies
-    article_service = get_article_service()
-    entity_service = get_entity_service()
-    web_scraper = get_web_scraper_tool()
-    file_writer = get_file_writer_tool()
-    session = next(get_session())
-    
-    # Create pipeline service
-    pipeline_service = NewsPipelineService(
-        article_service=article_service,
-        web_scraper=web_scraper,
-        file_writer=file_writer,
-        session_factory=lambda: session
-    )
-    
-    # Create and return the flow
     return NewsPipelineFlow(
         article_service=article_service,
         entity_service=entity_service,
         pipeline_service=pipeline_service,
         web_scraper=web_scraper,
         file_writer=file_writer,
-        session=session
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
+        session=session,
+        session_factory=lambda: session
     )
 
 
-def get_trend_analysis_flow():
-    """Factory function to provide the trend analysis flow.
+@injectable(use_cache=False)
+def get_trend_analysis_flow(
+    analysis_service: Annotated["AnalysisService", Depends(get_analysis_service)],
+    trend_reporter: Annotated["TrendReporter", Depends(get_trend_reporter_tool)],
+    session: Annotated[Session, Depends(get_session)]
+) -> "NewsTrendAnalysisFlow":
+    """Provide the trend analysis flow.
     
-    This function creates a new NewsTrendAnalysisFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     
+    Args:
+        analysis_service: Analysis service
+        trend_reporter: Trend reporter tool
+        session: Database session
+        
     Returns:
         NewsTrendAnalysisFlow instance
     """
     from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
     from local_newsifier.models.trend import TrendAnalysisConfig
     
-    # Get all required dependencies
-    analysis_service = get_analysis_service()
-    trend_reporter = get_trend_reporter_tool()
-    session = next(get_session())
-    
-    # Create and return the flow with explicit dependencies
     return NewsTrendAnalysisFlow(
         analysis_service=analysis_service,
         trend_reporter=trend_reporter,
@@ -683,54 +798,33 @@ def get_trend_analysis_flow():
     )
 
 
-def get_public_opinion_flow():
-    """Factory function to provide the public opinion flow.
+@injectable(use_cache=False)
+def get_public_opinion_flow(
+    sentiment_analyzer: Annotated["SentimentAnalysisTool", Depends(get_sentiment_analyzer_tool)],
+    sentiment_tracker: Annotated["SentimentTracker", Depends(get_sentiment_tracker_tool)],
+    opinion_visualizer: Annotated["OpinionVisualizerTool", Depends(get_opinion_visualizer_tool)],
+    session: Annotated[Session, Depends(get_session)]
+) -> "PublicOpinionFlow":
+    """Provide the public opinion flow.
     
-    This function creates a new PublicOpinionFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     
+    Args:
+        sentiment_analyzer: Sentiment analysis tool
+        sentiment_tracker: Sentiment tracker tool
+        opinion_visualizer: Opinion visualizer tool
+        session: Database session
+        
     Returns:
         PublicOpinionFlow instance
     """
     from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
     
-    # Get all required dependencies
-    sentiment_analyzer = get_sentiment_analyzer_tool()
-    sentiment_tracker = get_sentiment_tracker_tool()
-    opinion_visualizer = get_opinion_visualizer_tool()
-    session = next(get_session())
-    
-    # Create and return the flow with explicit dependencies
+    # Create the flow with injectable dependencies
     return PublicOpinionFlow(
         sentiment_analyzer=sentiment_analyzer,
         sentiment_tracker=sentiment_tracker,
         opinion_visualizer=opinion_visualizer,
         session=session
-    )
-
-
-def get_rss_scraping_flow():
-    """Factory function to provide the RSS scraping flow.
-    
-    This function creates a new RSSScrapingFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
-    
-    Returns:
-        RSSScrapingFlow instance
-    """
-    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
-    
-    # Get all required dependencies
-    rss_feed_service = get_rss_feed_service()
-    article_service = get_article_service()
-    rss_parser = get_rss_parser()
-    web_scraper = get_web_scraper_tool()
-    
-    # Create and return the flow with explicit dependencies
-    return RSSScrapingFlow(
-        rss_feed_service=rss_feed_service,
-        article_service=article_service,
-        rss_parser=rss_parser,
-        web_scraper=web_scraper,
-        cache_dir="cache"
     )

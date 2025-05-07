@@ -24,6 +24,7 @@ from local_newsifier.crud.entity_mention_context import entity_mention_context a
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 
 
+@injectable(use_cache=False)
 class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 

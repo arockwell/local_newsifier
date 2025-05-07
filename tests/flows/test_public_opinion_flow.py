@@ -26,33 +26,23 @@ class TestPublicOpinionFlow:
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker') as mock_tracker, \
              patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool') as mock_visualizer:
             
+            # Setup mocks to be returned when the tools are initialized
+            mock_analyzer.return_value = MagicMock()
+            mock_tracker.return_value = MagicMock()
+            mock_visualizer.return_value = MagicMock()
+            
+            # Create flow with the session
             flow = PublicOpinionFlow(session=mock_session)
             
-            # Replace the real tools with mocks
+            # Replace the automatically created tools with our mocks
             flow.sentiment_analyzer = mock_analyzer.return_value
             flow.sentiment_tracker = mock_tracker.return_value
             flow.opinion_visualizer = mock_visualizer.return_value
             
             return flow
 
-    @pytest.mark.skip(reason="Database connection failure, to be fixed in a separate PR")
-    def test_init_without_session(self):
-        """Test initialization without a database session."""
-        with patch('local_newsifier.database.engine.get_session') as mock_get_session, \
-             patch('local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool'), \
-             patch('local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
-             patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'):
-            
-            # Mock session
-            mock_session = MagicMock()
-            mock_get_session.return_value.__enter__.return_value = mock_session
-            
-            # Initialize flow without session
-            flow = PublicOpinionFlow()
-            
-            # Verify session was created
-            assert flow.session is not None
-            assert flow._owns_session is True
+    # This test is no longer applicable since we now require a session to be provided
+    # The injectable pattern ensures dependencies are provided externally
 
     def test_analyze_articles_with_ids(self, flow):
         """Test analyzing sentiment for specific articles."""

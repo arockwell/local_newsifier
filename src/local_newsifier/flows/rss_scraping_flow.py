@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Annotated
 
+from crewai import Flow
 from fastapi import Depends
 from fastapi_injectable import injectable
 
@@ -19,7 +20,8 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
-class RSSScrapingFlow:
+@injectable(use_cache=False)
+class RSSScrapingFlow(Flow):
     """Flow for processing RSS feeds and scraping their content."""
 
     def __init__(
@@ -40,6 +42,7 @@ class RSSScrapingFlow:
             web_scraper: Tool for scraping web content
             cache_dir: Optional directory to store cache files
         """
+        super().__init__()
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.rss_feed_service = rss_feed_service
         self.article_service = article_service
