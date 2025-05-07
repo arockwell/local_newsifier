@@ -117,7 +117,7 @@ def test_db_articles_no_articles_injectable(mock_get_article_crud, mock_get_inje
     result = runner.invoke(cli, ["db", "articles"])
     
     assert result.exit_code == 0
-    assert "No articles found matching the criteria" in result.output
+    assert "Articles (0 results)" in result.output
     
     # Verify injectable dependencies were used
     mock_get_article_crud.assert_called_once()
