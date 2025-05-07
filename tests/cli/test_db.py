@@ -23,11 +23,15 @@ def test_db_group():
 @patch('local_newsifier.cli.commands.db.next')
 def test_db_stats_command_injectable(mock_next, mock_get_db_stats):
     """Test that the db stats command runs using injectable dependencies."""
+    # Create a mock article with created_at attribute
+    mock_article = MagicMock()
+    mock_article.created_at = None
+    
     # Set up mock statistics return value
     mock_get_db_stats.return_value = (
         5,  # article_count
-        None,  # latest_article
-        None,  # oldest_article
+        mock_article,  # latest_article
+        mock_article,  # oldest_article
         3,  # feed_count
         2,  # active_feed_count
         10,  # processing_log_count
