@@ -187,10 +187,10 @@ class TestExampleEntityTrackingFlow:
         entity_service_mock.create_entities.assert_not_called()
         entity_resolver_mock.resolve_entity.assert_not_called()
     
-    def test_analyze_entity_trends(self, common_injectable_mocks):
-        """Test analyzing entity trends using common mocks."""
-        # Arrange - using common_injectable_mocks fixture
-        mock = common_injectable_mocks
+    def test_analyze_entity_trends(self, mock_injectable_dependencies):
+        """Test analyzing entity trends."""
+        # Arrange - using mock_injectable_dependencies fixture
+        mock = mock_injectable_dependencies
         
         entity_name = "John Doe"
         days = 7
