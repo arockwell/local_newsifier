@@ -19,7 +19,7 @@ def test_db_group():
     assert "purge-duplicates" in result.output
 
 
-@patch('local_newsifier.di.providers.get_db_stats')
+@patch('local_newsifier.cli.commands.db.get_db_stats')
 @patch('local_newsifier.cli.commands.db.next')
 def test_db_stats_command_injectable(mock_next, mock_get_db_stats):
     """Test that the db stats command runs using injectable dependencies."""
