@@ -27,9 +27,9 @@ MINIMAL_MODE = False  # Permanently disabled
 @router.get("/tables", response_class=HTMLResponse)
 async def get_tables(
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
-    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Get information about all tables in the database.
 
@@ -83,8 +83,8 @@ async def get_tables(
 
 @router.get("/tables/api", response_model=List[Dict])
 async def get_tables_api(
-    session: Annotated[Session, Depends(get_session)],
     _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
 ):
     """Get information about all tables in the database (API version).
 
@@ -117,9 +117,9 @@ async def get_tables_api(
 async def get_table_details(
     request: Request,
     table_name: str,
-    session: Annotated[Session, Depends(get_session)],
-    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Get detailed information about a specific table.
 
@@ -212,8 +212,8 @@ async def get_table_details(
 @router.get("/tables/{table_name}/api")
 async def get_table_details_api(
     table_name: str,
-    session: Annotated[Session, Depends(get_session)],
     _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
 ):
     """Get detailed information about a specific table (API version).
 

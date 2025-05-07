@@ -17,7 +17,7 @@ router = APIRouter(
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,
-    templates: Annotated[Jinja2Templates, Depends(get_templates)]
+    templates: Jinja2Templates = Depends(get_templates)
 ):
     """Render the login page.
 
@@ -37,10 +37,10 @@ async def login_page(
 @router.post("/login", response_class=HTMLResponse)
 async def login(
     request: Request,
-    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     username: str = Form(...),
     password: str = Form(...),
     next_url: str = Form("/system/tables"),  # Default redirect
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Process login form submission.
 

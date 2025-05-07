@@ -83,7 +83,7 @@ app.include_router(tasks.router)
 @app.get("/", response_class=HTMLResponse)
 async def root(
     request: Request, 
-    templates: Annotated[Jinja2Templates, Depends(get_templates)]
+    templates: Jinja2Templates = Depends(get_templates)
 ):
     """Root endpoint serving home page."""
     return templates.TemplateResponse(

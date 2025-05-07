@@ -31,7 +31,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 @router.get("/", response_class=HTMLResponse)
 async def tasks_dashboard(
     request: Request, 
-    templates: Annotated[Jinja2Templates, Depends(get_templates)]
+    templates: Jinja2Templates = Depends(get_templates)
 ):
     """
     Task management dashboard.
@@ -50,8 +50,8 @@ async def tasks_dashboard(
 
 @router.post("/process-article/{article_id}")
 async def process_article_endpoint(
-    article_service: Annotated[ArticleService, Depends(get_article_service)],
     article_id: int = Path(..., title="Article ID", description="ID of the article to process"),
+    article_service: ArticleService = Depends(get_article_service),
 ):
     """
     Submit a task to process an article asynchronously.
@@ -81,8 +81,8 @@ async def process_article_endpoint(
 
 @router.post("/fetch-rss-feeds")
 async def fetch_rss_feeds_endpoint(
-    rss_feed_service: Annotated[RSSFeedService, Depends(get_rss_feed_service)],
     feed_urls: Optional[List[str]] = Query(None, description="List of RSS feed URLs to process"),
+    rss_feed_service: RSSFeedService = Depends(get_rss_feed_service),
 ):
     """
     Submit a task to fetch articles from RSS feeds.
