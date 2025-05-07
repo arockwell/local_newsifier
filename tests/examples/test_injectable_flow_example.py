@@ -189,14 +189,15 @@ class TestExampleEntityTrackingFlow:
     
     def test_analyze_entity_trends(self, mock_injectable_dependencies):
         """Test analyzing entity trends."""
-        # Arrange - using mock_injectable_dependencies fixture
-        mock = mock_injectable_dependencies
-        
+        # Arrange
         entity_name = "John Doe"
         days = 7
         
-        # Configure mock entity service with test data
-        entity_service_mock = mock.get("get_entity_service")
+        # Create mock services directly
+        entity_service_mock = MagicMock()
+        article_service_mock = MagicMock()
+        entity_extractor_mock = MagicMock()
+        entity_resolver_mock = MagicMock()
         
         # Mock mentions with different dates
         from datetime import datetime, timedelta
@@ -216,12 +217,12 @@ class TestExampleEntityTrackingFlow:
         ]
         entity_service_mock.get_associated_entities.return_value = associated
         
-        # Create flow - all dependencies come from common_injectable_mocks
+        # Create flow with direct mocks
         flow = ExampleEntityTrackingFlow(
-            entity_service=mock.get("get_entity_service"),
-            article_service=mock.get("get_article_service"),
-            entity_extractor=mock.get("get_entity_extractor_tool"),
-            entity_resolver=mock.get("get_entity_resolver_tool"),
+            entity_service=entity_service_mock,
+            article_service=article_service_mock,
+            entity_extractor=entity_extractor_mock,
+            entity_resolver=entity_resolver_mock,
         )
         
         # Act
