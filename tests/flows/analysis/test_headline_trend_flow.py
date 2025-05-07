@@ -5,6 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip
+
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
 from local_newsifier.models.article import Article
 
@@ -42,7 +45,7 @@ def flow_with_mocks(mock_session, mock_analysis_service):
     return mock_flow, mock_session, mock_analysis_service
 
 
-@pytest.mark.skip(reason="Skip due to database connectivity requirements. HeadlineTrendFlow initializes AnalysisService which requires database access. Will require database mocking solution.")
+@ci_skip("Database connectivity requirements")
 def test_init_with_session(mock_session, mock_analysis_service):
     """Test initialization with provided session."""
     flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service)
