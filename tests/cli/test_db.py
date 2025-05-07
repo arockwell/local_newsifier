@@ -54,7 +54,7 @@ def test_db_stats_command_injectable(mock_next, mock_get_db_stats):
     mock_next.assert_not_called()
 
 
-@patch('local_newsifier.di.providers.get_db_stats', side_effect=ImportError)
+@patch('local_newsifier.cli.commands.db.get_db_stats', side_effect=ImportError)
 @patch('local_newsifier.cli.commands.db.next')
 def test_db_stats_command_fallback(mock_next, mock_get_db_stats):
     """Test that the db stats command runs with fallback when injectable fails."""
