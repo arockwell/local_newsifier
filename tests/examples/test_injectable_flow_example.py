@@ -3,9 +3,21 @@
 import pytest
 from unittest.mock import MagicMock
 from typing import Annotated, Dict, List, Optional, Any
+from unittest.mock import patch, MagicMock
 
 from fastapi import Depends
-from fastapi_injectable import injectable
+# Create a mock injectable decorator for testing
+mock_injectable = MagicMock()
+def mock_decorator(use_cache=True):
+    def wrapper(func):
+        func.__injectable_config = True
+        return func
+    return wrapper
+mock_injectable.side_effect = mock_decorator
+
+# Patch the real injectable with our mock
+with patch('fastapi_injectable.injectable', mock_injectable):
+    from fastapi_injectable import injectable
 
 # Import testing utilities
 from tests.conftest_injectable import (
