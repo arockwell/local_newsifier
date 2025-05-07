@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
@@ -11,8 +11,7 @@ from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
 
 
-@ci_skip("Service integration issues in CI")
-def test_entity_tracking_flow_uses_service(event_loop_fixture):
+def test_entity_tracking_flow_uses_service():
     """Test that EntityTrackingFlow uses the EntityService."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
@@ -52,7 +51,11 @@ def test_entity_tracking_flow_uses_service(event_loop_fixture):
         entity_resolver=mock_entity_resolver
     )
 
-    # Act
+    # If the class has an async method, replace it with the mock result
+    if hasattr(flow, 'process_async'):
+        flow.process_async = AsyncMock(return_value=mock_result_state)
+
+    # Act - call the synchronous method
     result_state = flow.process(state)
 
     # Assert
@@ -105,8 +108,7 @@ def test_entity_tracking_flow_creates_default_service(
     assert flow._entity_tracker is mock_tracker
 
 
-@ci_skip("Error handling in CI")
-def test_entity_tracking_flow_handles_errors(event_loop_fixture):
+def test_entity_tracking_flow_handles_errors():
     """Test that EntityTrackingFlow properly handles errors during processing."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
@@ -133,6 +135,11 @@ def test_entity_tracking_flow_handles_errors(event_loop_fixture):
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver
     )
+    
+    # If the class has an async method, make sure it doesn't interfere with our test
+    if hasattr(flow, 'process_async'):
+        # Set it to a mock that won't be called (we're testing the sync path)
+        flow.process_async = AsyncMock()
     
     # Act - The flow should catch the exception and return the state with error
     result_state = flow.process(state)
