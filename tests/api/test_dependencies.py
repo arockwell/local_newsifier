@@ -105,23 +105,33 @@ class TestServiceDependencies:
         """Test that get_article_service returns the service from the container."""
         mock_service = Mock()
         
-        with patch("local_newsifier.api.dependencies.get_injected_obj", return_value=mock_service):
-            # Get the service using our injectable service fixture
-            service = injectable_service_fixture(get_article_service)
+        with patch("local_newsifier.api.dependencies.container") as mock_container:
+            # Set up the mock container to return our mock service
+            mock_container.get.return_value = mock_service
+            
+            # Get the service
+            service = get_article_service()
             
             # Verify the service is what we expect
             assert service is mock_service
+            assert mock_container.get.called
+            assert mock_container.get.call_args[0][0] == "article_service"
     
     def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
         """Test that get_rss_feed_service returns the service from the container."""
         mock_service = Mock()
         
-        with patch("local_newsifier.api.dependencies.get_injected_obj", return_value=mock_service):
-            # Get the service using our injectable service fixture
-            service = injectable_service_fixture(get_rss_feed_service)
+        with patch("local_newsifier.api.dependencies.container") as mock_container:
+            # Set up the mock container to return our mock service
+            mock_container.get.return_value = mock_service
+            
+            # Get the service
+            service = get_rss_feed_service()
             
             # Verify the service is what we expect
             assert service is mock_service
+            assert mock_container.get.called
+            assert mock_container.get.call_args[0][0] == "rss_feed_service"
 
 
 class TestTemplatesDependency:
