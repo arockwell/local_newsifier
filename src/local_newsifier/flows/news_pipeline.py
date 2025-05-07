@@ -65,7 +65,7 @@ class NewsPipelineFlow(Flow):
         self.session = session
         
         # Get or create session factory
-        self._session_factory = session_factory or get_session
+        self.session_factory = session_factory or get_session
         
         # Create or use provided entity service
         self._entity_extractor = entity_extractor or EntityExtractor()
@@ -84,7 +84,7 @@ class NewsPipelineFlow(Flow):
                 entity_extractor=self._entity_extractor,
                 context_analyzer=self._context_analyzer,
                 entity_resolver=self._entity_resolver,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
         
         # Create or use provided article service
@@ -95,7 +95,7 @@ class NewsPipelineFlow(Flow):
                 article_crud=article_crud,
                 analysis_result_crud=analysis_result_crud,
                 entity_service=self.entity_service,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
         
         # Create or use provided pipeline service
@@ -106,7 +106,7 @@ class NewsPipelineFlow(Flow):
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
