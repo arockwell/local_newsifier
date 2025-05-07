@@ -1,39 +1,21 @@
 """Tests for the SentimentTracker."""
 
 import unittest
-import importlib
-import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
 
-# Mock spaCy and TextBlob before imports
-mock_spacy_module = MagicMock()
-mock_textblob_module = MagicMock()
-
-# Setup mocks for spaCy
-mock_nlp = MagicMock()
-mock_nlp.return_value = MagicMock()
-mock_spacy_module.load = mock_nlp
-
-# Setup mocks for TextBlob
-mock_blob = MagicMock()
-mock_blob.sentiment.polarity = 0.5
-mock_blob.sentiment.subjectivity = 0.7
-mock_textblob_class = MagicMock(return_value=mock_blob)
-mock_textblob_module.TextBlob = mock_textblob_class
-
-# Apply mocks using patch
-sys_modules_patcher = patch.dict('sys.modules', {
-    'spacy': mock_spacy_module,
-    'textblob': mock_textblob_module
-})
-sys_modules_patcher.start()
+# Mock imports
+patch('spacy.load', MagicMock(return_value=MagicMock())).start()
+patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
+    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+))).start()
 
 # Import after patching
-from local_newsifier.tools.sentiment_tracker import SentimentTracker
+with patch('spacy.language.Language', MagicMock()):
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
 
 class TestSentimentTracker:
@@ -561,9 +543,7 @@ class TestSentimentTracker:
             
             assert mock_detect_shifts.call_count == 2
 
-    @patch('spacy.load')
-    @patch('textblob.TextBlob')
-    def test_calculate_topic_correlation(self, mock_textblob, mock_spacy_load, tracker):
+    def test_calculate_topic_correlation(self, tracker):
         """Test calculating correlation between topics."""
         # Mock get_sentiment_by_period
         with patch.object(
@@ -571,16 +551,6 @@ class TestSentimentTracker:
         ) as mock_get_sentiment, patch.object(
             tracker, '_calculate_correlation'
         ) as mock_calc_correlation:
-            
-            # Mock spaCy
-            mock_nlp = MagicMock()
-            mock_spacy_load.return_value = mock_nlp
-            
-            # Mock TextBlob
-            mock_blob = MagicMock()
-            mock_blob.sentiment.polarity = 0.5
-            mock_blob.sentiment.subjectivity = 0.7
-            mock_textblob.return_value = mock_blob
             
             # Mock sentiment data
             mock_sentiment_data = {
