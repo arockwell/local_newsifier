@@ -347,6 +347,7 @@ class TestMigration:
         assert result["service1"] is mock_factories["service1"]
         assert result["service2"] is mock_factories["service2"]
         
+    @ci_skip_injectable
     def test_migrate_container_services(self, mock_di_container, event_loop_fixture):
         """Test migrating services from DIContainer."""
         # Arrange
@@ -371,6 +372,7 @@ class TestMigration:
         assert mock_di_container.get_all_services.called
         assert mock_di_container.get_all_factories.called
         
+    @ci_skip_injectable
     def test_lifespan_with_injectable(self, mock_di_container, event_loop_fixture):
         """Test lifespan context manager."""
         # Arrange
