@@ -2,24 +2,38 @@
 
 import unittest
 import importlib
+import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
 
-# Mock imports that could cause issues
-with patch('spacy.load') as mock_spacy_load:
-    with patch('textblob.TextBlob') as mock_textblob:
-        # Setup mocks
-        mock_spacy_load.return_value = MagicMock()
-        mock_blob = MagicMock()
-        mock_blob.sentiment.polarity = 0.5
-        mock_blob.sentiment.subjectivity = 0.7
-        mock_textblob.return_value = mock_blob
-        
-        # Import after mocking
-        from local_newsifier.tools.sentiment_tracker import SentimentTracker
+# Mock spaCy and TextBlob before imports
+mock_spacy_module = MagicMock()
+mock_textblob_module = MagicMock()
+
+# Setup mocks for spaCy
+mock_nlp = MagicMock()
+mock_nlp.return_value = MagicMock()
+mock_spacy_module.load = mock_nlp
+
+# Setup mocks for TextBlob
+mock_blob = MagicMock()
+mock_blob.sentiment.polarity = 0.5
+mock_blob.sentiment.subjectivity = 0.7
+mock_textblob_class = MagicMock(return_value=mock_blob)
+mock_textblob_module.TextBlob = mock_textblob_class
+
+# Apply mocks using patch
+sys_modules_patcher = patch.dict('sys.modules', {
+    'spacy': mock_spacy_module,
+    'textblob': mock_textblob_module
+})
+sys_modules_patcher.start()
+
+# Import after patching
+from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
 
 class TestSentimentTracker:
