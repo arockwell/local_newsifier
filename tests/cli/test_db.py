@@ -99,28 +99,22 @@ def test_db_duplicates_no_duplicates(mock_next, mock_get_injectable_session):
 
 
 @patch('local_newsifier.cli.commands.db.get_injectable_session')
-@patch('local_newsifier.cli.commands.db.get_article_crud')
-def test_db_articles_no_articles_injectable(mock_get_article_crud, mock_get_injectable_session):
+def test_db_articles_no_articles_injectable(mock_get_injectable_session):
     """Test that the db articles command works with injectable dependencies."""
     # Set up mock session
     mock_session = MagicMock()
     mock_get_injectable_session.return_value = mock_session
     
-    # Set up mock article CRUD
-    mock_article_crud = MagicMock()
-    mock_get_article_crud.return_value = mock_article_crud
-    
-    # Mock empty result for articles query
-    mock_article_crud.get_all.return_value = []
+    # Mock the session.exec() chain to return an empty list
+    mock_session.exec.return_value.all.return_value = []
     
     runner = CliRunner()
     result = runner.invoke(cli, ["db", "articles"])
     
     assert result.exit_code == 0
-    assert "Articles (0 results)" in result.output
+    assert "No articles found matching the criteria" in result.output
     
     # Verify injectable dependencies were used
-    mock_get_article_crud.assert_called_once()
     mock_get_injectable_session.assert_called_once()
 
 
