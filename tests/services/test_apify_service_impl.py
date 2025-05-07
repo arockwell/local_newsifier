@@ -107,11 +107,20 @@ class TestApifyServiceImplementation:
         client = apify_service.client
         assert client is not None
         
-        # Invalid token should raise a ValueError when trying to access client
+        # When in test mode, it should not raise an error even without token
         apify_service._token = None
         apify_service._client = None
-        with pytest.raises(ValueError):
-            client = apify_service.client
+        # No assertion needed, as test_mode is auto-detected in tests
+        client = apify_service.client
+        assert client is not None
+        
+        # Force non-test mode to check validation error
+        # We need to patch the test mode detection
+        with patch.object(apify_service, '_test_mode', False):
+            apify_service._token = None
+            apify_service._client = None
+            with pytest.raises(ValueError):
+                client = apify_service.client
 
     def test_run_actor(self, apify_service, mock_apify_client):
         """Test running an actor."""
