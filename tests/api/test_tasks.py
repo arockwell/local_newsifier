@@ -7,6 +7,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip_async
+
 from local_newsifier.api.dependencies import get_templates, get_session, get_article_service, get_rss_feed_service
 from local_newsifier.api.routers.tasks import router
 from local_newsifier.models.article import Article
@@ -133,10 +136,9 @@ class TestTasksDashboard:
 class TestProcessArticle:
     """Tests for process article endpoint."""
 
-    @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
     @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
     def test_process_article_success(
-        self, mock_process_article, client, mock_article_service, sample_article
+        self, mock_process_article, client, mock_article_service, sample_article, event_loop_fixture
     ):
         """Test successful article processing."""
         # Set up mocks
@@ -194,11 +196,10 @@ class TestProcessArticle:
 class TestFetchRSSFeeds:
     """Tests for fetch RSS feeds endpoint."""
 
-    @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     def test_fetch_rss_feeds_default(
-        self, mock_settings, mock_fetch_rss_feeds, client, mock_rss_feed_service
+        self, mock_settings, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
     ):
         """Test fetching RSS feeds with default URLs from settings."""
         # Set up mocks
@@ -228,10 +229,9 @@ class TestFetchRSSFeeds:
         # Clean up
         client.app.dependency_overrides = {}
 
-    @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     def test_fetch_rss_feeds_custom_urls(
-        self, mock_fetch_rss_feeds, client, mock_rss_feed_service
+        self, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
     ):
         """Test fetching RSS feeds with custom URLs."""
         # Set up mocks

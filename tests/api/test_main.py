@@ -9,6 +9,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.middleware.sessions import SessionMiddleware
 
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip_async
+
 from local_newsifier.api.main import app, lifespan
 
 
@@ -81,10 +84,13 @@ class TestEndpoints:
 class TestLifespan:
     """Tests for the lifespan context manager."""
 
+    @ci_skip_async
     def test_lifespan_existence(self):
         """Test that the lifespan context manager is configured."""
-        # Skip this test as FastAPI 0.112.x now uses a different way of handling lifespan
-        pytest.skip("Skipping due to FastAPI 0.112.x changes to lifespan handling")
+        # This test needs to be skipped in CI environments due to FastAPI 0.112.x lifespan handling changes
+        # but we'll keep it enabled for local testing
+        from local_newsifier.api.main import lifespan
+        assert callable(lifespan), "lifespan should be a callable function"
 
     def test_create_db_called_in_lifespan(self):
         """Test that create_db_and_tables is called during lifespan startup."""
@@ -98,16 +104,36 @@ class TestLifespan:
             assert "create_db_and_tables" in source, "create_db_and_tables should be called in lifespan"
 
     @pytest.mark.asyncio
-    async def test_lifespan_startup_success(self, mock_logger):
+    @ci_skip_async
+    async def test_lifespan_startup_success(self, mock_logger, event_loop_fixture):
         """Test successful startup in lifespan context manager."""
-        # Skip this test as FastAPI 0.112.x now uses a different way of handling lifespan
-        pytest.skip("Skipping due to FastAPI 0.112.x changes to lifespan handling")
+        # Mock the create_db_and_tables function
+        with patch("local_newsifier.database.engine.create_db_and_tables") as mock_create_db:
+            # Create async context manager for testing
+            async with lifespan(app):
+                pass
+            
+            # Verify create_db_and_tables was called
+            mock_create_db.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_lifespan_startup_error(self, mock_logger):
+    @ci_skip_async
+    async def test_lifespan_startup_error(self, mock_logger, event_loop_fixture):
         """Test error handling during startup in lifespan context manager."""
-        # Skip this test as FastAPI 0.112.x now uses a different way of handling lifespan
-        pytest.skip("Skipping due to FastAPI 0.112.x changes to lifespan handling")
+        # Mock the create_db_and_tables function to raise an exception
+        error_message = "Database connection error"
+        with patch("local_newsifier.database.engine.create_db_and_tables", 
+                  side_effect=Exception(error_message)):
+            try:
+                # Create async context manager for testing
+                async with lifespan(app):
+                    pass
+            except Exception:
+                # Exception should be logged
+                pass
+            
+            # Verify that the error was logged
+            mock_logger.exception.assert_called_with(f"Error during startup: {error_message}")
 
 
 class TestAppConfiguration:
