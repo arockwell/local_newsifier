@@ -128,7 +128,12 @@ class ApifyService:
             
         # Make the actual API call
         schedules_client = self.client.schedules()
-        return schedules_client.create(schedule_data=schedule_data)
+        # Debugging the API
+        import inspect
+        logging.info(f"Schedules client methods: {dir(schedules_client)}")
+        logging.info(f"Create method signature: {inspect.signature(schedules_client.create)}")
+        # Try without naming the parameter
+        return schedules_client.create(schedule_data)
         
     def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing Apify schedule.
