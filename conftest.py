@@ -4,15 +4,49 @@ This module handles:
 1. SQLModel metadata registration in a controlled order
 2. SQLite in-memory database setup for tests
 3. Session and transaction management for tests
+4. Patching injectable decorators for tests
 """
 
 import os
 from datetime import datetime, timezone
 from typing import Generator
 import uuid
+import sys
+from unittest.mock import patch
 
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, text, select
+
+# Import our utility to patch injectable decorators
+from tests.patches import patch_injectable_imports
+
+# Patch all injectable decorators before importing any modules
+@pytest.fixture(scope="session", autouse=True)
+def patch_all_injectable_decorators():
+    """
+    Apply the patch for all injectable decorators globally for the test session.
+    
+    This ensures all tests can safely import classes decorated with @injectable.
+    """
+    # Apply the patch at the earliest possible point
+    stop_patch = patch_injectable_imports()
+    yield
+    stop_patch()
+
+
+# Also patch event loops to avoid "Event loop is closed" errors in async tests
+from tests.patches import create_test_event_loop
+
+@pytest.fixture(scope="session", autouse=True)
+def patch_event_loop():
+    """
+    Set up a mock event loop for all tests.
+    
+    This avoids 'RuntimeError: Event loop is closed' errors in tests that use async code.
+    """
+    mock_loop, stop_patches = create_test_event_loop()
+    yield mock_loop
+    stop_patches()
 
 # First, reset and register all models in a controlled order
 # This must run before any database operations
