@@ -64,6 +64,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        
+    - name: Get current date info
+      id: date
+      run: echo "week=$(date +%Y%V)" >> $GITHUB_OUTPUT
 
     - name: Install Poetry
       uses: snok/install-poetry@v1
@@ -77,9 +81,9 @@ jobs:
       id: cache
       with:
         path: .venv
-        # Adding a weekly expiration with format YYYY-WW (year-week number)
+        # Adding a weekly expiration based on the week number of the year
         # This ensures a fresh environment at least once a week to catch dependency issues
-        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ github.run_id != '0' && format('{0:yyyy-WW}', fromJSON('{"date":"' + github.event.repository.updated_at + '"}').date) || '' }}
+        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ steps.date.outputs.week }}
 
     - name: Install dependencies
       run: |
