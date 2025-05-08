@@ -123,9 +123,23 @@ class ApifyService:
         if run_input:
             actions[0]["input"] = run_input
             
+        # Format name to match Apify requirements (alphanumeric with hyphens only in middle)
+        default_name = f"localnewsifier-{actor_id.replace('/', '-')}"
+        # Ensure the name follows the required format
+        sanitized_name = name or default_name
+        sanitized_name = sanitized_name.lower().replace('_', '-')
+        # Remove any characters that aren't allowed
+        import re
+        sanitized_name = re.sub(r'[^a-z0-9-]', '', sanitized_name)
+        # Ensure hyphens aren't at start or end
+        sanitized_name = sanitized_name.strip('-')
+        # If the name is all gone, use a default
+        if not sanitized_name:
+            sanitized_name = "localnewsifier"
+            
         # Prepare schedule parameters according to API requirements
         schedule_params = {
-            "name": name or f"local-newsifier-{actor_id}",
+            "name": sanitized_name,
             "cron_expression": cron_expression,
             "is_enabled": True,
             "is_exclusive": True,  # Don't start if previous run is still going
