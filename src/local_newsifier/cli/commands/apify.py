@@ -22,7 +22,7 @@ from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import apify_source_config as config_crud
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import SessionManager
 
 
 @click.group(name="apify")
@@ -549,7 +549,7 @@ def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
         ApifyScheduleManager: Configured schedule manager
     """
     apify_service = ApifyService(token)
-    session_factory = get_session
+    session_factory = lambda: SessionManager()
     return ApifyScheduleManager(
         apify_service=apify_service,
         apify_source_config_crud=config_crud,
@@ -576,7 +576,7 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
         
     try:
         # Get all scheduled configs from database
-        with get_session() as session:
+        with SessionManager() as session:
             configs = config_crud.get_scheduled_configs(session, enabled_only=False)
             
         if not configs:
