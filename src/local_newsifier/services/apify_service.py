@@ -127,7 +127,7 @@ class ApifyService:
             schedule_data["name"] = name
             
         # Make the actual API call
-        return self.client.schedules().create(schedule_data)
+        return self.client.schedules.create(schedule_data)
         
     def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing Apify schedule.
@@ -272,7 +272,7 @@ class ApifyService:
             params["filter"] = {"actId": actor_id}
             
         # Make the actual API call
-        return self.client.schedules().list(params)
+        return self.client.schedules.list(params)
 
     def _format_error(self, error: Exception, context: str = "") -> str:
         """Format an error with traceback and context.
