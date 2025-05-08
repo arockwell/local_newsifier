@@ -635,7 +635,7 @@ def get_entity_tracking_flow(
     entity_resolver: Annotated["EntityResolver", Depends(get_entity_resolver_tool)],
     session: Annotated[Session, Depends(get_session)]
 ) -> "EntityTrackingFlow":
-    """Provide the entity tracking flow.
+    """Provide the entity tracking flow with injectable dependencies.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
@@ -652,7 +652,6 @@ def get_entity_tracking_flow(
         EntityTrackingFlow instance
     """
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-    
     return EntityTrackingFlow(
         entity_service=entity_service,
         entity_tracker=entity_tracker,
@@ -697,7 +696,7 @@ def get_rss_scraping_flow(
     web_scraper: Annotated[Any, Depends(get_web_scraper_tool)],
     session: Annotated[Session, Depends(get_session)]
 ) -> "RSSScrapingFlow":
-    """Provide the RSS scraping flow.
+    """Provide the RSS scraping flow with injectable dependencies.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
@@ -736,7 +735,7 @@ def get_news_pipeline_flow(
     entity_resolver: Annotated[Any, Depends(get_entity_resolver_tool)],
     session: Annotated[Session, Depends(get_session)]
 ) -> "NewsPipelineFlow":
-    """Provide the news pipeline flow.
+    """Provide the news pipeline flow with injectable dependencies.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
@@ -756,7 +755,6 @@ def get_news_pipeline_flow(
         NewsPipelineFlow instance
     """
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    
     return NewsPipelineFlow(
         article_service=article_service,
         entity_service=entity_service,
@@ -777,7 +775,7 @@ def get_trend_analysis_flow(
     trend_reporter: Annotated["TrendReporter", Depends(get_trend_reporter_tool)],
     session: Annotated[Session, Depends(get_session)]
 ) -> "NewsTrendAnalysisFlow":
-    """Provide the trend analysis flow.
+    """Provide the trend analysis flow with injectable dependencies.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
@@ -792,7 +790,6 @@ def get_trend_analysis_flow(
     """
     from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
     from local_newsifier.models.trend import TrendAnalysisConfig
-    
     return NewsTrendAnalysisFlow(
         analysis_service=analysis_service,
         trend_reporter=trend_reporter,
@@ -808,7 +805,7 @@ def get_public_opinion_flow(
     opinion_visualizer: Annotated["OpinionVisualizerTool", Depends(get_opinion_visualizer_tool)],
     session: Annotated[Session, Depends(get_session)]
 ) -> "PublicOpinionFlow":
-    """Provide the public opinion flow.
+    """Provide the public opinion flow with injectable dependencies.
     
     Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
@@ -823,11 +820,140 @@ def get_public_opinion_flow(
         PublicOpinionFlow instance
     """
     from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
-    
-    # Create the flow with injectable dependencies
     return PublicOpinionFlow(
         sentiment_analyzer=sentiment_analyzer,
         sentiment_tracker=sentiment_tracker,
         opinion_visualizer=opinion_visualizer,
         session=session
     )
+
+
+# CLI command providers
+
+@injectable(use_cache=False)
+def get_apify_service_cli(token: Optional[str] = None):
+    """Provide the Apify service for CLI commands.
+    
+    This is a special provider for the CLI that allows passing a token from
+    command-line arguments, environment variables, or settings.
+    
+    Args:
+        token: Optional Apify token to use (overrides settings)
+        
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    return ApifyService(token=token)
+
+
+@injectable(use_cache=False)
+def get_db_stats_command():
+    """Provide the database stats command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute db stats command
+    """
+    from local_newsifier.cli.commands.db import db_stats
+    return db_stats
+
+
+@injectable(use_cache=False)
+def get_db_duplicates_command():
+    """Provide the database duplicates command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute db duplicates command
+    """
+    from local_newsifier.cli.commands.db import check_duplicates
+    return check_duplicates
+
+
+@injectable(use_cache=False)
+def get_db_articles_command():
+    """Provide the database articles command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute db articles command
+    """
+    from local_newsifier.cli.commands.db import list_articles
+    return list_articles
+
+
+@injectable(use_cache=False)
+def get_db_inspect_command():
+    """Provide the database inspect command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute db inspect command
+    """
+    from local_newsifier.cli.commands.db import inspect_record
+    return inspect_record
+
+
+@injectable(use_cache=False)
+def get_feeds_list_command():
+    """Provide the feeds list command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute feeds list command
+    """
+    from local_newsifier.cli.commands.feeds import list_feeds
+    return list_feeds
+
+
+@injectable(use_cache=False)
+def get_feeds_add_command():
+    """Provide the feeds add command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute feeds add command
+    """
+    from local_newsifier.cli.commands.feeds import add_feed
+    return add_feed
+
+
+@injectable(use_cache=False)
+def get_feeds_show_command():
+    """Provide the feeds show command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute feeds show command
+    """
+    from local_newsifier.cli.commands.feeds import show_feed
+    return show_feed
+
+
+@injectable(use_cache=False)
+def get_feeds_process_command():
+    """Provide the feeds process command function.
+    
+    Uses use_cache=False to create a new instance for each injection,
+    preventing session leakage between operations.
+    
+    Returns:
+        Function to execute feeds process command
+    """
+    from local_newsifier.cli.commands.feeds import process_feed
+    return process_feed
