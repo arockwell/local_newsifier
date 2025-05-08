@@ -16,13 +16,14 @@ from typing import Optional
 import click
 from tabulate import tabulate
 from sqlmodel import Session
+from fastapi_injectable import get_injected_obj
 
-# Import directly instead of using container to avoid loading flow dependencies
 from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import apify_source_config as config_crud
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.di.providers import get_apify_service_cli
 
 
 @click.group(name="apify")
@@ -73,8 +74,8 @@ def test_connection(token):
         return
 
     try:
-        # Create the Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Test if we can access the client
         client = apify_service.client
@@ -142,8 +143,8 @@ def run_actor(actor_id, input, wait, token, output):
                 return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
@@ -206,8 +207,8 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
@@ -285,8 +286,8 @@ def get_actor(actor_id, token):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Get actor details
         click.echo(f"Retrieving details for actor {actor_id}...")
@@ -340,8 +341,8 @@ def scrape_content(url, max_pages, max_depth, token, output):
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Configure the actor input
         run_input = {
@@ -437,8 +438,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         return
 
     try:
-        # Create Apify service directly
-        apify_service = ApifyService(token)
+        # Get ApifyService from injectable provider with token parameter
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
 
         # Default page function if not provided
         default_page_function = """
