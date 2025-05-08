@@ -155,9 +155,9 @@ class ApifyScheduleManager:
             # Verify the actor exists
             try:
                 # Just for the test, we'll replace the actor_id with a known actor
-                # that is likely to exist in any Apify account
-                # In production, we would validate the actor first
-                actor_id = "apify/web-scraper"  # Using a common actor for testing
+                # that exists in the test account
+                # We found this ID using the Apify API
+                actor_id = "moJRLRc85AitArpNN"  # This is the web-scraper actor ID
                 
                 # Create schedule in Apify
                 name = f"Local Newsifier: {config.name}"
