@@ -2,13 +2,15 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TrendAnalysis, TrendType
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip, ci_skip_async
 
 
 class TestAnalysisService:
@@ -55,16 +57,21 @@ class TestAnalysisService:
         mock_entity_crud,
         mock_trend_analyzer,
         mock_session_factory,
+        event_loop_fixture,
     ):
         """Return an AnalysisService with mock dependencies."""
-        service = AnalysisService(
-            analysis_result_crud=mock_analysis_result_crud,
-            article_crud=mock_article_crud,
-            entity_crud=mock_entity_crud,
-            trend_analyzer=mock_trend_analyzer,
-            session_factory=mock_session_factory,
-        )
-        return service
+        with patch("fastapi_injectable.concurrency.run_coroutine_sync") as mock_run_coroutine:
+            # Setup mock to avoid actual asyncio operations
+            mock_run_coroutine.return_value = []
+            
+            service = AnalysisService(
+                analysis_result_crud=mock_analysis_result_crud,
+                article_crud=mock_article_crud,
+                entity_crud=mock_entity_crud,
+                trend_analyzer=mock_trend_analyzer,
+                session_factory=mock_session_factory,
+            )
+            return service
 
     @pytest.fixture
     def sample_articles(self):
@@ -124,6 +131,10 @@ class TestAnalysisService:
             }
         ]
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'analyze_headline_trends_async'):
+            service.analyze_headline_trends_async = AsyncMock()
+            
         # Call the method
         start_date = datetime.now(timezone.utc) - timedelta(days=7)
         end_date = datetime.now(timezone.utc)
@@ -149,6 +160,10 @@ class TestAnalysisService:
         # Setup mocks
         mock_article_crud.get_by_date_range.return_value = []
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'analyze_headline_trends_async'):
+            service.analyze_headline_trends_async = AsyncMock()
+            
         # Call the method
         start_date = datetime.now(timezone.utc) - timedelta(days=7)
         end_date = datetime.now(timezone.utc)
@@ -166,7 +181,7 @@ class TestAnalysisService:
         mock_article_crud,
         mock_trend_analyzer,
         sample_entities,
-        sample_articles,
+        sample_articles
     ):
         """Test detection of entity trends."""
         # Setup mocks
@@ -182,6 +197,10 @@ class TestAnalysisService:
         )
         mock_trend_analyzer.detect_entity_trends.return_value = [sample_trend]
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'detect_entity_trends_async'):
+            service.detect_entity_trends_async = AsyncMock()
+            
         # Call the method
         result = service.detect_entity_trends(
             entity_types=["PERSON", "ORG", "GPE"]
@@ -209,6 +228,10 @@ class TestAnalysisService:
         analysis_type = "headline_trend"
         results = {"trending_terms": [{"term": "mayor", "growth_rate": 1.0}]}
         
+        # Patch any async methods if they exist
+        if hasattr(service, '_save_analysis_result_async'):
+            service._save_analysis_result_async = AsyncMock()
+            
         service._save_analysis_result(
             mock_session, article_id, analysis_type, results
         )
@@ -233,6 +256,10 @@ class TestAnalysisService:
         )
         mock_analysis_result_crud.get_by_article_and_type.return_value = existing_result
         
+        # Patch any async methods if they exist
+        if hasattr(service, '_save_analysis_result_async'):
+            service._save_analysis_result_async = AsyncMock()
+            
         # Call the method
         article_id = 1
         analysis_type = "headline_trend"
@@ -262,6 +289,10 @@ class TestAnalysisService:
         )
         mock_analysis_result_crud.get_by_article_and_type.return_value = expected_result
         
+        # Patch any async methods if they exist
+        if hasattr(service, 'get_analysis_result_async'):
+            service.get_analysis_result_async = AsyncMock()
+            
         # Call the method
         result = service.get_analysis_result(1, "headline_trend")
         
