@@ -45,6 +45,7 @@ def mock_article_service():
 class TestRSSScrapingFlow:
     def setup_method(self):
         # Don't initialize RSSScrapingFlow here to avoid event loop issues
+        # Each test will create its own instance with the event_loop_fixture
         self.flow = None
 
     @ci_skip("Event loop issues in CI")
