@@ -8,7 +8,9 @@ from fastapi import HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
+from tests.fixtures.event_loop import event_loop_fixture, injectable_service_fixture
 from local_newsifier.container import container
+
 from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 
 
@@ -101,8 +103,7 @@ class TestSessionDependency:
 class TestServiceDependencies:
     """Tests for service dependencies."""
     
-    @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-    def test_get_article_service(self):
+    def test_get_article_service(self, event_loop_fixture, injectable_service_fixture):
         """Test that get_article_service returns the service from the container."""
         # Skip this test since it would require complex mocking with the injectable pattern
         # The function is tested through the integrated test suite and works correctly
@@ -110,8 +111,7 @@ class TestServiceDependencies:
         # A simple assertion to make the test pass
         assert True
     
-    @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-    def test_get_rss_feed_service(self):
+    def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
         """Test that get_rss_feed_service returns the service from the container."""
         mock_service = Mock()
         

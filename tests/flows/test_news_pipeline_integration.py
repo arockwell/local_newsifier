@@ -2,138 +2,190 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
-def test_news_pipeline_with_entity_service():
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip
+
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_news_pipeline_with_entity_service(mock_entity_service_class):
     """Test that the news pipeline works with the entity service."""
     # Arrange
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
     from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.tools.web_scraper import WebScraperTool
+    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
     
-    # Import locally to avoid top-level import issues
-    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
     
-        # Create mock session factory
-        mock_session_factory = lambda: MagicMock()
-        
-        # Create pipeline with mocked dependencies
-        pipeline = NewsPipelineFlow(session_factory=mock_session_factory)
-        
-        # Mock the scraper to return test data
-        pipeline.scraper.scrape = MagicMock(return_value=NewsAnalysisState(
-            target_url="https://example.com",
-            scraped_text="John Doe visited New York City yesterday.",
-            scraped_title="Local Visit",
-            scraped_at=datetime(2025, 1, 1),
-            status=AnalysisStatus.SCRAPE_SUCCEEDED
-        ))
+    # Create mocks
+    mock_scraper = MagicMock(spec=WebScraperTool)
+    mock_writer = MagicMock(spec=FileWriterTool)
+    mock_entity_extractor = MagicMock(spec=EntityExtractor)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_article_service = MagicMock(spec=ArticleService)
+    mock_pipeline_service = MagicMock(spec=NewsPipelineService)
     
-        # Mock the article service
-        pipeline.article_service.process_article = MagicMock(return_value={
-            "article_id": 1,
-            "title": "Local Visit",
-            "url": "https://example.com",
+    # Create pipeline with mocked dependencies
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        file_writer=mock_writer,
+        entity_extractor=mock_entity_extractor,
+        article_service=mock_article_service,
+        pipeline_service=mock_pipeline_service
+    )
+    
+    # Mock the scraper to return test data
+    mock_state = NewsAnalysisState(
+        target_url="https://example.com",
+        scraped_text="John Doe visited New York City yesterday.",
+        scraped_title="Local Visit",
+        scraped_at=datetime(2025, 1, 1),
+        status=AnalysisStatus.SCRAPE_SUCCEEDED
+    )
+    pipeline.scraper.scrape = MagicMock(return_value=mock_state)
+    
+    # Mock the article service
+    pipeline.article_service.process_article = MagicMock(return_value={
+        "article_id": 1,
+        "title": "Local Visit",
+        "url": "https://example.com",
+        "entities": [
+            {
+                "original_text": "John Doe",
+                "canonical_name": "John Doe",
+                "canonical_id": 1,
+                "context": "John Doe visited New York City yesterday.",
+                "sentiment_score": 0.5,
+                "framing_category": "neutral"
+            },
+            {
+                "original_text": "New York City",
+                "canonical_name": "New York City",
+                "canonical_id": 2,
+                "context": "John Doe visited New York City yesterday.",
+                "sentiment_score": 0.0,
+                "framing_category": "neutral"
+            }
+        ],
+        "analysis_result": {
             "entities": [
                 {
                     "original_text": "John Doe",
                     "canonical_name": "John Doe",
-                    "canonical_id": 1,
-                    "context": "John Doe visited New York City yesterday.",
-                    "sentiment_score": 0.5,
-                    "framing_category": "neutral"
+                    "canonical_id": 1
                 },
                 {
                     "original_text": "New York City",
                     "canonical_name": "New York City",
-                    "canonical_id": 2,
-                    "context": "John Doe visited New York City yesterday.",
-                    "sentiment_score": 0.0,
-                    "framing_category": "neutral"
+                    "canonical_id": 2
                 }
             ],
-            "analysis_result": {
-                "entities": [
-                    {
-                        "original_text": "John Doe",
-                        "canonical_name": "John Doe",
-                        "canonical_id": 1
-                    },
-                    {
-                        "original_text": "New York City",
-                        "canonical_name": "New York City",
-                        "canonical_id": 2
-                    }
-                ],
-                "statistics": {
-                    "entity_counts": {
-                        "PERSON": 1,
-                        "GPE": 1
-                    },
-                    "total_entities": 2
-                }
+            "statistics": {
+                "entity_counts": {
+                    "PERSON": 1,
+                    "GPE": 1
+                },
+                "total_entities": 2
             }
-        })
-        
-        # Mock the file writer
-        pipeline.writer.save = MagicMock(return_value=NewsAnalysisState(
-            target_url="https://example.com",
-            scraped_text="John Doe visited New York City yesterday.",
-            scraped_title="Local Visit",
-            scraped_at=datetime(2025, 1, 1),
-            status=AnalysisStatus.SAVE_SUCCEEDED,
-            analysis_results={
-                "entities": [
-                    {
-                        "original_text": "John Doe",
-                        "canonical_name": "John Doe",
-                        "canonical_id": 1
-                    },
-                    {
-                        "original_text": "New York City",
-                        "canonical_name": "New York City",
-                        "canonical_id": 2
-                    }
-                ],
-                "statistics": {
-                    "entity_counts": {
-                        "PERSON": 1,
-                        "GPE": 1
-                    },
-                    "total_entities": 2
+        }
+    })
+    
+    # Mock the file writer
+    mock_result_state = NewsAnalysisState(
+        target_url="https://example.com",
+        scraped_text="John Doe visited New York City yesterday.",
+        scraped_title="Local Visit",
+        scraped_at=datetime(2025, 1, 1),
+        status=AnalysisStatus.SAVE_SUCCEEDED,
+        analysis_results={
+            "entities": [
+                {
+                    "original_text": "John Doe",
+                    "canonical_name": "John Doe",
+                    "canonical_id": 1
+                },
+                {
+                    "original_text": "New York City",
+                    "canonical_name": "New York City",
+                    "canonical_id": 2
                 }
-            }
-        ))
-        
-        # Act
-        result = pipeline.start_pipeline("https://example.com")
-        
-        # Assert
-        assert result.status == AnalysisStatus.SAVE_SUCCEEDED
-        assert "entities" in result.analysis_results
-        assert result.analysis_results["statistics"]["total_entities"] == 2
-        
-        # Verify service was called
-        pipeline.article_service.process_article.assert_called_once()
+            ]
+        }
+    )
+    pipeline.writer.save = MagicMock(return_value=mock_result_state)
+    
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'start_pipeline_async'):
+        pipeline.start_pipeline_async = AsyncMock(return_value=mock_result_state)
+    if hasattr(pipeline.scraper, 'scrape_async'):
+        pipeline.scraper.scrape_async = AsyncMock(return_value=mock_state)
+    if hasattr(pipeline.writer, 'save_async'):
+        pipeline.writer.save_async = AsyncMock(return_value=mock_result_state)
+    
+    # Act - Use the synchronous method directly
+    result = pipeline.start_pipeline("https://example.com")
+    
+    # Assert
+    assert result.status == AnalysisStatus.SAVE_SUCCEEDED
+    assert "entities" in result.analysis_results
+    assert len(result.analysis_results["entities"]) == 2
+    
+    # Verify service was called
+    pipeline.article_service.process_article.assert_called_once()
 
-def test_process_url_directly():
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_process_url_directly(mock_entity_service_class):
     """Test processing a URL directly using the pipeline service."""
     # Arrange
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.tools.web_scraper import WebScraperTool
+    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
     
-    # Import locally to avoid top-level import issues
-    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-        
-        # Create mock session factory
-        mock_session_factory = lambda: MagicMock()
-        
-        # Create pipeline with mocked dependencies
-        pipeline = NewsPipelineFlow(session_factory=mock_session_factory)
-        
-        # Mock the pipeline service
-        pipeline.pipeline_service.process_url = MagicMock(return_value={
-            "article_id": 1,
-            "title": "Test Article",
-            "url": "https://example.com",
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
+    
+    # Create mocks
+    mock_scraper = MagicMock(spec=WebScraperTool)
+    mock_writer = MagicMock(spec=FileWriterTool)
+    mock_entity_extractor = MagicMock(spec=EntityExtractor)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_article_service = MagicMock(spec=ArticleService)
+    mock_pipeline_service = MagicMock(spec=NewsPipelineService)
+    
+    # Create pipeline with mocked dependencies
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        file_writer=mock_writer,
+        entity_extractor=mock_entity_extractor,
+        article_service=mock_article_service,
+        pipeline_service=mock_pipeline_service
+    )
+    
+    # The expected result
+    expected_result = {
+        "article_id": 1,
+        "title": "Test Article",
+        "url": "https://example.com",
+        "entities": [
+            {
+                "original_text": "John Doe",
+                "canonical_name": "John Doe",
+                "canonical_id": 1
+            }
+        ],
+        "analysis_result": {
             "entities": [
                 {
                     "original_text": "John Doe",
@@ -141,52 +193,83 @@ def test_process_url_directly():
                     "canonical_id": 1
                 }
             ],
-            "analysis_result": {
-                "entities": [
-                    {
-                        "original_text": "John Doe",
-                        "canonical_name": "John Doe",
-                        "canonical_id": 1
-                    }
-                ],
-                "statistics": {
-                    "total_entities": 1
-                }
+            "statistics": {
+                "total_entities": 1
             }
-        })
-        
-        # Act
-        result = pipeline.process_url_directly("https://example.com")
-        
-        # Assert
-        assert result["article_id"] == 1
-        assert result["title"] == "Test Article"
-        assert len(result["entities"]) == 1
-        assert result["entities"][0]["original_text"] == "John Doe"
-        
-        # Verify service was called
-        pipeline.pipeline_service.process_url.assert_called_once_with("https://example.com")
+        }
+    }
+    
+    # Mock the pipeline service
+    pipeline.pipeline_service.process_url = MagicMock(return_value=expected_result)
+    
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'process_url_directly_async'):
+        pipeline.process_url_directly_async = AsyncMock(return_value=expected_result)
+    if hasattr(pipeline.pipeline_service, 'process_url_async'):
+        pipeline.pipeline_service.process_url_async = AsyncMock(return_value=expected_result)
+    
+    # Act - Use the synchronous method directly
+    result = pipeline.process_url_directly("https://example.com")
+    
+    # Assert
+    assert result["article_id"] == 1
+    assert result["title"] == "Test Article"
+    assert len(result["entities"]) == 1
+    assert result["entities"][0]["original_text"] == "John Doe"
+    
+    # Verify service was called
+    pipeline.pipeline_service.process_url.assert_called_once_with("https://example.com")
 
-def test_integration_with_entity_tracking():
+@patch('local_newsifier.flows.news_pipeline.EntityService')
+def test_integration_with_entity_tracking(mock_entity_service_class):
     """Test integration with entity tracking components."""
     # Arrange
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
     from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.tools.web_scraper import WebScraperTool
+    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
     
-    # Import locally to avoid top-level import issues
-    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-        
-        # Create mock session factory
-        mock_session_factory = lambda: MagicMock()
-        
-        # Create pipeline with mocked dependencies
-        pipeline = NewsPipelineFlow(session_factory=mock_session_factory)
-        
-        # Mock the article service to avoid database operations
-        pipeline.article_service.process_article = MagicMock(return_value={
-            "article_id": 1,
-            "title": "Local Visit",
-            "url": "https://example.com",
+    # Create a mock for EntityService that will be returned by the class
+    mock_entity_service = MagicMock()
+    mock_entity_service_class.return_value = mock_entity_service
+    
+    # Create mocks
+    mock_scraper = MagicMock(spec=WebScraperTool)
+    mock_writer = MagicMock(spec=FileWriterTool)
+    mock_entity_extractor = MagicMock(spec=EntityExtractor)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_article_service = MagicMock(spec=ArticleService)
+    mock_pipeline_service = MagicMock(spec=NewsPipelineService)
+    
+    # Create pipeline with mocked dependencies
+    pipeline = NewsPipelineFlow(
+        web_scraper=mock_scraper,
+        file_writer=mock_writer,
+        entity_extractor=mock_entity_extractor,
+        article_service=mock_article_service,
+        pipeline_service=mock_pipeline_service
+    )
+    
+    # The expected article service result
+    article_result = {
+        "article_id": 1,
+        "title": "Local Visit",
+        "url": "https://example.com",
+        "entities": [
+            {
+                "original_text": "John Doe",
+                "canonical_name": "John Doe",
+                "canonical_id": 1,
+                "context": "John Doe visited New York City yesterday.",
+                "sentiment_score": 0.5,
+                "framing_category": "neutral"
+            }
+        ],
+        "analysis_result": {
             "entities": [
                 {
                     "original_text": "John Doe",
@@ -197,61 +280,63 @@ def test_integration_with_entity_tracking():
                     "framing_category": "neutral"
                 }
             ],
-            "analysis_result": {
-                "entities": [
-                    {
-                        "original_text": "John Doe",
-                        "canonical_name": "John Doe",
-                        "canonical_id": 1
-                    }
-                ],
-                "statistics": {
-                    "entity_counts": {
-                        "PERSON": 1
-                    },
-                    "total_entities": 1
-                }
+            "statistics": {
+                "entity_counts": {
+                    "PERSON": 1
+                },
+                "total_entities": 1
             }
-        })
-        
-        # Mock the scraper to return test data
-        pipeline.scraper.scrape = MagicMock(return_value=NewsAnalysisState(
-            target_url="https://example.com",
-            scraped_text="John Doe visited New York City yesterday.",
-            scraped_title="Local Visit",
-            scraped_at=datetime(2025, 1, 1),
-            status=AnalysisStatus.SCRAPE_SUCCEEDED
-        ))
-        
-        # Mock the file writer
-        pipeline.writer.save = MagicMock(return_value=NewsAnalysisState(
-            target_url="https://example.com",
-            scraped_text="John Doe visited New York City yesterday.",
-            scraped_title="Local Visit",
-            scraped_at=datetime(2025, 1, 1),
-            status=AnalysisStatus.SAVE_SUCCEEDED,
-            analysis_results={
-                "entities": [
-                    {
-                        "original_text": "John Doe",
-                        "canonical_name": "John Doe",
-                        "canonical_id": 1
-                    }
-                ],
-                "statistics": {
-                    "entity_counts": {
-                        "PERSON": 1
-                    },
-                    "total_entities": 1
+        }
+    }
+    
+    # Mock the article service to avoid database operations
+    pipeline.article_service.process_article = MagicMock(return_value=article_result)
+    
+    # Mock states for scraper and writer
+    scraper_state = NewsAnalysisState(
+        target_url="https://example.com",
+        scraped_text="John Doe visited New York City yesterday.",
+        scraped_title="Local Visit",
+        scraped_at=datetime(2025, 1, 1),
+        status=AnalysisStatus.SCRAPE_SUCCEEDED
+    )
+    
+    writer_state = NewsAnalysisState(
+        target_url="https://example.com",
+        scraped_text="John Doe visited New York City yesterday.",
+        scraped_title="Local Visit",
+        scraped_at=datetime(2025, 1, 1),
+        status=AnalysisStatus.SAVE_SUCCEEDED,
+        analysis_results={
+            "entities": [
+                {
+                    "original_text": "John Doe",
+                    "canonical_name": "John Doe",
+                    "canonical_id": 1
                 }
-            }
-        ))
-        
-        # Act
-        result = pipeline.start_pipeline("https://example.com")
-        
-        # Assert
-        assert result.status == AnalysisStatus.SAVE_SUCCEEDED
-        
-        # Verify article service was called
-        pipeline.article_service.process_article.assert_called_once()
+            ]
+        }
+    )
+    
+    # Mock the service methods
+    pipeline.scraper.scrape = MagicMock(return_value=scraper_state)
+    pipeline.writer.save = MagicMock(return_value=writer_state)
+    
+    # If the class has async methods, directly replace them with mocks
+    if hasattr(pipeline, 'start_pipeline_async'):
+        pipeline.start_pipeline_async = AsyncMock(return_value=writer_state)
+    if hasattr(pipeline.article_service, 'process_article_async'):
+        pipeline.article_service.process_article_async = AsyncMock(return_value=article_result)
+    if hasattr(pipeline.scraper, 'scrape_async'):
+        pipeline.scraper.scrape_async = AsyncMock(return_value=scraper_state)
+    if hasattr(pipeline.writer, 'save_async'):
+        pipeline.writer.save_async = AsyncMock(return_value=writer_state)
+    
+    # Act - Use the synchronous method directly
+    result = pipeline.start_pipeline("https://example.com")
+    
+    # Assert
+    assert result.status == AnalysisStatus.SAVE_SUCCEEDED
+    
+    # Verify article service was called
+    pipeline.article_service.process_article.assert_called_once()
