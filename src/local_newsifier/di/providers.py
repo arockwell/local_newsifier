@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
     from local_newsifier.crud.rss_feed import CRUDRSSFeed
     from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog
+    from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
     from local_newsifier.tools.entity_tracker_service import EntityTracker
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
+    from local_newsifier.services.apify_service import ApifyService
 
 from local_newsifier.tools.entity_tracker_service import EntityTracker
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
@@ -198,6 +200,20 @@ def get_feed_processing_log_crud():
     """
     from local_newsifier.crud.feed_processing_log import feed_processing_log
     return feed_processing_log
+
+
+@injectable(use_cache=False)
+def get_apify_source_config_crud():
+    """Provide the Apify source config CRUD component.
+    
+    Uses use_cache=False to create new instances for each injection, as CRUD 
+    components interact with the database and should not share state between operations.
+    
+    Returns:
+        CRUDApifySourceConfig instance
+    """
+    from local_newsifier.crud.apify_source_config import apify_source_config
+    return apify_source_config
 
 
 # Tool providers
@@ -412,6 +428,34 @@ def get_file_writer_tool():
 
 
 # Service providers
+
+
+@injectable(use_cache=False)
+def get_apify_schedule_manager(
+    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
+    apify_source_config_crud: Annotated["CRUDApifySourceConfig", Depends(get_apify_source_config_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the Apify schedule manager service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        apify_service: Apify service for API interactions
+        apify_source_config_crud: CRUD for Apify source configurations
+        session: Database session
+        
+    Returns:
+        ApifyScheduleManager instance
+    """
+    from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
+    
+    return ApifyScheduleManager(
+        apify_service=apify_service,
+        apify_source_config_crud=apify_source_config_crud,
+        session_factory=lambda: session
+    )
 
 
 @injectable(use_cache=False)

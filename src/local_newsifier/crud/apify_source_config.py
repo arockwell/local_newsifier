@@ -72,20 +72,58 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         return db.exec(select(ApifySourceConfig).where(ApifySourceConfig.source_type == source_type)).all()
 
     @handle_service_error(service="apify")
-    def get_scheduled_configs(self, db: Session) -> List[ApifySourceConfig]:
+    def get_scheduled_configs(self, db: Session, enabled_only: bool = True) -> List[ApifySourceConfig]:
         """Get all configurations with a schedule.
 
         Args:
             db: Database session
+            enabled_only: If True, only return active configs
 
         Returns:
             List of configurations with a schedule
         """
+        query = select(ApifySourceConfig).where(ApifySourceConfig.schedule != None)
+        
+        if enabled_only:
+            query = query.where(ApifySourceConfig.is_active == True)
+            
+        return db.exec(query).all()
+        
+    @handle_service_error(service="apify")
+    def get_configs_with_schedule_ids(self, db: Session) -> List[ApifySourceConfig]:
+        """Get all configurations that have Apify schedule IDs.
+        
+        Args:
+            db: Database session
+            
+        Returns:
+            List of configurations with schedule IDs
+        """
         return db.exec(
             select(ApifySourceConfig)
-            .where(ApifySourceConfig.schedule != None)
-            .where(ApifySourceConfig.is_active == True)
+            .where(ApifySourceConfig.schedule_id != None)
         ).all()
+        
+    @handle_service_error(service="apify")
+    def update_schedule_id(self, db: Session, config_id: int, schedule_id: Optional[str]) -> Optional[ApifySourceConfig]:
+        """Update the schedule_id field for a configuration.
+        
+        Args:
+            db: Database session
+            config_id: Configuration ID
+            schedule_id: New schedule ID or None to clear
+            
+        Returns:
+            Updated configuration if found, None otherwise
+        """
+        config = self.get(db, id=config_id)
+        if config:
+            config.schedule_id = schedule_id
+            db.add(config)
+            db.commit()
+            db.refresh(config)
+            return config
+        return None
 
     @handle_service_error(service="apify")
     def create(

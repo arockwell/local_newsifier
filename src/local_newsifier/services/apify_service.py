@@ -5,7 +5,8 @@ import json
 import logging
 import os
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from apify_client import ApifyClient
 
@@ -74,6 +75,204 @@ class ApifyService:
             
         # Make the actual API call
         return self.client.actor(actor_id).call(run_input=run_input)
+    
+    def create_schedule(
+        self, 
+        actor_id: str, 
+        cron_expression: str, 
+        run_input: Optional[Dict[str, Any]] = None,
+        name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create a schedule for an actor in Apify.
+        
+        Args:
+            actor_id: ID of the actor to schedule
+            cron_expression: Cron expression for the schedule (in UTC)
+            run_input: Optional input for the actor run
+            name: Optional name for the schedule
+            
+        Returns:
+            Dict[str, Any]: Created schedule details
+            
+        Raises:
+            ValueError: If APIFY_TOKEN is not set and not in test mode
+        """
+        # In test mode with no token, return a mock response
+        if self._test_mode and not self._token and not settings.APIFY_TOKEN:
+            logging.info(f"Test mode: Simulating schedule creation for actor {actor_id}")
+            schedule_id = f"test_schedule_{actor_id}_{datetime.now(timezone.utc).timestamp()}"
+            return {
+                "id": schedule_id,
+                "name": name or f"Schedule for {actor_id}",
+                "userId": "test_user",
+                "actId": actor_id,
+                "cronExpression": cron_expression,
+                "isEnabled": True,
+                "isExclusive": False,
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "modifiedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        
+        # Prepare schedule data
+        schedule_data = {
+            "actId": actor_id,
+            "cronExpression": cron_expression,
+            "isEnabled": True,
+        }
+        
+        # Add optional fields if provided
+        if run_input:
+            schedule_data["runInput"] = run_input
+        if name:
+            schedule_data["name"] = name
+            
+        # Make the actual API call
+        return self.client.schedules().create(schedule_data)
+        
+    def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing Apify schedule.
+        
+        Args:
+            schedule_id: ID of the schedule to update
+            changes: Dictionary of changes to apply to the schedule
+            
+        Returns:
+            Dict[str, Any]: Updated schedule details
+            
+        Raises:
+            ValueError: If APIFY_TOKEN is not set and not in test mode
+        """
+        # In test mode with no token, return a mock response
+        if self._test_mode and not self._token and not settings.APIFY_TOKEN:
+            logging.info(f"Test mode: Simulating schedule update for {schedule_id}")
+            return {
+                "id": schedule_id,
+                "name": changes.get("name", f"Schedule {schedule_id}"),
+                "userId": "test_user",
+                "actId": changes.get("actId", "test_actor"),
+                "cronExpression": changes.get("cronExpression", "0 0 * * *"),
+                "isEnabled": changes.get("isEnabled", True),
+                "isExclusive": changes.get("isExclusive", False),
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "modifiedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        
+        # Make the actual API call
+        return self.client.schedule(schedule_id).update(changes)
+        
+    def delete_schedule(self, schedule_id: str) -> Dict[str, Any]:
+        """Delete an Apify schedule.
+        
+        Args:
+            schedule_id: ID of the schedule to delete
+            
+        Returns:
+            Dict[str, Any]: Deleted schedule details
+            
+        Raises:
+            ValueError: If APIFY_TOKEN is not set and not in test mode
+        """
+        # In test mode with no token, return a mock response
+        if self._test_mode and not self._token and not settings.APIFY_TOKEN:
+            logging.info(f"Test mode: Simulating schedule deletion for {schedule_id}")
+            return {
+                "id": schedule_id,
+                "name": f"Schedule {schedule_id}",
+                "userId": "test_user",
+                "actId": "test_actor",
+                "cronExpression": "0 0 * * *",
+                "isEnabled": False,
+                "isExclusive": False,
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "modifiedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        
+        # Make the actual API call
+        schedule = self.client.schedule(schedule_id)
+        deletion_result = schedule.delete()
+        return {"id": schedule_id, "deleted": deletion_result}
+        
+    def get_schedule(self, schedule_id: str) -> Dict[str, Any]:
+        """Get details about a specific Apify schedule.
+        
+        Args:
+            schedule_id: ID of the schedule to get
+            
+        Returns:
+            Dict[str, Any]: Schedule details
+            
+        Raises:
+            ValueError: If APIFY_TOKEN is not set and not in test mode
+        """
+        # In test mode with no token, return a mock response
+        if self._test_mode and not self._token and not settings.APIFY_TOKEN:
+            logging.info(f"Test mode: Simulating schedule details fetch for {schedule_id}")
+            return {
+                "id": schedule_id,
+                "name": f"Schedule {schedule_id}",
+                "userId": "test_user",
+                "actId": "test_actor",
+                "cronExpression": "0 0 * * *",
+                "isEnabled": True,
+                "isExclusive": False,
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "modifiedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        
+        # Make the actual API call
+        return self.client.schedule(schedule_id).get()
+        
+    def list_schedules(self, actor_id: Optional[str] = None) -> Dict[str, Any]:
+        """List all schedules or those for a specific actor.
+        
+        Args:
+            actor_id: Optional actor ID to filter schedules by
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing a list of schedules
+            
+        Raises:
+            ValueError: If APIFY_TOKEN is not set and not in test mode
+        """
+        # In test mode with no token, return a mock response
+        if self._test_mode and not self._token and not settings.APIFY_TOKEN:
+            logging.info(f"Test mode: Simulating schedule list fetch")
+            schedules = []
+            if actor_id:
+                schedules.append({
+                    "id": f"test_schedule_{actor_id}",
+                    "name": f"Schedule for {actor_id}",
+                    "userId": "test_user",
+                    "actId": actor_id,
+                    "cronExpression": "0 0 * * *",
+                    "isEnabled": True,
+                    "isExclusive": False,
+                    "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "modifiedAt": datetime.now(timezone.utc).isoformat(),
+                })
+            else:
+                # Add a couple of mock schedules
+                for i in range(1, 3):
+                    schedules.append({
+                        "id": f"test_schedule_{i}",
+                        "name": f"Test Schedule {i}",
+                        "userId": "test_user",
+                        "actId": f"test_actor_{i}",
+                        "cronExpression": "0 0 * * *",
+                        "isEnabled": True,
+                        "isExclusive": False,
+                        "createdAt": datetime.now(timezone.utc).isoformat(),
+                        "modifiedAt": datetime.now(timezone.utc).isoformat(),
+                    })
+            return {"data": {"items": schedules, "total": len(schedules)}}
+        
+        # Prepare filter parameters
+        params = {}
+        if actor_id:
+            params["filter"] = {"actId": actor_id}
+            
+        # Make the actual API call
+        return self.client.schedules().list(params)
 
     def _format_error(self, error: Exception, context: str = "") -> str:
         """Format an error with traceback and context.
