@@ -4,6 +4,8 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch, ANY
 
+from tests.fixtures.event_loop import event_loop_fixture
+
 from local_newsifier.models.state import (
     EntityTrackingState, EntityBatchTrackingState, 
     EntityDashboardState, EntityRelationshipState, 
@@ -11,7 +13,7 @@ from local_newsifier.models.state import (
 )
 
 
-def test_process_article_entities_with_multiple_entity_types():
+def test_process_article_entities_with_multiple_entity_types(event_loop_fixture):
     """Test extraction of different entity types."""
     # Arrange
     # Mock the entity extractor to return multiple entity types
@@ -164,7 +166,7 @@ def test_process_article_entities_with_multiple_entity_types():
     assert "Microsoft Corporation" in entity_types or any("Microsoft Corporation" in str(name) for name in entity_types)
 
 
-def test_entity_resolution_with_ambiguous_entities():
+def test_entity_resolution_with_ambiguous_entities(event_loop_fixture):
     """Test resolution of ambiguous entities."""
     # Arrange
     # Mock the entity extractor
@@ -281,7 +283,7 @@ def test_entity_resolution_with_ambiguous_entities():
     assert "Washington, D.C." in str(result[1]["canonical_name"])
 
 
-def test_process_article_with_empty_content():
+def test_process_article_with_empty_content(event_loop_fixture):
     """Test handling of empty content."""
     # Arrange
     # Mock the entity extractor to return empty list for empty content
@@ -346,7 +348,7 @@ def test_process_article_with_empty_content():
     assert len(result) == 0
 
 
-def test_entity_relationship_with_complex_network():
+def test_entity_relationship_with_complex_network(event_loop_fixture):
     """Test identification of complex entity relationships."""
     # Arrange
     # Mock canonical entity CRUD
@@ -463,7 +465,7 @@ def test_entity_relationship_with_complex_network():
     assert samsung_relationship["co_occurrence_count"] == 1
 
 
-def test_dashboard_generation_with_filters():
+def test_dashboard_generation_with_filters(event_loop_fixture):
     """Test dashboard generation with various filters."""
     # Arrange
     # Mock canonical entity CRUD
@@ -593,7 +595,7 @@ def test_dashboard_generation_with_filters():
     assert entities[0]["sentiment_trend"][0]["sentiment"] == 0.7
 
 
-def test_process_batch_with_empty_article_list():
+def test_process_batch_with_empty_article_list(event_loop_fixture):
     """Test batch processing with no articles."""
     # Arrange
     # Mock article CRUD to return empty list
@@ -656,7 +658,7 @@ def test_process_batch_with_empty_article_list():
     assert any("Batch processing completed successfully" in log for log in result_state.run_logs)
 
 
-def test_process_article_with_very_large_content():
+def test_process_article_with_very_large_content(event_loop_fixture):
     """Test processing an article with very large content."""
     # Arrange
     # Create a large content string
@@ -754,7 +756,7 @@ def test_process_article_with_very_large_content():
     )
 
 
-def test_entity_service_with_custom_session_factory():
+def test_entity_service_with_custom_session_factory(event_loop_fixture):
     """Test entity service with a custom session factory."""
     # Arrange
     # Create a custom session factory
