@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Callable
 
 from crewai import Flow
+from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem, RSSParser
