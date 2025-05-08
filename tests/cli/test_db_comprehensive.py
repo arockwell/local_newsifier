@@ -10,6 +10,13 @@ from local_newsifier.cli.main import cli
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
+from local_newsifier.di.providers import (
+    get_session, 
+    get_article_crud, 
+    get_rss_feed_crud,
+    get_entity_crud,
+    get_feed_processing_log_crud
+)
 
 
 @pytest.fixture
@@ -74,12 +81,12 @@ def mock_entity():
 class TestDBStats:
     """Tests for the db stats command."""
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_db_stats_with_data(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_db_stats_with_data(self, mock_get_injected_obj, mock_article):
         """Test the db stats command with actual data."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock query results for articles
         mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # article count, feed count, active feeds, processing log count, entity count
@@ -96,12 +103,12 @@ class TestDBStats:
         assert "Active: 2" in result.output
         assert "Inactive: 1" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_db_stats_json_output(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_db_stats_json_output(self, mock_get_injected_obj, mock_article):
         """Test the db stats command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock query results for articles
         mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # article count, feed count, active feeds, processing log count, entity count
@@ -122,12 +129,12 @@ class TestDBStats:
 class TestDBDuplicates:
     """Tests for the db duplicates command."""
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_check_duplicates_with_duplicates(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_check_duplicates_with_duplicates(self, mock_get_injected_obj, mock_article):
         """Test the duplicates command when duplicates are found."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock duplicate URLs query
         duplicate_urls = [
@@ -150,12 +157,12 @@ class TestDBDuplicates:
         assert "Number of duplicates: 2" in result.output
         assert "Number of duplicates: 3" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_check_duplicates_json_output(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_check_duplicates_json_output(self, mock_get_injected_obj, mock_article):
         """Test the duplicates command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock duplicate URLs query
         duplicate_urls = [("https://example.com/duplicate", 2)]
@@ -180,12 +187,12 @@ class TestDBDuplicates:
 class TestDBArticles:
     """Tests for the db articles command."""
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_list_articles_with_results(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_list_articles_with_results(self, mock_get_injected_obj, mock_article):
         """Test the articles command when articles are found."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock articles query
         articles = [mock_article, mock_article]
@@ -199,12 +206,12 @@ class TestDBArticles:
         assert "Test Article" in result.output
         assert "https://example.com/test" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_list_articles_with_filters(self, mock_next):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_list_articles_with_filters(self, mock_get_injected_obj):
         """Test the articles command with various filters."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock empty result
         mock_session.exec.return_value.all.return_value = []
@@ -225,12 +232,12 @@ class TestDBArticles:
         assert result.exit_code == 0
         assert "No articles found matching the criteria" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_list_articles_json_output(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_list_articles_json_output(self, mock_get_injected_obj, mock_article):
         """Test the articles command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock articles query
         articles = [mock_article]
@@ -247,12 +254,12 @@ class TestDBArticles:
         assert output[0]["title"] == "Test Article"
         assert output[0]["url"] == "https://example.com/test"
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_list_articles_invalid_date(self, mock_next):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_list_articles_invalid_date(self, mock_get_injected_obj):
         """Test the articles command with invalid date format."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Test with invalid date format
         runner = CliRunner()
@@ -264,53 +271,75 @@ class TestDBArticles:
 class TestDBInspect:
     """Tests for the db inspect command."""
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_article_found(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_article_found(self, mock_get_injected_obj, mock_article):
         """Test the inspect command with a found article."""
-        # Set up mock session
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_article_crud = MagicMock()
+        
+        # Setup the article_crud.get to return an article
+        mock_article_crud.get.return_value = mock_article
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_article_crud:
+                return mock_article_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
-        # Mock article crud.get to return an article
-        from local_newsifier.cli.commands.db import article_crud
-        with patch.object(article_crud, 'get', return_value=mock_article):
-            runner = CliRunner()
-            result = runner.invoke(cli, ["db", "inspect", "article", "1"])
+        runner = CliRunner()
+        result = runner.invoke(cli, ["db", "inspect", "article", "1"])
 
-            assert result.exit_code == 0
-            assert "ARTICLE (ID: 1)" in result.output
-            assert "Test Article" in result.output
-            assert "https://example.com/test" in result.output
+        assert result.exit_code == 0
+        assert "ARTICLE (ID: 1)" in result.output
+        assert "Test Article" in result.output
+        assert "https://example.com/test" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_rss_feed_found(self, mock_next, mock_feed, mock_feed_log):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_rss_feed_found(self, mock_get_injected_obj, mock_feed, mock_feed_log):
         """Test the inspect command with a found RSS feed."""
-        # Set up mock session
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_rss_feed_crud = MagicMock()
+        
+        # Setup the rss_feed_crud.get to return a feed
+        mock_rss_feed_crud.get.return_value = mock_feed
+        
+        # Mock session.exec for the logs
+        mock_session.exec.return_value.all.return_value = [mock_feed_log]
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_rss_feed_crud:
+                return mock_rss_feed_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
-        # Mock rss_feed_crud.get to return a feed
-        from local_newsifier.cli.commands.db import rss_feed_crud
-        with patch.object(rss_feed_crud, 'get', return_value=mock_feed):
-            # Mock session.exec for the logs
-            mock_session.exec.return_value.all.return_value = [mock_feed_log]
+        runner = CliRunner()
+        result = runner.invoke(cli, ["db", "inspect", "rss_feed", "1"])
 
-            runner = CliRunner()
-            result = runner.invoke(cli, ["db", "inspect", "rss_feed", "1"])
+        assert result.exit_code == 0
+        assert "RSS_FEED (ID: 1)" in result.output
+        assert "Test Feed" in result.output
+        assert "https://example.com/feed.xml" in result.output
+        assert "Recent Processing Logs" in result.output
+        assert "success" in result.output
 
-            assert result.exit_code == 0
-            assert "RSS_FEED (ID: 1)" in result.output
-            assert "Test Feed" in result.output
-            assert "https://example.com/feed.xml" in result.output
-            assert "Recent Processing Logs" in result.output
-            assert "success" in result.output
-
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_feed_log_found(self, mock_next, mock_feed_log):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_feed_log_found(self, mock_get_injected_obj, mock_feed_log):
         """Test the inspect command with a found feed log."""
-        # Set up mock session
+        # Just need session for this one
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock session.get for the log
         mock_session.get.return_value = mock_feed_log
@@ -324,12 +353,12 @@ class TestDBInspect:
         assert "10" in result.output  # articles_found
         assert "5" in result.output   # articles_added
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_entity_found(self, mock_next, mock_entity):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_entity_found(self, mock_get_injected_obj, mock_entity):
         """Test the inspect command with a found entity."""
-        # Set up mock session
+        # Just need session for entity
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock session.get for the entity
         mock_session.get.return_value = mock_entity
@@ -342,28 +371,39 @@ class TestDBInspect:
         assert "Test Entity" in result.output
         assert "PERSON" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_rss_feed_not_found(self, mock_next):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_rss_feed_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent RSS feed."""
-        # Set up mock session
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_rss_feed_crud = MagicMock()
+        
+        # Setup the rss_feed_crud.get to return None
+        mock_rss_feed_crud.get.return_value = None
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_rss_feed_crud:
+                return mock_rss_feed_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
-        # Mock rss_feed_crud.get to return None
-        from local_newsifier.cli.commands.db import rss_feed_crud
-        with patch.object(rss_feed_crud, 'get', return_value=None):
-            runner = CliRunner()
-            result = runner.invoke(cli, ["db", "inspect", "rss_feed", "999"])
+        runner = CliRunner()
+        result = runner.invoke(cli, ["db", "inspect", "rss_feed", "999"])
 
-            assert result.exit_code == 0
-            assert "Error: RSS Feed with ID 999 not found" in result.output
+        assert result.exit_code == 0
+        assert "Error: RSS Feed with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_feed_log_not_found(self, mock_next):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_feed_log_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent feed log."""
-        # Set up mock session
+        # Just need session for this one
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock session.get for the log to return None
         mock_session.get.return_value = None
@@ -374,12 +414,12 @@ class TestDBInspect:
         assert result.exit_code == 0
         assert "Error: Feed Processing Log with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_entity_not_found(self, mock_next):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_entity_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent entity."""
-        # Set up mock session
+        # Just need session for this one
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Mock session.get for the entity to return None
         mock_session.get.return_value = None
@@ -390,37 +430,48 @@ class TestDBInspect:
         assert result.exit_code == 0
         assert "Error: Entity with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_inspect_json_output(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_inspect_json_output(self, mock_get_injected_obj, mock_article):
         """Test the inspect command with JSON output."""
-        # Set up mock session
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_article_crud = MagicMock()
+        
+        # Setup the article_crud.get to return an article
+        mock_article_crud.get.return_value = mock_article
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_article_crud:
+                return mock_article_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
-        # Mock article crud.get to return an article
-        from local_newsifier.cli.commands.db import article_crud
-        with patch.object(article_crud, 'get', return_value=mock_article):
-            runner = CliRunner()
-            result = runner.invoke(cli, ["db", "inspect", "article", "1", "--json"])
+        runner = CliRunner()
+        result = runner.invoke(cli, ["db", "inspect", "article", "1", "--json"])
 
-            assert result.exit_code == 0
-            
-            # Verify JSON output can be parsed
-            output = json.loads(result.output)
-            assert output["id"] == 1
-            assert output["title"] == "Test Article"
-            assert output["url"] == "https://example.com/test"
+        assert result.exit_code == 0
+        
+        # Verify JSON output can be parsed
+        output = json.loads(result.output)
+        assert output["id"] == 1
+        assert output["title"] == "Test Article"
+        assert output["url"] == "https://example.com/test"
 
 
 class TestDBPurgeDuplicates:
     """Tests for the db purge-duplicates command."""
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_purge_duplicates_with_duplicates(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_purge_duplicates_with_duplicates(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command when duplicates are found."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
@@ -454,12 +505,12 @@ class TestDBPurgeDuplicates:
         # Verify session.commit was called
         mock_session.commit.assert_called_once()
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_purge_duplicates_dry_run(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_purge_duplicates_dry_run(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with dry run option."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
@@ -492,12 +543,12 @@ class TestDBPurgeDuplicates:
         # Verify session.commit was not called
         mock_session.commit.assert_not_called()
 
-    @patch('local_newsifier.cli.commands.db.next')
-    def test_purge_duplicates_json_output(self, mock_next, mock_article):
+    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    def test_purge_duplicates_json_output(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_next.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
