@@ -37,7 +37,19 @@ def _event_loop_context() -> Generator[asyncio.AbstractEventLoop, None, None]:
     thread_id = threading.get_ident()
     
     try:
-        # First try to get an existing loop
+        # First try to get a running loop
+        try:
+            # Use get_running_loop() to avoid deprecation warning in Python 3.10+
+            current_loop = asyncio.get_running_loop()
+            # Store it in thread local storage
+            _thread_local.loop = current_loop
+            yield current_loop
+            return
+        except RuntimeError:
+            # No running loop exists
+            pass
+            
+        # Try to get the existing loop (fallback for older Python versions)
         try:
             current_loop = asyncio.get_event_loop()
             if not current_loop.is_closed():
