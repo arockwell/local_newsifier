@@ -57,36 +57,48 @@ class ApifyScheduleManager:
             "errors": []
         }
         
+        # List to store config IDs
+        config_ids = []
+        
         with self.session_factory() as session:
             # Get all active configs with schedules
             configs = self.config_crud.get_scheduled_configs(session)
             
-            # Process each config
+            # Extract config IDs while inside the session
             for config in configs:
-                try:
-                    if not config.schedule_id:
-                        # Create new schedule in Apify
-                        created = self.create_schedule_for_config(config.id)
-                        if created:
-                            results["created"] += 1
-                    else:
-                        # Verify and update existing schedule
-                        updated = self.update_schedule_for_config(config.id)
-                        if updated:
-                            results["updated"] += 1
-                        else:
-                            results["unchanged"] += 1
-                except Exception as e:
-                    error_msg = f"Error processing config {config.id}: {str(e)}"
-                    logging.error(error_msg)
-                    results["errors"].append(error_msg)
-            
+                config_ids.append(config.id)
+                
             # Clean up any schedules in Apify that don't have a corresponding config
             try:
                 deleted = self._clean_orphaned_schedules(session)
                 results["deleted"] += deleted
             except Exception as e:
                 error_msg = f"Error cleaning orphaned schedules: {str(e)}"
+                logging.error(error_msg)
+                results["errors"].append(error_msg)
+        
+        # Process each config outside the original session
+        for config_id in config_ids:
+            try:
+                # Check if config has a schedule_id
+                with self.session_factory() as session:
+                    config = self.config_crud.get(session, id=config_id)
+                    has_schedule_id = config and config.schedule_id
+                
+                if not has_schedule_id:
+                    # Create new schedule in Apify
+                    created = self.create_schedule_for_config(config_id)
+                    if created:
+                        results["created"] += 1
+                else:
+                    # Verify and update existing schedule
+                    updated = self.update_schedule_for_config(config_id)
+                    if updated:
+                        results["updated"] += 1
+                    else:
+                        results["unchanged"] += 1
+            except Exception as e:
+                error_msg = f"Error processing config {config_id}: {str(e)}"
                 logging.error(error_msg)
                 results["errors"].append(error_msg)
                 
@@ -306,6 +318,8 @@ class ApifyScheduleManager:
         Raises:
             ServiceError: If config doesn't exist
         """
+        config_details = {}
+        
         with self.session_factory() as session:
             # Get the config
             config = self.config_crud.get(session, id=config_id)
@@ -315,41 +329,45 @@ class ApifyScheduleManager:
                     error_type="not_found",
                     message=f"Apify source config with ID {config_id} not found",
                 )
-                
-            result = {
-                "exists": False,
-                "synced": False,
-                "config_details": {
-                    "id": config.id,
-                    "name": config.name,
-                    "actor_id": config.actor_id,
-                    "schedule": config.schedule,
-                    "schedule_id": config.schedule_id,
-                    "is_active": config.is_active,
-                }
+            
+            # Extract config details while inside the session
+            config_details = {
+                "id": config.id,
+                "name": config.name,
+                "actor_id": config.actor_id,
+                "schedule": config.schedule,
+                "schedule_id": config.schedule_id,
+                "is_active": config.is_active,
             }
-                
-            # Check if config has a schedule_id
-            if not config.schedule_id:
-                return result
-                
-            try:
-                # Get schedule from Apify
-                schedule = self.apify_service.get_schedule(config.schedule_id)
-                result["exists"] = True
-                result["schedule_details"] = schedule
-                
-                # Check if schedule is synced
-                result["synced"] = (
-                    schedule.get("cronExpression") == config.schedule and
-                    schedule.get("actId") == config.actor_id and
-                    schedule.get("isEnabled") == config.is_active
-                )
-                
-                return result
-            except Exception:
-                # Schedule doesn't exist
-                return result
+        
+        # Now use the extracted details outside the session
+        result = {
+            "exists": False,
+            "synced": False,
+            "config_details": config_details
+        }
+        
+        # Check if config has a schedule_id
+        if not config_details["schedule_id"]:
+            return result
+            
+        try:
+            # Get schedule from Apify
+            schedule = self.apify_service.get_schedule(config_details["schedule_id"])
+            result["exists"] = True
+            result["schedule_details"] = schedule
+            
+            # Check if schedule is synced
+            result["synced"] = (
+                schedule.get("cronExpression") == config_details["schedule"] and
+                schedule.get("actId") == config_details["actor_id"] and
+                schedule.get("isEnabled") == config_details["is_active"]
+            )
+            
+            return result
+        except Exception:
+            # Schedule doesn't exist
+            return result
                 
     def _clean_orphaned_schedules(self, session: Session) -> int:
         """Clean up any schedules in Apify that don't have a corresponding config.

@@ -576,8 +576,20 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
         
     try:
         # Get all scheduled configs from database
+        configs = []
         with SessionManager() as session:
-            configs = config_crud.get_scheduled_configs(session, enabled_only=False)
+            db_configs = config_crud.get_scheduled_configs(session, enabled_only=False)
+            # Convert to dictionaries to avoid session binding issues
+            for config in db_configs:
+                configs.append({
+                    "id": config.id,
+                    "name": config.name,
+                    "actor_id": config.actor_id,
+                    "schedule": config.schedule,
+                    "schedule_id": config.schedule_id,
+                    "is_active": config.is_active,
+                    "last_run_at": config.last_run_at,
+                })
             
         if not configs:
             click.echo("No scheduled configurations found.")
@@ -587,15 +599,10 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
         if format_type == "json":
             output = []
             for config in configs:
-                item = {
-                    "id": config.id,
-                    "name": config.name,
-                    "actor_id": config.actor_id,
-                    "schedule": config.schedule,
-                    "schedule_id": config.schedule_id,
-                    "is_active": config.is_active,
-                    "last_run_at": config.last_run_at.isoformat() if config.last_run_at else None,
-                }
+                item = config.copy()
+                # Convert datetime to string if present
+                if item["last_run_at"]:
+                    item["last_run_at"] = item["last_run_at"].isoformat()
                 output.append(item)
             click.echo(json.dumps(output, indent=2))
             return
@@ -606,19 +613,19 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
             table_data = []
             
             for config in configs:
-                status = schedule_manager.verify_schedule_status(config.id)
+                status = schedule_manager.verify_schedule_status(config["id"])
                 
                 # Format for table display
                 exists = "✓" if status["exists"] else "✗"
                 synced = "✓" if status["synced"] else "✗"
-                schedule_id = config.schedule_id or "N/A"
-                last_run = config.last_run_at.strftime("%Y-%m-%d %H:%M") if config.last_run_at else "Never"
+                schedule_id = config["schedule_id"] or "N/A"
+                last_run = config["last_run_at"].strftime("%Y-%m-%d %H:%M") if config["last_run_at"] else "Never"
                 
                 row = [
-                    config.id,
-                    config.name,
-                    config.schedule,
-                    "Active" if config.is_active else "Inactive",
+                    config["id"],
+                    config["name"],
+                    config["schedule"],
+                    "Active" if config["is_active"] else "Inactive",
                     schedule_id,
                     exists,
                     synced,
@@ -632,14 +639,14 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
             # Simple table without Apify API calls
             table_data = []
             for config in configs:
-                schedule_id = config.schedule_id or "N/A"
-                last_run = config.last_run_at.strftime("%Y-%m-%d %H:%M") if config.last_run_at else "Never"
+                schedule_id = config["schedule_id"] or "N/A"
+                last_run = config["last_run_at"].strftime("%Y-%m-%d %H:%M") if config["last_run_at"] else "Never"
                 
                 row = [
-                    config.id,
-                    config.name,
-                    config.schedule,
-                    "Active" if config.is_active else "Inactive",
+                    config["id"],
+                    config["name"],
+                    config["schedule"],
+                    "Active" if config["is_active"] else "Inactive",
                     schedule_id,
                     last_run
                 ]

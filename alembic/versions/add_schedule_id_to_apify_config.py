@@ -1,7 +1,7 @@
 """Add schedule_id to apify_source_configs
 
 Revision ID: add_schedule_id_to_apify_config
-Revises: d6d7f6c7b282
+Revises: a6b9cd123456
 Create Date: 2023-05-08 10:00:00.000000
 
 """
@@ -14,7 +14,7 @@ import sqlmodel
 
 # revision identifiers, used by Alembic.
 revision: str = 'add_schedule_id_to_apify_config'
-down_revision: Union[str, None] = 'd6d7f6c7b282'
+down_revision: Union[str, None] = 'a6b9cd123456'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
