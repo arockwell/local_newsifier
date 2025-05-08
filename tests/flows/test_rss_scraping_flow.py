@@ -42,28 +42,22 @@ def mock_article_service():
 
 class TestRSSScrapingFlow:
     def setup_method(self):
-        # Mock the injectable decorator to allow direct instantiation
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                # Create with default parameters
-                self.flow = RSSScrapingFlow(session_factory=mock_session_factory)
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        # Create with default parameters
+        self.flow = RSSScrapingFlow(session_factory=mock_session_factory)
 
     def test_init_with_cache_dir(self, tmp_path):
         """Test initialization with cache directory."""
-        # Mock the injectable decorator
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                # Create flow with cache dir
-                flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
-                assert flow.cache_dir == tmp_path
-                assert flow.rss_feed_service is None
-                assert flow.article_service is None
-                assert isinstance(flow.rss_parser, Mock) is False
-                assert isinstance(flow.web_scraper, Mock) is False
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        # Create flow with cache dir
+        flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
+        assert flow.cache_dir == tmp_path
+        assert flow.rss_feed_service is None
+        assert flow.article_service is None
+        assert isinstance(flow.rss_parser, Mock) is False
+        assert isinstance(flow.web_scraper, Mock) is False
     
     def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service, 
                                    mock_rss_parser, mock_web_scraper):
@@ -71,21 +65,18 @@ class TestRSSScrapingFlow:
         parser_instance = Mock()
         scraper_instance = Mock()
         
-        # Mock the injectable decorator
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                
-                # Create flow with all dependencies provided
-                flow = RSSScrapingFlow(
-                    rss_feed_service=mock_rss_feed_service,
-                    article_service=mock_article_service,
-                    rss_parser=parser_instance,
-                    web_scraper=scraper_instance,
-                    cache_dir="/tmp/cache",
-                    session_factory=mock_session_factory
-                )
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with all dependencies provided
+        flow = RSSScrapingFlow(
+            rss_feed_service=mock_rss_feed_service,
+            article_service=mock_article_service,
+            rss_parser=parser_instance,
+            web_scraper=scraper_instance,
+            cache_dir="/tmp/cache",
+            session_factory=mock_session_factory
+        )
         
         # Verify dependencies were used
         assert flow.rss_feed_service is mock_rss_feed_service
@@ -104,15 +95,12 @@ class TestRSSScrapingFlow:
         mock_rss_parser.return_value.get_new_urls.return_value = []
 
         # Test
-        # Mock the injectable decorator
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                
-                # Create flow with default parameters
-                flow = RSSScrapingFlow(session_factory=mock_session_factory)
-                results = flow.process_feed("http://example.com/feed")
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
+        results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 0
         mock_rss_parser.return_value.get_new_urls.assert_called_once_with(
@@ -144,15 +132,12 @@ class TestRSSScrapingFlow:
         mock_web_scraper.return_value.scrape.side_effect = mock_scrape
 
         # Test
-        # Mock the injectable decorator
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                
-                # Create flow with default parameters
-                flow = RSSScrapingFlow(session_factory=mock_session_factory)
-                results = flow.process_feed("http://example.com/feed")
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
+        results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 2
         assert all(isinstance(state, NewsAnalysisState) for state in results)
@@ -174,15 +159,12 @@ class TestRSSScrapingFlow:
         mock_web_scraper.return_value.scrape.side_effect = Exception("Failed to scrape")
 
         # Test
-        # Mock the injectable decorator
-        with patch('fastapi_injectable.decorator.run_coroutine_sync'):
-            with patch('local_newsifier.flows.rss_scraping_flow.injectable', lambda **kwargs: lambda cls: cls):
-                # Create a mock session factory
-                mock_session_factory = lambda: Mock()
-                
-                # Create flow with default parameters
-                flow = RSSScrapingFlow(session_factory=mock_session_factory)
-                results = flow.process_feed("http://example.com/feed")
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
+        results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 1
         assert results[0].status == AnalysisStatus.SCRAPE_FAILED_NETWORK
