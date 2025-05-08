@@ -43,14 +43,9 @@ def mock_article_service():
 
 
 class TestRSSScrapingFlow:
-    @ci_skip("Event loop issues in CI")
-    def setup_method(self, event_loop_fixture=None):
-        # Create with default parameters
-        if event_loop_fixture:
-            self.flow = RSSScrapingFlow()
-        else:
-            # Skip initialization, tests should provide their own fixtures
-            self.flow = None
+    def setup_method(self):
+        # Don't initialize RSSScrapingFlow here to avoid event loop issues
+        self.flow = None
 
     @ci_skip("Event loop issues in CI")
     def test_init_with_cache_dir(self, tmp_path, event_loop_fixture):
