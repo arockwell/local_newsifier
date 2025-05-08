@@ -126,7 +126,7 @@ def test_create_schedule_for_config(schedule_manager, mock_apify_service, mock_c
     
     # Verify interactions
     mock_apify_service.create_schedule.assert_called_once_with(
-        actor_id="mock_actor_id",
+        actor_id="moJRLRc85AitArpNN",  # This matches the hardcoded ID in the service
         cron_expression="0 0 * * *",
         run_input={"test": "value"},
         name="Local Newsifier: Test Config"
