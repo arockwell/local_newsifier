@@ -113,27 +113,29 @@ class ApifyService:
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
             }
         
-        # Prepare schedule data
-        schedule_data = {
-            "actId": actor_id,
-            "cronExpression": cron_expression,
-            "isEnabled": True,
-        }
+        # Create actions for the schedule (requires the actor to run)
+        actions = [{
+            "type": "RUN_ACTOR",
+            "actorId": actor_id
+        }]
         
-        # Add optional fields if provided
+        # Add input if provided
         if run_input:
-            schedule_data["runInput"] = run_input
-        if name:
-            schedule_data["name"] = name
+            actions[0]["input"] = run_input
+            
+        # Prepare schedule parameters according to API requirements
+        schedule_params = {
+            "name": name or f"local-newsifier-{actor_id}",
+            "cron_expression": cron_expression,
+            "is_enabled": True,
+            "is_exclusive": True,  # Don't start if previous run is still going
+            "actions": actions,
+            "timezone": "UTC"
+        }
             
         # Make the actual API call
         schedules_client = self.client.schedules()
-        # Debugging the API
-        import inspect
-        logging.info(f"Schedules client methods: {dir(schedules_client)}")
-        logging.info(f"Create method signature: {inspect.signature(schedules_client.create)}")
-        # Try without naming the parameter
-        return schedules_client.create(schedule_data)
+        return schedules_client.create(**schedule_params)
         
     def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing Apify schedule.
@@ -272,14 +274,16 @@ class ApifyService:
                     })
             return {"data": {"items": schedules, "total": len(schedules)}}
         
-        # Prepare filter parameters
-        params = {}
+        # Prepare filter parameters if needed
+        filter_by = None
         if actor_id:
-            params["filter"] = {"actId": actor_id}
+            # Note: The Apify API has a different structure for list filtering
+            # which we'll need to check in their documentation
+            filter_by = {"actorId": actor_id}
             
         # Make the actual API call
         schedules_client = self.client.schedules()
-        return schedules_client.list(**params)
+        return schedules_client.list(filter_by=filter_by)
 
     def _format_error(self, error: Exception, context: str = "") -> str:
         """Format an error with traceback and context.
