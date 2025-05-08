@@ -2,6 +2,8 @@
 
 > **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture 
 > and transition strategy, please refer to the [DI Architecture Guide](di_architecture.md).
+>
+> **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
 
 ## Overview
 
