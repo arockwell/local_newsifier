@@ -102,9 +102,10 @@ Is this a new component?
 
 ## Related Documentation
 
-- [Original DIContainer Documentation](dependency_injection.md)
-- [fastapi-injectable Migration Guide](fastapi_injectable.md)
-- [Issue #151: Evaluate Migration to fastapi-injectable](https://github.com/arockwell/local_newsifier/issues/151)
+- [Injectable Patterns Guide](injectable_patterns.md) - Comprehensive examples and patterns for all component types
+- [Original DIContainer Documentation](dependency_injection.md) - Legacy DIContainer documentation
+- [fastapi-injectable Migration Guide](fastapi_injectable.md) - Migration process overview
+- [Issue #151: Evaluate Migration to fastapi-injectable](https://github.com/arockwell/local_newsifier/issues/151) - Original evaluation issue
 
 ## Testing Strategies
 
