@@ -5,6 +5,13 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
+from local_newsifier.di.providers import (
+    get_session, 
+    get_article_crud, 
+    get_rss_feed_crud,
+    get_entity_crud,
+    get_feed_processing_log_crud
+)
 
 
 def test_db_group():
@@ -19,16 +26,24 @@ def test_db_group():
     assert "purge-duplicates" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_stats_command(mock_next):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_stats_command(mock_get_injected_obj):
     """Test that the db stats command runs without errors using mocks."""
-    # Set up mock session and query results
+    # Set up mock session
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock query execution results for article stats
-    mock_session.exec.return_value.one.return_value = 5  # Mock count
-    mock_session.exec.return_value.first.return_value = None  # Mock no articles
+    mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # Article count, feed count, active feeds, log count, entity count
+    mock_session.exec.return_value.first.side_effect = [None, None]  # Latest article, oldest article
     
     runner = CliRunner()
     result = runner.invoke(cli, ["db", "stats"])
@@ -39,12 +54,20 @@ def test_db_stats_command(mock_next):
     assert "RSS Feeds" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_duplicates_no_duplicates(mock_next):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the db duplicates command handles case with no duplicates."""
-    # Set up mock session and query results
+    # Set up mock session
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock empty result for duplicate query
     mock_session.exec.return_value.all.return_value = []
@@ -56,12 +79,20 @@ def test_db_duplicates_no_duplicates(mock_next):
     assert "No duplicate articles found" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_articles_no_articles(mock_next):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_articles_no_articles(mock_get_injected_obj):
     """Test that the db articles command handles case with no articles."""
-    # Set up mock session and query results
+    # Set up mock session
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock empty result for articles query
     mock_session.exec.return_value.all.return_value = []
@@ -73,29 +104,51 @@ def test_db_articles_no_articles(mock_next):
     assert "No articles found matching the criteria" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_inspect_article_not_found(mock_next):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_inspect_article_not_found(mock_get_injected_obj):
     """Test that the db inspect command handles non-existent article."""
-    # Set up mock session
+    # Set up mock session and article_crud
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    mock_article_crud = MagicMock()
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        elif provider == get_article_crud:
+            return mock_article_crud
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock article crud get to return None (not found)
-    from local_newsifier.cli.commands.db import article_crud
-    with patch.object(article_crud, 'get', return_value=None):
-        runner = CliRunner()
-        result = runner.invoke(cli, ["db", "inspect", "article", "999"])
-        
-        assert result.exit_code == 0
-        assert "not found" in result.output
+    mock_article_crud.get.return_value = None
+    
+    runner = CliRunner()
+    result = runner.invoke(cli, ["db", "inspect", "article", "999"])
+    
+    assert result.exit_code == 0
+    assert "not found" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_purge_duplicates_no_duplicates(mock_next):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_purge_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the purge-duplicates command handles case with no duplicates."""
-    # Set up mock session
+    # Set up mock session and article_crud
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    mock_article_crud = MagicMock()
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        elif provider == get_article_crud:
+            return mock_article_crud
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock empty result for duplicate query
     mock_session.exec.return_value.all.return_value = []

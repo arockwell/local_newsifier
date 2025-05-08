@@ -15,11 +15,9 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple, Annotated
+from typing import Dict, List, Optional, Any, Tuple
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.database.engine import get_session, with_session
@@ -66,6 +64,7 @@ class PublicOpinionFlow(Flow):
         else:
             self.session = session
             self._owns_session = False
+            self.session_factory = lambda: session
 
         # Initialize tools or use provided ones
         self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)
@@ -454,3 +453,15 @@ class PublicOpinionFlow(Flow):
         except Exception as e:
             logger.error(f"Error generating comparison report: {str(e)}")
             return f"Error generating comparison report: {str(e)}"
+            
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            sentiment_analyzer=container.get("sentiment_analyzer_tool"),
+            sentiment_tracker=container.get("sentiment_tracker_tool"),
+            opinion_visualizer=container.get("opinion_visualizer_tool"),
+            session_factory=container.get("session_factory")
+        )

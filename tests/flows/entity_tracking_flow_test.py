@@ -98,7 +98,7 @@ def test_process_method(event_loop_fixture):
     mock_result_state = Mock(spec=EntityTrackingState)
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
@@ -128,7 +128,7 @@ def test_process_new_articles_method(event_loop_fixture):
     mock_result_state = Mock(spec=EntityBatchTrackingState)
     mock_entity_service.process_articles_batch.return_value = mock_result_state
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
@@ -181,7 +181,7 @@ def test_process_article_method(mock_article_crud, event_loop_fixture):
     mock_result_state.entities = [{"entity": "test"}]
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
@@ -220,7 +220,7 @@ def test_get_entity_dashboard_method(event_loop_fixture):
     mock_result_state.dashboard_data = {"dashboard": "data"}
     mock_entity_service.generate_entity_dashboard.return_value = mock_result_state
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
@@ -257,7 +257,7 @@ def test_find_entity_relationships_method(event_loop_fixture):
     mock_result_state.relationship_data = {"relationship": "data"}
     mock_entity_service.find_entity_relationships.return_value = mock_result_state
     
-    # Initialize flow with mock dependencies
+    # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,

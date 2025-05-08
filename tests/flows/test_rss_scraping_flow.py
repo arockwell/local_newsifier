@@ -53,10 +53,12 @@ class TestRSSScrapingFlow:
 
     def test_init_with_cache_dir(self, tmp_path):
         """Test initialization with cache directory."""
-        # Create a flow with mocked dependencies to avoid DI issues
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        # Create flow with cache dir and mocked dependencies to avoid DI issues
         with patch('local_newsifier.flows.rss_scraping_flow.RSSParser'):
             with patch('local_newsifier.flows.rss_scraping_flow.WebScraperTool'):
-                flow = RSSScrapingFlow(cache_dir=str(tmp_path))
+                flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
                 assert flow.cache_dir == tmp_path
                 assert flow.rss_feed_service is None
                 assert flow.article_service is None
@@ -67,13 +69,17 @@ class TestRSSScrapingFlow:
         parser_instance = Mock()
         scraper_instance = Mock()
         
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
         # Create flow with all dependencies provided
         flow = RSSScrapingFlow(
             rss_feed_service=mock_rss_feed_service,
             article_service=mock_article_service,
             rss_parser=parser_instance,
             web_scraper=scraper_instance,
-            cache_dir="/tmp/cache"
+            cache_dir="/tmp/cache",
+            session_factory=mock_session_factory
         )
         
         # Verify dependencies were used
@@ -93,9 +99,12 @@ class TestRSSScrapingFlow:
         parser_instance = mock_rss_parser.return_value
         parser_instance.get_new_urls.return_value = []
 
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
         # Create with mocked dependencies to avoid DI issues
         with patch('local_newsifier.flows.rss_scraping_flow.WebScraperTool'):
-            flow = RSSScrapingFlow(rss_parser=parser_instance)
+            flow = RSSScrapingFlow(rss_parser=parser_instance, session_factory=mock_session_factory)
             
             # Test
             results = flow.process_feed("http://example.com/feed")
@@ -132,9 +141,14 @@ class TestRSSScrapingFlow:
         scraper_instance.scrape.side_effect = mock_scrape
 
         # Test
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with mocked dependencies
         flow = RSSScrapingFlow(
             rss_parser=parser_instance,
-            web_scraper=scraper_instance
+            web_scraper=scraper_instance,
+            session_factory=mock_session_factory
         )
         results = flow.process_feed("http://example.com/feed")
 
@@ -161,9 +175,14 @@ class TestRSSScrapingFlow:
         scraper_instance.scrape.side_effect = Exception("Failed to scrape")
 
         # Test
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with mocked dependencies
         flow = RSSScrapingFlow(
             rss_parser=parser_instance,
-            web_scraper=scraper_instance
+            web_scraper=scraper_instance,
+            session_factory=mock_session_factory
         )
         results = flow.process_feed("http://example.com/feed")
 
