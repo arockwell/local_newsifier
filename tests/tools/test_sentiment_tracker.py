@@ -7,7 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from local_newsifier.tools.sentiment_tracker import SentimentTracker
+# Import with patching to handle @injectable decorator
+with patch('fastapi_injectable.injectable', return_value=lambda cls: cls):
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
 
 
 class TestSentimentTracker:
@@ -571,55 +573,64 @@ class TestSentimentTracker:
             # Create a mock session
             mock_sess = MagicMock()
             
-            result = tracker.calculate_topic_correlation(
-                topic1="climate",
-                topic2="energy",
-                start_date=start_date,
-                end_date=end_date,
-                session=mock_sess
-            )
+            # Replace tracker.session with mock to avoid database access
+            original_session = tracker.session
+            tracker.session = mock_sess
             
-            # Verify results
-            assert result["topic1"] == "climate"
-            assert result["topic2"] == "energy"
-            assert result["correlation"] == -0.85
-            assert result["period_count"] == 3
-            
-            # Verify method calls
-            assert mock_get_sentiment.call_count == 1
-            args, kwargs = mock_get_sentiment.call_args
-            assert args[0] == start_date
-            assert args[1] == end_date
-            assert args[2] == "day"
-            assert args[3] == ["climate", "energy"]
-            assert "session" in kwargs
-            
-            # Should be called with the sentiment values
-            mock_calc_correlation.assert_called_once_with(
-                [-0.3, -0.5, -0.2], [0.2, 0.3, 0.1]
-            )
-            
-            # Test with missing data for one topic
-            mock_sentiment_data = {
-                "2023-05-01": {
-                    "climate": {"avg_sentiment": -0.3},
-                },
-                "2023-05-02": {
-                    "climate": {"avg_sentiment": -0.5},
-                    "energy": {"avg_sentiment": 0.3}
+            try:
+                result = tracker.calculate_topic_correlation(
+                    topic1="climate",
+                    topic2="energy",
+                    start_date=start_date,
+                    end_date=end_date,
+                    session=mock_sess
+                )
+                
+                # Verify results
+                assert result["topic1"] == "climate"
+                assert result["topic2"] == "energy"
+                assert result["correlation"] == -0.85
+                assert result["period_count"] == 3
+                
+                # Verify method calls
+                assert mock_get_sentiment.call_count == 1
+                args, kwargs = mock_get_sentiment.call_args
+                assert args[0] == start_date
+                assert args[1] == end_date
+                assert args[2] == "day"
+                assert args[3] == ["climate", "energy"]
+                assert "session" in kwargs
+                
+                # Should be called with the sentiment values
+                mock_calc_correlation.assert_called_once_with(
+                    [-0.3, -0.5, -0.2], [0.2, 0.3, 0.1]
+                )
+                
+                # Test with missing data for one topic
+                mock_sentiment_data = {
+                    "2023-05-01": {
+                        "climate": {"avg_sentiment": -0.3},
+                    },
+                    "2023-05-02": {
+                        "climate": {"avg_sentiment": -0.5},
+                        "energy": {"avg_sentiment": 0.3}
+                    }
                 }
-            }
-            mock_get_sentiment.return_value = mock_sentiment_data
-            
-            result = tracker.calculate_topic_correlation(
-                topic1="climate",
-                topic2="energy",
-                start_date=start_date,
-                end_date=end_date
-            )
-            
-            # Only one period has data for both topics
-            assert result["period_count"] == 1
+                mock_get_sentiment.return_value = mock_sentiment_data
+                
+                result = tracker.calculate_topic_correlation(
+                    topic1="climate",
+                    topic2="energy",
+                    start_date=start_date,
+                    end_date=end_date,
+                    session=mock_sess
+                )
+                
+                # Only one period has data for both topics
+                assert result["period_count"] == 1
+            finally:
+                # Restore original session
+                tracker.session = original_session
 
     def test_update_opinion_trends(self, tracker):
         """Test updating opinion trends in the database."""
