@@ -5,11 +5,9 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Annotated, Callable
+from typing import List, Optional, Dict, Callable
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem, RSSParser
@@ -20,7 +18,6 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class RSSScrapingFlow(Flow):
     """Flow for processing RSS feeds and scraping their content."""
 
@@ -111,3 +108,16 @@ class RSSScrapingFlow(Flow):
                 results.append(state)
 
         return results
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            rss_feed_service=container.get("rss_feed_service"),
+            article_service=container.get("article_service"),
+            rss_parser=container.get("rss_parser"),
+            web_scraper=container.get("web_scraper_tool"),
+            session_factory=container.get("session_factory")
+        )

@@ -1,9 +1,7 @@
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Optional, Dict, Callable
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
@@ -24,7 +22,6 @@ from local_newsifier.crud.entity_mention_context import entity_mention_context a
 from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 
 
-@injectable(use_cache=False)
 class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 
@@ -263,3 +260,20 @@ class NewsPipelineFlow(Flow):
             Dictionary with processing results
         """
         return self.pipeline_service.process_url(url)
+    
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            article_service=container.get("article_service"),
+            entity_service=container.get("entity_service"),
+            pipeline_service=container.get("news_pipeline_service"),
+            web_scraper=container.get("web_scraper_tool"),
+            file_writer=container.get("file_writer_tool"),
+            entity_extractor=container.get("entity_extractor"),
+            context_analyzer=container.get("context_analyzer"),
+            entity_resolver=container.get("entity_resolver"),
+            session_factory=container.get("session_factory")
+        )

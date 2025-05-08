@@ -15,11 +15,9 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Annotated
+from typing import Dict, List, Optional, Any
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.database.engine import get_session, with_session
@@ -28,7 +26,6 @@ from local_newsifier.services.analysis_service import AnalysisService
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
@@ -215,3 +212,12 @@ class HeadlineTrendFlow(Flow):
 
         report += "</body></html>"
         return report
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            analysis_service=container.get("analysis_service")
+        )
