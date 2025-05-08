@@ -469,9 +469,20 @@ class TestDBPurgeDuplicates:
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_purge_duplicates_with_duplicates(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command when duplicates are found."""
-        # Set up mock session
+        # Set up mock session and mock article_crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_article_crud = MagicMock()
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_article_crud:
+                return mock_article_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
@@ -500,17 +511,28 @@ class TestDBPurgeDuplicates:
         assert "Kept article ID: 1" in result.output
         assert "Removed article IDs: 2" in result.output
         
-        # Verify session.delete was called with article2
-        mock_session.delete.assert_called_once_with(article2)
+        # Verify article_crud.remove was called with the correct arguments
+        mock_article_crud.remove.assert_called_once_with(mock_session, id=article2.id)
         # Verify session.commit was called
         mock_session.commit.assert_called_once()
 
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_purge_duplicates_dry_run(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with dry run option."""
-        # Set up mock session
+        # Set up mock session and mock article_crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_article_crud = MagicMock()
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_article_crud:
+                return mock_article_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
@@ -538,17 +560,28 @@ class TestDBPurgeDuplicates:
         assert "Would remove 1 duplicate articles across 1 URLs" in result.output
         assert "(DRY RUN - No changes were made)" in result.output
         
-        # Verify session.delete was not called
-        mock_session.delete.assert_not_called()
+        # Verify article_crud.remove was not called
+        mock_article_crud.remove.assert_not_called()
         # Verify session.commit was not called
         mock_session.commit.assert_not_called()
 
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_purge_duplicates_json_output(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with JSON output."""
-        # Set up mock session
+        # Set up mock session and mock article_crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_article_crud = MagicMock()
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session
+            elif provider == get_article_crud:
+                return mock_article_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         # Create two different article instances
         article1 = MagicMock(spec=Article)
@@ -582,3 +615,8 @@ class TestDBPurgeDuplicates:
         assert len(output["details"]) == 1
         assert output["details"][0]["kept_id"] == 1
         assert output["details"][0]["removed_ids"] == [2]
+        
+        # Verify article_crud.remove was called with the correct arguments
+        mock_article_crud.remove.assert_called_once_with(mock_session, id=article2.id)
+        # Verify session.commit was called
+        mock_session.commit.assert_called_once()
