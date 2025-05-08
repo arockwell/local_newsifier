@@ -126,8 +126,9 @@ class ApifyService:
         if name:
             schedule_data["name"] = name
             
-        # Make the actual API call - client.schedules is a method, not a property
-        return self.client.schedules().create(schedule_data)
+        # Make the actual API call
+        schedules_client = self.client.schedules()
+        return schedules_client.create(schedule_data=schedule_data)
         
     def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing Apify schedule.
@@ -271,8 +272,9 @@ class ApifyService:
         if actor_id:
             params["filter"] = {"actId": actor_id}
             
-        # Make the actual API call - client.schedules is a method, not a property
-        return self.client.schedules().list(params)
+        # Make the actual API call
+        schedules_client = self.client.schedules()
+        return schedules_client.list(**params)
 
     def _format_error(self, error: Exception, context: str = "") -> str:
         """Format an error with traceback and context.
