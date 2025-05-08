@@ -19,6 +19,7 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class RSSScrapingFlow:
     """Flow for processing RSS feeds and scraping their content."""
 

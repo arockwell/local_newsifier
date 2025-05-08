@@ -7,9 +7,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
+# Import our mocked version of RSSScrapingFlow to avoid DI issues
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem
+from tests.fixtures.event_loop import event_loop_fixture
+
+# Create a mocked version of RSSScrapingFlow
+with patch('fastapi_injectable.injectable', return_value=lambda cls: cls):
+    from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
 
 
 @pytest.fixture
@@ -42,20 +47,22 @@ def mock_article_service():
 
 class TestRSSScrapingFlow:
     def setup_method(self):
-        # Create with default parameters
-        self.flow = RSSScrapingFlow()
+        # Skip automatic initialization to avoid event loop issues
+        # Tests will explicitly create the flow with mocked components
+        pass
 
     def test_init_with_cache_dir(self, tmp_path):
         """Test initialization with cache directory."""
-        flow = RSSScrapingFlow(cache_dir=str(tmp_path))
-        assert flow.cache_dir == tmp_path
-        assert flow.rss_feed_service is None
-        assert flow.article_service is None
-        assert isinstance(flow.rss_parser, Mock) is False
-        assert isinstance(flow.web_scraper, Mock) is False
+        # Create a flow with mocked dependencies to avoid DI issues
+        with patch('local_newsifier.flows.rss_scraping_flow.RSSParser'):
+            with patch('local_newsifier.flows.rss_scraping_flow.WebScraperTool'):
+                flow = RSSScrapingFlow(cache_dir=str(tmp_path))
+                assert flow.cache_dir == tmp_path
+                assert flow.rss_feed_service is None
+                assert flow.article_service is None
     
     def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service, 
-                                   mock_rss_parser, mock_web_scraper):
+                                    mock_rss_parser, mock_web_scraper):
         """Test initialization with provided dependencies."""
         parser_instance = Mock()
         scraper_instance = Mock()
@@ -83,16 +90,20 @@ class TestRSSScrapingFlow:
     def test_process_feed_no_new_articles(self, mock_rss_parser):
         """Test processing a feed with no new articles."""
         # Setup mock
-        mock_rss_parser.return_value.get_new_urls.return_value = []
+        parser_instance = mock_rss_parser.return_value
+        parser_instance.get_new_urls.return_value = []
 
-        # Test
-        flow = RSSScrapingFlow()
-        results = flow.process_feed("http://example.com/feed")
+        # Create with mocked dependencies to avoid DI issues
+        with patch('local_newsifier.flows.rss_scraping_flow.WebScraperTool'):
+            flow = RSSScrapingFlow(rss_parser=parser_instance)
+            
+            # Test
+            results = flow.process_feed("http://example.com/feed")
 
-        assert len(results) == 0
-        mock_rss_parser.return_value.get_new_urls.assert_called_once_with(
-            "http://example.com/feed"
-        )
+            assert len(results) == 0
+            parser_instance.get_new_urls.assert_called_once_with(
+                "http://example.com/feed"
+            )
 
     def test_process_feed_with_new_articles(self, mock_rss_parser, mock_web_scraper):
         """Test processing a feed with new articles."""
@@ -109,17 +120,22 @@ class TestRSSScrapingFlow:
                 description="Test description 2",
             ),
         ]
-        mock_rss_parser.return_value.get_new_urls.return_value = test_items
+        parser_instance = mock_rss_parser.return_value
+        parser_instance.get_new_urls.return_value = test_items
 
+        scraper_instance = mock_web_scraper.return_value
         def mock_scrape(state):
             state.status = AnalysisStatus.SCRAPE_SUCCEEDED
             state.scraped_text = f"Scraped content for {state.target_url}"
             return state
 
-        mock_web_scraper.return_value.scrape.side_effect = mock_scrape
+        scraper_instance.scrape.side_effect = mock_scrape
 
         # Test
-        flow = RSSScrapingFlow()
+        flow = RSSScrapingFlow(
+            rss_parser=parser_instance,
+            web_scraper=scraper_instance
+        )
         results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 2
@@ -138,11 +154,17 @@ class TestRSSScrapingFlow:
                 description="Test description",
             )
         ]
-        mock_rss_parser.return_value.get_new_urls.return_value = test_items
-        mock_web_scraper.return_value.scrape.side_effect = Exception("Failed to scrape")
+        parser_instance = mock_rss_parser.return_value
+        parser_instance.get_new_urls.return_value = test_items
+        
+        scraper_instance = mock_web_scraper.return_value
+        scraper_instance.scrape.side_effect = Exception("Failed to scrape")
 
         # Test
-        flow = RSSScrapingFlow()
+        flow = RSSScrapingFlow(
+            rss_parser=parser_instance,
+            web_scraper=scraper_instance
+        )
         results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 1

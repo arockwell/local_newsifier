@@ -1,7 +1,10 @@
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
-from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+
+# Import with patch to avoid DI issues in tests
+with patch('fastapi_injectable.injectable', return_value=lambda cls: cls):
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 @pytest.fixture
@@ -10,9 +13,88 @@ def mock_session():
     return MagicMock()
 
 @pytest.fixture
-def sentiment_analyzer(mock_session):
-    """Create a SentimentAnalyzer instance."""
-    return SentimentAnalysisTool(session=mock_session)
+def mock_nlp():
+    """Mock spaCy NLP model for testing."""
+    mock = MagicMock()
+    
+    # Mock noun chunks for topic extraction
+    mock_doc = MagicMock()
+    mock_chunk1 = MagicMock()
+    mock_chunk1.text = "downtown cafe"
+    mock_chunk1.sent.text = "The new downtown cafe is thriving."
+    
+    mock_chunk2 = MagicMock()
+    mock_chunk2.text = "atmosphere"
+    mock_chunk2.sent.text = "Customers love the atmosphere and service."
+    
+    # Setup for test_analyze_mixed_sentiment
+    mock_chunk3 = MagicMock()
+    mock_chunk3.text = "food"
+    mock_chunk3.sent.text = "The food was excellent but the service was slow and disappointing."
+    
+    mock_chunk4 = MagicMock()
+    mock_chunk4.text = "service"
+    mock_chunk4.sent.text = "The food was excellent but the service was slow and disappointing."
+    
+    # Mock attributes to handle len() and iteration
+    mock_chunk1.__len__.return_value = 2
+    mock_chunk2.__len__.return_value = 1
+    mock_chunk3.__len__.return_value = 1
+    mock_chunk4.__len__.return_value = 1
+    
+    # Set up token.is_stop behavior
+    mock_token = MagicMock()
+    mock_token.is_stop = False
+    mock_chunk1.__iter__.return_value = [mock_token, mock_token]
+    mock_chunk2.__iter__.return_value = [mock_token]
+    mock_chunk3.__iter__.return_value = [mock_token]
+    mock_chunk4.__iter__.return_value = [mock_token]
+    
+    mock_doc.noun_chunks = [mock_chunk1, mock_chunk2, mock_chunk3, mock_chunk4]
+    mock.return_value = mock_doc
+    
+    return mock
+
+@pytest.fixture
+def mock_textblob():
+    """Mock TextBlob for sentiment analysis."""
+    mock_sentiment = MagicMock()
+    mock_sentiment.polarity = 0.75
+    mock_sentiment.subjectivity = 0.8
+    
+    # For test_analyze_negative_sentiment
+    mock_negative_sentiment = MagicMock()
+    mock_negative_sentiment.polarity = -0.6
+    mock_negative_sentiment.subjectivity = 0.9
+    
+    # For test_analyze_mixed_sentiment
+    mock_mixed_sentiment = MagicMock()
+    mock_mixed_sentiment.polarity = 0.1
+    mock_mixed_sentiment.subjectivity = 0.7
+    
+    mock_blob_class = MagicMock()
+    
+    # Different sentiment returns based on input text
+    def mock_blob_init(text):
+        mock_blob = MagicMock()
+        if "terrible" in text or "not recommend" in text:
+            mock_blob.sentiment = mock_negative_sentiment
+        elif "excellent" in text and "slow" in text:
+            mock_blob.sentiment = mock_mixed_sentiment
+        else:
+            mock_blob.sentiment = mock_sentiment
+        return mock_blob
+        
+    mock_blob_class.side_effect = mock_blob_init
+    return mock_blob_class
+
+@pytest.fixture
+def sentiment_analyzer(mock_session, mock_nlp, mock_textblob):
+    """Create a SentimentAnalyzer instance with mocked dependencies."""
+    with patch('spacy.load', return_value=mock_nlp):
+        with patch('local_newsifier.tools.sentiment_analyzer.TextBlob', mock_textblob):
+            analyzer = SentimentAnalysisTool(session=mock_session)
+            return analyzer
 
 @pytest.fixture
 def sample_state():

@@ -3,8 +3,10 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Annotated
 
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
@@ -17,6 +19,7 @@ from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class SentimentTracker:
     """Tool for tracking and analyzing sentiment trends over time."""
 

@@ -709,24 +709,30 @@ def get_public_opinion_flow():
     )
 
 
-def get_rss_scraping_flow():
-    """Factory function to provide the RSS scraping flow.
+@injectable(use_cache=False)
+def get_rss_scraping_flow(
+    rss_feed_service: Annotated[RSSFeedService, Depends(get_rss_feed_service)],
+    article_service: Annotated[ArticleService, Depends(get_article_service)],
+    rss_parser: Annotated[Any, Depends(get_rss_parser)],
+    web_scraper: Annotated[Any, Depends(get_web_scraper_tool)]
+):
+    """Provide the RSS scraping flow using injectable pattern.
     
-    This function creates a new RSSScrapingFlow instance with all required dependencies
-    injected explicitly. It's used by the container to get the flow.
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
     
+    Args:
+        rss_feed_service: RSS feed service
+        article_service: Article service
+        rss_parser: RSS parser tool
+        web_scraper: Web scraper tool
+        
     Returns:
         RSSScrapingFlow instance
     """
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
     
-    # Get all required dependencies
-    rss_feed_service = get_rss_feed_service()
-    article_service = get_article_service()
-    rss_parser = get_rss_parser()
-    web_scraper = get_web_scraper_tool()
-    
-    # Create and return the flow with explicit dependencies
+    # Create and return the flow with injected dependencies
     return RSSScrapingFlow(
         rss_feed_service=rss_feed_service,
         article_service=article_service,

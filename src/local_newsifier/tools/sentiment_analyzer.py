@@ -2,9 +2,11 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast
+from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast, Annotated
 
 import spacy
+from fastapi import Depends
+from fastapi_injectable import injectable
 from spacy.language import Language
 from sqlmodel import Session
 from textblob import TextBlob
@@ -45,6 +47,7 @@ class EntitySentimentError(SentimentAnalysisError):
     pass
 
 
+@injectable(use_cache=False)
 class SentimentAnalysisTool:
     """Tool for performing sentiment analysis on news article content."""
 

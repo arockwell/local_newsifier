@@ -2,8 +2,10 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any, Tuple, Union, Annotated
 
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
@@ -12,6 +14,7 @@ from local_newsifier.models.sentiment import SentimentVisualizationData
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class OpinionVisualizerTool:
     """Tool for generating visualizations of sentiment and opinion data."""
 
