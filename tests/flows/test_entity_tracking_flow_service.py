@@ -42,7 +42,7 @@ def test_entity_tracking_flow_uses_service():
         published_at=datetime(2025, 1, 1)
     )
 
-    # Create flow with mock service and dependencies
+    # Create flow with mock service and dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_service,
         entity_tracker=mock_entity_tracker,
@@ -127,7 +127,7 @@ def test_entity_tracking_flow_handles_errors():
         published_at=datetime(2025, 1, 1)
     )
     
-    # Create flow with mock service and dependencies
+    # Create flow with mock service and dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_service,
         entity_tracker=mock_entity_tracker,

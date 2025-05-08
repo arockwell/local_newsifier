@@ -29,9 +29,15 @@ class TestPublicOpinionFlow:
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker') as mock_tracker, \
              patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool') as mock_visualizer:
             
+            # Setup mocks to be returned when the tools are initialized
+            mock_analyzer.return_value = MagicMock()
+            mock_tracker.return_value = MagicMock()
+            mock_visualizer.return_value = MagicMock()
+            
+            # Create flow with the session
             flow = PublicOpinionFlow(session=mock_session)
             
-            # Replace the real tools with mocks
+            # Replace the automatically created tools with our mocks
             flow.sentiment_analyzer = mock_analyzer.return_value
             flow.sentiment_tracker = mock_tracker.return_value
             flow.opinion_visualizer = mock_visualizer.return_value

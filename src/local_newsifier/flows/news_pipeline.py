@@ -1,9 +1,7 @@
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Optional, Dict, Callable
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
@@ -64,7 +62,7 @@ class NewsPipelineFlow(Flow):
         self.session = session
         
         # Get or create session factory
-        self._session_factory = session_factory or get_session
+        self.session_factory = session_factory or get_session
         
         # Create or use provided entity service
         self._entity_extractor = entity_extractor or EntityExtractor()
@@ -83,7 +81,7 @@ class NewsPipelineFlow(Flow):
                 entity_extractor=self._entity_extractor,
                 context_analyzer=self._context_analyzer,
                 entity_resolver=self._entity_resolver,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
         
         # Create or use provided article service
@@ -94,7 +92,7 @@ class NewsPipelineFlow(Flow):
                 article_crud=article_crud,
                 analysis_result_crud=analysis_result_crud,
                 entity_service=self.entity_service,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
         
         # Create or use provided pipeline service
@@ -105,7 +103,7 @@ class NewsPipelineFlow(Flow):
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
-                session_factory=self._session_factory
+                session_factory=self.session_factory
             )
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
@@ -262,3 +260,20 @@ class NewsPipelineFlow(Flow):
             Dictionary with processing results
         """
         return self.pipeline_service.process_url(url)
+    
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            article_service=container.get("article_service"),
+            entity_service=container.get("entity_service"),
+            pipeline_service=container.get("news_pipeline_service"),
+            web_scraper=container.get("web_scraper_tool"),
+            file_writer=container.get("file_writer_tool"),
+            entity_extractor=container.get("entity_extractor"),
+            context_analyzer=container.get("context_analyzer"),
+            entity_resolver=container.get("entity_resolver"),
+            session_factory=container.get("session_factory")
+        )
