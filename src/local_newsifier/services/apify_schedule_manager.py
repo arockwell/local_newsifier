@@ -19,14 +19,14 @@ class ApifyScheduleManager:
         self, 
         apify_service: ApifyService,
         apify_source_config_crud: CRUDApifySourceConfig,
-        session_factory: Callable[[], Session]
+        session_factory: Callable
     ):
         """Initialize the ApifyScheduleManager.
         
         Args:
             apify_service: Service for Apify API interactions
             apify_source_config_crud: CRUD operations for Apify source configs
-            session_factory: Factory function that returns a database session
+            session_factory: Factory function that returns a database session or session manager
         """
         self.apify_service = apify_service
         self.config_crud = apify_source_config_crud
