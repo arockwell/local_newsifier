@@ -58,7 +58,7 @@ if not hasattr(sys, 'pytest_in_progress'):
 
         def emergency_kill_switch():
             """Forcefully kill the process after a set timeout."""
-            logger.error(f"EMERGENCY KILL SWITCH activated after {GLOBAL_TEST_TIMEOUT * 2} seconds")
+            logger.error(f"EMERGENCY KILL SWITCH activated after {kill_time} seconds")
             print(f"\n\n*** EMERGENCY KILL SWITCH activated - forcefully terminating process ***\n\n")
 
             # Exit with non-zero code to indicate error
