@@ -3,13 +3,11 @@
 from datetime import datetime, timezone, timedelta
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Annotated
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
@@ -309,3 +307,14 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log("Completed trend analysis flow with errors")
 
         return state
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            analysis_service=container.get("analysis_service"),
+            trend_reporter=container.get("trend_reporter_tool"),
+            session=container.get("session")
+        )

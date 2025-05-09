@@ -38,9 +38,11 @@ class BaseTask(Task):
     
     @property
     def session_factory(self):
-        """Get session factory from container."""
+        """Get session factory from the database engine module."""
         if self._session_factory is None:
-            self._session_factory = container.get("session_factory")
+            # Import here to avoid circular dependencies
+            from local_newsifier.database.engine import get_session
+            self._session_factory = lambda **kwargs: get_session(**kwargs)
         return self._session_factory
     
     @property
@@ -61,45 +63,55 @@ class BaseTask(Task):
             # The caller should not keep this session alive across async boundaries
             session_factory = self.session_factory
             if session_factory:
-                self._session = session_factory().__enter__()
+                self._session = next(session_factory())
         return self._session
     
     @property
     def article_service(self):
-        """Get article service."""
-        return container.get("article_service")
+        """Get article service using provider function."""
+        # Import at runtime to avoid circular dependencies
+        from local_newsifier.di.providers import get_article_service
+        return get_article_service()
     
     @property
     def article_crud(self):
-        """Get article CRUD."""
-        return container.get("article_crud")
+        """Get article CRUD using provider function."""
+        # Import at runtime to avoid circular dependencies
+        from local_newsifier.di.providers import get_article_crud
+        return get_article_crud()
     
     @property
     def entity_crud(self):
-        """Get entity CRUD."""
-        return container.get("entity_crud")
+        """Get entity CRUD using provider function."""
+        # Import at runtime to avoid circular dependencies
+        from local_newsifier.di.providers import get_entity_crud
+        return get_entity_crud()
     
     @property
     def entity_service(self):
-        """Get entity service."""
-        return container.get("entity_service")
+        """Get entity service using provider function."""
+        # Import at runtime to avoid circular dependencies
+        from local_newsifier.di.providers import get_entity_service
+        return get_entity_service()
     
     @property
     def rss_feed_service(self):
-        """Get RSS feed service."""
-        service = container.get("rss_feed_service")
-        if service:
-            # Ensure the service has access to the container
+        """Get RSS feed service using provider function."""
+        # Import at runtime to avoid circular dependencies
+        from local_newsifier.di.providers import get_rss_feed_service
+        service = get_rss_feed_service()
+        
+        # For backward compatibility during transition
+        if hasattr(service, 'container'):
             service.container = container
+            
         return service
-
-
 
     def __del__(self):
         """Clean up session if it exists."""
         if self._session is not None:
             try:
-                self._session.__exit__(None, None, None)
+                self._session.close()
                 self._session = None
             except Exception as e:
                 logger.error(f"Error cleaning up session: {e}")
@@ -118,6 +130,7 @@ def process_article(self, article_id: int) -> Dict:
     """
     logger.info(f"Processing article with ID: {article_id}")
     
+    # Always return a response, even when exceptions occur
     try:
         # Use proper session management with context manager
         with self.session_factory() as session:
@@ -128,12 +141,18 @@ def process_article(self, article_id: int) -> Dict:
                 return {"article_id": article_id, "status": "error", "message": "Article not found"}
             
             # Process the article through the news pipeline
-            news_pipeline = container.get("news_pipeline_flow") or NewsPipelineFlow()
+            # Get the flow using provider function
+            from local_newsifier.di.providers import get_news_pipeline_flow
+            news_pipeline = get_news_pipeline_flow()
+            
             if article.url:
                 news_pipeline.process_url_directly(article.url)
             
             # Process entities in the article
-            entity_flow = container.get("entity_tracking_flow") or EntityTrackingFlow()
+            # Get the flow using provider function
+            from local_newsifier.di.providers import get_entity_tracking_flow
+            entity_flow = get_entity_tracking_flow()
+            
             entities = entity_flow.process_article(article.id)
             
             return {
@@ -144,8 +163,19 @@ def process_article(self, article_id: int) -> Dict:
                 "article_title": article.title,
             }
     except Exception as e:
-        logger.exception(f"Error processing article {article_id}: {str(e)}")
-        return {"article_id": article_id, "status": "error", "message": str(e)}
+        # Make sure we always return a valid dictionary response, even on errors
+        error_msg = str(e)
+        logger.exception(f"Error processing article {article_id}: {error_msg}")
+        
+        # This ensures we always return a dictionary, even during errors
+        result = {
+            "article_id": article_id, 
+            "status": "error", 
+            "message": error_msg,
+            "processed": False
+        }
+        logger.debug(f"Returning error result: {result}")
+        return result
 
 
 @app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.fetch_rss_feeds")
@@ -169,14 +199,19 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
         "articles_found": 0,
         "articles_added": 0,
         "feeds": [],
+        "status": "success"
     }
     
     try:
         # Use proper session management with context manager
         with self.session_factory() as session:
+            # Get RSSParser from providers
+            from local_newsifier.di.providers import get_rss_parser
+            rss_parser = get_rss_parser()
+            
             for feed_url in feed_urls:
                 try:
-                    # Parse the RSS feed
+                    # Parse the RSS feed using the parser provider
                     feed_data = parse_rss_feed(feed_url)
                     
                     feed_result = {
@@ -184,6 +219,7 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
                         "title": feed_data.get("title", "Unknown"),
                         "articles_found": len(feed_data.get("entries", [])),
                         "articles_processed": 0,
+                        "status": "success"
                     }
                     
                     # Process each article in the feed
@@ -205,17 +241,27 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
                     results["feeds"].append(feed_result)
                     
                 except Exception as e:
-                    logger.error(f"Error processing feed {feed_url}: {str(e)}")
+                    error_msg = str(e)
+                    logger.error(f"Error processing feed {feed_url}: {error_msg}")
                     results["feeds"].append({
                         "url": feed_url,
                         "status": "error",
-                        "message": str(e),
+                        "message": error_msg,
                     })
             
             return results
     except Exception as e:
-        logger.exception(f"Error fetching RSS feeds: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        error_msg = str(e)
+        logger.exception(f"Error fetching RSS feeds: {error_msg}")
+        # Make sure we always return a valid dictionary response
+        return {
+            "status": "error", 
+            "message": error_msg,
+            "feeds_processed": 0,
+            "articles_found": 0,
+            "articles_added": 0,
+            "feeds": []
+        }
 
 
 @worker_ready.connect
@@ -226,5 +272,6 @@ def on_worker_ready(sender, **kwargs):
     """
     logger.info("Celery worker is ready")
     
-    # Register the process_article task in the container
+    # Register the process_article task in the container for backward compatibility
+    # This can be removed once full transition to injectable is completed
     container.register("process_article_task", process_article)
