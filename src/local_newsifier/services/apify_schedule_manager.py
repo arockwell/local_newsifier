@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Tuple, Any
 
 from sqlmodel import Session
+from sqlalchemy.sql import text
 
 from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.services.apify_service import ApifyService
@@ -402,7 +403,7 @@ class ApifyScheduleManager:
         """
         # Get all configs with schedule_ids
         configs = session.exec(
-            "SELECT schedule_id FROM apify_source_configs WHERE schedule_id IS NOT NULL"
+            text("SELECT schedule_id FROM apify_source_configs WHERE schedule_id IS NOT NULL")
         ).all()
         
         # Convert to set for faster lookups
