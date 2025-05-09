@@ -1,5 +1,4 @@
-"""
-Local Newsifier CLI - Main Entry Point
+"""Local Newsifier CLI - Main Entry Point.
 
 The `nf` command is the entry point for the Local Newsifier CLI.
 This module provides a foundation for managing RSS feeds and other local newsifier
@@ -7,8 +6,8 @@ operations from the command line.
 """
 
 import sys
+
 import click
-from tabulate import tabulate
 
 
 @click.group()
@@ -16,7 +15,7 @@ from tabulate import tabulate
 def cli():
     """
     Local Newsifier CLI - A tool for managing local news data.
-    
+
     This CLI provides commands for managing RSS feeds, processing articles,
     and analyzing news data.
     """
@@ -25,10 +24,10 @@ def cli():
 
 def is_apify_command():
     """Check if the user is trying to run an apify command.
-    
+
     This helps us avoid loading dependencies that have SQLite requirements
     when they're not needed.
-    
+
     Returns:
         bool: True if the command is apify-related
     """
@@ -36,20 +35,40 @@ def is_apify_command():
     return len(sys.argv) > 1 and sys.argv[1] == "apify"
 
 
+def is_claude_command():
+    """Check if the user is trying to run a claude command.
+
+    This helps us load claude-specific commands only when needed.
+
+    Returns:
+        bool: True if the command is claude-related
+    """
+    # Check if 'claude' is in the command arguments
+    return len(sys.argv) > 1 and sys.argv[1] == "claude"
+
+
 # Conditionally load commands to avoid unnecessary dependencies
 if is_apify_command():
     # Only load the apify command if it's being used
     from local_newsifier.cli.commands.apify import apify_group
+
     cli.add_command(apify_group)
+elif is_claude_command():
+    # Only load the claude command if it's being used
+    from local_newsifier.cli.commands.claude import claude_group
+
+    cli.add_command(claude_group)
 else:
     # Load all other command groups
-    from local_newsifier.cli.commands.feeds import feeds_group
-    from local_newsifier.cli.commands.db import db_group
     from local_newsifier.cli.commands.apify import apify_group
-    
+    from local_newsifier.cli.commands.claude import claude_group
+    from local_newsifier.cli.commands.db import db_group
+    from local_newsifier.cli.commands.feeds import feeds_group
+
     cli.add_command(feeds_group)
     cli.add_command(db_group)
     cli.add_command(apify_group)
+    cli.add_command(claude_group)
 
 
 def main():
