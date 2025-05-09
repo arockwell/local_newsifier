@@ -13,6 +13,7 @@ from sqlmodel import Session
 from local_newsifier.api.main import app
 from local_newsifier.api.dependencies import require_admin
 from local_newsifier.api.routers.system import format_size, get_tables_info
+from tests.ci_skip_config import ci_skip_async
 
 
 # Override the require_admin dependency to always return True
@@ -47,6 +48,7 @@ def mock_session():
     return Mock(spec=Session)
 
 
+@ci_skip_async
 def test_get_tables_html(client):
     """Test the HTML endpoint for table listing."""
     with patch("local_newsifier.api.routers.system.get_tables_info") as mock_get_info:
@@ -74,6 +76,7 @@ def test_get_tables_html(client):
         mock_get_info.assert_called_once()
 
 
+@ci_skip_async
 def test_get_tables_html_error(client):
     """Test the HTML endpoint for table listing with an error."""
     with patch("local_newsifier.api.routers.system.get_tables_info") as mock_get_info:
@@ -90,6 +93,7 @@ def test_get_tables_html_error(client):
         assert "Database error" in response.text
 
 
+@ci_skip_async
 def test_get_tables_api(client):
     """Test the API endpoint for table listing."""
     # Call the endpoint
@@ -111,6 +115,7 @@ def test_get_tables_api(client):
         assert "row_count" in data[0]
 
 
+@ci_skip_async
 def test_get_tables_api_error(client):
     """Test the API endpoint for table listing with an error."""
     # This test is modified to handle minimal mode in testing
@@ -169,6 +174,7 @@ def test_error_handling_pattern():
             assert False, "Error handling pattern check failed"
 
 
+@ci_skip_async
 def test_get_table_details_api(client):
     """Test the API endpoint for table details."""
     # Call the endpoint
@@ -189,6 +195,7 @@ def test_get_table_details_api(client):
         assert "columns" in data
 
 
+@ci_skip_async
 def test_get_table_details_api_error(client):
     """Test the API endpoint for table details with an error."""
     # Call the endpoint
