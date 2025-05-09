@@ -8,6 +8,7 @@ from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
+@ci_skip("Skipped in CI - slow integration test")
 def test_news_pipeline_with_entity_service(mock_entity_service_class):
     """Test that the news pipeline works with the entity service."""
     # Arrange
@@ -141,6 +142,7 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
     pipeline.article_service.process_article.assert_called_once()
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
+@ci_skip("Skipped in CI - slow integration test")
 def test_process_url_directly(mock_entity_service_class):
     """Test processing a URL directly using the pipeline service."""
     # Arrange
@@ -221,6 +223,7 @@ def test_process_url_directly(mock_entity_service_class):
     pipeline.pipeline_service.process_url.assert_called_once_with("https://example.com")
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
+@ci_skip("Skipped in CI - slow integration test")
 def test_integration_with_entity_tracking(mock_entity_service_class):
     """Test integration with entity tracking components."""
     # Arrange

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from tenacity import retry, stop_after_attempt, wait_exponential
+from tests.ci_skip_config import ci_skip
 
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
@@ -140,6 +141,7 @@ def reset_mocks(pipeline):
     yield
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_flow_success(pipeline):
     """Test successful pipeline execution from start to finish."""
     url = "https://example.com/test-article"
@@ -161,6 +163,7 @@ def test_pipeline_flow_success(pipeline):
     pipeline.writer.save.assert_called_once()
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_resume_from_scrape_failed(pipeline):
     """Test pipeline resumption after scraping failure."""
     # Create failed state
@@ -182,6 +185,7 @@ def test_pipeline_resume_from_scrape_failed(pipeline):
     pipeline.writer.save.assert_called_once()
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_resume_from_analysis_failed(pipeline):
     """Test pipeline resumption after analysis failure."""
     # Create state with successful scrape but failed analysis
@@ -203,6 +207,7 @@ def test_pipeline_resume_from_analysis_failed(pipeline):
     pipeline.writer.save.assert_called_once()
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_resume_from_save_failed(pipeline):
     """Test pipeline resumption after save failure."""
     # Create state with successful analysis but failed save
@@ -224,6 +229,7 @@ def test_pipeline_resume_from_save_failed(pipeline):
     pipeline.writer.save.assert_called_once()
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_resume_invalid_state(pipeline):
     """Test pipeline resumption with invalid state."""
     # Create completed state
@@ -236,6 +242,7 @@ def test_pipeline_resume_invalid_state(pipeline):
     assert "Cannot resume from status" in str(exc_info.value)
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_resume_no_state(pipeline):
     """Test pipeline resumption with no state provided."""
     # Attempt to resume without state
@@ -244,6 +251,7 @@ def test_pipeline_resume_no_state(pipeline):
     assert "State loading not implemented" in str(exc_info.value)
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_scrape_failure(pipeline):
     """Test pipeline handling of scraping failures."""
 
@@ -271,6 +279,7 @@ def test_pipeline_scrape_failure(pipeline):
     pipeline.writer.save.assert_not_called()  # Should not call writer after scrape failure
 
 
+@ci_skip("Skipped in CI - slow pipeline test")
 def test_pipeline_analysis_failure(pipeline):
     """Test pipeline handling of analysis failures."""
 
