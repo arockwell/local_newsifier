@@ -160,11 +160,14 @@ def test_process_article_method(mock_article_crud):
     mock_entity_resolver = MagicMock()
 
     mock_session = MagicMock()
-    mock_article = MagicMock()
-    mock_article.id = 123
-    mock_article.content = "Test content"
-    mock_article.title = "Test title"
-    mock_article.published_at = datetime.now(timezone.utc)
+    # Create a non-MagicMock object for article to avoid pydantic validation errors
+    class MockArticle:
+        id = 123
+        content = "Test content"
+        title = "Test title"
+        published_at = datetime.now(timezone.utc)
+
+    mock_article = MockArticle()
 
     # Setup session context manager mock properly
     mock_entity_service.session_factory.return_value.__enter__.return_value = mock_session
