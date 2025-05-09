@@ -199,11 +199,10 @@ class ApifyService:
             "cronExpression": "cron_expression",
             "isEnabled": "is_enabled",
             "isExclusive": "is_exclusive",
-            "runInput": "run_input",
         }
 
         # Skip parameters that aren't supported by the Apify API
-        unsupported_params = ["actId"]
+        unsupported_params = ["actId", "runInput"]
 
         for key, value in changes.items():
             # Skip unsupported parameters

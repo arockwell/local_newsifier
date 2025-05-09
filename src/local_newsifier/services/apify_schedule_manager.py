@@ -227,10 +227,7 @@ class ApifyScheduleManager:
                     
                 # Actor ID changes are not supported for schedule updates
                     
-                # Check if run_input has changed
-                current_run_input = current_schedule.get("runInput", {})
-                if current_run_input != config.input_configuration:
-                    changes["runInput"] = config.input_configuration
+                # Run input changes are not supported for schedule updates
                     
                 # Check if active status has changed
                 if current_schedule.get("isEnabled", True) != config.is_active:
