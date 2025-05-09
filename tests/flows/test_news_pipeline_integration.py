@@ -116,14 +116,7 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
                     "canonical_name": "New York City",
                     "canonical_id": 2
                 }
-            ],
-            "statistics": {
-                "entity_counts": {
-                    "PERSON": 1,
-                    "GPE": 1
-                },
-                "total_entities": 2
-            }
+            ]
         }
     )
     pipeline.writer.save = MagicMock(return_value=mock_result_state)
@@ -142,7 +135,7 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
     # Assert
     assert result.status == AnalysisStatus.SAVE_SUCCEEDED
     assert "entities" in result.analysis_results
-    assert result.analysis_results["statistics"]["total_entities"] == 2
+    assert len(result.analysis_results["entities"]) == 2
     
     # Verify service was called
     pipeline.article_service.process_article.assert_called_once()
@@ -281,7 +274,10 @@ def test_integration_with_entity_tracking(mock_entity_service_class):
                 {
                     "original_text": "John Doe",
                     "canonical_name": "John Doe",
-                    "canonical_id": 1
+                    "canonical_id": 1,
+                    "context": "John Doe visited New York City yesterday.",
+                    "sentiment_score": 0.5,
+                    "framing_category": "neutral"
                 }
             ],
             "statistics": {
@@ -318,13 +314,7 @@ def test_integration_with_entity_tracking(mock_entity_service_class):
                     "canonical_name": "John Doe",
                     "canonical_id": 1
                 }
-            ],
-            "statistics": {
-                "entity_counts": {
-                    "PERSON": 1
-                },
-                "total_entities": 1
-            }
+            ]
         }
     )
     

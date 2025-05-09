@@ -6,12 +6,12 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 
 from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
-                                                         ReportFormat,
-                                                         TrendAnalysisState)
+                                                      ReportFormat,
+                                                      TrendAnalysisState)
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
-                                            TrendAnalysisConfig, TrendStatus,
-                                            TrendType)
+                                          TrendAnalysisConfig, TrendStatus,
+                                          TrendType)
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def mock_tools():
     }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_dependencies():
     """Fixture to mock dependencies."""
     # Create mock objects
@@ -55,8 +55,8 @@ def mock_dependencies():
          patch("local_newsifier.di.providers.get_session", return_value=iter([mock_session])):
         
         yield {
-            "service": mock_analysis_service,
-            "reporter": mock_reporter,
+            "analysis_service": mock_analysis_service,
+            "trend_reporter": mock_reporter,
             "data_aggregator": mock_data_aggregator,
             "topic_analyzer": mock_topic_analyzer,
             "trend_detector": mock_trend_detector,
