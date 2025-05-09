@@ -86,7 +86,9 @@ class TestDBStats:
         """Test the db stats command with actual data."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock query results for articles
         mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # article count, feed count, active feeds, processing log count, entity count
@@ -108,7 +110,9 @@ class TestDBStats:
         """Test the db stats command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock query results for articles
         mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # article count, feed count, active feeds, processing log count, entity count
@@ -134,7 +138,9 @@ class TestDBDuplicates:
         """Test the duplicates command when duplicates are found."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock duplicate URLs query
         duplicate_urls = [
@@ -162,7 +168,9 @@ class TestDBDuplicates:
         """Test the duplicates command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock duplicate URLs query
         duplicate_urls = [("https://example.com/duplicate", 2)]
@@ -192,7 +200,9 @@ class TestDBArticles:
         """Test the articles command when articles are found."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock articles query
         articles = [mock_article, mock_article]
@@ -211,7 +221,9 @@ class TestDBArticles:
         """Test the articles command with various filters."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock empty result
         mock_session.exec.return_value.all.return_value = []
@@ -237,7 +249,9 @@ class TestDBArticles:
         """Test the articles command with JSON output."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Mock articles query
         articles = [mock_article]
@@ -259,7 +273,9 @@ class TestDBArticles:
         """Test the articles command with invalid date format."""
         # Set up mock session
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_get_injected_obj.return_value = mock_session_gen
 
         # Test with invalid date format
         runner = CliRunner()
@@ -276,6 +292,8 @@ class TestDBInspect:
         """Test the inspect command with a found article."""
         # Create mocks for session and crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_article_crud = MagicMock()
         
         # Setup the article_crud.get to return an article
@@ -284,7 +302,7 @@ class TestDBInspect:
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_article_crud:
                 return mock_article_crud
             else:
@@ -305,6 +323,8 @@ class TestDBInspect:
         """Test the inspect command with a found RSS feed."""
         # Create mocks for session and crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_rss_feed_crud = MagicMock()
         
         # Setup the rss_feed_crud.get to return a feed
@@ -316,7 +336,7 @@ class TestDBInspect:
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_rss_feed_crud:
                 return mock_rss_feed_crud
             else:
@@ -337,12 +357,25 @@ class TestDBInspect:
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_inspect_feed_log_found(self, mock_get_injected_obj, mock_feed_log):
         """Test the inspect command with a found feed log."""
-        # Just need session for this one
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
-
-        # Mock session.get for the log
-        mock_session.get.return_value = mock_feed_log
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_feed_log_crud = MagicMock()
+        
+        # Setup the feed_log_crud.get to return a log
+        mock_feed_log_crud.get.return_value = mock_feed_log
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session_gen
+            elif provider == get_feed_processing_log_crud:
+                return mock_feed_log_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         runner = CliRunner()
         result = runner.invoke(cli, ["db", "inspect", "feed_log", "1"])
@@ -356,12 +389,25 @@ class TestDBInspect:
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_inspect_entity_found(self, mock_get_injected_obj, mock_entity):
         """Test the inspect command with a found entity."""
-        # Just need session for entity
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
-
-        # Mock session.get for the entity
-        mock_session.get.return_value = mock_entity
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_entity_crud = MagicMock()
+        
+        # Setup the entity_crud.get to return an entity
+        mock_entity_crud.get.return_value = mock_entity
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session_gen
+            elif provider == get_entity_crud:
+                return mock_entity_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         runner = CliRunner()
         result = runner.invoke(cli, ["db", "inspect", "entity", "1"])
@@ -376,6 +422,8 @@ class TestDBInspect:
         """Test the inspect command with a non-existent RSS feed."""
         # Create mocks for session and crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_rss_feed_crud = MagicMock()
         
         # Setup the rss_feed_crud.get to return None
@@ -384,7 +432,7 @@ class TestDBInspect:
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_rss_feed_crud:
                 return mock_rss_feed_crud
             else:
@@ -401,12 +449,25 @@ class TestDBInspect:
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_inspect_feed_log_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent feed log."""
-        # Just need session for this one
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
-
-        # Mock session.get for the log to return None
-        mock_session.get.return_value = None
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_feed_log_crud = MagicMock()
+        
+        # Setup the feed_log_crud.get to return None
+        mock_feed_log_crud.get.return_value = None
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session_gen
+            elif provider == get_feed_processing_log_crud:
+                return mock_feed_log_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         runner = CliRunner()
         result = runner.invoke(cli, ["db", "inspect", "feed_log", "999"])
@@ -417,12 +478,25 @@ class TestDBInspect:
     @patch('local_newsifier.cli.commands.db.get_injected_obj')
     def test_inspect_entity_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent entity."""
-        # Just need session for this one
+        # Create mocks for session and crud
         mock_session = MagicMock()
-        mock_get_injected_obj.return_value = mock_session
-
-        # Mock session.get for the entity to return None
-        mock_session.get.return_value = None
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
+        mock_entity_crud = MagicMock()
+        
+        # Setup the entity_crud.get to return None
+        mock_entity_crud.get.return_value = None
+        
+        # Configure get_injected_obj to return appropriate objects based on the argument
+        def side_effect(provider):
+            if provider == get_session:
+                return mock_session_gen
+            elif provider == get_entity_crud:
+                return mock_entity_crud
+            else:
+                return MagicMock()
+                
+        mock_get_injected_obj.side_effect = side_effect
 
         runner = CliRunner()
         result = runner.invoke(cli, ["db", "inspect", "entity", "999"])
@@ -435,6 +509,8 @@ class TestDBInspect:
         """Test the inspect command with JSON output."""
         # Create mocks for session and crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_article_crud = MagicMock()
         
         # Setup the article_crud.get to return an article
@@ -443,7 +519,7 @@ class TestDBInspect:
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_article_crud:
                 return mock_article_crud
             else:
@@ -471,12 +547,14 @@ class TestDBPurgeDuplicates:
         """Test the purge-duplicates command when duplicates are found."""
         # Set up mock session and mock article_crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_article_crud = MagicMock()
         
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_article_crud:
                 return mock_article_crud
             else:
@@ -521,12 +599,14 @@ class TestDBPurgeDuplicates:
         """Test the purge-duplicates command with dry run option."""
         # Set up mock session and mock article_crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_article_crud = MagicMock()
         
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_article_crud:
                 return mock_article_crud
             else:
@@ -570,12 +650,14 @@ class TestDBPurgeDuplicates:
         """Test the purge-duplicates command with JSON output."""
         # Set up mock session and mock article_crud
         mock_session = MagicMock()
+        mock_session_gen = MagicMock()
+        mock_session_gen.__next__.return_value = mock_session
         mock_article_crud = MagicMock()
         
         # Configure get_injected_obj to return appropriate objects based on the argument
         def side_effect(provider):
             if provider == get_session:
-                return mock_session
+                return mock_session_gen
             elif provider == get_article_crud:
                 return mock_article_crud
             else:
