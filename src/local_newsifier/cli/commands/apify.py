@@ -148,14 +148,14 @@ def run_actor(actor_id, input, wait, token, output):
 
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
-        result = apify_service.run_actor(actor_id, run_input)
+        run = apify_service.client.actor(actor_id).call(run_input=run_input, wait_secs=0 if not wait else None)
 
         # Process result
         if wait:
             click.echo(click.style("✓ Actor run completed!", fg="green"))
 
             # Get the dataset ID
-            dataset_id = result.get("defaultDatasetId")
+            dataset_id = run.get("defaultDatasetId")
             if dataset_id:
                 click.echo(f"Default dataset ID: {dataset_id}")
                 click.echo(f"To retrieve the data: nf apify get-dataset {dataset_id}")
@@ -166,10 +166,10 @@ def run_actor(actor_id, input, wait, token, output):
         # Display or save output
         if output:
             with open(output, "w") as f:
-                json.dump(result, f, indent=2)
+                json.dump(run, f, indent=2)
             click.echo(f"Output saved to {output}")
         else:
-            click.echo(json.dumps(result, indent=2))
+            click.echo(json.dumps(run, indent=2))
 
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
@@ -212,8 +212,15 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
 
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
-        result = apify_service.get_dataset_items(dataset_id, limit=limit, offset=offset)
-
+        
+        # Get the dataset and items
+        dataset = apify_service.client.dataset(dataset_id)
+        dataset_items = dataset.list_items(limit=limit, offset=offset).get("items", [])
+        
+        result = {
+            "items": dataset_items
+        }
+        
         items = result.get("items", [])
         count = len(items)
 
@@ -291,7 +298,7 @@ def get_actor(actor_id, token):
 
         # Get actor details
         click.echo(f"Retrieving details for actor {actor_id}...")
-        actor = apify_service.get_actor_details(actor_id)
+        actor = apify_service.client.actor(actor_id).get()
 
         click.echo(click.style("✓ Actor details retrieved!", fg="green"))
         click.echo(f"Name: {actor.get('name')}")
@@ -356,10 +363,10 @@ def scrape_content(url, max_pages, max_depth, token, output):
         click.echo(f"Scraping content from {url}...")
         click.echo(f"Using max pages: {max_pages}, max depth: {max_depth}")
 
-        result = apify_service.run_actor("apify/website-content-crawler", run_input)
+        run = apify_service.client.actor("apify/website-content-crawler").call(run_input=run_input)
 
         # Get the dataset ID
-        dataset_id = result.get("defaultDatasetId")
+        dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
@@ -369,8 +376,8 @@ def scrape_content(url, max_pages, max_depth, token, output):
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
         # Get the dataset items
-        dataset = apify_service.get_dataset_items(dataset_id)
-        items = dataset.get("items", [])
+        dataset = apify_service.client.dataset(dataset_id)
+        items = dataset.list_items().get("items", [])
 
         click.echo(
             click.style(f"✓ Retrieved {len(items)} pages of content!", fg="green")
@@ -481,10 +488,10 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         click.echo(f"Scraping website from {url}...")
         click.echo(f"Using selector: {selector}, max pages: {max_pages}")
 
-        result = apify_service.run_actor("apify/web-scraper", run_input)
+        run = apify_service.client.actor("apify/web-scraper").call(run_input=run_input)
 
         # Get the dataset ID
-        dataset_id = result.get("defaultDatasetId")
+        dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
             click.echo(
                 click.style("Error: No dataset ID found in result", fg="red"), err=True
@@ -494,8 +501,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
 
         # Get the dataset items
-        dataset = apify_service.get_dataset_items(dataset_id)
-        items = dataset.get("items", [])
+        dataset = apify_service.client.dataset(dataset_id)
+        items = dataset.list_items().get("items", [])
 
         click.echo(click.style(f"✓ Retrieved {len(items)} pages of data!", fg="green"))
 
