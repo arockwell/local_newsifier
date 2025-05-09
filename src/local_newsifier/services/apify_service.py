@@ -200,10 +200,16 @@ class ApifyService:
             "isEnabled": "is_enabled",
             "isExclusive": "is_exclusive",
             "runInput": "run_input",
-            "actId": "actor_id",
         }
 
+        # Skip parameters that aren't supported by the Apify API
+        unsupported_params = ["actId"]
+
         for key, value in changes.items():
+            # Skip unsupported parameters
+            if key in unsupported_params:
+                continue
+
             # Convert camelCase to snake_case if needed
             api_key = param_mapping.get(key, key)
             converted_changes[api_key] = value

@@ -225,9 +225,7 @@ class ApifyScheduleManager:
                 if config.schedule and current_schedule.get("cronExpression") != config.schedule:
                     changes["cronExpression"] = config.schedule
                     
-                # Check if actor_id has changed (rare)
-                if current_schedule.get("actId") != config.actor_id:
-                    changes["actId"] = config.actor_id
+                # Actor ID changes are not supported for schedule updates
                     
                 # Check if run_input has changed
                 current_run_input = current_schedule.get("runInput", {})
