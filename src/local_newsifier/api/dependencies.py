@@ -2,15 +2,13 @@
 
 import os
 import pathlib
-import importlib
 from typing import Generator
 
 from fastapi import HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
-from local_newsifier.container import container
-from local_newsifier.database.engine import SessionManager
+# No direct container import as we're using injectable providers
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
 
@@ -65,9 +63,10 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Session: SQLModel session
     """
-    session_factory = container.get("session_factory") or SessionManager
-    with session_factory() as session:
-        yield session
+    from local_newsifier.di.providers import get_session as get_injectable_session
+    
+    # Use injectable provider directly
+    yield from get_injectable_session()
 
 
 def get_article_service() -> ArticleService:
@@ -79,19 +78,20 @@ def get_article_service() -> ArticleService:
     from local_newsifier.di.providers import get_article_service as get_injectable_article_service
     from local_newsifier.database.engine import get_session
     
-    # First try to get from injectable providers (preferred)
-    try:
-        with next(get_session()) as session:
-            return get_injectable_article_service(session=session)
-    except (ImportError, NameError):
-        # Fall back to container if injectable is not available
-        return container.get("article_service")
+    # Use injectable provider with session
+    with next(get_session()) as session:
+        return get_injectable_article_service(session=session)
 
 
 def get_rss_feed_service() -> RSSFeedService:
-    """Get the RSS feed service from the container.
+    """Get the RSS feed service using the injectable pattern.
 
     Returns:
         RSSFeedService: The RSS feed service instance
     """
-    return container.get("rss_feed_service")
+    from local_newsifier.di.providers import get_rss_feed_service as get_injectable_rss_feed_service
+    from local_newsifier.database.engine import get_session
+    
+    # Use injectable provider with session
+    with next(get_session()) as session:
+        return get_injectable_rss_feed_service(session=session)
