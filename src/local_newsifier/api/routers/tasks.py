@@ -3,7 +3,7 @@ API router for Celery task management.
 This module provides endpoints for submitting, checking, and managing asynchronous tasks.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Annotated, Dict, List, Optional, Union
 
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
@@ -30,7 +30,8 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("/", response_class=HTMLResponse)
 async def tasks_dashboard(
-    request: Request, templates: Jinja2Templates = Depends(get_templates)
+    request: Request, 
+    templates: Jinja2Templates = Depends(get_templates)
 ):
     """
     Task management dashboard.
@@ -104,7 +105,6 @@ async def fetch_rss_feeds_endpoint(
         "status": "queued",
         "task_url": f"/tasks/status/{task.id}",
     }
-
 
 
 @router.get("/status/{task_id}")

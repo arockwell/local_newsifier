@@ -38,7 +38,8 @@ def db_group():
 def db_stats(json_output: bool):
     """Show database statistics for all major tables."""
     # Get dependencies using injectable providers
-    session = get_injected_obj(get_session)
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
     
     # Import models only when needed
     from local_newsifier.models.article import Article
@@ -128,7 +129,8 @@ def db_stats(json_output: bool):
 def check_duplicates(limit: int, json_output: bool):
     """Find duplicate articles (same URL) and show details."""
     # Get dependencies using injectable providers
-    session = get_injected_obj(get_session)
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
     
     # Import the Article model directly
     from local_newsifier.models.article import Article
@@ -210,7 +212,8 @@ def list_articles(source: Optional[str], status: Optional[str],
                  limit: int, json_output: bool):
     """List articles with filtering options."""
     # Get dependencies using injectable providers
-    session = get_injected_obj(get_session)
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
     
     # Import the Article model directly
     from local_newsifier.models.article import Article
@@ -302,7 +305,8 @@ def list_articles(source: Optional[str], status: Optional[str],
 def inspect_record(table: str, id: int, json_output: bool):
     """Inspect a specific database record in detail."""
     # Get dependencies using injectable providers
-    session = get_injected_obj(get_session)
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
     article_crud = get_injected_obj(get_article_crud)
     rss_feed_crud = get_injected_obj(get_rss_feed_crud)
     entity_crud = get_injected_obj(get_entity_crud)
@@ -452,7 +456,8 @@ def inspect_record(table: str, id: int, json_output: bool):
 def purge_duplicates(dry_run: bool, json_output: bool):
     """Remove duplicate articles, keeping the oldest version."""
     # Get dependencies using injectable providers
-    session = get_injected_obj(get_session)
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
     article_crud = get_injected_obj(get_article_crud)
     
     # Import the Article model directly

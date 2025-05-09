@@ -1,35 +1,29 @@
 """Authentication router for admin access."""
 
-import os
-import pathlib
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from local_newsifier.api.dependencies import get_templates
 from local_newsifier.config.settings import settings
 
 router = APIRouter(
     tags=["auth"],
 )
 
-# Get templates directory path - works in both development and production
-if os.path.exists("src/local_newsifier/api/templates"):
-    # Development environment
-    templates_dir = "src/local_newsifier/api/templates"
-else:
-    # Production environment - use package-relative path
-    templates_dir = str(pathlib.Path(__file__).parent.parent / "templates")
-
-templates = Jinja2Templates(directory=templates_dir)
-
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
+async def login_page(
+    request: Request,
+    templates: Jinja2Templates = Depends(get_templates)
+):
     """Render the login page.
 
     Args:
         request: FastAPI request
+        templates: Jinja2 templates
 
     Returns:
         HTML response with login form
@@ -46,11 +40,13 @@ async def login(
     username: str = Form(...),
     password: str = Form(...),
     next_url: str = Form("/system/tables"),  # Default redirect
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Process login form submission.
 
     Args:
         request: FastAPI request
+        templates: Jinja2 templates
         username: Submitted username
         password: Submitted password
         next_url: URL to redirect to after successful login
