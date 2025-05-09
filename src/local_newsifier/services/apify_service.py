@@ -101,7 +101,8 @@ class ApifyService:
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:
             logging.info(f"Test mode: Simulating schedule creation for actor {actor_id}")
             schedule_id = f"test_schedule_{actor_id}_{datetime.now(timezone.utc).timestamp()}"
-            return {
+            # Create a mock response that includes the actions field for test compatibility
+            mock_response = {
                 "id": schedule_id,
                 "name": name or f"Schedule for {actor_id}",
                 "userId": "test_user",
@@ -111,7 +112,16 @@ class ApifyService:
                 "isExclusive": False,
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
+                "actions": [{
+                    "type": "RUN_ACTOR",
+                    "actorId": actor_id
+                }]
             }
+            # Add input to actions if provided
+            if run_input:
+                mock_response["actions"][0]["input"] = run_input
+                
+            return mock_response
         
         # Create actions for the schedule (requires the actor to run)
         actions = [{
