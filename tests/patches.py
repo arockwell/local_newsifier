@@ -2,11 +2,17 @@
 Test utilities and patches.
 """
 
+import asyncio
+import functools
 import importlib
 import sys
 import types
 import os
 import inspect
+import signal
+import threading
+import time
+import warnings
 from typing import Callable, Any, Dict, Type, TypeVar, List, Optional
 from unittest.mock import MagicMock, patch
 
@@ -422,3 +428,42 @@ def create_test_event_loop():
         spacy_patch.stop()
 
     return mock_loop, stop_patches
+
+
+# Global timeout for all asyncio operations (seconds)
+ASYNCIO_TIMEOUT = float(os.environ.get("ASYNCIO_TIMEOUT", "10.0"))
+
+def add_timeout_to_run_until_complete():
+    """
+    Monkey patch asyncio.BaseEventLoop.run_until_complete to add timeout.
+
+    This function wraps the original run_until_complete method to add a timeout,
+    which prevents tests from hanging indefinitely. If a coroutine takes longer
+    than the configured timeout, it will be cancelled and raise a TimeoutError.
+    """
+    # Store the original method
+    original_run_until_complete = asyncio.BaseEventLoop.run_until_complete
+
+    # Define a wrapper with timeout
+    @functools.wraps(original_run_until_complete)
+    def run_until_complete_with_timeout(self, coro):
+        """Run a coroutine with timeout."""
+        if not inspect.iscoroutine(coro):
+            return original_run_until_complete(self, coro)
+
+        # Use asyncio.wait_for to add timeout
+        async def _run_with_timeout():
+            try:
+                return await asyncio.wait_for(coro, timeout=ASYNCIO_TIMEOUT)
+            except asyncio.TimeoutError:
+                warnings.warn(f"Coroutine execution timed out after {ASYNCIO_TIMEOUT} seconds")
+                raise TimeoutError(f"Coroutine execution timed out after {ASYNCIO_TIMEOUT} seconds")
+
+        # Run with timeout
+        return original_run_until_complete(self, _run_with_timeout())
+
+    # Apply the monkey patch
+    asyncio.BaseEventLoop.run_until_complete = run_until_complete_with_timeout
+
+# Monkey patch run_until_complete globally
+add_timeout_to_run_until_complete()
