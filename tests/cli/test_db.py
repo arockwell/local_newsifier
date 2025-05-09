@@ -31,11 +31,13 @@ def test_db_stats_command(mock_get_injected_obj):
     """Test that the db stats command runs without errors using mocks."""
     # Set up mock session
     mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
     
     # Configure get_injected_obj to return appropriate objects based on the argument
     def side_effect(provider):
         if provider == get_session:
-            return mock_session
+            return mock_session_gen
         else:
             return MagicMock()
                 
@@ -59,11 +61,13 @@ def test_db_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the db duplicates command handles case with no duplicates."""
     # Set up mock session
     mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
     
     # Configure get_injected_obj to return appropriate objects based on the argument
     def side_effect(provider):
         if provider == get_session:
-            return mock_session
+            return mock_session_gen
         else:
             return MagicMock()
                 
@@ -84,11 +88,13 @@ def test_db_articles_no_articles(mock_get_injected_obj):
     """Test that the db articles command handles case with no articles."""
     # Set up mock session
     mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
     
     # Configure get_injected_obj to return appropriate objects based on the argument
     def side_effect(provider):
         if provider == get_session:
-            return mock_session
+            return mock_session_gen
         else:
             return MagicMock()
                 
@@ -109,12 +115,14 @@ def test_db_inspect_article_not_found(mock_get_injected_obj):
     """Test that the db inspect command handles non-existent article."""
     # Set up mock session and article_crud
     mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
     mock_article_crud = MagicMock()
     
     # Configure get_injected_obj to return appropriate objects based on the argument
     def side_effect(provider):
         if provider == get_session:
-            return mock_session
+            return mock_session_gen
         elif provider == get_article_crud:
             return mock_article_crud
         else:
@@ -137,12 +145,14 @@ def test_db_purge_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the purge-duplicates command handles case with no duplicates."""
     # Set up mock session and article_crud
     mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
     mock_article_crud = MagicMock()
     
     # Configure get_injected_obj to return appropriate objects based on the argument
     def side_effect(provider):
         if provider == get_session:
-            return mock_session
+            return mock_session_gen
         elif provider == get_article_crud:
             return mock_article_crud
         else:
