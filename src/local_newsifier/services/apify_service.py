@@ -190,7 +190,8 @@ class ApifyService:
             }
         
         # Make the actual API call
-        return self.client.schedule(schedule_id).update(changes)
+        # Pass changes as keyword arguments instead of a dictionary
+        return self.client.schedule(schedule_id).update(**changes)
         
     def delete_schedule(self, schedule_id: str) -> Dict[str, Any]:
         """Delete an Apify schedule.

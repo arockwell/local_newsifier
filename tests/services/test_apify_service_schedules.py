@@ -110,7 +110,7 @@ def test_update_schedule(apify_service, mock_apify_client):
     
     # Verify interactions
     mock_apify_client.schedule.assert_called_once_with("test_schedule_id")
-    mock_apify_client.schedule().update.assert_called_once_with(changes)
+    mock_apify_client.schedule().update.assert_called_once_with(**changes)
 
 
 def test_delete_schedule(apify_service, mock_apify_client):
