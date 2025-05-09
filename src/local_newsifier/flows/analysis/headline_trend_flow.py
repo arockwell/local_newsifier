@@ -18,8 +18,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
+from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import get_session, with_session
 from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
@@ -30,8 +31,8 @@ class HeadlineTrendFlow(Flow):
 
     def __init__(
         self, 
-        analysis_service=None, 
-        session=None
+        analysis_service: Optional[AnalysisService] = None, 
+        session: Optional[Session] = None
     ):
         """
         Initialize the headline trend analysis flow.
@@ -211,3 +212,12 @@ class HeadlineTrendFlow(Flow):
 
         report += "</body></html>"
         return report
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            analysis_service=container.get("analysis_service")
+        )

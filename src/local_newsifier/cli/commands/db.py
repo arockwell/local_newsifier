@@ -12,16 +12,19 @@ import json
 import click
 from datetime import datetime
 from tabulate import tabulate
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Annotated
 from sqlalchemy import text, func
 from sqlmodel import Session, select
+from fastapi import Depends
+from fastapi_injectable import get_injected_obj
 
-from local_newsifier.database.engine import get_session
-from local_newsifier.models.article import Article
-from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
-from local_newsifier.models.entity import Entity
-from local_newsifier.di.providers import get_session as get_injectable_session
-from local_newsifier.di.providers import get_db_stats, get_article_crud, get_rss_feed_crud
+from local_newsifier.di.providers import (
+    get_session, 
+    get_article_crud, 
+    get_rss_feed_crud,
+    get_entity_crud,
+    get_feed_processing_log_crud
+)
 
 
 @click.group(name="db")
@@ -34,38 +37,39 @@ def db_group():
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def db_stats(json_output: bool):
     """Show database statistics for all major tables."""
-    try:
-        # Use injectable provider function for database stats
-        article_count, latest_article, oldest_article, feed_count, active_feed_count, processing_log_count, entity_count = get_db_stats()
-    except ImportError:
-        # Fallback to direct DB query if injectable not available
-        session = next(get_session())
-        
-        # Article stats
-        article_count = session.exec(select(func.count()).select_from(Article)).one()
-        latest_article = session.exec(
-            select(Article).order_by(Article.created_at.desc()).limit(1)
-        ).first()
-        oldest_article = session.exec(
-            select(Article).order_by(Article.created_at).limit(1)
-        ).first()
-        
-        # RSS Feed stats
-        feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
-        active_feed_count = session.exec(
-            select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
-        ).one()
-        
-        # RSSFeedProcessingLog stats
-        processing_log_count = session.exec(
-            select(func.count()).select_from(RSSFeedProcessingLog)
-        ).one()
-        
-        # Entity stats
-        entity_count = session.exec(select(func.count()).select_from(Entity)).one()
+    # Get dependencies using injectable providers
+    session = get_injected_obj(get_session)
+    
+    # Import models only when needed
+    from local_newsifier.models.article import Article
+    from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
+    from local_newsifier.models.entity import Entity
     
     # Collect table statistics
     stats = {}
+    
+    # Article stats
+    article_count = session.exec(select(func.count()).select_from(Article)).one()
+    latest_article = session.exec(
+        select(Article).order_by(Article.created_at.desc()).limit(1)
+    ).first()
+    oldest_article = session.exec(
+        select(Article).order_by(Article.created_at).limit(1)
+    ).first()
+    
+    # RSS Feed stats
+    feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
+    active_feed_count = session.exec(
+        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
+    ).one()
+    
+    # RSSFeedProcessingLog stats
+    processing_log_count = session.exec(
+        select(func.count()).select_from(RSSFeedProcessingLog)
+    ).one()
+    
+    # Entity stats
+    entity_count = session.exec(select(func.count()).select_from(Entity)).one()
     
     stats["articles"] = {
         "count": article_count,
@@ -123,12 +127,11 @@ def db_stats(json_output: bool):
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def check_duplicates(limit: int, json_output: bool):
     """Find duplicate articles (same URL) and show details."""
-    try:
-        # Use injectable session
-        session = get_injectable_session()
-    except ImportError:
-        # Fallback to direct session
-        session = next(get_session())
+    # Get dependencies using injectable providers
+    session = get_injected_obj(get_session)
+    
+    # Import the Article model directly
+    from local_newsifier.models.article import Article
     
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
@@ -206,12 +209,11 @@ def list_articles(source: Optional[str], status: Optional[str],
                  before: Optional[str], after: Optional[str], 
                  limit: int, json_output: bool):
     """List articles with filtering options."""
-    try:
-        # Use injectable session
-        session = get_injectable_session()
-    except ImportError:
-        # Fallback to direct session
-        session = next(get_session())
+    # Get dependencies using injectable providers
+    session = get_injected_obj(get_session)
+    
+    # Import the Article model directly
+    from local_newsifier.models.article import Article
     
     # Build the query with filters
     query = select(Article)
@@ -299,21 +301,21 @@ def list_articles(source: Optional[str], status: Optional[str],
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def inspect_record(table: str, id: int, json_output: bool):
     """Inspect a specific database record in detail."""
-    try:
-        # Use injectable session and CRUD components
-        session = get_injectable_session()
-        article_crud_component = get_article_crud()
-        rss_feed_crud_component = get_rss_feed_crud()
-    except ImportError:
-        # Fallback to direct imports
-        session = next(get_session())
-        from local_newsifier.crud.article import article as article_crud_component
-        from local_newsifier.crud.rss_feed import rss_feed as rss_feed_crud_component
+    # Get dependencies using injectable providers
+    session = get_injected_obj(get_session)
+    article_crud = get_injected_obj(get_article_crud)
+    rss_feed_crud = get_injected_obj(get_rss_feed_crud)
+    entity_crud = get_injected_obj(get_entity_crud)
+    feed_processing_log_crud = get_injected_obj(get_feed_processing_log_crud)
+    
+    # Import model only when needed for feed_log
+    from local_newsifier.models.rss_feed import RSSFeedProcessingLog
+    from local_newsifier.models.entity import Entity
     
     result = None
     
     if table == "article":
-        article = article_crud_component.get(session, id=id)
+        article = article_crud.get(session, id=id)
         if not article:
             click.echo(click.style(f"Error: Article with ID {id} not found", fg="red"), err=True)
             return
@@ -333,7 +335,7 @@ def inspect_record(table: str, id: int, json_output: bool):
         }
         
     elif table == "rss_feed":
-        feed = rss_feed_crud_component.get(session, id=id)
+        feed = rss_feed_crud.get(session, id=id)
         if not feed:
             click.echo(click.style(f"Error: RSS Feed with ID {id} not found", fg="red"), err=True)
             return
@@ -371,7 +373,8 @@ def inspect_record(table: str, id: int, json_output: bool):
         }
         
     elif table == "feed_log":
-        log = session.get(RSSFeedProcessingLog, id)
+        # Use feed_processing_log_crud instead of direct session access
+        log = feed_processing_log_crud.get(session, id=id)
         if not log:
             click.echo(click.style(f"Error: Feed Processing Log with ID {id} not found", fg="red"), err=True)
             return
@@ -388,7 +391,8 @@ def inspect_record(table: str, id: int, json_output: bool):
         }
         
     elif table == "entity":
-        entity = session.get(Entity, id)
+        # Use entity_crud instead of direct session access
+        entity = entity_crud.get(session, id=id)
         if not entity:
             click.echo(click.style(f"Error: Entity with ID {id} not found", fg="red"), err=True)
             return
@@ -447,12 +451,12 @@ def inspect_record(table: str, id: int, json_output: bool):
 @click.confirmation_option(prompt="This will delete duplicate articles. Are you sure?")
 def purge_duplicates(dry_run: bool, json_output: bool):
     """Remove duplicate articles, keeping the oldest version."""
-    try:
-        # Use injectable session
-        session = get_injectable_session()
-    except ImportError:
-        # Fallback to direct session
-        session = next(get_session())
+    # Get dependencies using injectable providers
+    session = get_injected_obj(get_session)
+    article_crud = get_injected_obj(get_article_crud)
+    
+    # Import the Article model directly
+    from local_newsifier.models.article import Article
     
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
@@ -492,7 +496,8 @@ def purge_duplicates(dry_run: bool, json_output: bool):
         # Remove duplicates if not a dry run
         if not dry_run:
             for article in to_remove:
-                session.delete(article)
+                # Use article_crud to remove articles
+                article_crud.remove(session, id=article.id)
     
     # Commit changes if not a dry run
     if not dry_run:

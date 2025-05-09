@@ -42,12 +42,17 @@ def mock_article_service():
 
 class TestRSSScrapingFlow:
     def setup_method(self):
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
         # Create with default parameters
-        self.flow = RSSScrapingFlow()
+        self.flow = RSSScrapingFlow(session_factory=mock_session_factory)
 
     def test_init_with_cache_dir(self, tmp_path):
         """Test initialization with cache directory."""
-        flow = RSSScrapingFlow(cache_dir=str(tmp_path))
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        # Create flow with cache dir
+        flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
         assert flow.cache_dir == tmp_path
         assert flow.rss_feed_service is None
         assert flow.article_service is None
@@ -60,13 +65,17 @@ class TestRSSScrapingFlow:
         parser_instance = Mock()
         scraper_instance = Mock()
         
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
         # Create flow with all dependencies provided
         flow = RSSScrapingFlow(
             rss_feed_service=mock_rss_feed_service,
             article_service=mock_article_service,
             rss_parser=parser_instance,
             web_scraper=scraper_instance,
-            cache_dir="/tmp/cache"
+            cache_dir="/tmp/cache",
+            session_factory=mock_session_factory
         )
         
         # Verify dependencies were used
@@ -86,7 +95,11 @@ class TestRSSScrapingFlow:
         mock_rss_parser.return_value.get_new_urls.return_value = []
 
         # Test
-        flow = RSSScrapingFlow()
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 0
@@ -119,7 +132,11 @@ class TestRSSScrapingFlow:
         mock_web_scraper.return_value.scrape.side_effect = mock_scrape
 
         # Test
-        flow = RSSScrapingFlow()
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 2
@@ -142,7 +159,11 @@ class TestRSSScrapingFlow:
         mock_web_scraper.return_value.scrape.side_effect = Exception("Failed to scrape")
 
         # Test
-        flow = RSSScrapingFlow()
+        # Create a mock session factory
+        mock_session_factory = lambda: Mock()
+        
+        # Create flow with default parameters
+        flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
 
         assert len(results) == 1

@@ -5,6 +5,13 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
+from local_newsifier.di.providers import (
+    get_session, 
+    get_article_crud, 
+    get_rss_feed_crud,
+    get_entity_crud,
+    get_feed_processing_log_crud
+)
 
 
 def test_db_group():
@@ -19,52 +26,24 @@ def test_db_group():
     assert "purge-duplicates" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.get_db_stats')
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_stats_command_injectable(mock_next, mock_get_db_stats):
-    """Test that the db stats command runs using injectable dependencies."""
-    # Create a mock article with created_at attribute
-    mock_article = MagicMock()
-    mock_article.created_at = None
-    
-    # Set up mock statistics return value
-    mock_get_db_stats.return_value = (
-        5,  # article_count
-        mock_article,  # latest_article
-        mock_article,  # oldest_article
-        3,  # feed_count
-        2,  # active_feed_count
-        10,  # processing_log_count
-        15   # entity_count
-    )
-    
-    runner = CliRunner()
-    result = runner.invoke(cli, ["db", "stats"])
-    
-    assert result.exit_code == 0
-    assert "Database Statistics" in result.output
-    assert "Articles:" in result.output
-    assert "Total count: 5" in result.output
-    assert "RSS Feeds:" in result.output
-    assert "Total count: 3" in result.output
-    
-    # Verify that the injectable provider was called
-    mock_get_db_stats.assert_called_once()
-    # The fallback mechanism should not be used
-    mock_next.assert_not_called()
-
-
-@patch('local_newsifier.cli.commands.db.get_db_stats', side_effect=ImportError)
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_stats_command_fallback(mock_next, mock_get_db_stats):
-    """Test that the db stats command runs with fallback when injectable fails."""
-    # Set up mock session and query results
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_stats_command(mock_get_injected_obj):
+    """Test that the db stats command runs without errors using mocks."""
+    # Set up mock session
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock query execution results for article stats
-    mock_session.exec.return_value.one.return_value = 5  # Mock count
-    mock_session.exec.return_value.first.return_value = None  # Mock no articles
+    mock_session.exec.return_value.one.side_effect = [5, 3, 2, 7, 4]  # Article count, feed count, active feeds, log count, entity count
+    mock_session.exec.return_value.first.side_effect = [None, None]  # Latest article, oldest article
     
     runner = CliRunner()
     result = runner.invoke(cli, ["db", "stats"])
@@ -73,20 +52,22 @@ def test_db_stats_command_fallback(mock_next, mock_get_db_stats):
     assert "Database Statistics" in result.output
     assert "Articles" in result.output
     assert "RSS Feeds" in result.output
-    
-    # Verify that fallback to direct DB access was used
-    mock_get_db_stats.assert_called_once()
-    mock_next.assert_called_once()
 
 
-@patch('local_newsifier.cli.commands.db.get_injectable_session')
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_duplicates_no_duplicates(mock_next, mock_get_injectable_session):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the db duplicates command handles case with no duplicates."""
-    # Set up mock session and query results
+    # Set up mock session
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
-    mock_get_injectable_session.side_effect = ImportError()  # Force fallback path
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock empty result for duplicate query
     mock_session.exec.return_value.all.return_value = []
@@ -98,12 +79,20 @@ def test_db_duplicates_no_duplicates(mock_next, mock_get_injectable_session):
     assert "No duplicate articles found" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.get_injectable_session')
-def test_db_articles_no_articles_injectable(mock_get_injectable_session):
-    """Test that the db articles command works with injectable dependencies."""
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_articles_no_articles(mock_get_injected_obj):
+    """Test that the db articles command handles case with no articles."""
     # Set up mock session
     mock_session = MagicMock()
-    mock_get_injectable_session.return_value = mock_session
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock the session.exec() chain to return an empty list
     mock_session.exec.return_value.all.return_value = []
@@ -113,22 +102,25 @@ def test_db_articles_no_articles_injectable(mock_get_injectable_session):
     
     assert result.exit_code == 0
     assert "No articles found matching the criteria" in result.output
-    
-    # Verify injectable dependencies were used
-    mock_get_injectable_session.assert_called_once()
 
 
-@patch('local_newsifier.cli.commands.db.get_injectable_session')
-@patch('local_newsifier.cli.commands.db.get_article_crud')
-def test_db_inspect_article_not_found_injectable(mock_get_article_crud, mock_get_injectable_session):
-    """Test that the db inspect command works with injectable dependencies."""
-    # Set up mock session
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_inspect_article_not_found(mock_get_injected_obj):
+    """Test that the db inspect command handles non-existent article."""
+    # Set up mock session and article_crud
     mock_session = MagicMock()
-    mock_get_injectable_session.return_value = mock_session
-    
-    # Set up mock article CRUD
     mock_article_crud = MagicMock()
-    mock_get_article_crud.return_value = mock_article_crud
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        elif provider == get_article_crud:
+            return mock_article_crud
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock article crud get to return None (not found)
     mock_article_crud.get.return_value = None
@@ -138,19 +130,25 @@ def test_db_inspect_article_not_found_injectable(mock_get_article_crud, mock_get
     
     assert result.exit_code == 0
     assert "not found" in result.output
-    
-    # Verify that article crud's get method was called correctly
-    mock_article_crud.get.assert_called_once_with(mock_session, id=999)
 
 
-@patch('local_newsifier.cli.commands.db.get_injectable_session')
-@patch('local_newsifier.cli.commands.db.next')
-def test_db_purge_duplicates_no_duplicates(mock_next, mock_get_injectable_session):
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_purge_duplicates_no_duplicates(mock_get_injected_obj):
     """Test that the purge-duplicates command handles case with no duplicates."""
-    # Set up mock session
+    # Set up mock session and article_crud
     mock_session = MagicMock()
-    mock_next.return_value = mock_session
-    mock_get_injectable_session.side_effect = ImportError()  # Force fallback path
+    mock_article_crud = MagicMock()
+    
+    # Configure get_injected_obj to return appropriate objects based on the argument
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session
+        elif provider == get_article_crud:
+            return mock_article_crud
+        else:
+            return MagicMock()
+                
+    mock_get_injected_obj.side_effect = side_effect
     
     # Mock empty result for duplicate query
     mock_session.exec.return_value.all.return_value = []

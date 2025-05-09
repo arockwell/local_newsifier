@@ -6,104 +6,22 @@ from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
 from local_newsifier.cli.commands.db import db_group
-from local_newsifier.cli.commands.apify import apify_group
-from local_newsifier.cli.commands.apify import _get_apify_client, test_connection
+from local_newsifier.cli.commands.apify import apify_group, test_connection
+from local_newsifier.di.providers import get_apify_service_cli
+from local_newsifier.services.apify_service import ApifyService
 
 
-@patch('local_newsifier.cli.commands.apify.get_apify_client')
-def test_get_apify_client_integration(mock_get_injectable_client):
-    """Test the get_apify_client helper function directly."""
-    # Set up mock injectable client
+@patch('local_newsifier.cli.commands.apify.get_injected_obj')
+def test_apify_service_injection(mock_get_injected_obj):
+    """Test the Apify service injection in CLI commands."""
+    # Set up mock apify service
+    mock_service = MagicMock(spec=ApifyService)
     mock_client = MagicMock()
-    mock_get_injectable_client.return_value = mock_client
-    
-    # Call the helper function
-    result = _get_apify_client(token="test_token")
-    
-    # Verify that injectable client was used
-    assert result == mock_client
-    mock_get_injectable_client.assert_called_once_with(token="test_token")
-
-
-@patch('local_newsifier.services.apify_service.ApifyService')
-@patch('local_newsifier.cli.commands.apify.get_apify_client', side_effect=ImportError)
-def test_get_apify_client_integration_fallback(mock_get_injectable_client, mock_apify_service):
-    """Test the get_apify_client helper function's fallback mechanism."""
-    # Set up mock service and client
-    mock_service = MagicMock()
-    mock_client = MagicMock()
-    mock_service.client = mock_client
-    mock_apify_service.return_value = mock_service
-    
-    # Call the helper function
-    result = _get_apify_client(token="test_token")
-    
-    # Verify fallback was used
-    assert result == mock_client
-    mock_get_injectable_client.assert_called_once()
-    mock_apify_service.assert_called_once_with("test_token")
-
-
-@patch('local_newsifier.cli.commands.db.get_db_stats')
-def test_db_stats_integration(mock_get_db_stats):
-    """Test the db stats command with injectable dependencies."""
-    # Create proper mock objects for articles that have a strftime method
-    latest_article = MagicMock()
-    latest_article.created_at.strftime.return_value = "2025-05-01 12:30:45"
-    
-    oldest_article = MagicMock()
-    oldest_article.created_at.strftime.return_value = "2025-04-01 10:15:30"
-    
-    # Set up mock statistics return value
-    mock_get_db_stats.return_value = (
-        5,  # article_count
-        latest_article,  # latest_article
-        oldest_article,  # oldest_article
-        3,  # feed_count
-        2,  # active_feed_count
-        10,  # processing_log_count
-        15   # entity_count
-    )
-    
-    # Call the command through the CLI
-    runner = CliRunner()
-    result = runner.invoke(cli, ["db", "stats"])
-    
-    # Verify result
-    assert result.exit_code == 0
-    assert "Database Statistics" in result.output
-    # Verify the injectable provider was called
-    mock_get_db_stats.assert_called_once()
-
-
-@patch('local_newsifier.cli.commands.db.get_injectable_session')
-def test_db_articles_integration(mock_get_session):
-    """Test the db articles command with injectable dependencies."""
-    # Set up mock session
-    mock_session = MagicMock()
-    mock_get_session.return_value = mock_session
-    
-    # Mock empty result for the query
-    mock_session.exec.return_value.all.return_value = []
-    
-    # Call the command through the CLI
-    runner = CliRunner()
-    result = runner.invoke(cli, ["db", "articles"])
-    
-    # Verify result
-    assert result.exit_code == 0
-    assert "No articles found" in result.output
-    # Verify the injectable session was used
-    mock_get_session.assert_called_once()
-
-
-@patch('local_newsifier.cli.commands.apify._get_apify_client')
-def test_apify_test_connection_integration(mock_get_client):
-    """Test the apify test connection command with injectable client."""
-    # Set up mock client
-    mock_client = MagicMock()
-    mock_get_client.return_value = mock_client
+    type(mock_service).client = mock_client
     mock_client.user().get.return_value = {"username": "test_user"}
+    
+    # Configure the mock to return our service
+    mock_get_injected_obj.return_value = mock_service
     
     # Call the command through the CLI
     runner = CliRunner()
@@ -113,5 +31,78 @@ def test_apify_test_connection_integration(mock_get_client):
     assert result.exit_code == 0
     assert "Connection to Apify API successful" in result.output
     assert "Connected as: test_user" in result.output
-    # Verify the _get_apify_client helper was called with the token
-    mock_get_client.assert_called_once_with("test_token")
+    
+    # Verify get_injected_obj was called (can't verify the lambda directly)
+    mock_get_injected_obj.assert_called_once()
+
+
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_stats_integration(mock_get_injected_obj):
+    """Test the db stats command with injectable dependencies."""
+    # Create a side effect to handle different calls to get_injected_obj
+    def side_effect_func(provider):
+        # For session provider
+        mock_session = MagicMock()
+        
+        # For article_crud and other CRUDs
+        mock_crud = MagicMock()
+        
+        # Set up count results
+        mock_crud.count.return_value = 5
+        
+        # Create proper mock objects for articles that have a strftime method
+        latest_article = MagicMock()
+        latest_article.created_at.strftime.return_value = "2025-05-01 12:30:45"
+        
+        oldest_article = MagicMock()
+        oldest_article.created_at.strftime.return_value = "2025-04-01 10:15:30"
+        
+        # Set up article query results
+        mock_crud.get_latest.return_value = latest_article
+        mock_crud.get_oldest.return_value = oldest_article
+        
+        return mock_session if "session" in str(provider) else mock_crud
+    
+    # Set up the side effect
+    mock_get_injected_obj.side_effect = side_effect_func
+    
+    # Call the command through the CLI
+    runner = CliRunner()
+    result = runner.invoke(cli, ["db", "stats"])
+    
+    # Verify result
+    assert result.exit_code == 0
+    assert "Database Statistics" in result.output
+
+
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_articles_integration(mock_get_injected_obj):
+    """Test the db articles command with injectable dependencies."""
+    # Set up mock session and article crud
+    mock_session = MagicMock()
+    mock_article_crud = MagicMock()
+    
+    # Configure side effect to return appropriate objects based on the provider
+    def side_effect(provider):
+        from local_newsifier.di.providers import get_session, get_article_crud
+        if provider == get_session:
+            return mock_session
+        elif "article_crud" in str(provider):
+            return mock_article_crud
+        return MagicMock()
+    
+    mock_get_injected_obj.side_effect = side_effect
+    
+    # Mock empty result for the query
+    mock_article_crud.get_all.return_value = []
+
+    # Call the command through the CLI
+    runner = CliRunner()
+    result = runner.invoke(cli, ["db", "articles"])
+
+    # Verify result
+    assert result.exit_code == 0
+    # The actual output format uses tabulate, so check for table format instead
+    assert "Articles (0 results)" in result.output
+    # Verify the get_injected_obj was called
+    assert mock_get_injected_obj.call_count > 0
