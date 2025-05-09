@@ -15,6 +15,7 @@ import time
 import traceback
 import inspect
 import logging
+import importlib
 from datetime import datetime, timezone
 from typing import Generator
 import uuid
@@ -147,6 +148,15 @@ pytest.timeout = timeout
 def test_with_timeout(seconds=DEFAULT_TEST_TIMEOUT):
     """Apply timeout decorator to a test function."""
     return timeout(seconds)
+
+# Load CI-specific pytest configuration
+try:
+    if IS_CI:
+        # Import CI-specific pytest configuration
+        logger.info("Loading CI-specific pytest configuration")
+        import tests.conftest_ci
+except Exception as e:
+    logger.warning(f"Failed to load CI-specific pytest configuration: {e}")
 
 # Import our utility to patch injectable decorators
 from tests.patches import patch_injectable_imports

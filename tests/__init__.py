@@ -54,18 +54,49 @@ if not hasattr(sys, 'pytest_in_progress'):
     # In CI, add a more aggressive emergency kill switch for worker processes
     if IS_CI:
         import threading
+        import signal
 
         def emergency_kill_switch():
             """Forcefully kill the process after a set timeout."""
-            logger.error(f"EMERGENCY KILL SWITCH activated after {GLOBAL_TEST_TIMEOUT + 10} seconds")
-            # Use os._exit to forcefully terminate without cleanup
-            os._exit(2)
+            logger.error(f"EMERGENCY KILL SWITCH activated after {GLOBAL_TEST_TIMEOUT * 2} seconds")
+            print(f"\n\n*** EMERGENCY KILL SWITCH activated - forcefully terminating process ***\n\n")
+
+            # Exit with non-zero code to indicate error
+            # Use both signal and _exit to ensure termination
+            try:
+                # First try sending SIGTERM
+                os.kill(os.getpid(), signal.SIGTERM)
+                # Sleep to allow signal to be handled
+                time.sleep(0.5)
+                # If that failed, do a hard exit
+                os._exit(2)
+            except:
+                # As a last resort, use os._exit
+                os._exit(2)
 
         # Set up kill switch thread
-        kill_thread = threading.Timer(GLOBAL_TEST_TIMEOUT + 10, emergency_kill_switch)
+        # Make the emergency timeout twice the global timeout
+        kill_time = max(GLOBAL_TEST_TIMEOUT * 2, 20)  # At least 20 seconds
+        kill_thread = threading.Timer(kill_time, emergency_kill_switch)
         kill_thread.daemon = True
         kill_thread.start()
-        logger.info(f"Emergency kill switch activated (will trigger in {GLOBAL_TEST_TIMEOUT + 10} seconds)")
+        logger.info(f"Emergency kill switch activated (will trigger in {kill_time} seconds)")
+
+        # Register a second kill switch that uses SIGALRM
+        if sys.platform != 'win32':
+            # Set a signal handler that will be called after the timer
+            def emergency_sigalrm_handler(signum, frame):
+                logger.error("SIGALRM EMERGENCY handler triggered")
+                # Force exit
+                os._exit(3)
+
+            # Register the handler for SIGALRM
+            signal.signal(signal.SIGALRM, emergency_sigalrm_handler)
+
+            # Set the alarm for a slightly longer timeout
+            kill_time_alarm = kill_time + 5
+            signal.alarm(kill_time_alarm)
+            logger.info(f"SIGALRM emergency kill switch activated (will trigger in {kill_time_alarm} seconds)")
 
 # Patch all coroutine functions to have timeouts
 def timeout_wrapper(coro_func, timeout=5):
