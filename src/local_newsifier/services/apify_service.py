@@ -190,8 +190,26 @@ class ApifyService:
             }
         
         # Make the actual API call
-        # Pass changes as keyword arguments instead of a dictionary
-        return self.client.schedule(schedule_id).update(**changes)
+        # Convert parameter names to match API expectations
+        # The Apify API uses snake_case for parameters, but our code uses camelCase
+        converted_changes = {}
+
+        # Handle parameter name conversions
+        param_mapping = {
+            "cronExpression": "cron_expression",
+            "isEnabled": "is_enabled",
+            "isExclusive": "is_exclusive",
+            "runInput": "run_input",
+            "actId": "actor_id",
+        }
+
+        for key, value in changes.items():
+            # Convert camelCase to snake_case if needed
+            api_key = param_mapping.get(key, key)
+            converted_changes[api_key] = value
+
+        # Pass converted changes as keyword arguments
+        return self.client.schedule(schedule_id).update(**converted_changes)
         
     def delete_schedule(self, schedule_id: str) -> Dict[str, Any]:
         """Delete an Apify schedule.
