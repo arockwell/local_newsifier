@@ -32,7 +32,10 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("pytest")
 
 # Custom timeout decorator for tests with enhanced reliability
-DEFAULT_TEST_TIMEOUT = int(os.environ.get("TEST_TIMEOUT", "10"))
+# Use shorter timeouts in CI environments to fail faster
+IS_CI = os.environ.get("CI", "false").lower() == "true"
+DEFAULT_TIMEOUT = "5" if IS_CI else "10"
+DEFAULT_TEST_TIMEOUT = int(os.environ.get("TEST_TIMEOUT", DEFAULT_TIMEOUT))
 
 def timeout(seconds=DEFAULT_TEST_TIMEOUT):
     """

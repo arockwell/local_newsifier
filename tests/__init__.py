@@ -20,8 +20,11 @@ logging.basicConfig(level=logging.INFO,
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("tests")
 
-# Aggressive test timeout (set in environment or default to 30 seconds)
-GLOBAL_TEST_TIMEOUT = int(os.environ.get("TEST_TIMEOUT", "30"))
+# Aggressive test timeout (set in environment or default to 10 seconds in CI, 30 seconds locally)
+# CI pipelines should fail faster to avoid hanging the entire build
+IS_CI = os.environ.get("CI", "false").lower() == "true"
+DEFAULT_TIMEOUT = "10" if IS_CI else "30"
+GLOBAL_TEST_TIMEOUT = int(os.environ.get("TEST_TIMEOUT", DEFAULT_TIMEOUT))
 
 # Setup global test timeout
 def setup_test_timeout():
@@ -47,6 +50,22 @@ def setup_test_timeout():
 if not hasattr(sys, 'pytest_in_progress'):
     sys.pytest_in_progress = True
     setup_test_timeout()
+
+    # In CI, add a more aggressive emergency kill switch for worker processes
+    if IS_CI:
+        import threading
+
+        def emergency_kill_switch():
+            """Forcefully kill the process after a set timeout."""
+            logger.error(f"EMERGENCY KILL SWITCH activated after {GLOBAL_TEST_TIMEOUT + 10} seconds")
+            # Use os._exit to forcefully terminate without cleanup
+            os._exit(2)
+
+        # Set up kill switch thread
+        kill_thread = threading.Timer(GLOBAL_TEST_TIMEOUT + 10, emergency_kill_switch)
+        kill_thread.daemon = True
+        kill_thread.start()
+        logger.info(f"Emergency kill switch activated (will trigger in {GLOBAL_TEST_TIMEOUT + 10} seconds)")
 
 # Patch all coroutine functions to have timeouts
 def timeout_wrapper(coro_func, timeout=5):

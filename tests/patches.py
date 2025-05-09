@@ -431,7 +431,10 @@ def create_test_event_loop():
 
 
 # Global timeout for all asyncio operations (seconds)
-ASYNCIO_TIMEOUT = float(os.environ.get("ASYNCIO_TIMEOUT", "10.0"))
+# Use shorter timeouts in CI environments
+IS_CI = os.environ.get("CI", "false").lower() == "true"
+DEFAULT_TIMEOUT = "5.0" if IS_CI else "10.0"
+ASYNCIO_TIMEOUT = float(os.environ.get("ASYNCIO_TIMEOUT", DEFAULT_TIMEOUT))
 
 def add_timeout_to_run_until_complete():
     """
