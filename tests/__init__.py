@@ -75,8 +75,8 @@ if not hasattr(sys, 'pytest_in_progress'):
                 os._exit(2)
 
         # Set up kill switch thread
-        # Make the emergency timeout twice the global timeout
-        kill_time = max(GLOBAL_TEST_TIMEOUT * 2, 20)  # At least 20 seconds
+        # Make the emergency timeout much longer to allow for test collection
+        kill_time = max(GLOBAL_TEST_TIMEOUT * 5, 60)  # At least 60 seconds
         kill_thread = threading.Timer(kill_time, emergency_kill_switch)
         kill_thread.daemon = True
         kill_thread.start()
@@ -93,8 +93,8 @@ if not hasattr(sys, 'pytest_in_progress'):
             # Register the handler for SIGALRM
             signal.signal(signal.SIGALRM, emergency_sigalrm_handler)
 
-            # Set the alarm for a slightly longer timeout
-            kill_time_alarm = kill_time + 5
+            # Set the alarm for an even longer timeout (emergency backup)
+            kill_time_alarm = kill_time + 30  # 30 seconds longer than the thread timeout
             signal.alarm(kill_time_alarm)
             logger.info(f"SIGALRM emergency kill switch activated (will trigger in {kill_time_alarm} seconds)")
 

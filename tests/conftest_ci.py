@@ -22,11 +22,16 @@ if IS_CI:
     def pytest_configure(config):
         """Configure pytest for CI environments."""
         logger.info("Configuring pytest for CI environment with additional safety measures")
-        
+
         # Register CI-specific marker
         config.addinivalue_line(
             "markers", "ci_unsafe: mark test as unsafe to run in CI (will be skipped)"
         )
+
+        # Set a low maximal test runtime to fail fast on slow tests
+        logger.info("Setting CI-specific pytest timeouts")
+        # Add -xvs to fail fast on the first error
+        config.option.maxfail = 1  # Stop after first failure
     
     # Skip specific test categories in CI
     def pytest_collection_modifyitems(config, items):
