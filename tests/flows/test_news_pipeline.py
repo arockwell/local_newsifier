@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase as NewsPipelineFlow
+from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.web_scraper import WebScraperTool
 
@@ -83,18 +83,33 @@ def mock_pipeline_service():
 @pytest.fixture(scope="session")
 def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline_service):
     """Create a pipeline instance with mocked components."""
-    # Create mock entity service and session factory
+    # Create mock entity service and tools as needed by constructor
     mock_entity_service = Mock()
-    mock_session_factory = Mock()
+    mock_entity_extractor = Mock()
+    mock_context_analyzer = Mock()
+    mock_entity_resolver = Mock()
     
-    pipeline = NewsPipelineFlow(
-        web_scraper=mock_scraper,
-        file_writer=mock_file_writer,
-        article_service=mock_article_service,
-        pipeline_service=mock_pipeline_service,
-        entity_service=mock_entity_service,
-        session_factory=mock_session_factory
-    )
+    # Set up function to fix session_factory access
+    mock_session_factory_fn = lambda: Mock()
+    
+    # Disable the injectable decorator and mock directly
+    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
+        # Import locally to avoid top-level import issues
+        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+        
+        # Create pipeline instance
+        pipeline = NewsPipelineFlow(
+            web_scraper=mock_scraper,
+            file_writer=mock_file_writer,
+            article_service=mock_article_service,
+            pipeline_service=mock_pipeline_service,
+            entity_service=mock_entity_service,
+            entity_extractor=mock_entity_extractor,
+            context_analyzer=mock_context_analyzer,
+            entity_resolver=mock_entity_resolver,
+            session_factory=mock_session_factory_fn,
+            output_dir="test_output"
+        )
     return pipeline
 
 

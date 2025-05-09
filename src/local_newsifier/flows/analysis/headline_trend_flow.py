@@ -18,8 +18,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 from crewai import Flow
+from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session
+from local_newsifier.database.engine import get_session, with_session
 from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
@@ -28,25 +29,30 @@ logger = logging.getLogger(__name__)
 class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
-    def __init__(self, session=None):
+    def __init__(
+        self, 
+        analysis_service: Optional[AnalysisService] = None, 
+        session: Optional[Session] = None
+    ):
         """
         Initialize the headline trend analysis flow.
 
         Args:
+            analysis_service: Optional AnalysisService instance
             session: Optional SQLModel session to use
         """
         super().__init__()
         
-        # Store session
+        # Setup session management
         self.session = session
         self._owns_session = False
         
         if session is None:
             self._owns_session = True
             self.session = get_session().__next__()
-
-        # Initialize analysis service
-        self.analysis_service = AnalysisService(session_factory=lambda: self.session)
+        
+        # Store analysis service
+        self.analysis_service = analysis_service
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
@@ -206,3 +212,12 @@ class HeadlineTrendFlow(Flow):
 
         report += "</body></html>"
         return report
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            analysis_service=container.get("analysis_service")
+        )

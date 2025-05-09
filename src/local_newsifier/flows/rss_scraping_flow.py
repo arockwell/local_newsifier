@@ -5,10 +5,9 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Annotated
+from typing import List, Optional, Dict, Callable
 
-from fastapi import Depends
-from fastapi_injectable import injectable
+from crewai import Flow
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem, RSSParser
@@ -19,7 +18,7 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 logger = logging.getLogger(__name__)
 
 
-class RSSScrapingFlow:
+class RSSScrapingFlow(Flow):
     """Flow for processing RSS feeds and scraping their content."""
 
     def __init__(
@@ -28,7 +27,8 @@ class RSSScrapingFlow:
         article_service: Optional[ArticleService] = None,
         rss_parser: Optional[RSSParser] = None,
         web_scraper: Optional[WebScraperTool] = None,
-        cache_dir: Optional[str] = None
+        cache_dir: Optional[str] = None,
+        session_factory: Optional[Callable] = None
     ):
         """
         Initialize the RSS scraping flow.
@@ -39,10 +39,13 @@ class RSSScrapingFlow:
             rss_parser: Tool for parsing RSS feeds
             web_scraper: Tool for scraping web content
             cache_dir: Optional directory to store cache files
+            session_factory: Function to create database sessions
         """
+        super().__init__()
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.rss_feed_service = rss_feed_service
         self.article_service = article_service
+        self.session_factory = session_factory
 
         # Initialize or use provided tools
         cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
@@ -105,3 +108,16 @@ class RSSScrapingFlow:
                 results.append(state)
 
         return results
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            rss_feed_service=container.get("rss_feed_service"),
+            article_service=container.get("article_service"),
+            rss_parser=container.get("rss_parser"),
+            web_scraper=container.get("web_scraper_tool"),
+            session_factory=container.get("session_factory")
+        )

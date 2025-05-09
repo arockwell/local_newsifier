@@ -1,18 +1,19 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, TYPE_CHECKING, Callable
+from typing import Dict, List, Optional, Any, Callable
+
+from fastapi_injectable import injectable
+from typing import Annotated
+from fastapi import Depends
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
 
-# Forward references
-if TYPE_CHECKING:
-    from local_newsifier.services.entity_service import EntityService
 
-
+@injectable(use_cache=False)
 class ArticleService:
     """Service for article-related operations using the refactored architecture."""
     
@@ -20,29 +21,21 @@ class ArticleService:
         self,
         article_crud,
         analysis_result_crud,
-        # Use callable for lazy resolution
-        entity_service_factory: Optional[Callable[[], 'EntityService']] = None,
-        session_factory=None
+        entity_service,
+        session_factory: Callable,
     ):
         """Initialize with dependencies.
         
         Args:
             article_crud: CRUD for articles
             analysis_result_crud: CRUD for analysis results
-            entity_service_factory: Factory function for EntityService (lazy resolution)
+            entity_service: Service for entity operations
             session_factory: Factory for database sessions
         """
         self.article_crud = article_crud
         self.analysis_result_crud = analysis_result_crud
-        self._entity_service_factory = entity_service_factory
+        self.entity_service = entity_service
         self.session_factory = session_factory
-    
-    def _get_entity_service(self):
-        """Get the entity service using lazy resolution."""
-        if self._entity_service_factory is not None:
-            return self._entity_service_factory()
-        
-        return None
         
     @handle_database
     def process_article(
@@ -66,7 +59,7 @@ class ArticleService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        with SessionManager() as session:
+        with self.session_factory() as session:
             # Extract domain as source if not provided
             from urllib.parse import urlparse
             parsed_url = urlparse(url)
@@ -85,11 +78,7 @@ class ArticleService:
             article = self.article_crud.create(session, obj_in=article_data)
             
             # Process entities using the entity service
-            entity_service = self._get_entity_service()
-            if not entity_service:
-                raise ValueError("Entity service not available - cannot process article entities")
-                
-            entities = entity_service.process_article_entities(
+            entities = self.entity_service.process_article_entities(
                 article_id=article.id,
                 content=content,
                 title=title,
@@ -146,7 +135,7 @@ class ArticleService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        with SessionManager() as session:
+        with self.session_factory() as session:
             article = self.article_crud.get(session, id=article_id)
             
             if not article:

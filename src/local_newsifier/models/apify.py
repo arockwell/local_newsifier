@@ -24,6 +24,7 @@ class ApifySourceConfig(TableBase, table=True):
     actor_id: str  # Apify actor ID
     is_active: bool = Field(default=True)
     schedule: Optional[str] = None  # Cron expression for scheduling
+    schedule_id: Optional[str] = None  # ID of the created Apify schedule
     source_type: str  # e.g., "news", "blog", "social_media"
     source_url: Optional[str] = None  # Original source URL if applicable
 

@@ -9,6 +9,10 @@ from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article as article_crud
+from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.crud.entity import entity as entity_crud
+from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
 from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.models.state import (
     EntityTrackingState, EntityBatchTrackingState, 
@@ -19,24 +23,20 @@ from local_newsifier.tools.entity_tracker_service import EntityTracker
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-from local_newsifier.di.providers import (
-    get_session, get_entity_service, get_entity_tracker_tool,
-    get_entity_extractor_tool, get_context_analyzer_tool, get_entity_resolver_tool
-)
 
 
-@injectable(use_cache=False)
 class EntityTrackingFlow(Flow):
     """Flow for tracking entities across news articles using state-based pattern."""
 
     def __init__(
         self, 
-        entity_service: Annotated[EntityService, Depends(get_entity_service)],
-        entity_tracker: Annotated[EntityTracker, Depends(get_entity_tracker_tool)],
-        entity_extractor: Annotated[EntityExtractor, Depends(get_entity_extractor_tool)],
-        context_analyzer: Annotated[ContextAnalyzer, Depends(get_context_analyzer_tool)],
-        entity_resolver: Annotated[EntityResolver, Depends(get_entity_resolver_tool)],
-        session: Annotated[Session, Depends(get_session)]
+        entity_service: Optional[EntityService] = None,
+        entity_tracker: Optional[EntityTracker] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        context_analyzer: Optional[ContextAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
+        session_factory: Optional[callable] = None,
+        session: Optional[Session] = None
     ):
         """Initialize the entity tracking flow.
         
@@ -44,21 +44,37 @@ class EntityTrackingFlow(Flow):
             entity_service: Service for entity operations
             entity_tracker: Service for tracking entities
             entity_extractor: Tool for extracting entities
-            context_analyzer: Tool for analyzing entity context
+            context_analyzer: Tool for analyzing context
             entity_resolver: Tool for resolving entities
-            session: Database session
+            session_factory: Function to create database sessions
+            session: Optional database session
         """
         super().__init__()
         self.session = session
-        self.entity_service = entity_service
-        self._entity_tracker = entity_tracker
-        self._entity_extractor = entity_extractor
-        self._context_analyzer = context_analyzer
-        self._entity_resolver = entity_resolver
         
-        # Simple session factory that returns the injected session
-        self._session_factory = lambda: session
+        # Use provided dependencies or create defaults for backward compatibility
+        self._entity_tracker = entity_tracker or EntityTracker()
+        self._entity_extractor = entity_extractor or EntityExtractor()
+        self._context_analyzer = context_analyzer or ContextAnalyzer()
+        self._entity_resolver = entity_resolver or EntityResolver()
         
+        # Use provided entity service or create one with dependencies
+        if entity_service:
+            self.entity_service = entity_service
+        else:
+            # Create service with injected or default dependencies
+            self.entity_service = EntityService(
+                entity_crud=entity_crud,
+                canonical_entity_crud=canonical_entity_crud,
+                entity_mention_context_crud=entity_mention_context_crud,
+                entity_profile_crud=entity_profile_crud,
+                article_crud=article_crud,
+                entity_extractor=self._entity_extractor,
+                context_analyzer=self._context_analyzer,
+                entity_resolver=self._entity_resolver,
+                session_factory=session_factory
+            )
+
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.
         
@@ -101,7 +117,7 @@ class EntityTrackingFlow(Flow):
         Returns:
             List of processed entity mentions
         """
-        with self._session_factory() as session:
+        with self.entity_service.session_factory() as session:
             # Get article
             article = article_crud.get(session, id=article_id)
                 
@@ -169,3 +185,17 @@ class EntityTrackingFlow(Flow):
         
         # Return relationship data
         return result_state.relationship_data
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            entity_service=container.get("entity_service"),
+            entity_tracker=container.get("entity_tracker_tool"),
+            entity_extractor=container.get("entity_extractor"),
+            context_analyzer=container.get("context_analyzer"),
+            entity_resolver=container.get("entity_resolver"),
+            session_factory=container.get("session_factory")
+        )

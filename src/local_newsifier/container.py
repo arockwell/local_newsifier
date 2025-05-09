@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 # Import CRUD modules
 from local_newsifier.crud import (
     analysis_result,
-    apify_source_config,
     article,
     canonical_entity,
     entity,
@@ -53,7 +52,6 @@ def init_container(environment="production"):
     # Register CRUD modules
     container.register("article_crud", article)
     container.register("analysis_result_crud", analysis_result)
-    container.register("apify_source_config_crud", apify_source_config)
     container.register("entity_crud", entity)
     container.register("canonical_entity_crud", canonical_entity)
     container.register("entity_mention_context_crud", entity_mention_context)
@@ -212,8 +210,9 @@ def register_services(container):
             lambda c: ArticleService(
                 article_crud=c.get("article_crud"),
                 analysis_result_crud=c.get("analysis_result_crud"),
-                entity_service_factory=lambda: c.get("entity_service"),  # Lambda for lazy loading
-                session_factory=c.get("session_factory")
+                entity_service=c.get("entity_service"),  # Will be lazily loaded
+                session_factory=c.get("session_factory"),
+                container=c  # Inject the container itself
             ),
             scope=Scope.SINGLETON
         )
@@ -418,7 +417,7 @@ def register_services(container):
         lambda c: ArticleService(
             article_crud=c.get("article_crud"),
             analysis_result_crud=c.get("analysis_result_crud"),
-            entity_service_factory=lambda: c.get("entity_service"),  # Lambda for lazy loading
+            entity_service=c.get("entity_service"),  # Will be lazily loaded
             session_factory=c.get("session_factory")
         )
     )
@@ -429,15 +428,16 @@ def register_services(container):
             rss_feed_crud=c.get("rss_feed_crud"),
             feed_processing_log_crud=c.get("feed_processing_log_crud"),
             article_service=c.get("article_service"),  # Will be lazily loaded
-            session_factory=c.get("session_factory"),
-            container=c  # Inject the container itself
+            session_factory=c.get("session_factory")
         )
     )
     
-    # ApifyService
+    # ApifyService - use test_mode in test environment
     container.register_factory("apify_service", 
-        lambda c: ApifyService()
+        lambda c: ApifyService(test_mode=(environment == "testing"))
     )
+    
+    # Core services have been registered
 
 
 def register_flows(container):

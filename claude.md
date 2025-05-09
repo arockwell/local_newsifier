@@ -289,3 +289,35 @@ def test_component_success(mock_component):
 - Avoid passing SQLModel objects between sessions - use IDs instead
 - Use runtime imports to break circular dependencies
 - Redis is required for Celery - PostgreSQL is no longer supported as a broker
+
+### Handling Event Loop Issues in Tests
+When testing async code, especially with FastAPI and fastapi-injectable, you may encounter event loop-related errors. Follow these guidelines to avoid them:
+
+1. Use the event_loop_fixture for any test that may interact with async code:
+```python
+def test_my_async_functionality(event_loop_fixture):
+    # Test code here
+```
+
+2. For running async code in tests, use event_loop_fixture.run_until_complete() instead of await:
+```python
+async def my_async_function():
+    # async code here
+
+# Inside a test
+event_loop_fixture.run_until_complete(my_async_function())
+```
+
+3. For FastAPI tests with async dependencies, mock the dependencies instead of using actual async functions:
+```python
+# Instead of using actual async dependency
+with patch("my_module.async_dependency", AsyncMock(return_value=mock_result)):
+    # Test code here
+```
+
+4. If you must skip a test in CI environments but keep it running locally, use ci_skip_async:
+```python
+@ci_skip_async
+def test_problematic_in_ci(event_loop_fixture):
+    # Test code here
+```
