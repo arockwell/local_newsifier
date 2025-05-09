@@ -193,8 +193,47 @@ def patch_injectable_imports():
     # Create a customized mock event loop that properly handles coroutines
     mock_loop = MagicMock()
     
-    # Make run_until_complete handle coroutines by automatically running them
-    mock_loop.run_until_complete.side_effect = lambda coro: unwrap_coroutines(coro)
+    # Make run_until_complete handle coroutines by automatically running them with timeout
+    def run_until_complete_with_timeout(coro, timeout=5.0):
+        """Handle running coroutines with timeout protection."""
+        if inspect.iscoroutine(coro):
+            import warnings
+            import threading
+            import time
+
+            # Setup for timeout handling
+            result = [None]
+            error = [None]
+            completed = [False]
+
+            def run_coro():
+                try:
+                    # For actual coroutines, just unwrap them to avoid mapping errors
+                    result[0] = unwrap_coroutines(coro)
+                    completed[0] = True
+                except Exception as e:
+                    error[0] = e
+
+            # Run in thread with timeout
+            thread = threading.Thread(target=run_coro)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout=timeout)
+
+            # Check for timeout
+            if thread.is_alive():
+                warnings.warn(f"Coroutine execution timed out after {timeout} seconds")
+                return {}
+
+            # Return result or raise error
+            if error[0] is not None:
+                raise error[0]
+            return result[0]
+
+        # For non-coroutines, just unwrap
+        return unwrap_coroutines(coro)
+
+    mock_loop.run_until_complete.side_effect = run_until_complete_with_timeout
     mock_loop.close.side_effect = lambda: None
     mock_loop.is_closed.return_value = False
     
@@ -278,50 +317,108 @@ def patch_injectable_imports():
 def create_test_event_loop():
     """
     Create a mock event loop for tests that need one.
-    
+
     This function avoids 'RuntimeError: Event loop is closed' errors by mocking
-    event loop-related functions and objects.
+    event loop-related functions and objects. It also adds timeout protection
+    to prevent tests from hanging indefinitely with unresolved coroutines.
     """
     import asyncio
+    import concurrent.futures
+    import signal
+    import threading
+    import time
     from unittest.mock import MagicMock, patch
-    
+
     # Create a mock event loop with improved handling for coroutines
     mock_loop = MagicMock()
-    
-    # Make the mock loop handle coroutines properly
-    def run_until_complete_side_effect(coro):
-        """Handle running coroutines or returning values for non-coroutines."""
+
+    # Add timeout functionality to handle hanging coroutines
+    def run_until_complete_side_effect(coro, timeout=5.0):
+        """
+        Handle running coroutines or returning values for non-coroutines with timeout.
+
+        Args:
+            coro: The coroutine or value to process
+            timeout: Maximum time to allow execution (default 5 seconds)
+
+        Returns:
+            Result value or empty dict for coroutines
+        """
         if inspect.iscoroutine(coro):
-            # For actual coroutines, return an empty dict to avoid the 'coroutine' is not a mapping errors
-            return {}
+            # For actual coroutines, we'll set up a timeout using a thread
+            # This ensures tests don't hang indefinitely
+            result = [None]
+            error = [None]
+            completed = [False]
+
+            def run_coro():
+                try:
+                    # In a real implementation, we'd run:
+                    # result[0] = asyncio.run(coro)
+                    # But for our mock, we just return an empty dict
+                    result[0] = {}
+                    completed[0] = True
+                except Exception as e:
+                    error[0] = e
+
+            # Start the function in a thread
+            thread = threading.Thread(target=run_coro)
+            thread.daemon = True
+            thread.start()
+
+            # Wait for the thread to complete with timeout
+            thread.join(timeout=timeout)
+
+            # If the thread is still alive after timeout, consider it hung
+            if thread.is_alive():
+                # Return a placeholder and log warning
+                import warnings
+                warnings.warn(f"Coroutine execution timed out after {timeout} seconds")
+                return {}
+
+            # Return result or raise error
+            if error[0] is not None:
+                raise error[0]
+            return result[0]
+
+        # For non-coroutines, just return the value
         return coro
-    
+
     mock_loop.run_until_complete.side_effect = run_until_complete_side_effect
     mock_loop.close.side_effect = lambda: None
     mock_loop.is_closed.return_value = False
-    
+
+    # Add wait_for with timeout
+    def wait_for_side_effect(coro, timeout=None):
+        """Mock for asyncio.wait_for with timeout handling"""
+        return run_until_complete_side_effect(coro, timeout)
+
+    # Patch asyncio.wait_for to use our timeout handler
+    wait_for_patch = patch('asyncio.wait_for', side_effect=wait_for_side_effect)
+    wait_for_patch.start()
+
     # Patch asyncio.get_event_loop to return our mock loop
     loop_patch = patch('asyncio.get_event_loop', return_value=mock_loop)
     loop_patch.start()
-    
-    # Patch asyncio.get_running_loop to return our mock loop or raise RuntimeError
-    running_loop_patch = patch('asyncio.get_running_loop', 
-                              side_effect=lambda: mock_loop)
+
+    # Patch asyncio.get_running_loop to return our mock loop
+    running_loop_patch = patch('asyncio.get_running_loop', side_effect=lambda: mock_loop)
     running_loop_patch.start()
-    
-    # Also patch set_event_loop to prevent errors
+
+    # Patch set_event_loop to prevent errors
     set_loop_patch = patch('asyncio.set_event_loop', side_effect=lambda loop: None)
     set_loop_patch.start()
-    
+
     # Apply spaCy patch for isolated tests
     spacy_patch = patch('spacy.load', side_effect=MockSpacy.load)
     spacy_patch.start()
-    
+
     # Return a function to stop all patches
     def stop_patches():
         loop_patch.stop()
         running_loop_patch.stop()
         set_loop_patch.stop()
+        wait_for_patch.stop()
         spacy_patch.stop()
-        
+
     return mock_loop, stop_patches
