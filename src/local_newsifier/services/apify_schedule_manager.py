@@ -233,10 +233,23 @@ class ApifyScheduleManager:
                 if current_schedule.get("isEnabled", True) != config.is_active:
                     changes["isEnabled"] = config.is_active
                     
-                # Update name to ensure consistency
-                name = f"Local Newsifier: {config.name}"
-                if current_schedule.get("name") != name:
-                    changes["name"] = name
+                # Update name to ensure consistency (following Apify's strict requirements)
+                # Name can only contain lowercase letters, numbers, and hyphens in the middle
+                import re
+                # First create a non-sanitized display name
+                display_name = f"Local Newsifier: {config.name}"
+                # Then create a sanitized version for the API
+                sanitized_name = display_name.lower()
+                # Remove spaces and non-alphanumeric characters (except hyphens)
+                sanitized_name = re.sub(r'[^a-z0-9-]', '', sanitized_name.replace(' ', '-'))
+                # Ensure no hyphens at start or end
+                sanitized_name = sanitized_name.strip('-')
+                # Add a default if empty
+                if not sanitized_name:
+                    sanitized_name = "localnewsifier"
+
+                if current_schedule.get("name") != sanitized_name:
+                    changes["name"] = sanitized_name
                     
                 # If there are changes, update the schedule
                 if changes:
