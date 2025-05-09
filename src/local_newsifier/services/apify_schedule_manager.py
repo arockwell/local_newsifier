@@ -225,23 +225,31 @@ class ApifyScheduleManager:
                 if config.schedule and current_schedule.get("cronExpression") != config.schedule:
                     changes["cronExpression"] = config.schedule
                     
-                # Check if actor_id has changed (rare)
-                if current_schedule.get("actId") != config.actor_id:
-                    changes["actId"] = config.actor_id
+                # Actor ID changes are not supported for schedule updates
                     
-                # Check if run_input has changed
-                current_run_input = current_schedule.get("runInput", {})
-                if current_run_input != config.input_configuration:
-                    changes["runInput"] = config.input_configuration
+                # Run input changes are not supported for schedule updates
                     
                 # Check if active status has changed
                 if current_schedule.get("isEnabled", True) != config.is_active:
                     changes["isEnabled"] = config.is_active
                     
-                # Update name to ensure consistency
-                name = f"Local Newsifier: {config.name}"
-                if current_schedule.get("name") != name:
-                    changes["name"] = name
+                # Update name to ensure consistency (following Apify's strict requirements)
+                # Name can only contain lowercase letters, numbers, and hyphens in the middle
+                import re
+                # First create a non-sanitized display name
+                display_name = f"Local Newsifier: {config.name}"
+                # Then create a sanitized version for the API
+                sanitized_name = display_name.lower()
+                # Remove spaces and non-alphanumeric characters (except hyphens)
+                sanitized_name = re.sub(r'[^a-z0-9-]', '', sanitized_name.replace(' ', '-'))
+                # Ensure no hyphens at start or end
+                sanitized_name = sanitized_name.strip('-')
+                # Add a default if empty
+                if not sanitized_name:
+                    sanitized_name = "localnewsifier"
+
+                if current_schedule.get("name") != sanitized_name:
+                    changes["name"] = sanitized_name
                     
                 # If there are changes, update the schedule
                 if changes:

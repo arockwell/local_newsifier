@@ -173,7 +173,7 @@ def test_update_schedule_for_config(schedule_manager, mock_apify_service, mock_c
     # Test with no changes needed
     mock_apify_service.get_schedule.return_value = {
         "id": "mock_schedule_id",
-        "name": "Local Newsifier: Existing Schedule Config",
+        "name": "local-newsifier-existing-schedule-config",  # Sanitized name format
         "cronExpression": "0 0 * * *",  # Same as config
         "isEnabled": True,
         "actId": "mock_actor_id",

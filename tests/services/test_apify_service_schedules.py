@@ -110,7 +110,14 @@ def test_update_schedule(apify_service, mock_apify_client):
     
     # Verify interactions
     mock_apify_client.schedule.assert_called_once_with("test_schedule_id")
-    mock_apify_client.schedule().update.assert_called_once_with(changes)
+
+    # Verify the update was called with the converted parameters
+    expected_converted_params = {
+        "name": "Updated Schedule Name",
+        "cron_expression": "0 0 * * 1",  # Converted from cronExpression
+        "is_enabled": False,  # Converted from isEnabled
+    }
+    mock_apify_client.schedule().update.assert_called_once_with(**expected_converted_params)
 
 
 def test_delete_schedule(apify_service, mock_apify_client):
