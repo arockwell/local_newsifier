@@ -150,37 +150,33 @@ def test_process_new_articles_method(event_loop_fixture):
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.article_crud")
-@ci_skip("Database session management issues in CI")
-def test_process_article_method(mock_article_crud, event_loop_fixture):
+def test_process_article_method(mock_article_crud):
     """Test the process_article method (legacy)."""
     # Setup mocks
-    mock_entity_service = Mock()  # Don't use spec to avoid attribute constraints
-    mock_entity_tracker = Mock()
-    mock_entity_extractor = Mock()
-    mock_context_analyzer = Mock()
-    mock_entity_resolver = Mock()
-    
-    mock_session = Mock()
-    mock_article = Mock()
+    mock_entity_service = MagicMock()  # Use MagicMock for better attribute handling
+    mock_entity_tracker = MagicMock()
+    mock_entity_extractor = MagicMock()
+    mock_context_analyzer = MagicMock()
+    mock_entity_resolver = MagicMock()
+
+    mock_session = MagicMock()
+    mock_article = MagicMock()
     mock_article.id = 123
     mock_article.content = "Test content"
     mock_article.title = "Test title"
     mock_article.published_at = datetime.now(timezone.utc)
-    
+
     # Setup session context manager mock properly
-    mock_context_manager = MagicMock()
-    mock_context_manager.__enter__.return_value = mock_session
-    mock_context_manager.__exit__.return_value = None
-    mock_entity_service.session_factory.return_value = mock_context_manager
-    
+    mock_entity_service.session_factory.return_value.__enter__.return_value = mock_session
+
     # Configure article crud mock
     mock_article_crud.get.return_value = mock_article
-    
+
     # Configure result state
-    mock_result_state = Mock(spec=EntityTrackingState)
+    mock_result_state = MagicMock(spec=EntityTrackingState)
     mock_result_state.entities = [{"entity": "test"}]
     mock_entity_service.process_article_with_state.return_value = mock_result_state
-    
+
     # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
@@ -189,19 +185,19 @@ def test_process_article_method(mock_article_crud, event_loop_fixture):
         context_analyzer=mock_context_analyzer,
         entity_resolver=mock_entity_resolver
     )
-    
+
     # Call process_article method
     result = flow.process_article(article_id=123)
-    
+
     # Verify article was retrieved
     mock_article_crud.get.assert_called_once_with(mock_session, id=123)
-    
+
     # Verify process was called with correct state
     mock_entity_service.process_article_with_state.assert_called_once()
     called_state = mock_entity_service.process_article_with_state.call_args[0][0]
     assert isinstance(called_state, EntityTrackingState)
     assert called_state.article_id == 123
-    
+
     # Verify result
     assert result == [{"entity": "test"}]
 
