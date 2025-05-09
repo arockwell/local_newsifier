@@ -12,6 +12,55 @@ from unittest.mock import MagicMock, patch
 
 T = TypeVar('T')
 
+# Create a mock for spaCy and its components
+class MockSpacy:
+    """Mock implementation of spaCy to avoid loading actual models in tests."""
+    
+    @staticmethod
+    def load(model_name):
+        """Mock spacy.load() to return a mock Language object."""
+        mock_nlp = MagicMock()
+        
+        # Create mock Doc with .ents and .sents properties
+        mock_doc = MagicMock()
+        
+        # Mock entity objects
+        mock_entity1 = MagicMock()
+        mock_entity1.text = "Entity1"
+        mock_entity1.label_ = "PERSON"
+        mock_entity1.start_char = 0
+        mock_entity1.end_char = 7
+        
+        mock_entity2 = MagicMock()
+        mock_entity2.text = "Entity2"
+        mock_entity2.label_ = "ORG"
+        mock_entity2.start_char = 10
+        mock_entity2.end_char = 17
+        
+        # Mock sentence object
+        mock_sent = MagicMock()
+        mock_sent.text = "This is a test sentence."
+        mock_sent.start_char = 0
+        mock_sent.end_char = 23
+        
+        # Link entity to sentence
+        mock_entity1.sent = mock_sent
+        mock_entity2.sent = mock_sent
+        
+        # Set up Doc.ents
+        mock_doc.ents = [mock_entity1, mock_entity2]
+        
+        # Set up Doc.sents
+        mock_doc.sents = [mock_sent]
+        
+        # Configure the callable mock_nlp object to return mock_doc
+        mock_nlp.return_value = mock_doc
+        
+        # Set up char_span method for doc
+        mock_doc.char_span = MagicMock(return_value=mock_entity1)
+        
+        return mock_nlp
+
 
 def mock_class_for_test(original_class: Type[T]) -> Type[T]:
     """
@@ -207,6 +256,10 @@ def patch_injectable_imports():
         if module_path in sys.modules:
             del sys.modules[module_path]
     
+    # Patch spaCy so that all tests use our mock
+    spacy_patch = patch('spacy.load', side_effect=MockSpacy.load)
+    spacy_patch.start()
+    
     # Return a function that can be called to stop the patches
     def stop_patches():
         """Stop all patches."""
@@ -217,6 +270,7 @@ def patch_injectable_imports():
         set_loop_patch.stop()
         get_injected_obj_patch.stop()
         resolve_dependencies_patch.stop()
+        spacy_patch.stop()
     
     return stop_patches
 
@@ -259,10 +313,15 @@ def create_test_event_loop():
     set_loop_patch = patch('asyncio.set_event_loop', side_effect=lambda loop: None)
     set_loop_patch.start()
     
+    # Apply spaCy patch for isolated tests
+    spacy_patch = patch('spacy.load', side_effect=MockSpacy.load)
+    spacy_patch.start()
+    
     # Return a function to stop all patches
     def stop_patches():
         loop_patch.stop()
         running_loop_patch.stop()
         set_loop_patch.stop()
+        spacy_patch.stop()
         
     return mock_loop, stop_patches
