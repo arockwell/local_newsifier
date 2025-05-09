@@ -47,40 +47,45 @@ def test_init_claude_code_simple(runner, temp_dir):
 
 
 @patch("local_newsifier.cli.commands.claude.shutil")
-def test_init_claude_code_existing_nonempty_directory(mock_shutil, runner, temp_dir):
-    """Test initializing Claude Code in an existing, non-empty directory without force."""
-    # Create directory and a test file
-    existing_dir = temp_dir / "existing_dir"
-    existing_dir.mkdir()
-    (existing_dir / "some_file.txt").write_text("test content")
+def test_init_claude_code_with_full_option(mock_shutil, runner, temp_dir):
+    """Test initializing Claude Code with --full option."""
+    # Create directory
+    new_dir = temp_dir / "full_dir"
+    new_dir.mkdir()
 
-    # Run the command
-    result = runner.invoke(claude_group, ["init", str(existing_dir)])
-
-    # Assertions
-    assert result.exit_code != 0
-    assert "not empty" in result.output
-    assert "--force" in result.output
-
-
-@patch("local_newsifier.cli.commands.claude.shutil")
-def test_init_claude_code_force_flag(mock_shutil, runner, temp_dir):
-    """Test initializing Claude Code with --force flag."""
-    # Create directory and a test file
-    existing_dir = temp_dir / "force_dir"
-    existing_dir.mkdir()
-    (existing_dir / "some_file.txt").write_text("test content")
-
-    # Run the command
+    # Run the command with --full option
     with patch("builtins.open", mock_open()):
         with patch("pathlib.Path.write_text"):
             result = runner.invoke(
-                claude_group, ["init", str(existing_dir), "--force", "--skip-db"]
+                claude_group, ["init", str(new_dir), "--full", "--skip-db"]
             )
 
     # Assertions
     assert result.exit_code == 0
     assert "Copying project files..." in result.output
+    assert "Claude Code workspace initialized successfully" in result.output
+
+
+@patch("local_newsifier.cli.commands.claude.shutil")
+def test_init_claude_code_existing_directory(mock_shutil, runner, temp_dir):
+    """Test initializing Claude Code in an existing directory."""
+    # Create directory with some files (simulating a git worktree)
+    existing_dir = temp_dir / "worktree_dir"
+    existing_dir.mkdir()
+    (existing_dir / "src").mkdir()
+    (existing_dir / "CLAUDE.md").write_text("# Existing file")
+
+    # Run the command without --full (default for worktrees)
+    with patch("builtins.open", mock_open()):
+        with patch("pathlib.Path.write_text"):
+            result = runner.invoke(
+                claude_group, ["init", str(existing_dir), "--skip-db"]
+            )
+
+    # Assertions
+    assert result.exit_code == 0
+    # Should not see copying files message since --full wasn't used
+    assert "Copying project files..." not in result.output
     assert "Claude Code workspace initialized successfully" in result.output
 
 

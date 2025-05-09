@@ -25,25 +25,23 @@ def claude_group():
 
 
 @claude_group.command(name="init")
-@click.argument("directory", type=click.Path(file_okay=False))
+@click.argument("directory", type=click.Path(file_okay=False), default=".")
 @click.option(
-    "--force",
-    "-f",
+    "--full",
     is_flag=True,
-    help="Force initialization even if directory exists and is not empty",
+    help="Perform full initialization (copy files, create CLAUDE.md, etc.)",
 )
 @click.option("--skip-db", is_flag=True, help="Skip database initialization")
-def init_claude_code(directory, force, skip_db):
+def init_claude_code(directory, full, skip_db):
     """
-    Initialize a new Claude Code workspace in the specified directory.
+    Initialize a Claude Code environment in the specified directory.
 
     This command:
-    1. Creates the directory if it doesn't exist
-    2. Copies project files to the new directory
-    3. Initializes a cursor-specific database for the new directory
-    4. Sets up environment files
+    1. Creates a cursor-specific database if needed
+    2. Sets up necessary environment files (.env.cursor)
 
-    DIRECTORY is the path where the new workspace will be created.
+    By default, this command works with an existing git worktree or checkout.
+    Use --full flag to perform a complete initialization (copying files, creating CLAUDE.md, etc.)
     """
     # Convert to absolute path
     directory = Path(directory).resolve()
@@ -52,12 +50,6 @@ def init_claude_code(directory, force, skip_db):
     if directory.exists():
         if not directory.is_dir():
             raise click.BadParameter(f"'{directory}' exists but is not a directory")
-
-        # Check if directory is empty or if force flag is set
-        if any(directory.iterdir()) and not force:
-            raise click.BadParameter(
-                f"Directory '{directory}' is not empty. Use --force to initialize anyway."
-            )
     else:
         # Create directory
         directory.mkdir(parents=True)
@@ -66,42 +58,45 @@ def init_claude_code(directory, force, skip_db):
     # Get current project root
     current_dir = Path.cwd()
 
-    # Copy essential files for a minimal functioning project
-    files_to_copy = [
-        ".env.example",
-        "pyproject.toml",
-        "README.md",
-    ]
+    # Only copy files if --full flag is set
+    if full:
+        # Copy essential files for a minimal functioning project
+        files_to_copy = [
+            ".env.example",
+            "pyproject.toml",
+            "README.md",
+        ]
 
-    dirs_to_copy = [
-        "src",
-        "scripts",
-    ]
+        dirs_to_copy = [
+            "src",
+            "scripts",
+        ]
 
-    click.echo("Copying project files...")
+        click.echo("Copying project files...")
 
-    for file in files_to_copy:
-        src_path = current_dir / file
-        if src_path.exists():
-            shutil.copy2(src_path, directory / file)
-            click.echo(f"  ✓ Copied {file}")
-        else:
-            click.echo(f"  ! Skipped {file} (not found)")
+        for file in files_to_copy:
+            src_path = current_dir / file
+            if src_path.exists():
+                shutil.copy2(src_path, directory / file)
+                click.echo(f"  ✓ Copied {file}")
+            else:
+                click.echo(f"  ! Skipped {file} (not found)")
 
-    for dir_name in dirs_to_copy:
-        src_path = current_dir / dir_name
-        dest_path = directory / dir_name
-        if src_path.exists():
-            if dest_path.exists():
-                shutil.rmtree(dest_path)
-            shutil.copytree(src_path, dest_path)
-            click.echo(f"  ✓ Copied {dir_name}/")
-        else:
-            click.echo(f"  ! Skipped {dir_name}/ (not found)")
+        for dir_name in dirs_to_copy:
+            src_path = current_dir / dir_name
+            dest_path = directory / dir_name
+            if src_path.exists():
+                if dest_path.exists():
+                    shutil.rmtree(dest_path)
+                shutil.copytree(src_path, dest_path)
+                click.echo(f"  ✓ Copied {dir_name}/")
+            else:
+                click.echo(f"  ! Skipped {dir_name}/ (not found)")
 
-    # Create CLAUDE.md file with default configuration
-    claude_md_path = directory / "CLAUDE.md"
-    claude_md_content = """# Local Newsifier Development Guide
+        # Create CLAUDE.md file with default configuration if it doesn't exist
+        claude_md_path = directory / "CLAUDE.md"
+        if not claude_md_path.exists():
+            claude_md_content = """# Local Newsifier Development Guide
 
 ## Project Overview
 - News article analysis system using SQLModel, PostgreSQL, and dependency injection
@@ -145,14 +140,14 @@ This project requires Python 3.10-3.12, with Python 3.12 recommended to match CI
 - `nf feeds process <ID>`: Process a specific feed
 - `nf db stats`: Show database statistics
 """
+            with open(claude_md_path, "w") as f:
+                f.write(claude_md_content)
+            click.echo("  ✓ Created CLAUDE.md with default configuration")
 
-    with open(claude_md_path, "w") as f:
-        f.write(claude_md_content)
-    click.echo("  ✓ Created CLAUDE.md with default configuration")
-
-    # Create .env file with default configuration
+    # Create .env file with default configuration if it doesn't exist
     env_path = directory / ".env"
-    env_content = """# Database settings
+    if not env_path.exists():
+        env_content = """# Database settings
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_HOST=localhost
@@ -169,10 +164,9 @@ LOG_LEVEL=INFO
 # NLP settings
 NER_MODEL=en_core_web_lg
 """
-
-    with open(env_path, "w") as f:
-        f.write(env_content)
-    click.echo("  ✓ Created .env with default configuration")
+        with open(env_path, "w") as f:
+            f.write(env_content)
+        click.echo("  ✓ Created .env with default configuration")
 
     # Initialize database for the new directory if not skipped
     if not skip_db:
@@ -201,12 +195,23 @@ NER_MODEL=en_core_web_lg
 
     click.echo("\n✅ Claude Code workspace initialized successfully!")
     click.echo(f"Workspace directory: {directory}")
-    click.echo("\nNext steps:")
-    click.echo("1. cd " + str(directory))
-    click.echo("2. source .env.cursor")
-    click.echo("3. Run 'poetry install' to install dependencies")
-    click.echo("4. Run 'python -m spacy download en_core_web_lg' to install NLP models")
-    click.echo("5. Start working with Claude Code!")
+
+    # Display different next steps depending on whether we did a full setup or not
+    if full:
+        click.echo("\nNext steps:")
+        click.echo("1. cd " + str(directory))
+        click.echo("2. source .env.cursor")
+        click.echo("3. Run 'poetry install' to install dependencies")
+        click.echo(
+            "4. Run 'python -m spacy download en_core_web_lg' to install NLP models"
+        )
+        click.echo("5. Start working with Claude Code!")
+    else:
+        click.echo("\nNext steps:")
+        click.echo("1. source .env.cursor")
+        click.echo(
+            "2. Run 'python -m src.local_newsifier.cli.main db stats' to verify database connection"
+        )
 
 
 @claude_group.command(name="validate")
