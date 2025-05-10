@@ -140,17 +140,37 @@ class TroubleshootCommand:
     def _find_closest_area(self, area: str) -> Optional[str]:
         """
         Find the closest matching technical area.
-        
+
         Args:
             area: User-provided technical area
-            
+
         Returns:
             Closest matching area or None
         """
-        # Simple algorithm to find the closest match
-        for valid_area in self.technical_areas:
-            if valid_area.startswith(area) or area in valid_area:
+        area_lower = area.lower()
+
+        # Special case handling for known aliases
+        area_aliases = {
+            "dep": "di",
+            "dependency": "di",
+            "dependencies": "di",
+            "asyncio": "async",
+            "loop": "async",
+            "test": "testing",
+            "tests": "testing",
+            "db": "database",
+            "sql": "database"
+        }
+
+        if area_lower in area_aliases:
+            return area_aliases[area_lower]
+
+        # Standard matching algorithm
+        for valid_area, description in self.technical_areas.items():
+            # Check if area is in the key or in the description
+            if valid_area.startswith(area_lower) or area_lower in valid_area or area_lower in description.lower():
                 return valid_area
+
         return None
     
     def _fetch_issues(self, issue_numbers: List[int]) -> List[Dict[str, Any]]:
