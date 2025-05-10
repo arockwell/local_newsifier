@@ -48,10 +48,15 @@ class RSSScrapingFlow(Flow):
         self.session_factory = session_factory
 
         # Initialize or use provided tools
-        cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
-        self.rss_parser = rss_parser or RSSParser(
-            cache_file=str(cache_file) if cache_file else None
-        )
+        # Backward compatibility for cache_dir parameter
+        self.rss_parser = rss_parser
+        if self.rss_parser is None:
+            cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
+            self.rss_parser = RSSParser(
+                cache_file=str(cache_file) if cache_file else None,
+                cache_dir=str(self.cache_dir) if self.cache_dir else None
+            )
+
         self.web_scraper = web_scraper or WebScraperTool()
 
     def process_feed(self, feed_url: str) -> List[NewsAnalysisState]:
