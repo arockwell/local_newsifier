@@ -33,9 +33,19 @@ class TestApifySourceConfigService:
     @pytest.fixture
     def mock_session_factory(self, mock_session):
         """Create a mock session factory for testing."""
+        from contextlib import contextmanager
+
+        @contextmanager
+        def session_context():
+            try:
+                yield mock_session
+            finally:
+                pass
+
+        # Create a mock that returns the context manager
         mock_factory = Mock()
-        mock_factory.return_value.__enter__.return_value = mock_session
-        mock_factory.return_value.__exit__.return_value = None
+        mock_factory.return_value = session_context()
+
         return mock_factory
 
     @pytest.fixture
