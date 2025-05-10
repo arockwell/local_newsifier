@@ -16,7 +16,7 @@ interact with the database or maintain state between operations.
 """
 
 import logging
-from typing import Annotated, Any, Generator, Optional, TYPE_CHECKING
+from typing import Annotated, Any, Dict, Generator, Optional, TYPE_CHECKING
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -225,11 +225,29 @@ def get_apify_source_config_crud():
 # Tool providers
 
 @injectable(use_cache=False)
+def get_nlp_model() -> Any:
+    """Provide the spaCy NLP model.
+
+    Uses use_cache=False to create new instances for each injection,
+    preventing shared state in NLP processing.
+
+    Returns:
+        Loaded spaCy Language model or None if loading fails
+    """
+    try:
+        import spacy
+        return spacy.load("en_core_web_lg")
+    except (ImportError, OSError) as e:
+        import logging
+        logging.warning(f"Failed to load NLP model: {str(e)}")
+        return None
+
+@injectable(use_cache=False)
 def get_web_scraper_tool():
     """Provide the web scraper tool.
-    
+
     Uses TRANSIENT scope as this tool may maintain state between operations.
-    
+
     Returns:
         WebScraperTool instance
     """
@@ -280,17 +298,31 @@ def get_opinion_visualizer_tool():
 
 
 @injectable(use_cache=False)
+def get_trend_analyzer_config():
+    """Provide the configuration for the trend analyzer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with model_name
+    """
+    return {
+        "model_name": "en_core_web_lg"
+    }
+
+@injectable(use_cache=False)
 def get_trend_analyzer_tool():
     """Provide the trend analyzer tool.
-    
-    Uses use_cache=False to create new instances for each injection, as it 
+
+    Uses use_cache=False to create new instances for each injection, as it
     performs complex analysis that may maintain state during processing.
-    
+
     Returns:
         TrendAnalyzer instance
     """
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-    return TrendAnalyzer()
+    return TrendAnalyzer(nlp_model=get_nlp_model())
 
 
 @injectable(use_cache=False)
@@ -308,17 +340,31 @@ def get_trend_reporter_tool():
 
 
 @injectable(use_cache=False)
+def get_context_analyzer_config():
+    """Provide the configuration for the context analyzer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with model_name
+    """
+    return {
+        "model_name": "en_core_web_lg"
+    }
+
+@injectable(use_cache=False)
 def get_context_analyzer_tool():
     """Provide the context analyzer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as it
     loads and interacts with NLP models that may maintain state.
-    
+
     Returns:
         ContextAnalyzer instance
     """
     from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-    return ContextAnalyzer()
+    return ContextAnalyzer(nlp_model=get_nlp_model())
 
 
 @injectable(use_cache=False)
@@ -364,17 +410,36 @@ def get_entity_extractor_tool():
 
 
 @injectable(use_cache=False)
-def get_entity_resolver():
+def get_entity_resolver_config():
+    """Provide the configuration for the entity resolver tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with similarity_threshold
+    """
+    return {
+        "similarity_threshold": 0.85
+    }
+
+@injectable(use_cache=False)
+def get_entity_resolver(
+    config: Annotated[Dict, Depends(get_entity_resolver_config)]
+):
     """Provide the entity resolver tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as this tool
     may have state during the resolution process.
-    
+
+    Args:
+        config: Configuration dictionary with similarity_threshold
+
     Returns:
         EntityResolver instance
     """
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-    return EntityResolver()
+    return EntityResolver(similarity_threshold=config["similarity_threshold"])
 
 
 @injectable(use_cache=False)

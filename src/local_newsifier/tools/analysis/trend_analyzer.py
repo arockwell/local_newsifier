@@ -4,27 +4,30 @@ import logging
 import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple, Set, Any, Union
+from typing import Dict, List, Optional, Tuple, Set, Any, Union, Annotated
 
 import numpy as np
 import spacy
 from sqlmodel import Session, select
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import (
-    TrendAnalysis, 
-    TrendEntity, 
-    TrendEvidenceItem, 
-    TrendStatus, 
+    TrendAnalysis,
+    TrendEntity,
+    TrendEvidenceItem,
+    TrendStatus,
     TrendType,
-    TimeFrame, 
+    TimeFrame,
     TopicFrequency
 )
 
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class TrendAnalyzer:
     """Consolidated tool for analyzing trends in news articles.
 
@@ -37,22 +40,31 @@ class TrendAnalyzer:
     It provides a unified interface for trend analysis operations.
     """
 
-    def __init__(self, session: Optional[Session] = None, nlp_model: Optional[str] = "en_core_web_lg"):
+    def __init__(
+        self,
+        session: Optional[Session] = None,
+        nlp_model: Optional[Any] = None,
+        model_name: str = "en_core_web_lg"
+    ):
         """Initialize the trend analyzer.
-        
+
         Args:
             session: Optional SQLAlchemy session for database access
-            nlp_model: Name of the spaCy model to use
+            nlp_model: Pre-loaded spaCy NLP model (injected)
+            model_name: Name of the spaCy model to use as fallback
         """
         self.session = session
-        self._cache: Dict[str, any] = {}
-        
-        try:
-            self.nlp = spacy.load(nlp_model)
-            logger.info(f"Loaded spaCy model '{nlp_model}'")
-        except OSError:
-            logger.warning(f"spaCy model '{nlp_model}' not found. Some NLP features will be disabled.")
-            self.nlp = None
+        self._cache: Dict[str, Any] = {}
+        self.nlp = nlp_model
+
+        # Fallback to loading model if not injected (for backward compatibility)
+        if self.nlp is None:
+            try:
+                self.nlp = spacy.load(model_name)
+                logger.info(f"Loaded spaCy model '{model_name}'")
+            except OSError:
+                logger.warning(f"spaCy model '{model_name}' not found. Some NLP features will be disabled.")
+                self.nlp = None
 
     def extract_keywords(self, headlines: List[str], top_n: int = 50) -> List[Tuple[str, int]]:
         """Extract significant keywords from a collection of headlines.

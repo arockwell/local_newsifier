@@ -58,17 +58,25 @@ def db_stats(json_output: bool):
         select(Article).order_by(Article.created_at).limit(1)
     ).first()
     
-    stats["articles"] = {
-        "count": article_count,
-        "latest": format_datetime(latest_article.created_at) if latest_article else None,
-        "oldest": format_datetime(oldest_article.created_at) if oldest_article else None,
-    }
-    
     # RSS Feed stats
     feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
     active_feed_count = session.exec(
         select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
     ).one()
+    
+    # RSSFeedProcessingLog stats
+    processing_log_count = session.exec(
+        select(func.count()).select_from(RSSFeedProcessingLog)
+    ).one()
+    
+    # Entity stats
+    entity_count = session.exec(select(func.count()).select_from(Entity)).one()
+    
+    stats["articles"] = {
+        "count": article_count,
+        "latest": format_datetime(latest_article.created_at) if latest_article else None,
+        "oldest": format_datetime(oldest_article.created_at) if oldest_article else None,
+    }
     
     stats["rss_feeds"] = {
         "count": feed_count,
@@ -76,17 +84,9 @@ def db_stats(json_output: bool):
         "inactive": feed_count - active_feed_count,
     }
     
-    # RSSFeedProcessingLog stats
-    processing_log_count = session.exec(
-        select(func.count()).select_from(RSSFeedProcessingLog)
-    ).one()
-    
     stats["feed_processing_logs"] = {
         "count": processing_log_count,
     }
-    
-    # Entity stats
-    entity_count = session.exec(select(func.count()).select_from(Entity)).one()
     
     stats["entities"] = {
         "count": entity_count,

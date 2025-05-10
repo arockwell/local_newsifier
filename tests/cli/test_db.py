@@ -100,7 +100,7 @@ def test_db_articles_no_articles(mock_get_injected_obj):
                 
     mock_get_injected_obj.side_effect = side_effect
     
-    # Mock empty result for articles query
+    # Mock the session.exec() chain to return an empty list
     mock_session.exec.return_value.all.return_value = []
     
     runner = CliRunner()
