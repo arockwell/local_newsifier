@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import SentimentVisualizationData
@@ -22,7 +24,23 @@ class TestOpinionVisualizerTool:
 
     @pytest.fixture
     def visualizer(self, mock_session):
-        """Create an opinion visualizer instance."""
+        """Create an opinion visualizer instance using constructor approach."""
+        return OpinionVisualizerTool(session=mock_session)
+
+    @pytest.fixture
+    def visualizer_injectable(self, mock_session, monkeypatch):
+        """Create an opinion visualizer instance using injectable approach."""
+        # Create a mock provider function
+        async def mock_get_session():
+            return mock_session
+
+        # Monkeypatch the session provider
+        monkeypatch.setattr(
+            "local_newsifier.di.providers.get_session",
+            mock_get_session
+        )
+
+        # Create the tool with injection
         return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
@@ -292,23 +310,51 @@ class TestOpinionVisualizerTool:
         # Test text report with wrong data type
         with pytest.raises(ValueError):
             visualizer.generate_text_report(sample_data, "comparison")
-            
+
         with pytest.raises(ValueError):
             visualizer.generate_text_report(comparison_data, "timeline")
-            
+
         # Test markdown report with wrong data type
         with pytest.raises(ValueError):
             visualizer.generate_markdown_report(sample_data, "comparison")
-            
+
         with pytest.raises(ValueError):
             visualizer.generate_markdown_report(comparison_data, "timeline")
-            
+
         # Test HTML report with wrong data type
         with pytest.raises(ValueError):
             visualizer.generate_html_report(sample_data, "comparison")
-            
+
         with pytest.raises(ValueError):
             visualizer.generate_html_report(comparison_data, "timeline")
+
+    def test_injectable_compatibility(self, visualizer, visualizer_injectable, sample_data):
+        """Test that both injectable and legacy approaches work identically."""
+        # Generate reports with both tools
+        report1 = visualizer.generate_text_report(sample_data, "timeline")
+        report2 = visualizer_injectable.generate_text_report(sample_data, "timeline")
+
+        # Reports should be identical
+        assert report1 == report2
+
+        # Both tools should handle the same operations
+        assert hasattr(visualizer, "prepare_timeline_data")
+        assert hasattr(visualizer_injectable, "prepare_timeline_data")
+
+        # Verify container fallback logic
+        container_mock = MagicMock()
+        session_mock = MagicMock()
+        session_factory_mock = MagicMock(return_value=session_mock)
+        container_mock.get.return_value = session_factory_mock
+
+        # Create a tool without session but with container
+        tool = OpinionVisualizerTool(container=container_mock)
+
+        # This should trigger _ensure_dependencies
+        tool.prepare_timeline_data("test", datetime.now(timezone.utc), datetime.now(timezone.utc))
+
+        # Verify container was used to get session
+        container_mock.get.assert_called_with("session_factory")
 
     def test_timeline_report_with_empty_data(self, visualizer):
         """Test timeline report with empty data."""

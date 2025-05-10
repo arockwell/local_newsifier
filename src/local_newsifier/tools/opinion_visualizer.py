@@ -2,27 +2,67 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any, Tuple, Union, Annotated, TYPE_CHECKING
 
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
-from local_newsifier.models.sentiment import SentimentVisualizationData
+
+if TYPE_CHECKING:
+    from local_newsifier.models.sentiment import SentimentVisualizationData
+else:
+    from local_newsifier.models.sentiment import SentimentVisualizationData
 
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class OpinionVisualizerTool:
-    """Tool for generating visualizations of sentiment and opinion data."""
+    """Tool for generating visualizations of sentiment and opinion data.
 
-    def __init__(self, session: Optional[Session] = None):
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with database and maintains state during visualization generation.
+    """
+
+    def __init__(self, session: Optional[Session] = None, container=None):
         """
         Initialize the opinion visualizer.
 
         Args:
-            session: Optional SQLModel session
+            session: Optional SQLModel session for database operations
+                    When using with dependency injection, this will be injected automatically.
+                    For backward compatibility, it can be None and provided later at method level.
+            container: Optional DIContainer for backward compatibility
         """
+        # Store the session for instance-level usage
         self.session = session
+
+        # Store container for backward compatibility
+        self._container = container
+
+    def set_container(self, container):
+        """Set the DI container for backward compatibility.
+
+        Args:
+            container: DIContainer instance
+        """
+        self._container = container
+
+    def _ensure_dependencies(self):
+        """Ensure all dependencies are available.
+
+        This provides backward compatibility with the container approach.
+        """
+        if self.session is None and self._container is not None:
+            # Try to get a session from the container if available
+            try:
+                session_factory = self._container.get("session_factory")
+                if session_factory:
+                    self.session = session_factory()
+            except (KeyError, AttributeError):
+                # Failed to get from container, continue with None
+                pass
 
     @with_session
     def prepare_timeline_data(
@@ -46,6 +86,9 @@ class OpinionVisualizerTool:
         Returns:
             Sentiment visualization data
         """
+        # Ensure dependencies are initialized
+        self._ensure_dependencies()
+
         # Use provided session or instance session
         session = session or self.session
 
@@ -151,6 +194,9 @@ class OpinionVisualizerTool:
         Returns:
             Dictionary mapping topics to visualization data
         """
+        # Ensure dependencies are initialized
+        self._ensure_dependencies()
+
         # Use provided session or instance session
         session = session or self.session
         
