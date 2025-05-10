@@ -318,17 +318,22 @@ def get_sentiment_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_sentiment_tracker_tool():
+def get_sentiment_tracker_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the sentiment tracker tool.
-    
-    Uses use_cache=False to create new instances for each injection, as it 
+
+    Uses use_cache=False to create new instances for each injection, as it
     interacts with database and maintains state during tracking.
-    
+
+    Args:
+        session: Database session
+
     Returns:
         SentimentTracker instance
     """
     from local_newsifier.tools.sentiment_tracker import SentimentTracker
-    return SentimentTracker()
+    return SentimentTracker(session=session)
 
 
 @injectable(use_cache=False)
@@ -376,10 +381,10 @@ def get_trend_analyzer_tool():
 @injectable(use_cache=False)
 def get_trend_reporter_tool():
     """Provide the trend reporter tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as it
     maintains state during report generation and handles file operations.
-    
+
     Returns:
         TrendReporter instance
     """

@@ -1,12 +1,17 @@
-"""Tool for generating reports and visualizations of news trends."""
+"""Tool for generating trend reports in various formats."""
 
-import json
 import os
-from datetime import datetime
+import json
+import logging
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from pathlib import Path
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Union, Any
 
-from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
+from fastapi_injectable import injectable
+from local_newsifier.models.trend import TrendAnalysis
+
+logger = logging.getLogger(__name__)
 
 
 class ReportFormat(str, Enum):
@@ -17,17 +22,26 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
+@injectable(use_cache=False)
 class TrendReporter:
     """Tool for creating reports of detected trends."""
 
-    def __init__(self, output_dir: str = "output"):
+    def __init__(
+        self,
+        output_dir: str = "output",
+        file_writer: Optional[Any] = None
+    ):
         """
         Initialize the trend reporter.
 
         Args:
             output_dir: Directory for report output
+            file_writer: Optional file writer tool for dependency injection
         """
         self.output_dir = output_dir
+        self.file_writer = file_writer
+
+        # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
 
     def generate_trend_summary(
@@ -188,24 +202,32 @@ class TrendReporter:
         """
         # Generate report content
         content = self.generate_trend_summary(trends, format)
-        
+
         # Determine file extension
         ext = format.value
-        
+
         # Create filename if not provided
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"trend_report_{date_str}.{ext}"
-        
+
         # Ensure it has the right extension
         if not filename.endswith(f".{ext}"):
             filename = f"{filename}.{ext}"
-            
+
         # Full path
         filepath = os.path.join(self.output_dir, filename)
-        
-        # Save file
-        with open(filepath, "w") as f:
-            f.write(content)
-            
+
+        # Use file_writer if provided, otherwise write directly
+        if self.file_writer:
+            filepath = self.file_writer.write_file(filepath, content)
+        else:
+            # Direct file writing
+            logger.debug(f"Writing report to {filepath}")
+            with open(filepath, "w") as f:
+                f.write(content)
+
         return filepath
+
+
+# No additional imports needed, they've been moved to the top of the file
