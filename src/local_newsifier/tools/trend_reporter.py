@@ -1,14 +1,15 @@
-"""Tool for generating reports and visualizations of news trends."""
+"""Tool for generating trend reports in various formats."""
 
+import os
 import json
 import logging
-import os
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Union, Any
 
-from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
-
+from fastapi_injectable import injectable
+from local_newsifier.models.trend import TrendAnalysis
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +22,24 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
+@injectable(use_cache=False)
 class TrendReporter:
     """Tool for creating reports of detected trends."""
 
     def __init__(
         self,
-        output_dir: str = "output"
+        output_dir: str = "output",
+        file_writer: Optional[Any] = None
     ):
         """
         Initialize the trend reporter.
 
         Args:
             output_dir: Directory for report output
+            file_writer: Optional file writer tool for dependency injection
         """
         self.output_dir = output_dir
+        self.file_writer = file_writer
 
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
@@ -213,21 +218,16 @@ class TrendReporter:
         # Full path
         filepath = os.path.join(self.output_dir, filename)
 
-        # Direct file writing
-        logger.debug(f"Writing report to {filepath}")
-        with open(filepath, "w") as f:
-            f.write(content)
+        # Use file_writer if provided, otherwise write directly
+        if self.file_writer:
+            filepath = self.file_writer.write_file(filepath, content)
+        else:
+            # Direct file writing
+            logger.debug(f"Writing report to {filepath}")
+            with open(filepath, "w") as f:
+                f.write(content)
 
         return filepath
 
 
-# Apply the injectable decorator if not in test mode
-try:
-    if not os.environ.get("PYTEST_CURRENT_TEST"):
-        from fastapi_injectable import injectable
-
-        # Create a decorated version
-        TrendReporter = injectable(use_cache=False)(TrendReporter)
-except (ImportError, Exception):
-    # Keep the original class if there's any issue
-    pass
+# No additional imports needed, they've been moved to the top of the file

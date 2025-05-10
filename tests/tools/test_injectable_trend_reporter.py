@@ -6,13 +6,16 @@ as described in docs/testing_injectable_dependencies.md.
 
 import os
 import json
-import pytest
 import inspect
+import pytest
 from pathlib import Path
 from datetime import datetime
 from unittest.mock import MagicMock, mock_open, patch
 
-from tests.fixtures.event_loop import event_loop_fixture
+# Import event loop fixture
+pytest.importorskip("tests.fixtures.event_loop")
+from tests.fixtures.event_loop import event_loop_fixture  # noqa
+
 from local_newsifier.tools.trend_reporter import TrendReporter, ReportFormat
 
 
@@ -21,7 +24,7 @@ def sample_trend_data():
     """Sample trend data for testing."""
     from local_newsifier.models.trend import TrendAnalysis, TrendEntity, TrendEvidenceItem, TrendType, TrendStatus
     from uuid import uuid4
-
+    
     return [
         TrendAnalysis(
             trend_id=uuid4(),
@@ -71,6 +74,14 @@ def sample_trend_data():
 
 
 @pytest.fixture
+def mock_file_writer():
+    """Create a mock file writer tool."""
+    mock = MagicMock()
+    mock.write_file.return_value = "/path/to/output/test_report.txt"
+    return mock
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path):
     """Create a temporary output directory for reports."""
     output_dir = tmp_path / "trend_output"
@@ -82,20 +93,23 @@ def test_trend_reporter_constructor(event_loop_fixture):
     """Test constructor with default output directory."""
     reporter = TrendReporter()
     assert reporter.output_dir == "output"
-
+    assert reporter.file_writer is None
+    
     # Custom output dir
     reporter = TrendReporter(output_dir="custom_dir")
     assert reporter.output_dir == "custom_dir"
-
-    # Verify the @injectable decorator is NOT active in test environment
-    assert not hasattr(TrendReporter, "__injectable__")
+    
+    # With file writer
+    mock_writer = MagicMock()
+    reporter = TrendReporter(output_dir="custom_dir", file_writer=mock_writer)
+    assert reporter.file_writer is mock_writer
 
 
 def test_generate_text_summary(sample_trend_data, event_loop_fixture):
     """Test generating text summary from trend data."""
     reporter = TrendReporter()
     summary = reporter.generate_trend_summary(sample_trend_data, format=ReportFormat.TEXT)
-
+    
     assert "LOCAL NEWS TRENDS REPORT" in summary
     assert "Rising Housing Costs" in summary
     assert "Housing costs are rising rapidly" in summary
@@ -107,7 +121,7 @@ def test_generate_markdown_summary(sample_trend_data, event_loop_fixture):
     """Test generating markdown summary from trend data."""
     reporter = TrendReporter()
     summary = reporter.generate_trend_summary(sample_trend_data, format=ReportFormat.MARKDOWN)
-
+    
     assert "# Local News Trends Report" in summary
     assert "## Rising Housing Costs" in summary
     assert "**Type:** Emerging Topic" in summary
@@ -123,16 +137,16 @@ def test_generate_json_summary(sample_trend_data, event_loop_fixture):
     """Test generating JSON summary from trend data."""
     reporter = TrendReporter()
     summary = reporter.generate_trend_summary(sample_trend_data, format=ReportFormat.JSON)
-
+    
     # Verify it's valid JSON
     data = json.loads(summary)
-
+    
     # Check content
     assert "report_date" in data
     assert "trend_count" in data
     assert data["trend_count"] == 1
     assert len(data["trends"]) == 1
-
+    
     trend = data["trends"][0]
     assert trend["name"] == "Rising Housing Costs"
     assert trend["confidence"] == 0.85
@@ -145,25 +159,25 @@ def test_generate_json_summary(sample_trend_data, event_loop_fixture):
 def test_save_report(sample_trend_data, temp_output_dir, event_loop_fixture):
     """Test saving the report to file."""
     reporter = TrendReporter(output_dir=str(temp_output_dir))
-
+    
     # Test saving in different formats
     with patch("builtins.open", mock_open()) as mock_file:
         text_path = reporter.save_report(
-            sample_trend_data,
-            filename="text_report",
+            sample_trend_data, 
+            filename="text_report", 
             format=ReportFormat.TEXT
         )
         md_path = reporter.save_report(
-            sample_trend_data,
-            filename="md_report",
+            sample_trend_data, 
+            filename="md_report", 
             format=ReportFormat.MARKDOWN
         )
         json_path = reporter.save_report(
-            sample_trend_data,
-            filename="json_report",
+            sample_trend_data, 
+            filename="json_report", 
             format=ReportFormat.JSON
         )
-
+        
         # Verify files exist (via mock calls)
         assert mock_file.call_count == 3
         calls = mock_file.call_args_list
@@ -172,10 +186,29 @@ def test_save_report(sample_trend_data, temp_output_dir, event_loop_fixture):
         assert calls[2][0][0].endswith("json_report.json")
 
 
+def test_save_report_with_file_writer(sample_trend_data, mock_file_writer, event_loop_fixture):
+    """Test saving report when file_writer is injected."""
+    # Create reporter with injected file_writer
+    reporter = TrendReporter(output_dir="test_output", file_writer=mock_file_writer)
+    
+    # Save report
+    output_path = reporter.save_report(
+        sample_trend_data, 
+        filename="test_report", 
+        format=ReportFormat.TEXT
+    )
+    
+    # Verify file_writer was called
+    mock_file_writer.write_file.assert_called_once()
+    
+    # The filepath should be what's returned by the mock_file_writer
+    assert output_path == "/path/to/output/test_report.txt"
+
+
 def test_empty_trends(event_loop_fixture):
     """Test handling empty trends list."""
     reporter = TrendReporter()
-
+    
     # Empty list should return a message
     text_summary = reporter.generate_trend_summary([], format=ReportFormat.TEXT)
     assert "No significant trends" in text_summary
@@ -184,19 +217,18 @@ def test_empty_trends(event_loop_fixture):
 def test_provider_function_signature(event_loop_fixture):
     """Test the signature of the provider function."""
     from local_newsifier.di.providers import get_trend_reporter_tool
-
+    
     # Check the function signature
     sig = inspect.signature(get_trend_reporter_tool)
-
+    
     # Verify it has no parameters
     assert len(sig.parameters) == 0
-
-    # The test may be run before the provider has been decorated
-    # If the function is already decorated, verify its attributes
+    
+    # Verify it has the expected __injectable__ attribute (if available)
     if hasattr(get_trend_reporter_tool, "__injectable__"):
         assert get_trend_reporter_tool.__injectable__["use_cache"] is False
-    # Otherwise, just check that it's callable
     else:
+        # Just check it's callable as a fallback
         assert callable(get_trend_reporter_tool)
 
 
@@ -205,13 +237,13 @@ async def test_injectable_trend_reporter_with_event_loop(event_loop_fixture):
     """Test the TrendReporter with proper event loop handling."""
     # This test explicitly uses the event_loop_fixture to handle any async operations
     # properly when working with injectable components
-
+    
     # Import get_trend_reporter_tool inside test to avoid early decorator execution
     from local_newsifier.di.providers import get_trend_reporter_tool
-
-    # For testing purposes, we just verify the function exists
+    
+    # For testing purposes, we just verify the function exists and is callable
     assert callable(get_trend_reporter_tool)
-
+    
     # Direct instantiation still works
     reporter = TrendReporter(output_dir="test_output")
     assert reporter.output_dir == "test_output"
