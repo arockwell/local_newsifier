@@ -12,12 +12,6 @@ This test suite covers:
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-# Import testing utilities for injectable pattern
-from tests.conftest_injectable import (
-    mock_injectable_dependencies,
-    create_mock_service
-)
-
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 
 
@@ -100,16 +94,17 @@ def basic_entities():
 @pytest.fixture
 def entity_extractor(mock_spacy_model):
     """Create an EntityExtractor instance with mocked spaCy model."""
-    # This will directly pass the mock_spacy_model to the constructor
-    return create_mock_service(EntityExtractor, nlp_model=mock_spacy_model)
+    # Direct instantiation without using injectable pattern 
+    # for backward compatibility
+    return EntityExtractor(nlp_model=mock_spacy_model)
 
 
 class TestEntityExtractor:
-    """Test suite for EntityExtractor with traditional instantiation."""
+    """Test suite for EntityExtractor."""
     
     def test_initialization(self, mock_spacy_model):
         """Test initialization of EntityExtractor."""
-        extractor = create_mock_service(EntityExtractor, nlp_model=mock_spacy_model)
+        extractor = EntityExtractor(nlp_model=mock_spacy_model)
         assert extractor.nlp is mock_spacy_model
     
     def test_initialization_fallback(self, mock_spacy_model):
