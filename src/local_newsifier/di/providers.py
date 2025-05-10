@@ -271,6 +271,23 @@ def get_web_scraper_tool():
         user_agent=user_agent
     )
 
+    # Create a new requests session for this instance
+    import requests
+    session = requests.Session()
+
+    # Set a standard user agent
+    user_agent = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    )
+    session.headers.update({"User-Agent": user_agent})
+
+    return WebScraperTool(
+        session=session,
+        web_driver=None,  # WebDriver will be created lazily when needed
+        user_agent=user_agent
+    )
+
 
 @injectable(use_cache=False)
 def get_sentiment_analyzer_config():
