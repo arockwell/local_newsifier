@@ -56,11 +56,9 @@ def original_env():
 
 
 @pytest.mark.usefixtures("event_loop_fixture")
+@ci_skip_async
 class TestApifyService:
     """Test the Apify service."""
-
-    # Apply ci_skip_async to all test methods in this class
-    pytestmark = ci_skip_async
     
     def test_init_without_token(self):
         """Test initialization without token."""
