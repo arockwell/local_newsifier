@@ -77,7 +77,7 @@
   - Created local ArticleService instance in RSSFeedService.process_feed as fallback
   - Resolves 'NoneType' object has no attribute 'create_article_from_rss_entry' errors
   - Fixed circular dependency issues between services by providing alternative code paths
-  
+
 - ✅ Fixed: "No task function available" errors in CLI mode
   - Implemented direct_process_article function in the CLI commands
   - Bypassed Celery task infrastructure for CLI operations
@@ -98,6 +98,12 @@
   - Updated railway.json to disable health checks for worker and beat processes
   - Added process-specific configurations instead of global health check settings
   - Specified health checks only for the web process that provides HTTP endpoints
+
+- ✅ Fixed: Test failures with error handling expectations
+  - Standardized error handling across services using decorator pattern (@handle_database, @handle_rss, @handle_apify)
+  - Fixed missing event_loop_fixture imports in test files
+  - Resolved duplicate method definitions from merges
+  - Maintained CI test skipping functionality
 
 ## Deployment Notes
 - Railway deployment requires environment variables for database connection
