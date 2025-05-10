@@ -326,17 +326,31 @@ def get_trend_reporter_tool():
 
 
 @injectable(use_cache=False)
+def get_context_analyzer_config():
+    """Provide the configuration for the context analyzer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with model_name
+    """
+    return {
+        "model_name": "en_core_web_lg"
+    }
+
+@injectable(use_cache=False)
 def get_context_analyzer_tool():
     """Provide the context analyzer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as it
     loads and interacts with NLP models that may maintain state.
-    
+
     Returns:
         ContextAnalyzer instance
     """
     from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-    return ContextAnalyzer()
+    return ContextAnalyzer(nlp_model=get_nlp_model())
 
 
 @injectable(use_cache=False)

@@ -1,25 +1,37 @@
 """Context analyzer tool for analyzing entity mention contexts."""
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Annotated
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 
 
+@injectable(use_cache=False)
 class ContextAnalyzer:
     """Tool for analyzing the context of entity mentions."""
-    
-    def __init__(self, model_name: str = "en_core_web_lg"):
+
+    def __init__(
+        self,
+        nlp_model: Optional[Any] = None,
+        model_name: str = "en_core_web_lg"
+    ):
         """Initialize with spaCy model.
-        
+
         Args:
-            model_name: Name of the spaCy model to use
+            nlp_model: Pre-loaded spaCy NLP model (injected)
+            model_name: Name of the spaCy model to use as fallback
         """
-        try:
-            self.nlp: Language = spacy.load(model_name)
-        except OSError:
-            self.nlp = None
+        self.nlp = nlp_model
+
+        # Fallback to loading model if not injected (for backward compatibility)
+        if self.nlp is None:
+            try:
+                self.nlp: Language = spacy.load(model_name)
+            except OSError:
+                self.nlp = None
             
         # Initialize sentiment lexicon
         self.sentiment_words = {
