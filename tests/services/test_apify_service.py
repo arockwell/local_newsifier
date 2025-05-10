@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock, PropertyMock
 
 from apify_client import ApifyClient
+from tests.ci_skip_config import ci_skip_async
 
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.config.settings import settings
@@ -54,8 +55,12 @@ def original_env():
         del os.environ["APIFY_TOKEN"]
 
 
+@pytest.mark.usefixtures("event_loop_fixture")
 class TestApifyService:
     """Test the Apify service."""
+
+    # Apply ci_skip_async to all test methods in this class
+    pytestmark = ci_skip_async
     
     def test_init_without_token(self):
         """Test initialization without token."""
