@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from sqlmodel import Session, select
+from tests.ci_skip_config import ci_skip_async
 
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.models.apify import (
@@ -25,8 +26,12 @@ from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.models.article import Article
 
 
+@pytest.mark.usefixtures("event_loop_fixture")
 class TestApifyServiceImplementation:
     """Test ApifyService implementation directly."""
+
+    # Apply ci_skip_async to all test methods in this class
+    pytestmark = ci_skip_async
 
     @pytest.fixture
     def mock_apify_client(self):

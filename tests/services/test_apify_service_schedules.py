@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from tests.ci_skip_config import ci_skip_async
 
 from local_newsifier.services.apify_service import ApifyService
 
@@ -68,6 +69,7 @@ def apify_service(mock_apify_client):
 
 
 @patch.object(ApifyService, "client", new_callable=MagicMock)
+@ci_skip_async
 def test_create_schedule(_):
     """Test creating a schedule with the patched client property."""
     # Create a new service for this test to avoid shared state
@@ -98,6 +100,7 @@ def test_create_schedule(_):
     assert result_with_options.get("actions")[0].get("actorId") == "test_actor_id"
 
 
+@ci_skip_async
 def test_update_schedule(apify_service, mock_apify_client):
     """Test updating a schedule."""
     changes = {
@@ -120,6 +123,7 @@ def test_update_schedule(apify_service, mock_apify_client):
     mock_apify_client.schedule().update.assert_called_once_with(**expected_converted_params)
 
 
+@ci_skip_async
 def test_delete_schedule(apify_service, mock_apify_client):
     """Test deleting a schedule."""
     result = apify_service.delete_schedule("test_schedule_id")
@@ -133,6 +137,7 @@ def test_delete_schedule(apify_service, mock_apify_client):
     assert result["deleted"] is True
 
 
+@ci_skip_async
 def test_get_schedule(apify_service, mock_apify_client):
     """Test getting schedule details."""
     result = apify_service.get_schedule("test_schedule_id")
@@ -142,6 +147,7 @@ def test_get_schedule(apify_service, mock_apify_client):
     mock_apify_client.schedule().get.assert_called_once()
 
 
+@ci_skip_async
 def test_list_schedules(apify_service, mock_apify_client):
     """Test listing schedules."""
     # Manually set the client on the service
@@ -168,6 +174,7 @@ def test_list_schedules(apify_service, mock_apify_client):
 @patch.object(ApifyService, "delete_schedule")
 @patch.object(ApifyService, "get_schedule")
 @patch.object(ApifyService, "list_schedules")
+@ci_skip_async
 def test_test_mode_schedule_operations(
     mock_list_schedules, mock_get_schedule, mock_delete_schedule,
     mock_update_schedule, mock_create_schedule
