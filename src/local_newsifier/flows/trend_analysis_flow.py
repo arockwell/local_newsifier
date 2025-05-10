@@ -3,13 +3,11 @@
 from datetime import datetime, timezone, timedelta
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Annotated
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from crewai import Flow
-from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
@@ -106,8 +104,44 @@ class NewsTrendAnalysisFlow(Flow):
         # Initialize reporter
         self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
         
-        # Use analysis service for all trend analysis operations 
-        self.analysis_service = analysis_service or AnalysisService()
+        # Use analysis service for all trend analysis operations
+        if analysis_service:
+            self.analysis_service = analysis_service
+        else:
+            try:
+                # Try to get dependencies from the injectable providers
+                from local_newsifier.di.providers import (
+                    get_analysis_result_crud, 
+                    get_article_crud, 
+                    get_entity_crud,
+                    get_trend_analyzer_tool,
+                    get_session
+                )
+                
+                # Get the dependencies 
+                analysis_result_crud = get_analysis_result_crud()
+                article_crud = get_article_crud() 
+                entity_crud = get_entity_crud()
+                trend_analyzer = get_trend_analyzer_tool()
+                session = next(get_session())
+                
+                # Create the service with all required dependencies
+                self.analysis_service = AnalysisService(
+                    analysis_result_crud=analysis_result_crud,
+                    article_crud=article_crud,
+                    entity_crud=entity_crud,
+                    session_factory=lambda: session
+                )
+                
+                # Store trend analyzer for later use
+                self.trend_analyzer = trend_analyzer
+            except (ImportError, NameError):
+                # If we can't get the providers, raise a more helpful error
+                raise RuntimeError(
+                    "Cannot initialize AnalysisService without required dependencies. "
+                    "Please provide an analysis_service instance or ensure the required "
+                    "dependencies are available through the DI container."
+                )
         
         # For backwards compatibility with tests
         self.data_aggregator = data_aggregator or MagicMock()
@@ -173,13 +207,12 @@ class NewsTrendAnalysisFlow(Flow):
             state.status = AnalysisStatus.ANALYZING
             state.add_log("Starting trend detection")
 
-            # Detect entity-based trends using TrendDetector
-            entity_trends = self.trend_detector.detect_entity_trends(
+            # Use analysis service for entity trend detection
+            entity_trends = self.analysis_service.detect_entity_trends(
                 entity_types=state.config.entity_types,
                 min_significance=state.config.significance_threshold,
                 min_mentions=state.config.min_articles,
-                max_trends=state.config.topic_limit,
-                session=self.analysis_service._get_session()
+                max_trends=state.config.topic_limit
             )
             
             # Detect anomalous patterns
@@ -274,3 +307,14 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log("Completed trend analysis flow with errors")
 
         return state
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            analysis_service=container.get("analysis_service"),
+            trend_reporter=container.get("trend_reporter_tool"),
+            session=container.get("session")
+        )

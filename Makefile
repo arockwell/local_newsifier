@@ -7,7 +7,8 @@ help:
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
-	@echo "  make test              - Run tests"
+	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
+	@echo "  make test-serial        - Run tests serially (for debugging)"
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
 	@echo "  make clean             - Clean build artifacts"
@@ -37,9 +38,9 @@ setup-spacy:
 test:
 	poetry run pytest
 
-# Run tests in parallel with optimized settings for local development
-test-parallel:
-	poetry run pytest -n auto
+# Run tests serially (non-parallel) if needed for debugging
+test-serial:
+	poetry run pytest -n 0
 
 # Run tests with coverage report
 test-coverage:

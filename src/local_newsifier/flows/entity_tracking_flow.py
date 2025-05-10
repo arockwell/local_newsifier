@@ -185,3 +185,17 @@ class EntityTrackingFlow(Flow):
         
         # Return relationship data
         return result_state.relationship_data
+        
+    @classmethod
+    def from_container(cls):
+        """Legacy factory method for container-based instantiation."""
+        from local_newsifier.container import container
+        
+        return cls(
+            entity_service=container.get("entity_service"),
+            entity_tracker=container.get("entity_tracker_tool"),
+            entity_extractor=container.get("entity_extractor"),
+            context_analyzer=container.get("context_analyzer"),
+            entity_resolver=container.get("entity_resolver"),
+            session_factory=container.get("session_factory")
+        )

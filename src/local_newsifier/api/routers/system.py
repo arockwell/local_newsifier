@@ -2,14 +2,14 @@
 
 import logging
 import os
-from typing import Dict, List
+from typing import Annotated, Dict, List
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
 
-from local_newsifier.api.dependencies import get_session, require_admin
+from local_newsifier.api.dependencies import get_session, require_admin, get_templates
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -20,18 +20,6 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-# Get templates directory path - works in both development and production
-if os.path.exists("src/local_newsifier/api/templates"):
-    # Development environment
-    templates_dir = "src/local_newsifier/api/templates"
-else:
-    # Production environment - use package-relative path
-    import pathlib
-
-    templates_dir = str(pathlib.Path(__file__).parent.parent / "templates")
-
-templates = Jinja2Templates(directory=templates_dir)
-
 # Flag to indicate if we're in minimal mode (no database)
 MINIMAL_MODE = False  # Permanently disabled
 
@@ -41,12 +29,14 @@ async def get_tables(
     request: Request,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Get information about all tables in the database.
 
     Args:
         request: FastAPI request
         session: Database session
+        templates: Jinja2 templates
 
     Returns:
         HTML response with table information
@@ -93,7 +83,8 @@ async def get_tables(
 
 @router.get("/tables/api", response_model=List[Dict])
 async def get_tables_api(
-    _: bool = Depends(require_admin), session: Session = Depends(get_session)
+    _: bool = Depends(require_admin),
+    session: Session = Depends(get_session),
 ):
     """Get information about all tables in the database (API version).
 
@@ -128,6 +119,7 @@ async def get_table_details(
     table_name: str,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
+    templates: Jinja2Templates = Depends(get_templates),
 ):
     """Get detailed information about a specific table.
 
@@ -135,6 +127,7 @@ async def get_table_details(
         request: FastAPI request
         table_name: Table name
         session: Database session
+        templates: Jinja2 templates
 
     Returns:
         HTML response with table details
