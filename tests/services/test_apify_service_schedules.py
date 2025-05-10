@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
 from local_newsifier.services.apify_service import ApifyService
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
@@ -60,29 +61,35 @@ def mock_apify_client():
 
 
 @pytest.fixture
-def apify_service(mock_apify_client):
+def apify_service(mock_apify_client, event_loop_fixture):
     """Create an ApifyService with a mock client."""
     service = ApifyService(token="test_token")
     service._client = mock_apify_client
     return service
 
 
-@patch.object(ApifyService, "client", new_callable=MagicMock)
-def test_create_schedule(_):
-    """Test creating a schedule with the patched client property."""
-    # Create a new service for this test to avoid shared state
-    service = ApifyService(test_mode=True)  # Use test_mode to avoid API calls
-    
-    # Test the method
+def test_create_schedule(event_loop_fixture):
+    """Test creating a schedule with test_mode=True."""
+    # In test_mode, ApifyService.create_schedule returns a mock response without calling the API
+    # So we'll verify the functionality of that instead of mocking the API
+
+    # Create a service in test mode, which will use mock responses
+    service = ApifyService(test_mode=True)
+
+    # Execute the method with basic parameters
     result = service.create_schedule(
         actor_id="test_actor_id",
         cron_expression="0 0 * * *"
     )
-    
-    # Verify the result structure without checking the exact ID
+
+    # Verify the mock response structure
     assert result["id"].startswith("test_schedule_test_actor_id_")
     assert result["cronExpression"] == "0 0 * * *"
-    
+    assert "actions" in result
+    assert len(result["actions"]) == 1
+    assert result["actions"][0]["type"] == "RUN_ACTOR"
+    assert result["actions"][0]["actorId"] == "test_actor_id"
+
     # Test with optional parameters
     result_with_options = service.create_schedule(
         actor_id="test_actor_id",
@@ -90,15 +97,22 @@ def test_create_schedule(_):
         run_input={"test": "value"},
         name="Custom Schedule Name"
     )
-    
-    # Verify the result contains correct values
+
+    # Verify the result contains correct values for optional parameters
     assert result_with_options["id"].startswith("test_schedule_test_actor_id_")
     assert result_with_options["cronExpression"] == "0 0 * * *"
     assert result_with_options["name"] == "Custom Schedule Name"
-    assert result_with_options.get("actions")[0].get("actorId") == "test_actor_id"
+
+    # Check run_input was included
+    assert "actions" in result_with_options
+    assert len(result_with_options["actions"]) == 1
+    assert result_with_options["actions"][0]["type"] == "RUN_ACTOR"
+    assert result_with_options["actions"][0]["actorId"] == "test_actor_id"
+    assert "input" in result_with_options["actions"][0]
+    assert result_with_options["actions"][0]["input"] == {"test": "value"}
 
 
-def test_update_schedule(apify_service, mock_apify_client):
+def test_update_schedule(apify_service, mock_apify_client, event_loop_fixture):
     """Test updating a schedule."""
     changes = {
         "name": "Updated Schedule Name",
@@ -120,7 +134,7 @@ def test_update_schedule(apify_service, mock_apify_client):
     mock_apify_client.schedule().update.assert_called_once_with(**expected_converted_params)
 
 
-def test_delete_schedule(apify_service, mock_apify_client):
+def test_delete_schedule(apify_service, mock_apify_client, event_loop_fixture):
     """Test deleting a schedule."""
     result = apify_service.delete_schedule("test_schedule_id")
     
@@ -133,7 +147,7 @@ def test_delete_schedule(apify_service, mock_apify_client):
     assert result["deleted"] is True
 
 
-def test_get_schedule(apify_service, mock_apify_client):
+def test_get_schedule(apify_service, mock_apify_client, event_loop_fixture):
     """Test getting schedule details."""
     result = apify_service.get_schedule("test_schedule_id")
     
@@ -142,7 +156,7 @@ def test_get_schedule(apify_service, mock_apify_client):
     mock_apify_client.schedule().get.assert_called_once()
 
 
-def test_list_schedules(apify_service, mock_apify_client):
+def test_list_schedules(apify_service, mock_apify_client, event_loop_fixture):
     """Test listing schedules."""
     # Manually set the client on the service
     apify_service._client = mock_apify_client
@@ -170,7 +184,7 @@ def test_list_schedules(apify_service, mock_apify_client):
 @patch.object(ApifyService, "list_schedules")
 def test_test_mode_schedule_operations(
     mock_list_schedules, mock_get_schedule, mock_delete_schedule,
-    mock_update_schedule, mock_create_schedule
+    mock_update_schedule, mock_create_schedule, event_loop_fixture
 ):
     """Test schedule operations in test mode."""
     # Set up return values for mocked methods
