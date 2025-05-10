@@ -31,7 +31,7 @@ def test_news_pipeline_with_entity_service(
     from local_newsifier.tools.web_scraper import WebScraperTool
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
     
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
@@ -41,7 +41,7 @@ def test_news_pipeline_with_entity_service(
     mock_scraper = MagicMock(spec=WebScraperTool)
     mock_writer = MagicMock(spec=FileWriterTool)
     mock_entity_extractor = MagicMock(spec=EntityExtractor)
-    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalyzer)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
     
@@ -187,7 +187,7 @@ def test_process_url_directly(
     from local_newsifier.tools.web_scraper import WebScraperTool
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
     
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
@@ -197,7 +197,7 @@ def test_process_url_directly(
     mock_scraper = MagicMock(spec=WebScraperTool)
     mock_writer = MagicMock(spec=FileWriterTool)
     mock_entity_extractor = MagicMock(spec=EntityExtractor)
-    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalyzer)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
     
@@ -285,7 +285,7 @@ def test_integration_with_entity_tracking(
     from local_newsifier.tools.web_scraper import WebScraperTool
     from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
     
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
@@ -295,7 +295,7 @@ def test_integration_with_entity_tracking(
     mock_scraper = MagicMock(spec=WebScraperTool)
     mock_writer = MagicMock(spec=FileWriterTool)
     mock_entity_extractor = MagicMock(spec=EntityExtractor)
-    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
+    mock_sentiment_analyzer = MagicMock(spec=SentimentAnalyzer)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
     

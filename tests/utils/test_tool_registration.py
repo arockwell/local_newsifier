@@ -79,7 +79,7 @@ class TestAnalysisToolRegistration:
         
         monkeypatch.setattr("local_newsifier.tools.analysis.trend_analyzer.TrendAnalyzer", mock_trend_analyzer)
         monkeypatch.setattr("local_newsifier.tools.analysis.context_analyzer.ContextAnalyzer", mock_context_analyzer)
-        monkeypatch.setattr("local_newsifier.tools.sentiment_analyzer.SentimentAnalysisTool", mock_sentiment_analyzer)
+        monkeypatch.setattr("local_newsifier.tools.sentiment_analyzer.SentimentAnalyzer", mock_sentiment_analyzer)
         monkeypatch.setattr("local_newsifier.tools.sentiment_tracker.SentimentTracker", mock_sentiment_tracker)
         monkeypatch.setattr("local_newsifier.tools.opinion_visualizer.OpinionVisualizerTool", mock_opinion_visualizer)
         monkeypatch.setattr("local_newsifier.tools.trend_reporter.TrendReporter", mock_trend_reporter)
