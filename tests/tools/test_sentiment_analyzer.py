@@ -9,7 +9,7 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
 from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def mock_spacy_nlp():
     mock_nlp = MagicMock()
     mock_doc = MagicMock()
     mock_nlp.return_value = mock_doc
-    
+
     # Setup noun chunks for topic sentiment testing
     mock_chunk1 = MagicMock()
     mock_chunk1.text = "downtown cafe"
@@ -34,7 +34,7 @@ def mock_spacy_nlp():
     mock_token1.is_stop = False
     mock_chunk1.__iter__.return_value = [mock_token1]
     mock_chunk1.__len__.return_value = 2
-    
+
     mock_chunk2 = MagicMock()
     mock_chunk2.text = "customers"
     mock_sent2 = MagicMock()
@@ -44,16 +44,23 @@ def mock_spacy_nlp():
     mock_token2.is_stop = False
     mock_chunk2.__iter__.return_value = [mock_token2]
     mock_chunk2.__len__.return_value = 1
-    
+
     mock_doc.noun_chunks = [mock_chunk1, mock_chunk2]
-    
+
     return mock_nlp
 
 @pytest.fixture
 def sentiment_analyzer(mock_session, mock_spacy_nlp):
     """Create a SentimentAnalyzer instance with mocked dependencies."""
-    with patch('spacy.load', return_value=mock_spacy_nlp):
-        return SentimentAnalysisTool(session=mock_session)
+    return SentimentAnalyzer(nlp_model=mock_spacy_nlp, session=mock_session)
+
+@pytest.fixture
+def sentiment_analyzer_no_model(mock_session):
+    """Create a SentimentAnalyzer instance with no NLP model (tests fallback logic)."""
+    with patch('spacy.load', return_value=MagicMock()) as mock_load:
+        analyzer = SentimentAnalyzer(nlp_model=None, session=mock_session)
+        mock_load.assert_called_once()
+        return analyzer
 
 @pytest.fixture
 def sample_state():
@@ -73,9 +80,9 @@ def test_analyze_document_sentiment(mock_textblob, sentiment_analyzer, sample_st
     mock_blob.sentiment.polarity = 0.5
     mock_blob.sentiment.subjectivity = 0.8
     mock_textblob.return_value = mock_blob
-    
+
     result = sentiment_analyzer.analyze_sentiment(sample_state)
-    
+
     assert "sentiment" in result.analysis_results
     assert "document_sentiment" in result.analysis_results["sentiment"]
     assert "document_magnitude" in result.analysis_results["sentiment"]
@@ -83,6 +90,24 @@ def test_analyze_document_sentiment(mock_textblob, sentiment_analyzer, sample_st
     assert isinstance(result.analysis_results["sentiment"]["document_magnitude"], float)
     assert result.analysis_results["sentiment"]["document_sentiment"] == 0.5
     assert result.analysis_results["sentiment"]["document_magnitude"] == 0.8
+
+@patch('local_newsifier.tools.sentiment_analyzer.TextBlob')
+def test_analyzer_with_fallback_model(mock_textblob, sentiment_analyzer_no_model, sample_state):
+    """Test that the fallback NLP model works correctly."""
+    # Setup TextBlob mock
+    mock_blob = MagicMock()
+    mock_blob.sentiment.polarity = 0.5
+    mock_blob.sentiment.subjectivity = 0.8
+    mock_textblob.return_value = mock_blob
+
+    # Verify the analyzer loaded a fallback model
+    assert sentiment_analyzer_no_model.nlp is not None
+
+    # Test that it can be used for analysis
+    result = sentiment_analyzer_no_model.analyze_sentiment(sample_state)
+
+    assert "sentiment" in result.analysis_results
+    assert "document_sentiment" in result.analysis_results["sentiment"]
 
 @patch('local_newsifier.tools.sentiment_analyzer.TextBlob')
 def test_analyze_entity_sentiment(mock_textblob, sentiment_analyzer, sample_state):

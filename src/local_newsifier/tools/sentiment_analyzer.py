@@ -9,6 +9,8 @@ from spacy.language import Language
 from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.database.engine import with_session
 from local_newsifier.crud.article import article as article_crud
@@ -45,18 +47,37 @@ class EntitySentimentError(SentimentAnalysisError):
     pass
 
 
-class SentimentAnalysisTool:
+@injectable(use_cache=False)
+class SentimentAnalyzer:
     """Tool for performing sentiment analysis on news article content."""
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(
+        self,
+        nlp_model: Optional[Any] = None,
+        model_name: str = "en_core_web_sm",
+        session: Optional[Any] = None
+    ):
         """Initialize the sentiment analysis tool with required models.
-        
+
         Args:
+            nlp_model: Pre-loaded spaCy NLP model (injected)
+            model_name: Name of the spaCy model to use as fallback
             session: Optional SQLAlchemy session for database access
         """
-        self.nlp = spacy.load("en_core_web_sm")
+        self.nlp = nlp_model
         self.session = session
-        logger.info("Initialized SentimentAnalysisTool with spaCy model")
+
+        # Fallback to loading model if not injected (for backward compatibility)
+        if self.nlp is None:
+            try:
+                self.nlp = spacy.load(model_name)
+                logger.info(f"Loaded spaCy model '{model_name}'")
+            except OSError:
+                logger.warning(f"spaCy model '{model_name}' not found. Install it with: python -m spacy download {model_name}")
+                raise RuntimeError(
+                    f"spaCy model '{model_name}' not found. "
+                    f"Please install it using: python -m spacy download {model_name}"
+                )
 
     def _analyze_text_sentiment(self, text: str) -> SentimentScore:
         """Analyze sentiment of a text segment.
