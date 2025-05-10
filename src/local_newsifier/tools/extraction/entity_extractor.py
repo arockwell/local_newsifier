@@ -1,28 +1,40 @@
 """Entity extraction tool for extracting entities from text content."""
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 
+@injectable(use_cache=False)
 class EntityExtractor:
     """Tool for extracting entities from text content."""
     
-    def __init__(self, model_name: str = "en_core_web_lg"):
+    def __init__(
+        self,
+        nlp_model: Optional[Any] = None,
+        model_name: str = "en_core_web_lg"
+    ):
         """Initialize with spaCy model.
         
         Args:
-            model_name: Name of the spaCy model to use
+            nlp_model: Pre-loaded spaCy NLP model (injected)
+            model_name: Name of the spaCy model to use as fallback
         """
-        try:
-            self.nlp: Language = spacy.load(model_name)
-        except OSError:
-            raise RuntimeError(
-                f"spaCy model '{model_name}' not found. "
-                f"Please install it using: python -m spacy download {model_name}"
-            )
+        self.nlp = nlp_model
+        
+        # Fallback to loading model if not injected (for backward compatibility)
+        if self.nlp is None:
+            try:
+                self.nlp: Language = spacy.load(model_name)
+            except OSError:
+                raise RuntimeError(
+                    f"spaCy model '{model_name}' not found. "
+                    f"Please install it using: python -m spacy download {model_name}"
+                )
     
     def extract_entities(
         self, 
