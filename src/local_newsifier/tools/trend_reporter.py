@@ -1,12 +1,18 @@
 """Tool for generating reports and visualizations of news trends."""
 
 import json
+import logging
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from fastapi_injectable import injectable
 
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
+
+
+logger = logging.getLogger(__name__)
 
 
 class ReportFormat(str, Enum):
@@ -17,17 +23,26 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
+@injectable(use_cache=False)
 class TrendReporter:
     """Tool for creating reports of detected trends."""
 
-    def __init__(self, output_dir: str = "output"):
+    def __init__(
+        self,
+        output_dir: str = "output",
+        file_writer: Optional[Any] = None
+    ):
         """
         Initialize the trend reporter.
 
         Args:
             output_dir: Directory for report output
+            file_writer: Optional file writer tool (injected)
         """
         self.output_dir = output_dir
+        self.file_writer = file_writer
+
+        # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
 
     def generate_trend_summary(
@@ -188,24 +203,36 @@ class TrendReporter:
         """
         # Generate report content
         content = self.generate_trend_summary(trends, format)
-        
+
         # Determine file extension
         ext = format.value
-        
+
         # Create filename if not provided
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"trend_report_{date_str}.{ext}"
-        
+
         # Ensure it has the right extension
         if not filename.endswith(f".{ext}"):
             filename = f"{filename}.{ext}"
-            
+
         # Full path
         filepath = os.path.join(self.output_dir, filename)
-        
-        # Save file
-        with open(filepath, "w") as f:
-            f.write(content)
-            
+
+        # Save file using file_writer if available (for dependency injection)
+        if self.file_writer is not None:
+            try:
+                logger.debug(f"Using file_writer to save report to {filepath}")
+                self.file_writer.write_text(content, filepath)
+            except Exception as e:
+                logger.warning(f"Error using file_writer, falling back to direct file writing: {str(e)}")
+                # Fall back to direct file writing
+                with open(filepath, "w") as f:
+                    f.write(content)
+        else:
+            # Direct file writing (for backward compatibility)
+            logger.debug(f"Using direct file writing to save report to {filepath}")
+            with open(filepath, "w") as f:
+                f.write(content)
+
         return filepath
