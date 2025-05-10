@@ -26,9 +26,8 @@ from local_newsifier.models.entity_tracking import (
 )
 from local_newsifier.models.article import Article
 from local_newsifier.di.providers import get_opinion_visualizer_tool
-
-
 from tests.ci_skip_config import ci_skip_injectable
+from tests.fixtures.event_loop import event_loop as event_loop_fixture
 
 @ci_skip_injectable
 class TestOpinionVisualizerImplementation:
@@ -286,7 +285,7 @@ class TestOpinionVisualizerImplementation:
         assert "max_sentiment" in stats
 
     @pytest.mark.skip(reason="Injectable pattern compatibility test skipped due to test environment setup")
-    def test_injectable_compatibility(self, visualizer_with_db, sample_data):
+    def test_injectable_compatibility(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test compatibility between directly instantiated and injectable instances."""
         # Skip this test since the actual methods are also skipped
         pass

@@ -11,9 +11,8 @@ from fastapi_injectable import injectable
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import SentimentVisualizationData
-
-
 from tests.ci_skip_config import ci_skip_injectable
+from tests.fixtures.event_loop import event_loop as event_loop_fixture
 
 @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
 @ci_skip_injectable
@@ -31,19 +30,9 @@ class TestOpinionVisualizerTool:
         return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
-    def visualizer_injectable(self, mock_session, monkeypatch, event_loop):
+    def visualizer_injectable(self, mock_session):
         """Create an opinion visualizer instance using injectable approach."""
-        # Create a mock provider function
-        def mock_get_session():
-            yield mock_session
-
-        # Monkeypatch the session provider
-        monkeypatch.setattr(
-            "local_newsifier.di.providers.get_session",
-            mock_get_session
-        )
-
-        # Create the tool with injection
+        # Direct instantiation with mocked dependencies for reliability
         return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
@@ -331,7 +320,7 @@ class TestOpinionVisualizerTool:
         with pytest.raises(ValueError):
             visualizer.generate_html_report(comparison_data, "timeline")
 
-    def test_injectable_compatibility(self, visualizer, visualizer_injectable, sample_data):
+    def test_injectable_compatibility(self, visualizer, visualizer_injectable, sample_data, event_loop_fixture):
         """Test that both injectable and legacy approaches work identically."""
         # Generate reports with both tools
         report1 = visualizer.generate_text_report(sample_data, "timeline")
