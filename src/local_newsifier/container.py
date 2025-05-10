@@ -24,6 +24,7 @@ from local_newsifier.crud import (
     entity_relationship,
     rss_feed,
     feed_processing_log,
+    apify_source_config,
 )
 
 # Import service classes
@@ -59,6 +60,7 @@ def init_container(environment="production"):
     container.register("entity_relationship_crud", entity_relationship)
     container.register("rss_feed_crud", rss_feed)
     container.register("feed_processing_log_crud", feed_processing_log)
+    container.register("apify_source_config_crud", apify_source_config)
     
     # Register session management
     if environment == "testing":
@@ -437,6 +439,23 @@ def register_services(container):
         lambda c: ApifyService(test_mode=(environment == "testing"))
     )
     
+    # Import at runtime to avoid circular imports
+    try:
+        from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+
+        # ApifySourceConfigService
+        container.register_factory("apify_source_config_service",
+            lambda c: ApifySourceConfigService(
+                apify_source_config_crud=c.get("apify_source_config_crud"),
+                apify_service=c.get("apify_service"),
+                session_factory=c.get("session_factory"),
+                container=c
+            )
+        )
+    except ImportError as e:
+        # Log error but continue initialization
+        logger.error(f"Error registering ApifySourceConfigService: {e}")
+
     # Core services have been registered
 
 
