@@ -115,12 +115,14 @@ class TestApifyServiceImplementation:
         assert client is not None
         
         # Force non-test mode to check validation error
-        # We need to patch the test mode detection
+        # We need to patch the test mode detection and settings validation
         with patch.object(apify_service, '_test_mode', False):
-            apify_service._token = None
-            apify_service._client = None
-            with pytest.raises(ValueError):
-                client = apify_service.client
+            with patch('local_newsifier.services.apify_service.settings.validate_apify_token') as mock_validate:
+                mock_validate.side_effect = ValueError("APIFY_TOKEN is not set")
+                apify_service._token = None
+                apify_service._client = None
+                with pytest.raises(ValueError):
+                    client = apify_service.client
 
     def test_run_actor(self, apify_service, mock_apify_client):
         """Test running an actor."""
