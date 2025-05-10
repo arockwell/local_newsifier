@@ -1,10 +1,11 @@
 """Tool for visualizing sentiment and opinion data."""
 
 import logging
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, TYPE_CHECKING
 
-from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.di.base import InjectableTool, auto_injectable
