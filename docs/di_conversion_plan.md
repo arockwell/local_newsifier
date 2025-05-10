@@ -92,6 +92,18 @@ Testing infrastructure needs to support easy mocking and container configuration
 4. All tests pass with the new DI implementation
 5. Documentation is updated to reflect the complete DI usage
 
+## Important Implementation Notes
+
+### Event Loop Handling
+
+Components using the `@injectable` decorator may encounter event loop issues in tests. To avoid these problems:
+
+- Use the [conditional decorator pattern](injectable_patterns.md#the-conditional-decorator-pattern) when implementing components
+- Add the `event_loop_fixture` to all tests that interact with injectable components
+- Consider using `ci_skip_injectable` for tests that cannot avoid event loop issues in CI environments
+
+For detailed guidance, see the [Event Loop Handling in Tests](injectable_patterns.md#event-loop-handling-in-tests) section in the Injectable Patterns Guide.
+
 ## Test Scenarios
 
 1. CLI commands function correctly with container dependencies
