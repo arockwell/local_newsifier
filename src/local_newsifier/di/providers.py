@@ -246,13 +246,30 @@ def get_nlp_model() -> Any:
 def get_web_scraper_tool():
     """Provide the web scraper tool.
 
-    Uses TRANSIENT scope as this tool may maintain state between operations.
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains session and WebDriver state that shouldn't be shared between operations.
 
     Returns:
         WebScraperTool instance
     """
     from local_newsifier.tools.web_scraper import WebScraperTool
-    return WebScraperTool()
+
+    # Create a new requests session for this instance
+    import requests
+    session = requests.Session()
+
+    # Set a standard user agent
+    user_agent = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    )
+    session.headers.update({"User-Agent": user_agent})
+
+    return WebScraperTool(
+        session=session,
+        web_driver=None,  # WebDriver will be created lazily when needed
+        user_agent=user_agent
+    )
 
 
 @injectable(use_cache=False)
