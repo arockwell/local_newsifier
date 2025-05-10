@@ -25,42 +25,51 @@ arguments:
     required: false
 ---
 
-To complete the `/troubleshoot` command, I'll analyze patterns across the specified GitHub issues and PRs to identify common problems and suggest solutions.
+I'll analyze patterns across GitHub issues and PRs to identify common problems matching "$context_message". Let me examine issues $issues and PRs $prs, focusing on the $area technical area if specified.
 
-## Step 1: Fetch GitHub Data
-I'll begin by fetching data for the specified issues and PRs using the GitHub API. For each PR and issue:
-- I'll get titles, descriptions, and body content
-- For PRs, I'll examine comments, CI check outputs, and file changes
-- For issues, I'll check all comments and associated metadata
+## Troubleshooting Analysis Process
 
-## Step 2: Extract Common Patterns
-I'll analyze the content to identify patterns in:
-- **Error messages**: extracting common exceptions and errors using regex
-- **File paths**: finding files that appear frequently in problems
-- **Code patterns**: identifying problematic code constructs
-- **Test failures**: correlating specific test failures across PRs
+1. **Fetch GitHub Data**: I'll collect information from the specified issues and PRs:
+   - For issues $issues: titles, descriptions, comments, and associated metadata
+   - For PRs $prs: descriptions, changed files, CI check outputs, and comments
+   - Context will be focused on "$context_message" to guide my analysis
 
-## Step 3: Technical Area Analysis
-If an area was specified (di, async, testing, database), I'll focus my analysis on that domain:
-- **di**: dependency injection configuration, circular dependencies, provider issues
-- **async**: event loop problems, coroutine errors, asyncio misuse
-- **testing**: fixture issues, test isolation problems, mock setup
-- **database**: session handling, transaction issues, model definitions
+2. **Pattern Analysis**: I'll identify common patterns across these issues and PRs:
+   - **Error Messages**: Extract recurring exceptions and error messages using regex
+   - **File Paths**: Identify files that appear frequently in the problems
+   - **Code Patterns**: Find potentially problematic code constructs 
+   - **Test Failures**: Correlate specific test failures that appear across multiple PRs
 
-## Step 4: Documentation Correlation
-I'll map identified patterns to relevant documentation:
-- **Dependency Injection**: di_architecture.md, injectable_patterns.md
-- **Async/Event Loops**: testing_injectable_dependencies.md, CLAUDE.md
-- **Testing**: testing_guide.md, testing fixtures
-- **Database**: db_diagnostics.md, db_initialization.md
+3. **Technical Area Focus**: 
+   If $area is specified, I'll focus my analysis on that domain:
+   - **di**: Dependency injection issues, circular dependencies, provider configuration
+   - **async**: Event loop problems, coroutine errors, asyncio misuse patterns
+   - **testing**: Fixture issues, test isolation problems, mock configuration
+   - **database**: Session handling, transaction issues, model definition problems
 
-## Step 5: Generate Comprehensive Analysis
-I'll present my findings in a structured format:
-1. Common error patterns with frequency and examples
-2. Frequently referenced files 
-3. Common test failures
-4. Relevant documentation links
-5. Potential root causes
-6. Suggested solutions with specific, actionable steps
+4. **Documentation Correlation**: I'll match identified patterns with relevant docs:
+   - For dependency injection issues: docs/di_architecture.md, docs/injectable_patterns.md
+   - For async/event loop issues: docs/testing_injectable_dependencies.md, CLAUDE.md
+   - For testing issues: docs/testing_guide.md, tests/conftest.py
+   - For database issues: docs/db_diagnostics.md, docs/db_initialization.md
 
-I'll ensure all recommendations are specific, detailed, and directly address the patterns identified in the analysis.
+5. **Root Cause Analysis**: Based on the patterns identified and "$context_message", I'll determine the most likely underlying causes:
+   - Check for event loop configuration issues in async tests
+   - Look for dependency injection circular references or provider misconfigurations
+   - Identify session management problems in database operations
+   - Detect test isolation or fixture setup issues
+
+## Output Format
+
+I'll present my findings in a comprehensive report with these sections:
+
+1. **Common Error Patterns**: Table of most frequent errors across issues $issues and PRs $prs with counts and examples
+2. **Frequently Referenced Files**: Files that appear most often in the problems
+3. **Common Test Failures**: Tests that frequently fail in the analyzed PRs
+4. **Relevant Documentation**: Links to documentation based on the patterns and $area
+5. **Potential Root Causes**: Analysis of likely underlying issues related to "$context_message"
+6. **Suggested Solutions**: Actionable steps to address the identified problems, with specific code examples where appropriate
+
+For example, if event loop issues are detected in async tests, I'll recommend adding event_loop_fixture to test functions and provide specific code snippets showing correct usage.
+
+My analysis will focus on providing practical, implementable solutions to address the common patterns found across issues $issues and PRs $prs.
