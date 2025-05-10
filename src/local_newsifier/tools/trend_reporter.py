@@ -29,18 +29,15 @@ class TrendReporter:
 
     def __init__(
         self,
-        output_dir: str = "output",
-        file_writer: Optional[Any] = None
+        output_dir: str = "output"
     ):
         """
         Initialize the trend reporter.
 
         Args:
             output_dir: Directory for report output
-            file_writer: Optional file writer tool (injected)
         """
         self.output_dir = output_dir
-        self.file_writer = file_writer
 
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
@@ -219,20 +216,9 @@ class TrendReporter:
         # Full path
         filepath = os.path.join(self.output_dir, filename)
 
-        # Save file using file_writer if available (for dependency injection)
-        if self.file_writer is not None:
-            try:
-                logger.debug(f"Using file_writer to save report to {filepath}")
-                self.file_writer.write_text(content, filepath)
-            except Exception as e:
-                logger.warning(f"Error using file_writer, falling back to direct file writing: {str(e)}")
-                # Fall back to direct file writing
-                with open(filepath, "w") as f:
-                    f.write(content)
-        else:
-            # Direct file writing (for backward compatibility)
-            logger.debug(f"Using direct file writing to save report to {filepath}")
-            with open(filepath, "w") as f:
-                f.write(content)
+        # Direct file writing
+        logger.debug(f"Writing report to {filepath}")
+        with open(filepath, "w") as f:
+            f.write(content)
 
         return filepath
