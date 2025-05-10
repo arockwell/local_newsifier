@@ -14,6 +14,10 @@ import uuid
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, text, select
 
+# Set TEST_MODE flag to True for all tests
+from local_newsifier.config.settings import settings
+settings.TEST_MODE = True
+
 # First, reset and register all models in a controlled order
 # This must run before any database operations
 SQLModel.metadata.clear()
