@@ -485,17 +485,36 @@ def get_rss_parser():
 
 
 @injectable(use_cache=False)
-def get_file_writer_tool():
+def get_file_writer_config():
+    """Provide the configuration for the file writer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different output directories to be injected.
+
+    Returns:
+        Configuration dictionary with output_dir
+    """
+    return {
+        "output_dir": "output"
+    }
+
+@injectable(use_cache=False)
+def get_file_writer_tool(
+    config: Annotated[Dict, Depends(get_file_writer_config)]
+):
     """Provide the file writer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as this tool
     maintains state during file writing operations.
-    
+
+    Args:
+        config: Configuration dictionary with output_dir
+
     Returns:
         FileWriterTool instance
     """
     from local_newsifier.tools.file_writer import FileWriterTool
-    return FileWriterTool(output_dir="output")
+    return FileWriterTool(output_dir=config["output_dir"])
 
 
 # Service providers

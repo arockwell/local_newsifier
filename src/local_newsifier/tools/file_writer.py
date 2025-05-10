@@ -3,11 +3,15 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Annotated
+
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 
+@injectable(use_cache=False)
 class FileWriterTool:
     """Tool for saving analysis results to files with atomic writes."""
 
