@@ -6,6 +6,7 @@ import pytest
 
 from local_newsifier.services.apify_service import ApifyService
 from tests.ci_skip_config import ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 class MockListPageWithItems:
