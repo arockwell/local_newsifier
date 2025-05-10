@@ -68,20 +68,20 @@ def list_configs(active_only, json_output, limit, skip, source_type):
         input_config = str(config.get("input_configuration", {}))
         if len(input_config) > 30:
             input_config = input_config[:27] + "..."
-            
-            table_data.append([
-                config["id"],
-                config["name"],
-                config["actor_id"],
-                config["source_type"],
-                "✓" if config["is_active"] else "✗",
-                last_run or "Never",
-                input_config
-            ])
+
+        table_data.append([
+            config["id"],
+            config["name"],
+            config["actor_id"],
+            config["source_type"],
+            "✓" if config["is_active"] else "✗",
+            last_run or "Never",
+            input_config
+        ])
         
-        # Display table
-        headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
-        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    # Display table
+    headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
+    click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
 
 
 @apify_config_group.command(name="add")
