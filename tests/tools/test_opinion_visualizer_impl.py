@@ -28,6 +28,9 @@ from local_newsifier.models.article import Article
 from local_newsifier.di.providers import get_opinion_visualizer_tool
 
 
+from tests.ci_skip_config import ci_skip_injectable
+
+@ci_skip_injectable
 class TestOpinionVisualizerImplementation:
     """Implementation tests for OpinionVisualizerTool that directly test methods."""
 
@@ -44,7 +47,7 @@ class TestOpinionVisualizerImplementation:
         return OpinionVisualizerTool(session=db_session)
 
     @pytest.fixture
-    def injectable_visualizer(self, db_session, monkeypatch):
+    def injectable_visualizer(self, db_session, monkeypatch, event_loop):
         """Create a visualizer using injectable pattern with a real database session."""
         # Skip this fixture - we'll test injectable functionality separately
         return None

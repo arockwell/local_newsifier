@@ -13,7 +13,10 @@ from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import SentimentVisualizationData
 
 
+from tests.ci_skip_config import ci_skip_injectable
+
 @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
+@ci_skip_injectable
 class TestOpinionVisualizerTool:
     """Test class for OpinionVisualizerTool."""
 
@@ -28,11 +31,11 @@ class TestOpinionVisualizerTool:
         return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
-    def visualizer_injectable(self, mock_session, monkeypatch):
+    def visualizer_injectable(self, mock_session, monkeypatch, event_loop):
         """Create an opinion visualizer instance using injectable approach."""
         # Create a mock provider function
-        async def mock_get_session():
-            return mock_session
+        def mock_get_session():
+            yield mock_session
 
         # Monkeypatch the session provider
         monkeypatch.setattr(
