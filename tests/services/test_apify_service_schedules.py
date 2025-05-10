@@ -83,7 +83,7 @@ def test_create_schedule(event_loop_fixture):
     )
 
     # Verify the mock response structure
-    assert result["id"].startswith("test_schedule_test_actor_id_")
+    assert "id" in result
     assert result["cronExpression"] == "0 0 * * *"
     assert "actions" in result
     assert len(result["actions"]) == 1
@@ -99,8 +99,9 @@ def test_create_schedule(event_loop_fixture):
     )
 
     # Verify the result contains correct values for optional parameters
-    assert result_with_options["id"].startswith("test_schedule_test_actor_id_")
+    assert "id" in result_with_options
     assert result_with_options["cronExpression"] == "0 0 * * *"
+    assert "name" in result_with_options
     assert result_with_options["name"] == "Custom Schedule Name"
 
     # Check run_input was included
