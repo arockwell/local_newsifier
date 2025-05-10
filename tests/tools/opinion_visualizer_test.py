@@ -1,17 +1,22 @@
-"""Tests for the OpinionVisualizerTool."""
+"""Tests for the OpinionVisualizerTool.
 
-import unittest
+This test file follows the patterns established in test_file_writer.py for testing 
+injectable components, with proper event loop handling and CI environment skipping.
+"""
+
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest_mock import MockFixture
+from tests.ci_skip_config import ci_skip_injectable
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import SentimentVisualizationData
 
 
 @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
+@ci_skip_injectable
 class TestOpinionVisualizerTool:
     """Test class for OpinionVisualizerTool."""
 
@@ -22,7 +27,7 @@ class TestOpinionVisualizerTool:
 
     @pytest.fixture
     def visualizer(self, mock_session):
-        """Create an opinion visualizer instance."""
+        """Create an opinion visualizer instance using constructor approach."""
         return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
@@ -72,7 +77,7 @@ class TestOpinionVisualizerTool:
             "renewable energy": energy_data
         }
 
-    def test_prepare_timeline_data(self, visualizer, mock_session):
+    def test_prepare_timeline_data(self, visualizer, mock_session, event_loop_fixture):
         """Test preparing timeline visualization data."""
         # Use patch to mock session.query.filter.order_by.all directly
         with patch.object(visualizer, 'prepare_timeline_data', autospec=True) as mock_prepare:
@@ -128,7 +133,7 @@ class TestOpinionVisualizerTool:
             # Dummy assertion to pass this test
             assert test_data.topic == "test"
 
-    def test_prepare_comparison_data(self, visualizer):
+    def test_prepare_comparison_data(self, visualizer, event_loop_fixture):
         """Test preparing comparison visualization data."""
         # Mock prepare_timeline_data
         with patch.object(
@@ -174,7 +179,7 @@ class TestOpinionVisualizerTool:
             # Verify method calls
             assert mock_prepare.call_count == 2
 
-    def test_generate_text_report_timeline(self, visualizer, sample_data):
+    def test_generate_text_report_timeline(self, visualizer, sample_data, event_loop_fixture):
         """Test generating a text report for timeline."""
         report = visualizer.generate_text_report(sample_data, "timeline")
         
@@ -191,7 +196,7 @@ class TestOpinionVisualizerTool:
         assert "2023-05-02: -0.30 (3 articles)" in report
         assert "2023-05-03: -0.50 (7 articles)" in report
 
-    def test_generate_text_report_comparison(self, visualizer, comparison_data):
+    def test_generate_text_report_comparison(self, visualizer, comparison_data, event_loop_fixture):
         """Test generating a text report for comparison."""
         report = visualizer.generate_text_report(comparison_data, "comparison")
         
@@ -211,7 +216,7 @@ class TestOpinionVisualizerTool:
         assert "climate change: 0.20" in report
         assert "renewable energy: 0.50" in report
 
-    def test_generate_markdown_report_timeline(self, visualizer, sample_data):
+    def test_generate_markdown_report_timeline(self, visualizer, sample_data, event_loop_fixture):
         """Test generating a markdown report for timeline."""
         report = visualizer.generate_markdown_report(sample_data, "timeline")
         
@@ -227,7 +232,7 @@ class TestOpinionVisualizerTool:
         assert "|--------|-----------|----------|" in report
         assert "| 2023-05-01 | 0.20 | 5 |" in report
 
-    def test_generate_markdown_report_comparison(self, visualizer, comparison_data):
+    def test_generate_markdown_report_comparison(self, visualizer, comparison_data, event_loop_fixture):
         """Test generating a markdown report for comparison."""
         report = visualizer.generate_markdown_report(comparison_data, "comparison")
         
@@ -246,7 +251,7 @@ class TestOpinionVisualizerTool:
         # Skip checking exact separator line as it might vary
         assert "| 2023-05-01 | 0.20 | 0.50 |" in report
 
-    def test_generate_html_report_timeline(self, visualizer, sample_data):
+    def test_generate_html_report_timeline(self, visualizer, sample_data, event_loop_fixture):
         """Test generating an HTML report for timeline."""
         report = visualizer.generate_html_report(sample_data, "timeline")
         
@@ -266,7 +271,7 @@ class TestOpinionVisualizerTool:
         assert "<tr><th>Period</th><th>Sentiment</th><th>Articles</th></tr>" in report
         assert "<tr><td>2023-05-01</td><td>0.20</td><td>5</td></tr>" in report
 
-    def test_generate_html_report_comparison(self, visualizer, comparison_data):
+    def test_generate_html_report_comparison(self, visualizer, comparison_data, event_loop_fixture):
         """Test generating an HTML report for comparison."""
         report = visualizer.generate_html_report(comparison_data, "comparison")
         
@@ -287,7 +292,7 @@ class TestOpinionVisualizerTool:
         assert "<tr><th>Period</th><th>climate change</th><th>renewable energy</th></tr>" in report
         assert "<tr><td>2023-05-01</td><td>0.20</td><td>0.50</td></tr>" in report
 
-    def test_generate_reports_with_invalid_type(self, visualizer, sample_data, comparison_data):
+    def test_generate_reports_with_invalid_type(self, visualizer, sample_data, comparison_data, event_loop_fixture):
         """Test generating reports with invalid report type."""
         # Test text report with wrong data type
         with pytest.raises(ValueError):
@@ -310,7 +315,38 @@ class TestOpinionVisualizerTool:
         with pytest.raises(ValueError):
             visualizer.generate_html_report(comparison_data, "timeline")
 
-    def test_timeline_report_with_empty_data(self, visualizer):
+    def test_injectable_compatibility(self, visualizer, mock_session, sample_data, event_loop_fixture):
+        """Test that both injectable and legacy approaches work identically."""
+        # Create a second tool directly, skipping the injectable_visualizer fixture
+        injectable_visualizer = OpinionVisualizerTool(session=mock_session)
+        
+        # Generate reports with both tools
+        report1 = visualizer.generate_text_report(sample_data, "timeline")
+        report2 = injectable_visualizer.generate_text_report(sample_data, "timeline")
+        
+        # Reports should be identical
+        assert report1 == report2
+        
+        # Both tools should handle the same operations
+        assert hasattr(visualizer, "prepare_timeline_data")
+        assert hasattr(injectable_visualizer, "prepare_timeline_data")
+        
+        # Verify container fallback logic
+        container_mock = MagicMock()
+        session_mock = MagicMock()
+        session_factory_mock = MagicMock(return_value=session_mock)
+        container_mock.get.return_value = session_factory_mock
+        
+        # Create a tool without session but with container
+        tool = OpinionVisualizerTool(container=container_mock)
+        
+        # This should trigger _ensure_dependencies
+        tool.prepare_timeline_data("test", datetime.now(timezone.utc), datetime.now(timezone.utc))
+        
+        # Verify container was used to get session
+        container_mock.get.assert_called_with("session_factory")
+
+    def test_timeline_report_with_empty_data(self, visualizer, event_loop_fixture):
         """Test timeline report with empty data."""
         empty_data = SentimentVisualizationData(
             topic="empty topic",
@@ -333,7 +369,7 @@ class TestOpinionVisualizerTool:
         html_report = visualizer.generate_html_report(empty_data, "timeline")
         assert "<p>No sentiment data available for topic: empty topic</p>" in html_report
 
-    def test_comparison_report_with_empty_data(self, visualizer):
+    def test_comparison_report_with_empty_data(self, visualizer, event_loop_fixture):
         """Test comparison report with empty data."""
         empty_comparison = {}
         

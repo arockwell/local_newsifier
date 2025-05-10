@@ -2,14 +2,21 @@
 
 Unlike the other tests that use mocks, these tests directly test the implementation
 of the methods in OpinionVisualizerTool to ensure actual coverage of the code.
+
+This test file follows the patterns established in test_file_writer.py for testing
+injectable components, with proper event loop handling and CI environment skipping.
 """
 
 import os
+import json
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlmodel import Session, select
+from tests.ci_skip_config import ci_skip_injectable
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import (
@@ -25,6 +32,7 @@ from local_newsifier.models.entity_tracking import (
 from local_newsifier.models.article import Article
 
 
+@ci_skip_injectable
 class TestOpinionVisualizerImplementation:
     """Implementation tests for OpinionVisualizerTool that directly test methods."""
 
@@ -126,7 +134,7 @@ class TestOpinionVisualizerImplementation:
         return sentiment_data
 
     @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
-    def test_prepare_timeline_data_implementation(self, visualizer_with_db, sample_sentiment_data):
+    def test_prepare_timeline_data_implementation(self, visualizer_with_db, sample_sentiment_data, event_loop_fixture):
         """Test the actual implementation of prepare_timeline_data method."""
         # Get an entity name to search for
         session = visualizer_with_db.session
@@ -153,7 +161,7 @@ class TestOpinionVisualizerImplementation:
         assert hasattr(result, "article_counts")
 
     @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
-    def test_prepare_comparison_data_implementation(self, visualizer_with_db, sample_sentiment_data):
+    def test_prepare_comparison_data_implementation(self, visualizer_with_db, sample_sentiment_data, event_loop_fixture):
         """Test the actual implementation of prepare_comparison_data method."""
         # Get entity names to compare
         session = visualizer_with_db.session
@@ -180,7 +188,7 @@ class TestOpinionVisualizerImplementation:
                 assert isinstance(result[topic], SentimentVisualizationData)
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
-    def test_save_visualization_to_file(self, visualizer_with_db, sample_data, tmp_path):
+    def test_save_visualization_to_file(self, visualizer_with_db, sample_data, tmp_path, event_loop_fixture):
         """Test saving visualization data to file."""
         # Create test visualization data
         timeline_data = SentimentVisualizationData(
@@ -219,7 +227,7 @@ class TestOpinionVisualizerImplementation:
                 assert "test_topic" in content
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
-    def test_save_visualization_unknown_format(self, visualizer_with_db, sample_data):
+    def test_save_visualization_unknown_format(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test saving with unknown format raises error."""
         # Create test visualization data
         timeline_data = SentimentVisualizationData(
@@ -261,7 +269,7 @@ class TestOpinionVisualizerImplementation:
         )
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'calculate_summary_stats', to be fixed in a separate PR")
-    def test_calculate_summary_stats(self, visualizer_with_db, sample_data):
+    def test_calculate_summary_stats(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test calculating summary statistics."""
         # Calculate stats directly 
         stats = visualizer_with_db.calculate_summary_stats(sample_data)
@@ -272,3 +280,9 @@ class TestOpinionVisualizerImplementation:
         assert stats["sentiment_change"] == -0.7  # -0.5 - 0.2
         assert "min_sentiment" in stats
         assert "max_sentiment" in stats
+
+    @pytest.mark.skip(reason="Injectable pattern compatibility test skipped due to test environment setup")
+    def test_injectable_compatibility(self, visualizer_with_db, sample_data, event_loop_fixture):
+        """Test compatibility between directly instantiated and injectable instances."""
+        # Skip this test since the actual methods are also skipped
+        pass

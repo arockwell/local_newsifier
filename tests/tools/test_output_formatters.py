@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.models.sentiment import SentimentVisualizationData
 from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
@@ -24,9 +25,11 @@ class TestOpinionVisualizerOutputFormatting:
         return MagicMock()
 
     @pytest.fixture
-    def visualizer(self, mock_session):
+    def visualizer(self, mock_session, event_loop_fixture):
         """Create an opinion visualizer instance."""
-        return OpinionVisualizerTool(session=mock_session)
+        # Mock the injectable framework to avoid FastAPI errors
+        with patch('fastapi_injectable.injectable', return_value=lambda x: x):
+            return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
     def sample_data(self):
@@ -75,10 +78,10 @@ class TestOpinionVisualizerOutputFormatting:
             "renewable energy": energy_data
         }
 
-    def test_text_report_structure(self, visualizer, sample_data):
+    def test_text_report_structure(self, visualizer, sample_data, event_loop_fixture):
         """Test the structure of text reports."""
         report = visualizer.generate_text_report(sample_data, "timeline")
-        
+
         # Check report sections
         assert "SENTIMENT ANALYSIS REPORT:" in report
         assert "=" * 50 in report  # Separator line
@@ -86,18 +89,18 @@ class TestOpinionVisualizerOutputFormatting:
         assert "Interval:" in report
         assert "SUMMARY STATISTICS" in report
         assert "SENTIMENT TIMELINE" in report
-        
+
         # Check data formatting
         assert "Average sentiment:" in report
         assert "Minimum sentiment:" in report
         assert "Maximum sentiment:" in report
         assert "Total articles:" in report
-        
+
         # Check timeline entries
         for period in sample_data.time_periods:
             assert period in report
 
-    def test_markdown_report_structure(self, visualizer, sample_data):
+    def test_markdown_report_structure(self, visualizer, sample_data, event_loop_fixture):
         """Test the structure of markdown reports."""
         report = visualizer.generate_markdown_report(sample_data, "timeline")
         
@@ -123,7 +126,7 @@ class TestOpinionVisualizerOutputFormatting:
             articles = sample_data.article_counts[i]
             assert f"| {period} | {sentiment:.2f} | {articles} |" in report
 
-    def test_html_report_structure(self, visualizer, sample_data):
+    def test_html_report_structure(self, visualizer, sample_data, event_loop_fixture):
         """Test the structure of HTML reports."""
         report = visualizer.generate_html_report(sample_data, "timeline")
         
@@ -151,7 +154,7 @@ class TestOpinionVisualizerOutputFormatting:
         assert "border-collapse: collapse;" in report
         assert "background-color:" in report
 
-    def test_comparison_text_report_structure(self, visualizer, comparison_data):
+    def test_comparison_text_report_structure(self, visualizer, comparison_data, event_loop_fixture):
         """Test the structure of comparison text reports."""
         report = visualizer.generate_text_report(comparison_data, "comparison")
         
@@ -171,7 +174,7 @@ class TestOpinionVisualizerOutputFormatting:
         for period in comparison_data["climate change"].time_periods:
             assert period in report
 
-    def test_comparison_markdown_report_structure(self, visualizer, comparison_data):
+    def test_comparison_markdown_report_structure(self, visualizer, comparison_data, event_loop_fixture):
         """Test the structure of comparison markdown reports."""
         report = visualizer.generate_markdown_report(comparison_data, "comparison")
         
@@ -196,7 +199,7 @@ class TestOpinionVisualizerOutputFormatting:
         for topic in comparison_data.keys():
             assert f" {topic} |" in report
 
-    def test_comparison_html_report_structure(self, visualizer, comparison_data):
+    def test_comparison_html_report_structure(self, visualizer, comparison_data, event_loop_fixture):
         """Test the structure of comparison HTML reports."""
         report = visualizer.generate_html_report(comparison_data, "comparison")
         
@@ -224,7 +227,7 @@ class TestOpinionVisualizerOutputFormatting:
         for topic in comparison_data.keys():
             assert f"<td>{topic}</td>" in report
 
-    def test_text_report_calculations(self, visualizer, sample_data):
+    def test_text_report_calculations(self, visualizer, sample_data, event_loop_fixture):
         """Test that calculations in text reports are correct."""
         report = visualizer.generate_text_report(sample_data, "timeline")
         
@@ -246,7 +249,7 @@ class TestOpinionVisualizerOutputFormatting:
             articles = sample_data.article_counts[i]
             assert f"{period}: {sentiment:.2f} ({articles} articles)" in report
 
-    def test_markdown_report_calculations(self, visualizer, sample_data):
+    def test_markdown_report_calculations(self, visualizer, sample_data, event_loop_fixture):
         """Test that calculations in markdown reports are correct."""
         report = visualizer.generate_markdown_report(sample_data, "timeline")
         
@@ -262,7 +265,7 @@ class TestOpinionVisualizerOutputFormatting:
         assert f"**Maximum sentiment:** {max_sentiment:.2f}" in report
         assert f"**Total articles:** {total_articles}" in report
 
-    def test_html_report_calculations(self, visualizer, sample_data):
+    def test_html_report_calculations(self, visualizer, sample_data, event_loop_fixture):
         """Test that calculations in HTML reports are correct."""
         report = visualizer.generate_html_report(sample_data, "timeline")
         
@@ -278,7 +281,7 @@ class TestOpinionVisualizerOutputFormatting:
         assert f"<li><strong>Maximum sentiment:</strong> {max_sentiment:.2f}</li>" in report
         assert f"<li><strong>Total articles:</strong> {total_articles}</li>" in report
 
-    def test_empty_data_handling(self, visualizer):
+    def test_empty_data_handling(self, visualizer, event_loop_fixture):
         """Test handling of empty data in reports."""
         empty_data = SentimentVisualizationData(
             topic="empty topic",
@@ -301,7 +304,7 @@ class TestOpinionVisualizerOutputFormatting:
         html_report = visualizer.generate_html_report(empty_data, "timeline")
         assert "No sentiment data available" in html_report
 
-    def test_empty_comparison_data_handling(self, visualizer):
+    def test_empty_comparison_data_handling(self, visualizer, event_loop_fixture):
         """Test handling of empty comparison data in reports."""
         empty_comparison = {}
         
@@ -317,7 +320,7 @@ class TestOpinionVisualizerOutputFormatting:
         html_report = visualizer.generate_html_report(empty_comparison, "comparison")
         assert "No sentiment data available for comparison" in html_report
 
-    def test_invalid_report_type(self, visualizer, sample_data, comparison_data):
+    def test_invalid_report_type(self, visualizer, sample_data, comparison_data, event_loop_fixture):
         """Test error handling for invalid report types."""
         # Test with invalid report type
         with pytest.raises(ValueError) as excinfo:
@@ -409,7 +412,7 @@ class TestTrendReporterOutputFormatting:
         
         return [trend1, trend2]
 
-    def test_text_summary_structure(self, sample_trends):
+    def test_text_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of text format summaries."""
         reporter = TrendReporter()
         summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.TEXT)
@@ -432,7 +435,7 @@ class TestTrendReporterOutputFormatting:
         assert "Supporting evidence:" in summary
         assert "New Downtown Project Announced" in summary
 
-    def test_markdown_summary_structure(self, sample_trends):
+    def test_markdown_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of markdown format summaries."""
         reporter = TrendReporter()
         summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.MARKDOWN)
@@ -465,7 +468,7 @@ class TestTrendReporterOutputFormatting:
         assert "| Date | Mentions |" in summary
         assert "| 2023-01-15 | 2 |" in summary
 
-    def test_json_summary_structure(self, sample_trends):
+    def test_json_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of JSON format summaries."""
         reporter = TrendReporter()
         json_summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.JSON)
@@ -502,7 +505,7 @@ class TestTrendReporterOutputFormatting:
                 assert len(trend_data["evidence"]) == len(trend.evidence)
                 assert trend_data["evidence"][0]["title"] == trend.evidence[0].article_title
 
-    def test_empty_trends_handling(self):
+    def test_empty_trends_handling(self, event_loop_fixture):
         """Test handling of empty trends list."""
         reporter = TrendReporter()
         
@@ -516,7 +519,7 @@ class TestTrendReporterOutputFormatting:
         json_summary = reporter.generate_trend_summary([], format=ReportFormat.JSON)
         assert "No significant trends" in json_summary
 
-    def test_save_report_file_formats(self, sample_trends, tmp_path):
+    def test_save_report_file_formats(self, sample_trends, tmp_path, event_loop_fixture):
         """Test saving reports in different file formats."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
@@ -555,7 +558,7 @@ class TestTrendReporterOutputFormatting:
             assert "report_date" in json_content
             assert "trends" in json_content
 
-    def test_auto_filename_generation(self, sample_trends, tmp_path):
+    def test_auto_filename_generation(self, sample_trends, tmp_path, event_loop_fixture):
         """Test automatic filename generation."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
@@ -571,7 +574,7 @@ class TestTrendReporterOutputFormatting:
             assert path == expected_path
             assert os.path.exists(path)
 
-    def test_filename_extension_handling(self, sample_trends, tmp_path):
+    def test_filename_extension_handling(self, sample_trends, tmp_path, event_loop_fixture):
         """Test handling of filename extensions."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
