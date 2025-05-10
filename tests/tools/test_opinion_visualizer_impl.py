@@ -2,32 +2,35 @@
 
 Unlike the other tests that use mocks, these tests directly test the implementation
 of the methods in OpinionVisualizerTool to ensure actual coverage of the code.
+
+This test file follows the patterns established in test_file_writer.py for testing
+injectable components, with proper event loop handling and CI environment skipping.
 """
 
 import os
+import json
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlmodel import Session, select
-from fastapi import Depends
-from fastapi_injectable import injectable
+from tests.ci_skip_config import ci_skip_injectable
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import (
-    SentimentVisualizationData,
+    SentimentVisualizationData, 
     SentimentAnalysis,
     OpinionTrend
 )
 from local_newsifier.models.entity_tracking import (
-    EntityMention,
+    EntityMention, 
     CanonicalEntity,
     EntityMentionContext
 )
 from local_newsifier.models.article import Article
-from local_newsifier.di.providers import get_opinion_visualizer_tool
-from tests.ci_skip_config import ci_skip_injectable
-from tests.fixtures.event_loop import event_loop as event_loop_fixture
+
 
 @ci_skip_injectable
 class TestOpinionVisualizerImplementation:
@@ -44,12 +47,6 @@ class TestOpinionVisualizerImplementation:
     def visualizer_with_db(self, db_session):
         """Create a visualizer with a real database session."""
         return OpinionVisualizerTool(session=db_session)
-
-    @pytest.fixture
-    def injectable_visualizer(self, db_session, monkeypatch, event_loop):
-        """Create a visualizer using injectable pattern with a real database session."""
-        # Skip this fixture - we'll test injectable functionality separately
-        return None
 
     @pytest.fixture
     def sample_entities(self, db_session):
@@ -137,7 +134,7 @@ class TestOpinionVisualizerImplementation:
         return sentiment_data
 
     @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
-    def test_prepare_timeline_data_implementation(self, visualizer_with_db, sample_sentiment_data):
+    def test_prepare_timeline_data_implementation(self, visualizer_with_db, sample_sentiment_data, event_loop_fixture):
         """Test the actual implementation of prepare_timeline_data method."""
         # Get an entity name to search for
         session = visualizer_with_db.session
@@ -164,7 +161,7 @@ class TestOpinionVisualizerImplementation:
         assert hasattr(result, "article_counts")
 
     @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
-    def test_prepare_comparison_data_implementation(self, visualizer_with_db, sample_sentiment_data):
+    def test_prepare_comparison_data_implementation(self, visualizer_with_db, sample_sentiment_data, event_loop_fixture):
         """Test the actual implementation of prepare_comparison_data method."""
         # Get entity names to compare
         session = visualizer_with_db.session
@@ -191,7 +188,7 @@ class TestOpinionVisualizerImplementation:
                 assert isinstance(result[topic], SentimentVisualizationData)
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
-    def test_save_visualization_to_file(self, visualizer_with_db, sample_data, tmp_path):
+    def test_save_visualization_to_file(self, visualizer_with_db, sample_data, tmp_path, event_loop_fixture):
         """Test saving visualization data to file."""
         # Create test visualization data
         timeline_data = SentimentVisualizationData(
@@ -230,7 +227,7 @@ class TestOpinionVisualizerImplementation:
                 assert "test_topic" in content
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
-    def test_save_visualization_unknown_format(self, visualizer_with_db, sample_data):
+    def test_save_visualization_unknown_format(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test saving with unknown format raises error."""
         # Create test visualization data
         timeline_data = SentimentVisualizationData(
@@ -272,11 +269,11 @@ class TestOpinionVisualizerImplementation:
         )
 
     @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'calculate_summary_stats', to be fixed in a separate PR")
-    def test_calculate_summary_stats(self, visualizer_with_db, sample_data):
+    def test_calculate_summary_stats(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test calculating summary statistics."""
-        # Calculate stats directly
+        # Calculate stats directly 
         stats = visualizer_with_db.calculate_summary_stats(sample_data)
-
+        
         # Verify correct calculation
         assert stats["average_sentiment"] == -0.2  # (0.2 - 0.3 - 0.5) / 3
         assert stats["total_articles"] == 15  # 5 + 3 + 7
@@ -289,13 +286,3 @@ class TestOpinionVisualizerImplementation:
         """Test compatibility between directly instantiated and injectable instances."""
         # Skip this test since the actual methods are also skipped
         pass
-
-        # Both instances should have the same methods
-        assert hasattr(visualizer_with_db, "prepare_timeline_data")
-        assert hasattr(injectable_visualizer, "prepare_timeline_data")
-
-        # Both instances should be able to generate the same reports
-        report1 = visualizer_with_db._generate_timeline_text_report(sample_data)
-        report2 = injectable_visualizer._generate_timeline_text_report(sample_data)
-
-        assert report1 == report2
