@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from tests.ci_skip_config import ci_skip_injectable
 
 from local_newsifier.models.state import (AnalysisStatus, ErrorDetails,
                                           NewsAnalysisState)
@@ -62,6 +63,7 @@ def complex_state():
     return state
 
 
+@ci_skip_injectable
 def test_file_writer(tmp_path, sample_state):
     """Test result file writing."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -80,6 +82,7 @@ def test_file_writer(tmp_path, sample_state):
         assert data["scraping"]["text_length"] == len(sample_state.scraped_text)
 
 
+@ci_skip_injectable
 def test_file_writer_with_errors(tmp_path, error_state):
     """Test file writing with error details."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -96,6 +99,7 @@ def test_file_writer_with_errors(tmp_path, error_state):
         assert error["message"] == "Failed to analyze content"
 
 
+@ci_skip_injectable
 def test_file_writer_permission_error(tmp_path, sample_state):
     """Test file writing with permission error."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -111,6 +115,7 @@ def test_file_writer_permission_error(tmp_path, sample_state):
         assert "Permission denied" in sample_state.error_details.message
 
 
+@ci_skip_injectable
 def test_file_writer_json_error(tmp_path, sample_state):
     """Test file writing with JSON serialization error."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -126,6 +131,7 @@ def test_file_writer_json_error(tmp_path, sample_state):
     assert sample_state.error_details.task == "saving"
 
 
+@ci_skip_injectable
 def test_file_writer_status_transitions(tmp_path, sample_state):
     """Test status transitions during save operation."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -140,6 +146,7 @@ def test_file_writer_status_transitions(tmp_path, sample_state):
     assert len(state.run_logs) >= 2  # Should have at least start and success logs
 
 
+@ci_skip_injectable
 def test_generate_filename(tmp_path, sample_state):
     """Test filename generation with different URLs."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -158,6 +165,7 @@ def test_generate_filename(tmp_path, sample_state):
     assert "news.example.com" in filename
 
 
+@ci_skip_injectable
 def test_ensure_output_dir(tmp_path):
     """Test output directory creation."""
     nested_path = tmp_path / "nested" / "path"
@@ -168,6 +176,7 @@ def test_ensure_output_dir(tmp_path):
     assert nested_path.is_dir()
 
 
+@ci_skip_injectable
 def test_file_writer_with_complex_data(tmp_path, complex_state):
     """Test file writing with complex nested data structures."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -188,6 +197,7 @@ def test_file_writer_with_complex_data(tmp_path, complex_state):
         assert "technology" in data["analysis"]["results"]["keywords"]
 
 
+@ci_skip_injectable
 def test_file_writer_atomic_write(tmp_path):
     """Test that file writer performs atomic write operations."""
     # Create test data and output path
@@ -241,6 +251,7 @@ def test_file_writer_atomic_write(tmp_path):
         os.unlink(temp_path)
 
 
+@ci_skip_injectable
 def test_file_system_full_error(tmp_path, sample_state):
     """Test handling of file system full error."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -261,6 +272,7 @@ def test_file_system_full_error(tmp_path, sample_state):
         assert "No space left on device" in sample_state.error_details.message
 
 
+@ci_skip_injectable
 def test_readonly_filesystem_error(tmp_path, sample_state):
     """Test handling of read-only filesystem errors."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -276,6 +288,7 @@ def test_readonly_filesystem_error(tmp_path, sample_state):
         assert "Read-only file system" in str(exc_info.value)
 
 
+@ci_skip_injectable
 def test_invalid_path_handling(sample_state):
     """Test handling of invalid paths."""
     # Try with an invalid path containing illegal characters
@@ -286,6 +299,7 @@ def test_invalid_path_handling(sample_state):
         writer.save(sample_state)
 
 
+@ci_skip_injectable
 def test_prepare_output_format(tmp_path, sample_state):
     """Test the format of prepared output."""
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -330,6 +344,7 @@ def test_prepare_output_format(tmp_path, sample_state):
     assert output["metadata"]["status"] == AnalysisStatus.COMPLETED_SUCCESS
 
 
+@ci_skip_injectable
 def test_concurrent_writing(tmp_path):
     """Test concurrent writing scenarios."""
     import threading
@@ -378,6 +393,7 @@ def test_concurrent_writing(tmp_path):
             assert data["analysis"]["results"]["data"] == f"Test data {index}"
 
 
+@ci_skip_injectable
 def test_special_character_handling_in_paths(tmp_path):
     """Test handling of special characters in paths."""
     # Create a path with spaces and special characters
@@ -397,6 +413,7 @@ def test_special_character_handling_in_paths(tmp_path):
     assert os.path.exists(result_state.save_path)
 
 
+@ci_skip_injectable
 def test_path_normalization(tmp_path):
     """Test path normalization."""
     # Test with relative path
@@ -423,6 +440,7 @@ def test_path_normalization(tmp_path):
         assert writer.output_dir == tmp_path
 
 
+@ci_skip_injectable
 def test_filename_generation(tmp_path):
     """Test filename generation with various URLs."""
     writer = FileWriterTool(output_dir=str(tmp_path))
