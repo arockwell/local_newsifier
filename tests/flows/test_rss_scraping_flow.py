@@ -45,23 +45,47 @@ def mock_article_service():
 
 
 class TestRSSScrapingFlow:
-    def setup_method(self, event_loop_fixture):
+    """Test suite for RSSScrapingFlow with event loop handling."""
+
+    @pytest.fixture(autouse=True)
+    def setup_and_event_loop(self, event_loop_fixture, mock_rss_parser, mock_web_scraper):
+        """Setup with event loop fixture to handle async operations properly."""
+        # Store the event loop for later use
+        self.event_loop = event_loop_fixture
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        # Create with default parameters
-        self.flow = RSSScrapingFlow(session_factory=mock_session_factory)
+        # Store the mock instances
+        self.mock_parser = mock_rss_parser.return_value
+        self.mock_scraper = mock_web_scraper.return_value
+        # Create the flow with our mocked dependencies
+        self.flow = RSSScrapingFlow(
+            session_factory=mock_session_factory,
+            rss_parser=self.mock_parser,
+            web_scraper=self.mock_scraper
+        )
+
+    def setup_method(self):
+        """Legacy setup_method for backward compatibility."""
+        # This empty method is kept for backward compatibility
+        pass
 
     def test_init_with_cache_dir(self, tmp_path, event_loop_fixture):
         """Test initialization with cache directory."""
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        # Create flow with cache dir
-        flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
-        assert flow.cache_dir == tmp_path
-        assert flow.rss_feed_service is None
-        assert flow.article_service is None
-        assert isinstance(flow.rss_parser, Mock) is False
-        assert isinstance(flow.web_scraper, Mock) is False
+
+        # Create flow with cache dir using patched WebScraperTool
+        with patch("local_newsifier.flows.rss_scraping_flow.WebScraperTool") as mock_web_scraper:
+            mock_scraper = Mock()
+            mock_web_scraper.return_value = mock_scraper
+
+            flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
+
+            # Verify basic properties
+            assert flow.cache_dir == tmp_path
+            assert flow.rss_feed_service is None
+            assert flow.article_service is None
+            assert flow.web_scraper is mock_scraper  # Should be the mock instance
 
     def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service,
                                    mock_rss_parser, mock_web_scraper, event_loop_fixture):
@@ -93,25 +117,20 @@ class TestRSSScrapingFlow:
         mock_rss_parser.assert_not_called()
         mock_web_scraper.assert_not_called()
 
-    def test_process_feed_no_new_articles(self, mock_rss_parser, event_loop_fixture):
+    def test_process_feed_no_new_articles(self, event_loop_fixture):
         """Test processing a feed with no new articles."""
-        # Setup mock
-        mock_rss_parser.return_value.get_new_urls.return_value = []
+        # Setup mock - use the mock already injected to the flow
+        self.mock_parser.get_new_urls.return_value = []
 
-        # Test
-        # Create a mock session factory
-        mock_session_factory = lambda: Mock()
-
-        # Create flow with default parameters
-        flow = RSSScrapingFlow(session_factory=mock_session_factory)
-        results = flow.process_feed("http://example.com/feed")
+        # Use the flow instance created by the autouse fixture
+        results = self.flow.process_feed("http://example.com/feed")
 
         assert len(results) == 0
-        mock_rss_parser.return_value.get_new_urls.assert_called_once_with(
+        self.mock_parser.get_new_urls.assert_called_once_with(
             "http://example.com/feed"
         )
 
-    def test_process_feed_with_new_articles(self, mock_rss_parser, mock_web_scraper, event_loop_fixture):
+    def test_process_feed_with_new_articles(self, event_loop_fixture):
         """Test processing a feed with new articles."""
         # Setup mocks
         test_items = [
@@ -126,22 +145,18 @@ class TestRSSScrapingFlow:
                 description="Test description 2",
             ),
         ]
-        mock_rss_parser.return_value.get_new_urls.return_value = test_items
+        self.mock_parser.get_new_urls.return_value = test_items
 
         def mock_scrape(state):
             state.status = AnalysisStatus.SCRAPE_SUCCEEDED
             state.scraped_text = f"Scraped content for {state.target_url}"
             return state
 
-        mock_web_scraper.return_value.scrape.side_effect = mock_scrape
+        # Configure the mock scraper created in the autouse fixture
+        self.mock_scraper.scrape.side_effect = mock_scrape
 
-        # Test
-        # Create a mock session factory
-        mock_session_factory = lambda: Mock()
-
-        # Create flow with default parameters
-        flow = RSSScrapingFlow(session_factory=mock_session_factory)
-        results = flow.process_feed("http://example.com/feed")
+        # Use the flow instance created by the autouse fixture
+        results = self.flow.process_feed("http://example.com/feed")
 
         assert len(results) == 2
         assert all(isinstance(state, NewsAnalysisState) for state in results)
@@ -149,7 +164,7 @@ class TestRSSScrapingFlow:
         assert "Test Article 1" in results[0].run_logs[0]
         assert "Test Article 2" in results[1].run_logs[0]
 
-    def test_process_feed_with_scraping_error(self, mock_rss_parser, mock_web_scraper, event_loop_fixture):
+    def test_process_feed_with_scraping_error(self, event_loop_fixture):
         """Test processing a feed where scraping fails."""
         # Setup mocks
         test_items = [
@@ -159,16 +174,12 @@ class TestRSSScrapingFlow:
                 description="Test description",
             )
         ]
-        mock_rss_parser.return_value.get_new_urls.return_value = test_items
-        mock_web_scraper.return_value.scrape.side_effect = Exception("Failed to scrape")
+        self.mock_parser.get_new_urls.return_value = test_items
+        # Configure the mock scraper created in the autouse fixture
+        self.mock_scraper.scrape.side_effect = Exception("Failed to scrape")
 
-        # Test
-        # Create a mock session factory
-        mock_session_factory = lambda: Mock()
-
-        # Create flow with default parameters
-        flow = RSSScrapingFlow(session_factory=mock_session_factory)
-        results = flow.process_feed("http://example.com/feed")
+        # Use the flow instance created by the autouse fixture
+        results = self.flow.process_feed("http://example.com/feed")
 
         assert len(results) == 1
         assert results[0].status == AnalysisStatus.SCRAPE_FAILED_NETWORK
