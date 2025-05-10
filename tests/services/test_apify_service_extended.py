@@ -129,11 +129,9 @@ class PseudoDictWithGet:
 
 
 @pytest.mark.usefixtures("event_loop_fixture")
+@ci_skip_async
 class TestApifyServiceExtended:
     """Extended tests for ApifyService focusing on ListPage handling."""
-
-    # Apply ci_skip_async to all test methods in this class
-    pytestmark = ci_skip_async
 
     @patch("local_newsifier.services.apify_service.ApifyClient")
     def test_get_dataset_items_with_items_attribute(self, mock_client_class):
