@@ -1,10 +1,13 @@
 """Entity resolver tool for resolving entity mentions to canonical forms."""
 
 import re
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Annotated
 from difflib import SequenceMatcher
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 
+@injectable(use_cache=False)
 class EntityResolver:
     """Tool for resolving entity mentions to canonical forms."""
 
