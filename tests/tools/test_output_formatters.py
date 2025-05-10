@@ -28,7 +28,7 @@ class TestOpinionVisualizerOutputFormatting:
     def visualizer(self, mock_session, event_loop_fixture):
         """Create an opinion visualizer instance."""
         # Mock the injectable framework to avoid FastAPI errors
-        with patch('fastapi_injectable.injectable.injectable', return_value=lambda x: x):
+        with patch('fastapi_injectable.injectable', return_value=lambda x: x):
             return OpinionVisualizerTool(session=mock_session)
 
     @pytest.fixture
