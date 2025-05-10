@@ -1,11 +1,10 @@
 """Tool for visualizing sentiment and opinion data."""
 
 import logging
-import os
-import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, TYPE_CHECKING
 
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
@@ -18,8 +17,13 @@ else:
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class OpinionVisualizerTool:
-    """Tool for generating visualizations of sentiment and opinion data."""
+    """Tool for generating visualizations of sentiment and opinion data.
+
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with database and maintains state during visualization generation.
+    """
 
     def __init__(self, session: Session):
         """
@@ -612,20 +616,3 @@ class OpinionVisualizerTool:
         return report
 
 
-# Apply the injectable decorator conditionally
-# This approach allows the class to work properly in test environments
-try:
-    # Check for multiple test environment indicators
-    in_test_env = (
-        os.environ.get('PYTEST_CURRENT_TEST') or
-        os.environ.get('CI') == 'true' or
-        'pytest' in sys.modules
-    )
-
-    # Only apply in non-test environments
-    if not in_test_env:
-        from fastapi_injectable import injectable
-        OpinionVisualizerTool = injectable(use_cache=False)(OpinionVisualizerTool)
-except (ImportError, Exception) as e:
-    # Log the error but don't fail - this lets the class work without the decorator
-    logger.debug(f"Could not apply injectable decorator to OpinionVisualizerTool: {str(e)}")
