@@ -16,7 +16,7 @@ interact with the database or maintain state between operations.
 """
 
 import logging
-from typing import Annotated, Any, Generator, Optional, TYPE_CHECKING
+from typing import Annotated, Any, Dict, Generator, Optional, TYPE_CHECKING
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -382,17 +382,36 @@ def get_entity_extractor_tool():
 
 
 @injectable(use_cache=False)
-def get_entity_resolver():
+def get_entity_resolver_config():
+    """Provide the configuration for the entity resolver tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with similarity_threshold
+    """
+    return {
+        "similarity_threshold": 0.85
+    }
+
+@injectable(use_cache=False)
+def get_entity_resolver(
+    config: Annotated[Dict, Depends(get_entity_resolver_config)]
+):
     """Provide the entity resolver tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as this tool
     may have state during the resolution process.
-    
+
+    Args:
+        config: Configuration dictionary with similarity_threshold
+
     Returns:
         EntityResolver instance
     """
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-    return EntityResolver()
+    return EntityResolver(similarity_threshold=config["similarity_threshold"])
 
 
 @injectable(use_cache=False)
