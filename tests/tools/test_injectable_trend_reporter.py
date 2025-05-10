@@ -11,8 +11,16 @@ from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
 
 def test_injectable_constructor():
     """Test injectable constructor."""
+    # Create the reporter with default settings for testing
     reporter = TrendReporter(output_dir="test_output")
+
+    # Check initialized properties
     assert reporter.output_dir == "test_output"
+
+    # Verify the @injectable decorator is NOT active in test environment
+    # (this is important to prevent event loop issues)
+    import inspect
+    assert not hasattr(reporter.__class__, "__injectable__")
 
 
 def test_save_report():
