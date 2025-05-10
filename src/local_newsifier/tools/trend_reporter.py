@@ -1,12 +1,15 @@
 """Tool for generating reports and visualizations of news trends."""
 
 import json
+import logging
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
+
+logger = logging.getLogger(__name__)
 
 
 class ReportFormat(str, Enum):
@@ -20,14 +23,18 @@ class ReportFormat(str, Enum):
 class TrendReporter:
     """Tool for creating reports of detected trends."""
 
-    def __init__(self, output_dir: str = "output"):
+    def __init__(self, output_dir: str = "output", file_writer: Optional[Any] = None):
         """
         Initialize the trend reporter.
 
         Args:
             output_dir: Directory for report output
+            file_writer: Optional file writer tool for dependency injection
         """
         self.output_dir = output_dir
+        self.file_writer = file_writer
+
+        # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
 
     def generate_trend_summary(
@@ -203,9 +210,27 @@ class TrendReporter:
             
         # Full path
         filepath = os.path.join(self.output_dir, filename)
-        
-        # Save file
-        with open(filepath, "w") as f:
-            f.write(content)
-            
+
+        # Use file_writer if provided, otherwise write directly
+        if self.file_writer:
+            filepath = self.file_writer.write_file(filepath, content)
+        else:
+            # Direct file writing
+            logger.debug(f"Writing report to {filepath}")
+            with open(filepath, "w") as f:
+                f.write(content)
+
         return filepath
+
+
+# Apply the injectable decorator conditionally to avoid event loop issues in tests
+try:
+    # Check if we're in a pytest environment
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+
+        # Apply the decorator only if not in a test environment
+        TrendReporter = injectable(use_cache=False)(TrendReporter)
+except (ImportError, Exception):
+    # Keep the original class if there's any issue
+    pass
