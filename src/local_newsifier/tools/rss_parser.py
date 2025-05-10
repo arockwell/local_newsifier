@@ -11,6 +11,7 @@ from xml.etree import ElementTree
 
 import requests
 from dateutil import parser as date_parser
+from fastapi_injectable import injectable
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -25,17 +26,35 @@ class RSSItem(BaseModel):
     description: Optional[str] = None
 
 
+@injectable(use_cache=False)
 class RSSParser:
     """Tool for parsing RSS feeds and extracting content."""
 
-    def __init__(self, cache_file: Optional[str] = None):
+    def __init__(
+        self,
+        cache_file: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        request_timeout: int = 30,
+        user_agent: Optional[str] = None
+    ):
         """
         Initialize the RSS parser.
 
         Args:
             cache_file: Optional path to a JSON file to cache processed URLs
+            cache_dir: Optional directory for storing cache files (used if cache_file is None)
+            request_timeout: Timeout in seconds for HTTP requests
+            user_agent: Custom user agent for HTTP requests
         """
+        # If cache_file is not specified but cache_dir is, create a default cache file path
+        if cache_file is None and cache_dir is not None:
+            cache_path = Path(cache_dir)
+            cache_path.mkdir(exist_ok=True, parents=True)
+            cache_file = str(cache_path / "rss_urls.json")
+
         self.cache_file = cache_file
+        self.request_timeout = request_timeout
+        self.user_agent = user_agent or "Local Newsifier RSS Parser"
         self.processed_urls = self._load_cache() if cache_file else set()
 
     def _load_cache(self) -> set:
@@ -86,8 +105,9 @@ class RSSParser:
             List of RSSItem objects containing the feed content
         """
         try:
-            # Fetch the feed
-            response = requests.get(feed_url)
+            # Fetch the feed with timeout and user-agent
+            headers = {"User-Agent": self.user_agent}
+            response = requests.get(feed_url, headers=headers, timeout=self.request_timeout)
             response.raise_for_status()
 
             # Parse the XML

@@ -471,17 +471,42 @@ def get_entity_tracker_tool():
 
 
 @injectable(use_cache=False)
-def get_rss_parser():
+def get_rss_parser_config():
+    """Provide the configuration for the RSS parser tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with cache_dir, request_timeout, and user_agent
+    """
+    return {
+        "cache_dir": "cache",
+        "request_timeout": 30,
+        "user_agent": "Local Newsifier RSS Parser"
+    }
+
+@injectable(use_cache=False)
+def get_rss_parser(
+    config: Annotated[Dict, Depends(get_rss_parser_config)]
+):
     """Provide the RSS parser tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as parsers
     may maintain state during processing.
-    
+
+    Args:
+        config: Configuration dictionary with cache_dir, request_timeout, and user_agent
+
     Returns:
         RSSParser instance
     """
     from local_newsifier.tools.rss_parser import RSSParser
-    return RSSParser()
+    return RSSParser(
+        cache_dir=config["cache_dir"],
+        request_timeout=config["request_timeout"],
+        user_agent=config["user_agent"]
+    )
 
 
 @injectable(use_cache=False)
