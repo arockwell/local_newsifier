@@ -25,7 +25,7 @@ class TestOpinionVisualizerOutputFormatting:
         return MagicMock()
 
     @pytest.fixture
-    def visualizer(self, mock_session):
+    def visualizer(self, mock_session, event_loop_fixture):
         """Create an opinion visualizer instance."""
         return OpinionVisualizerTool(session=mock_session)
 
