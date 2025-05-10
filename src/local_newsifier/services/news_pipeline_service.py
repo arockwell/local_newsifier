@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.database.engine import SessionManager
+from local_newsifier.errors import handle_database, handle_web_scraper
 
 
 class NewsPipelineService:
@@ -30,6 +31,8 @@ class NewsPipelineService:
         self.file_writer = file_writer
         self.session_factory = session_factory
     
+    @handle_web_scraper
+    @handle_database
     def process_url(self, url: str) -> Dict[str, Any]:
         """Process a news article from a URL.
         
@@ -72,6 +75,7 @@ class NewsPipelineService:
                 "url": url
             }
     
+    @handle_database
     def process_content(
         self, 
         url: str,

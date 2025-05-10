@@ -13,8 +13,11 @@ from fastapi_injectable import injectable
 from typing import Annotated
 from fastapi import Depends
 
-from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.crud.rss_feed import rss_feed
+from local_newsifier.crud.feed_processing_log import feed_processing_log
+from local_newsifier.errors import handle_database, handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
+from local_newsifier.tools.rss_parser import parse_rss_feed
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,9 @@ class RSSFeedService:
         self.article_service = article_service
         self.session_factory = session_factory
 
+
+
+    @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
 
@@ -58,6 +64,7 @@ class RSSFeedService:
                 return None
             return self._format_feed_dict(feed)
 
+    @handle_database
     def get_feed_by_url(self, url: str) -> Optional[Dict[str, Any]]:
         """Get a feed by URL.
 
@@ -73,6 +80,7 @@ class RSSFeedService:
                 return None
             return self._format_feed_dict(feed)
 
+    @handle_database
     def list_feeds(
         self, skip: int = 0, limit: int = 100, active_only: bool = False
     ) -> List[Dict[str, Any]]:
@@ -93,6 +101,7 @@ class RSSFeedService:
                 feeds = self.rss_feed_crud.get_multi(session, skip=skip, limit=limit)
             return [self._format_feed_dict(feed) for feed in feeds]
 
+    @handle_database
     def create_feed(self, url: str, name: str, description: Optional[str] = None) -> Dict[str, Any]:
         """Create a new feed.
 
@@ -128,6 +137,7 @@ class RSSFeedService:
             
             return self._format_feed_dict(new_feed)
 
+    @handle_database
     def update_feed(
         self,
         feed_id: int,
@@ -165,6 +175,7 @@ class RSSFeedService:
             updated = self.rss_feed_crud.update(session, db_obj=feed, obj_in=update_data)
             return self._format_feed_dict(updated)
 
+    @handle_database
     def remove_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Remove a feed.
 
@@ -188,6 +199,8 @@ class RSSFeedService:
             return self._format_feed_dict(removed)
 
 
+    @handle_rss
+    @handle_database
     def process_feed(
         self, feed_id: int, task_queue_func: Optional[Callable] = None
     ) -> Dict[str, Any]:
@@ -270,6 +283,7 @@ class RSSFeedService:
                     "message": str(e),
                 }
 
+    @handle_database
     def get_feed_processing_logs(
         self, feed_id: int, skip: int = 0, limit: int = 100
     ) -> List[Dict[str, Any]]:
@@ -282,6 +296,9 @@ class RSSFeedService:
 
         Returns:
             List of processing logs as dicts
+            
+        Raises:
+            ServiceError: On database errors with appropriate classification
         """
         with self.session_factory() as session:
             # Get logs

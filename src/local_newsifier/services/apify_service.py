@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from apify_client import ApifyClient
 
 from local_newsifier.config.settings import settings
+from local_newsifier.errors import handle_apify
 
 
 class ApifyService:
@@ -49,6 +50,7 @@ class ApifyService:
             self._client = ApifyClient(token)
         return self._client
 
+    @handle_apify
     def run_actor(self, actor_id: str, run_input: Dict[str, Any]) -> Dict[str, Any]:
         """Run an Apify actor.
 
@@ -667,6 +669,7 @@ class ApifyService:
         )
         return result
 
+    @handle_apify
     def get_dataset_items(self, dataset_id: str, **kwargs) -> Dict[str, Any]:
         """Get items from an Apify dataset.
 
@@ -715,6 +718,7 @@ class ApifyService:
             error_details = self._format_error(e, "Extraction Error")
             return {"items": [], "error": error_details}
 
+    @handle_apify
     def get_actor_details(self, actor_id: str) -> Dict[str, Any]:
         """Get details about an Apify actor.
 

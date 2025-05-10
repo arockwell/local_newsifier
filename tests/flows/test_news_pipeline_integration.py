@@ -4,11 +4,24 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch, AsyncMock
 
+# Mock spaCy and TextBlob before imports
+patch('spacy.load', MagicMock(return_value=MagicMock())).start()
+patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
+    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+))).start()
+patch('spacy.language.Language', MagicMock()).start()
+
 from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
-def test_news_pipeline_with_entity_service(mock_entity_service_class):
+@patch("local_newsifier.flows.news_pipeline.EntityExtractor")
+@patch("local_newsifier.flows.news_pipeline.ContextAnalyzer")
+@patch("local_newsifier.flows.news_pipeline.EntityResolver")
+@patch("local_newsifier.tools.entity_tracker_service.EntityExtractor")
+def test_news_pipeline_with_entity_service(
+    mock_extractor_tracker, mock_resolver_class, mock_analyzer_class, mock_extractor_class, mock_entity_service_class
+):
     """Test that the news pipeline works with the entity service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -31,6 +44,17 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
     mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
+    
+    # Setup mocks
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    mock_extractor_tracker.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
     pipeline = NewsPipelineFlow(
@@ -116,7 +140,14 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
                     "canonical_name": "New York City",
                     "canonical_id": 2
                 }
-            ]
+            ],
+            "statistics": {
+                "entity_counts": {
+                    "PERSON": 1,
+                    "GPE": 1
+                },
+                "total_entities": 2
+            }
         }
     )
     pipeline.writer.save = MagicMock(return_value=mock_result_state)
@@ -141,7 +172,13 @@ def test_news_pipeline_with_entity_service(mock_entity_service_class):
     pipeline.article_service.process_article.assert_called_once()
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
-def test_process_url_directly(mock_entity_service_class):
+@patch("local_newsifier.flows.news_pipeline.EntityExtractor")
+@patch("local_newsifier.flows.news_pipeline.ContextAnalyzer")
+@patch("local_newsifier.flows.news_pipeline.EntityResolver")
+@patch("local_newsifier.tools.entity_tracker_service.EntityExtractor")
+def test_process_url_directly(
+    mock_extractor_tracker, mock_resolver_class, mock_analyzer_class, mock_extractor_class, mock_entity_service_class
+):
     """Test processing a URL directly using the pipeline service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -163,6 +200,17 @@ def test_process_url_directly(mock_entity_service_class):
     mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
+    
+    # Setup mocks
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    mock_extractor_tracker.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
     pipeline = NewsPipelineFlow(
@@ -221,7 +269,13 @@ def test_process_url_directly(mock_entity_service_class):
     pipeline.pipeline_service.process_url.assert_called_once_with("https://example.com")
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
-def test_integration_with_entity_tracking(mock_entity_service_class):
+@patch("local_newsifier.flows.news_pipeline.EntityExtractor")
+@patch("local_newsifier.flows.news_pipeline.ContextAnalyzer")
+@patch("local_newsifier.flows.news_pipeline.EntityResolver")
+@patch("local_newsifier.tools.entity_tracker_service.EntityExtractor")
+def test_integration_with_entity_tracking(
+    mock_extractor_tracker, mock_resolver_class, mock_analyzer_class, mock_extractor_class, mock_entity_service_class
+):
     """Test integration with entity tracking components."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -244,6 +298,17 @@ def test_integration_with_entity_tracking(mock_entity_service_class):
     mock_sentiment_analyzer = MagicMock(spec=SentimentAnalysisTool)
     mock_article_service = MagicMock(spec=ArticleService)
     mock_pipeline_service = MagicMock(spec=NewsPipelineService)
+    
+    # Setup mocks
+    mock_extractor = MagicMock()
+    mock_extractor_class.return_value = mock_extractor
+    mock_extractor_tracker.return_value = mock_extractor
+    
+    mock_analyzer = MagicMock()
+    mock_analyzer_class.return_value = mock_analyzer
+    
+    mock_resolver = MagicMock()
+    mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
     pipeline = NewsPipelineFlow(

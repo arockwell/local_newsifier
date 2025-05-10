@@ -8,6 +8,11 @@ from fastapi_injectable import injectable
 from typing import Annotated
 from fastapi import Depends
 
+from local_newsifier.crud.analysis_result import analysis_result
+from local_newsifier.crud.article import article
+from local_newsifier.crud.entity import entity
+from local_newsifier.database.engine import SessionManager, get_session
+from local_newsifier.errors.handlers import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
 
@@ -39,6 +44,7 @@ class AnalysisService:
         self.trend_analyzer = trend_analyzer
         self.session_factory = session_factory
 
+    @handle_database
     def analyze_headline_trends(
         self,
         start_date: datetime,
@@ -135,6 +141,7 @@ class AnalysisService:
             
         return grouped_headlines
 
+    @handle_database
     def detect_entity_trends(
         self,
         entity_types: List[str] = None,
@@ -201,6 +208,7 @@ class AnalysisService:
             
             return trends
 
+    @handle_database
     def _save_analysis_result(
         self, 
         session: Session, 
@@ -246,6 +254,7 @@ class AnalysisService:
             session.refresh(new_result)
             return new_result
 
+    @handle_database
     def get_analysis_result(
         self, 
         article_id: int, 

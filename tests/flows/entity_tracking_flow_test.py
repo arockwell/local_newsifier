@@ -5,6 +5,13 @@ from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
+# Mock spaCy and TextBlob before imports
+patch('spacy.load', MagicMock(return_value=MagicMock())).start()
+patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
+    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+))).start()
+patch('spacy.language.Language', MagicMock()).start()
+
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.services.entity_service import EntityService
@@ -53,7 +60,11 @@ def test_entity_tracking_flow_init(
     assert flow._entity_resolver is not None
 
 
-def test_entity_tracking_flow_init_with_dependencies():
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_entity_tracking_flow_init_with_dependencies(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class):
     """Test initializing the entity tracking flow with provided dependencies."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
@@ -85,7 +96,11 @@ def test_entity_tracking_flow_init_with_dependencies():
 
 
 @ci_skip("Event loop closure issues in CI")
-def test_process_method(event_loop_fixture):
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_process_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, event_loop_fixture):
     """Test the process method."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
@@ -98,6 +113,16 @@ def test_process_method(event_loop_fixture):
     mock_result_state = Mock(spec=EntityTrackingState)
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
+    # Set up component mocks
+    mock_tracker = Mock()
+    mock_tracker_class.return_value = mock_tracker
+    mock_extractor = Mock()
+    mock_extractor_class.return_value = mock_extractor
+    mock_analyzer = Mock()
+    mock_context_analyzer_class.return_value = mock_analyzer
+    mock_resolver = Mock()
+    mock_resolver_class.return_value = mock_resolver
+
     # Initialize flow with mock dependencies to avoid loading spaCy models
     flow = EntityTrackingFlow(
         entity_service=mock_entity_service,
@@ -116,7 +141,11 @@ def test_process_method(event_loop_fixture):
 
 
 @ci_skip("Batch processing issues in CI")
-def test_process_new_articles_method(event_loop_fixture):
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_process_new_articles_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, event_loop_fixture):
     """Test the process_new_articles method."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
@@ -151,7 +180,11 @@ def test_process_new_articles_method(event_loop_fixture):
 
 @patch("local_newsifier.flows.entity_tracking_flow.article_crud")
 @ci_skip("Database session management issues in CI")
-def test_process_article_method(mock_article_crud, event_loop_fixture):
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_process_article_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, mock_article_crud, event_loop_fixture):
     """Test the process_article method (legacy)."""
     # Setup mocks
     mock_entity_service = Mock()  # Don't use spec to avoid attribute constraints
@@ -207,7 +240,11 @@ def test_process_article_method(mock_article_crud, event_loop_fixture):
 
 
 @ci_skip("Dashboard generation issues in CI")
-def test_get_entity_dashboard_method(event_loop_fixture):
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_get_entity_dashboard_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, event_loop_fixture):
     """Test the get_entity_dashboard method."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
@@ -244,7 +281,11 @@ def test_get_entity_dashboard_method(event_loop_fixture):
 
 
 @ci_skip("Entity relationship analysis issues in CI")
-def test_find_entity_relationships_method(event_loop_fixture):
+@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
+@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
+@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
+def test_find_entity_relationships_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, event_loop_fixture):
     """Test the find_entity_relationships method."""
     # Setup mocks
     mock_entity_service = Mock(spec=EntityService)
