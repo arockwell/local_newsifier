@@ -246,75 +246,27 @@ def get_nlp_model() -> Any:
 def get_web_scraper_tool():
     """Provide the web scraper tool.
 
-    Uses use_cache=False to create new instances for each injection, as this tool
-    maintains session and WebDriver state that shouldn't be shared between operations.
+    Uses TRANSIENT scope as this tool may maintain state between operations.
 
     Returns:
         WebScraperTool instance
     """
     from local_newsifier.tools.web_scraper import WebScraperTool
+    return WebScraperTool()
 
-    # Create a new requests session for this instance
-    import requests
-    session = requests.Session()
-
-    # Set a standard user agent
-    user_agent = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    )
-    session.headers.update({"User-Agent": user_agent})
-
-    return WebScraperTool(
-        session=session,
-        web_driver=None,  # WebDriver will be created lazily when needed
-        user_agent=user_agent
-    )
-
-    # Create a new requests session for this instance
-    import requests
-    session = requests.Session()
-
-    # Set a standard user agent
-    user_agent = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    )
-    session.headers.update({"User-Agent": user_agent})
-
-    return WebScraperTool(
-        session=session,
-        web_driver=None,  # WebDriver will be created lazily when needed
-        user_agent=user_agent
-    )
-
-
-@injectable(use_cache=False)
-def get_sentiment_analyzer_config():
-    """Provide the configuration for the sentiment analyzer tool.
-
-    This separates configuration from the tool instance, allowing for
-    different configuration settings to be injected.
-
-    Returns:
-        Configuration dictionary with model_name
-    """
-    return {
-        "model_name": "en_core_web_sm"
-    }
 
 @injectable(use_cache=False)
 def get_sentiment_analyzer_tool():
     """Provide the sentiment analyzer tool.
-
+    
     Uses use_cache=False to create new instances for each injection, as sentiment
     analysis tools may maintain state during processing and interact with NLP models.
-
+    
     Returns:
-        SentimentAnalyzer instance
+        SentimentAnalysisTool instance
     """
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-    return SentimentAnalyzer(nlp_model=get_nlp_model())
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+    return SentimentAnalysisTool()
 
 
 @injectable(use_cache=False)
@@ -524,42 +476,17 @@ def get_entity_tracker_tool():
 
 
 @injectable(use_cache=False)
-def get_rss_parser_config():
-    """Provide the configuration for the RSS parser tool.
-
-    This separates configuration from the tool instance, allowing for
-    different configuration settings to be injected.
-
-    Returns:
-        Configuration dictionary with cache_dir, request_timeout, and user_agent
-    """
-    return {
-        "cache_dir": "cache",
-        "request_timeout": 30,
-        "user_agent": "Local Newsifier RSS Parser"
-    }
-
-@injectable(use_cache=False)
-def get_rss_parser(
-    config: Annotated[Dict, Depends(get_rss_parser_config)]
-):
+def get_rss_parser():
     """Provide the RSS parser tool.
-
+    
     Uses use_cache=False to create new instances for each injection, as parsers
     may maintain state during processing.
-
-    Args:
-        config: Configuration dictionary with cache_dir, request_timeout, and user_agent
-
+    
     Returns:
         RSSParser instance
     """
     from local_newsifier.tools.rss_parser import RSSParser
-    return RSSParser(
-        cache_dir=config["cache_dir"],
-        request_timeout=config["request_timeout"],
-        user_agent=config["user_agent"]
-    )
+    return RSSParser()
 
 
 @injectable(use_cache=False)
@@ -1006,7 +933,7 @@ def get_trend_analysis_flow(
 
 @injectable(use_cache=False)
 def get_public_opinion_flow(
-    sentiment_analyzer: Annotated["SentimentAnalyzer", Depends(get_sentiment_analyzer_tool)],
+    sentiment_analyzer: Annotated["SentimentAnalysisTool", Depends(get_sentiment_analyzer_tool)],
     sentiment_tracker: Annotated["SentimentTracker", Depends(get_sentiment_tracker_tool)],
     opinion_visualizer: Annotated["OpinionVisualizerTool", Depends(get_opinion_visualizer_tool)],
     session: Annotated[Session, Depends(get_session)]
