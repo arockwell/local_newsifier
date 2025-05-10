@@ -164,8 +164,10 @@ from tests.fixtures.event_loop import event_loop_fixture  # noqa
 
 
 class TestRSSParser:
-    def setup_method(self, event_loop_fixture=None):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, event_loop_fixture):
         # Use the fixture to handle potential event loop issues
+        # Create parser in each test using event_loop_fixture to properly handle @injectable
         self.parser = RSSParser()
 
     def test_init_without_cache(self, event_loop_fixture):
