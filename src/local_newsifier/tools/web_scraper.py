@@ -12,21 +12,39 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
 from webdriver_manager.chrome import ChromeDriverManager
+from fastapi import Depends
+from fastapi_injectable import injectable
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
 
+@injectable(use_cache=False)
 class WebScraperTool:
     """Tool for scraping web content with robust error handling."""
 
-    def __init__(self, user_agent: Optional[str] = None):
-        """Initialize the scraper with optional custom user agent."""
+    def __init__(
+        self,
+        session: Any = None,
+        web_driver: Any = None,
+        user_agent: Optional[str] = None
+    ):
+        """Initialize the scraper with injectable dependencies.
+
+        Args:
+            session: Optional HTTP session for making requests (injected)
+            web_driver: Optional Selenium WebDriver (injected)
+            user_agent: Optional custom user agent string
+        """
         self.user_agent = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         )
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": self.user_agent})
+
+        # Use injected session or create a new one for backward compatibility
+        self.session = session
+        if self.session is None:
+            self.session = requests.Session()
+            self.session.headers.update({"User-Agent": self.user_agent})
 
         # Set up Chrome options
         self.chrome_options = Options()
@@ -35,8 +53,8 @@ class WebScraperTool:
         self.chrome_options.add_argument("--disable-dev-shm-usage")
         self.chrome_options.add_argument(f"user-agent={self.user_agent}")
 
-        # Initialize WebDriver as None
-        self.driver = None
+        # Use injected driver or initialize as None
+        self.driver = web_driver
 
     def __del__(self):
         """Cleanup method to ensure WebDriver is properly closed."""
@@ -44,10 +62,18 @@ class WebScraperTool:
             self.driver.quit()
 
     def _get_driver(self):
-        """Get or create a WebDriver instance."""
+        """Get or create a WebDriver instance.
+
+        Returns injected driver if available, otherwise creates a new one.
+        This provides backward compatibility with code that doesn't use dependency injection.
+        """
         if self.driver is None:
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
+            try:
+                service = Service(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=self.chrome_options)
+            except Exception as e:
+                print(f"Error initializing WebDriver: {str(e)}")
+                raise RuntimeError(f"Failed to initialize WebDriver: {str(e)}")
         return self.driver
 
     @retry(
