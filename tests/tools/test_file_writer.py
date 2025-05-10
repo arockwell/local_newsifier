@@ -143,10 +143,10 @@ def file_writer_tool(tmp_path):
     """
     return FileWriterTool(output_dir=str(tmp_path))
 
-def test_file_writer_permission_error(file_writer_tool, sample_state, event_loop_fixture):
+def test_file_writer_permission_error(tmp_path, sample_state, event_loop_fixture):
     """Test file writing with permission error."""
-    # Use the fixture to get a FileWriterTool instance (approach iii)
-    writer = file_writer_tool
+    # Direct instantiation instead of using the fixture (more reliable in CI)
+    writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Mock os.replace to raise PermissionError
     with patch("os.replace", side_effect=PermissionError("Permission denied")):
