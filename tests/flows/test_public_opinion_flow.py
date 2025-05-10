@@ -25,7 +25,7 @@ class TestPublicOpinionFlow:
     @pytest.fixture
     def flow(self, mock_session):
         """Create a public opinion flow instance with mocked components."""
-        with patch('local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool') as mock_analyzer, \
+        with patch('local_newsifier.flows.public_opinion_flow.SentimentAnalyzer') as mock_analyzer, \
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker') as mock_tracker, \
              patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool') as mock_visualizer:
             
@@ -55,7 +55,7 @@ class TestPublicOpinionFlow:
         
         # Patch all the dependencies including any async code
         with patch('local_newsifier.database.engine.get_session', return_value=mock_context_manager), \
-             patch('local_newsifier.flows.public_opinion_flow.SentimentAnalysisTool'), \
+             patch('local_newsifier.flows.public_opinion_flow.SentimentAnalyzer'), \
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
              patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'), \
              patch('local_newsifier.tools.sentiment_analyzer.spacy.load', return_value=MagicMock()), \
