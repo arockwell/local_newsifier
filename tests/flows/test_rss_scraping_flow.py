@@ -10,22 +10,26 @@ import pytest
 from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
-def mock_rss_parser():
-    with patch("local_newsifier.flows.rss_scraping_flow.RSSParser") as mock:
+def mock_rss_parser(event_loop_fixture):
+    """Mock the RSSParser with event loop handling."""
+    with patch("local_newsifier.flows.rss_scraping_flow.RSSParser") as mock_class:
         parser_instance = Mock()
-        mock.return_value = parser_instance
-        yield mock
+        mock_class.return_value = parser_instance
+        yield mock_class
 
 
 @pytest.fixture
-def mock_web_scraper():
-    with patch("local_newsifier.flows.rss_scraping_flow.WebScraperTool") as mock:
+def mock_web_scraper(event_loop_fixture):
+    """Mock the WebScraperTool with event loop handling."""
+    # First, patch the class import itself
+    with patch("local_newsifier.flows.rss_scraping_flow.WebScraperTool") as mock_class:
         scraper_instance = Mock()
-        mock.return_value = scraper_instance
-        yield mock
+        mock_class.return_value = scraper_instance
+        yield mock_class
 
 
 @pytest.fixture
@@ -41,13 +45,13 @@ def mock_article_service():
 
 
 class TestRSSScrapingFlow:
-    def setup_method(self):
+    def setup_method(self, event_loop_fixture):
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
         # Create with default parameters
         self.flow = RSSScrapingFlow(session_factory=mock_session_factory)
 
-    def test_init_with_cache_dir(self, tmp_path):
+    def test_init_with_cache_dir(self, tmp_path, event_loop_fixture):
         """Test initialization with cache directory."""
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
@@ -58,16 +62,16 @@ class TestRSSScrapingFlow:
         assert flow.article_service is None
         assert isinstance(flow.rss_parser, Mock) is False
         assert isinstance(flow.web_scraper, Mock) is False
-    
-    def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service, 
-                                   mock_rss_parser, mock_web_scraper):
+
+    def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service,
+                                   mock_rss_parser, mock_web_scraper, event_loop_fixture):
         """Test initialization with provided dependencies."""
         parser_instance = Mock()
         scraper_instance = Mock()
-        
+
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        
+
         # Create flow with all dependencies provided
         flow = RSSScrapingFlow(
             rss_feed_service=mock_rss_feed_service,
@@ -77,19 +81,19 @@ class TestRSSScrapingFlow:
             cache_dir="/tmp/cache",
             session_factory=mock_session_factory
         )
-        
+
         # Verify dependencies were used
         assert flow.rss_feed_service is mock_rss_feed_service
         assert flow.article_service is mock_article_service
         assert flow.rss_parser is parser_instance
         assert flow.web_scraper is scraper_instance
         assert flow.cache_dir == Path("/tmp/cache")
-        
+
         # Verify RSSParser and WebScraperTool classes were not called
         mock_rss_parser.assert_not_called()
         mock_web_scraper.assert_not_called()
 
-    def test_process_feed_no_new_articles(self, mock_rss_parser):
+    def test_process_feed_no_new_articles(self, mock_rss_parser, event_loop_fixture):
         """Test processing a feed with no new articles."""
         # Setup mock
         mock_rss_parser.return_value.get_new_urls.return_value = []
@@ -97,7 +101,7 @@ class TestRSSScrapingFlow:
         # Test
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        
+
         # Create flow with default parameters
         flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
@@ -107,7 +111,7 @@ class TestRSSScrapingFlow:
             "http://example.com/feed"
         )
 
-    def test_process_feed_with_new_articles(self, mock_rss_parser, mock_web_scraper):
+    def test_process_feed_with_new_articles(self, mock_rss_parser, mock_web_scraper, event_loop_fixture):
         """Test processing a feed with new articles."""
         # Setup mocks
         test_items = [
@@ -134,7 +138,7 @@ class TestRSSScrapingFlow:
         # Test
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        
+
         # Create flow with default parameters
         flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
@@ -145,7 +149,7 @@ class TestRSSScrapingFlow:
         assert "Test Article 1" in results[0].run_logs[0]
         assert "Test Article 2" in results[1].run_logs[0]
 
-    def test_process_feed_with_scraping_error(self, mock_rss_parser, mock_web_scraper):
+    def test_process_feed_with_scraping_error(self, mock_rss_parser, mock_web_scraper, event_loop_fixture):
         """Test processing a feed where scraping fails."""
         # Setup mocks
         test_items = [
@@ -161,7 +165,7 @@ class TestRSSScrapingFlow:
         # Test
         # Create a mock session factory
         mock_session_factory = lambda: Mock()
-        
+
         # Create flow with default parameters
         flow = RSSScrapingFlow(session_factory=mock_session_factory)
         results = flow.process_feed("http://example.com/feed")
