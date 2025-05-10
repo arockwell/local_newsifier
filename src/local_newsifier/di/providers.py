@@ -258,15 +258,15 @@ def get_web_scraper_tool():
 @injectable(use_cache=False)
 def get_sentiment_analyzer_tool():
     """Provide the sentiment analyzer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as sentiment
     analysis tools may maintain state during processing and interact with NLP models.
-    
+
     Returns:
-        SentimentAnalysisTool instance
+        SentimentAnalyzer instance
     """
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-    return SentimentAnalysisTool()
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
+    return SentimentAnalyzer()
 
 
 @injectable(use_cache=False)
@@ -933,7 +933,7 @@ def get_trend_analysis_flow(
 
 @injectable(use_cache=False)
 def get_public_opinion_flow(
-    sentiment_analyzer: Annotated["SentimentAnalysisTool", Depends(get_sentiment_analyzer_tool)],
+    sentiment_analyzer: Annotated["SentimentAnalyzer", Depends(get_sentiment_analyzer_tool)],
     sentiment_tracker: Annotated["SentimentTracker", Depends(get_sentiment_tracker_tool)],
     opinion_visualizer: Annotated["OpinionVisualizerTool", Depends(get_opinion_visualizer_tool)],
     session: Annotated[Session, Depends(get_session)]

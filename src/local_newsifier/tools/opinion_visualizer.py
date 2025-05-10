@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, TYPE_CHECKING
 
@@ -656,9 +657,18 @@ class OpinionVisualizerTool:
 # Apply the injectable decorator conditionally
 # This approach allows the class to work properly in test environments
 try:
+    # Check for multiple test environment indicators
+    in_test_env = (
+        os.environ.get('PYTEST_CURRENT_TEST') or
+        os.environ.get('GITHUB_ACTIONS') and os.environ.get('PYTEST_RUNNING') or
+        'pytest' in sys.modules
+    )
+
     # Only apply in non-test environments
-    if not os.environ.get('PYTEST_CURRENT_TEST'):
+    if not in_test_env:
         from fastapi_injectable import injectable
         OpinionVisualizerTool = injectable(use_cache=False)(OpinionVisualizerTool)
-except (ImportError, Exception):
+except (ImportError, Exception) as e:
+    # Log the error but don't fail - this lets the class work without the decorator
+    logger.debug(f"Could not apply injectable decorator to OpinionVisualizerTool: {str(e)}")
     pass
