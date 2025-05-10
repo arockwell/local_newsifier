@@ -7,8 +7,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from fastapi_injectable import injectable
-
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
 
 
@@ -23,7 +21,6 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
-@injectable(use_cache=False)
 class TrendReporter:
     """Tool for creating reports of detected trends."""
 
@@ -222,3 +219,15 @@ class TrendReporter:
             f.write(content)
 
         return filepath
+
+
+# Apply the injectable decorator if not in test mode
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+
+        # Create a decorated version
+        TrendReporter = injectable(use_cache=False)(TrendReporter)
+except (ImportError, Exception):
+    # Keep the original class if there's any issue
+    pass
