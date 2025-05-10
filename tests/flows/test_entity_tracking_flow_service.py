@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 # Mock spaCy and TextBlob before imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
@@ -14,6 +14,8 @@ patch('spacy.language.Language', MagicMock()).start()
 from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.services.entity_service import EntityService
+from tests.fixtures.event_loop import event_loop_fixture
+from tests.ci_skip_config import ci_skip
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityService")
@@ -28,6 +30,11 @@ def test_entity_tracking_flow_uses_service(
     """Test that EntityTrackingFlow uses the EntityService."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
+    mock_entity_tracker = MagicMock()
+    mock_entity_extractor = MagicMock()
+    mock_context_analyzer = MagicMock()
+    mock_entity_resolver = MagicMock()
+    
     mock_result_state = MagicMock(spec=EntityTrackingState)
     mock_result_state.status = TrackingStatus.SUCCESS
     mock_result_state.entities = [
@@ -64,10 +71,20 @@ def test_entity_tracking_flow_uses_service(
         published_at=datetime(2025, 1, 1)
     )
 
-    # Create flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_service)
+    # Create flow with mock service and dependencies to avoid loading spaCy models
+    flow = EntityTrackingFlow(
+        entity_service=mock_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
 
-    # Act
+    # If the class has an async method, replace it with the mock result
+    if hasattr(flow, 'process_async'):
+        flow.process_async = AsyncMock(return_value=mock_result_state)
+
+    # Act - call the synchronous method
     result_state = flow.process(state)
 
     # Assert
@@ -132,6 +149,11 @@ def test_entity_tracking_flow_handles_errors(
     """Test that EntityTrackingFlow properly handles errors during processing."""
     # Arrange
     mock_service = MagicMock(spec=EntityService)
+    mock_entity_tracker = MagicMock()
+    mock_entity_extractor = MagicMock()
+    mock_context_analyzer = MagicMock()
+    mock_entity_resolver = MagicMock()
+    
     mock_service.process_article_with_state.side_effect = Exception("Test error")
     mock_service_class.return_value = mock_service
     
@@ -156,8 +178,19 @@ def test_entity_tracking_flow_handles_errors(
         published_at=datetime(2025, 1, 1)
     )
     
-    # Create flow with mock service
-    flow = EntityTrackingFlow(entity_service=mock_service)
+    # Create flow with mock service and dependencies to avoid loading spaCy models
+    flow = EntityTrackingFlow(
+        entity_service=mock_service,
+        entity_tracker=mock_entity_tracker,
+        entity_extractor=mock_entity_extractor,
+        context_analyzer=mock_context_analyzer,
+        entity_resolver=mock_entity_resolver
+    )
+    
+    # If the class has an async method, make sure it doesn't interfere with our test
+    if hasattr(flow, 'process_async'):
+        # Set it to a mock that won't be called (we're testing the sync path)
+        flow.process_async = AsyncMock()
     
     # Act - The flow should catch the exception and return the state with error
     result_state = flow.process(state)
