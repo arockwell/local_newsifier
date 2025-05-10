@@ -23,7 +23,7 @@ from sqlmodel import Session
 from local_newsifier.database.engine import get_session, with_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.models.sentiment import SentimentVisualizationData
-from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 
@@ -34,8 +34,8 @@ class PublicOpinionFlow(Flow):
     """Flow for analyzing public opinion and sentiment in news articles."""
 
     def __init__(
-        self, 
-        sentiment_analyzer: Optional[SentimentAnalysisTool] = None,
+        self,
+        sentiment_analyzer: Optional[SentimentAnalyzer] = None,
         sentiment_tracker: Optional[SentimentTracker] = None,
         opinion_visualizer: Optional[OpinionVisualizerTool] = None,
         session_factory: Optional[callable] = None,
@@ -67,7 +67,7 @@ class PublicOpinionFlow(Flow):
             self.session_factory = lambda: session
 
         # Initialize tools or use provided ones
-        self.sentiment_analyzer = sentiment_analyzer or SentimentAnalysisTool(self.session)
+        self.sentiment_analyzer = sentiment_analyzer or SentimentAnalyzer(session=self.session)
         self.sentiment_tracker = sentiment_tracker or SentimentTracker(self.session)
         self.opinion_visualizer = opinion_visualizer or OpinionVisualizerTool(self.session)
 

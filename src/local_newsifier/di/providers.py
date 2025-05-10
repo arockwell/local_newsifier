@@ -256,17 +256,31 @@ def get_web_scraper_tool():
 
 
 @injectable(use_cache=False)
+def get_sentiment_analyzer_config():
+    """Provide the configuration for the sentiment analyzer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with model_name
+    """
+    return {
+        "model_name": "en_core_web_sm"
+    }
+
+@injectable(use_cache=False)
 def get_sentiment_analyzer_tool():
     """Provide the sentiment analyzer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as sentiment
     analysis tools may maintain state during processing and interact with NLP models.
-    
+
     Returns:
-        SentimentAnalysisTool instance
+        SentimentAnalyzer instance
     """
-    from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
-    return SentimentAnalysisTool()
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
+    return SentimentAnalyzer(nlp_model=get_nlp_model())
 
 
 @injectable(use_cache=False)
@@ -476,17 +490,42 @@ def get_entity_tracker_tool():
 
 
 @injectable(use_cache=False)
-def get_rss_parser():
+def get_rss_parser_config():
+    """Provide the configuration for the RSS parser tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with cache_dir, request_timeout, and user_agent
+    """
+    return {
+        "cache_dir": "cache",
+        "request_timeout": 30,
+        "user_agent": "Local Newsifier RSS Parser"
+    }
+
+@injectable(use_cache=False)
+def get_rss_parser(
+    config: Annotated[Dict, Depends(get_rss_parser_config)]
+):
     """Provide the RSS parser tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as parsers
     may maintain state during processing.
-    
+
+    Args:
+        config: Configuration dictionary with cache_dir, request_timeout, and user_agent
+
     Returns:
         RSSParser instance
     """
     from local_newsifier.tools.rss_parser import RSSParser
-    return RSSParser()
+    return RSSParser(
+        cache_dir=config["cache_dir"],
+        request_timeout=config["request_timeout"],
+        user_agent=config["user_agent"]
+    )
 
 
 @injectable(use_cache=False)
@@ -933,7 +972,7 @@ def get_trend_analysis_flow(
 
 @injectable(use_cache=False)
 def get_public_opinion_flow(
-    sentiment_analyzer: Annotated["SentimentAnalysisTool", Depends(get_sentiment_analyzer_tool)],
+    sentiment_analyzer: Annotated["SentimentAnalyzer", Depends(get_sentiment_analyzer_tool)],
     sentiment_tracker: Annotated["SentimentTracker", Depends(get_sentiment_tracker_tool)],
     opinion_visualizer: Annotated["OpinionVisualizerTool", Depends(get_opinion_visualizer_tool)],
     session: Annotated[Session, Depends(get_session)]

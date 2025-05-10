@@ -295,7 +295,7 @@ def register_analysis_tools(container):
         # Import analysis tools
         from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
         from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-        from local_newsifier.tools.sentiment_analyzer import SentimentAnalysisTool
+        from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
         from local_newsifier.tools.sentiment_tracker import SentimentTracker
         from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
         from local_newsifier.tools.trend_reporter import TrendReporter
@@ -316,7 +316,7 @@ def register_analysis_tools(container):
         # Register sentiment_analyzer_tool with configurable session
         container.register_factory_with_params(
             "sentiment_analyzer_tool", 
-            lambda c, **kwargs: SentimentAnalysisTool(
+            lambda c, **kwargs: SentimentAnalyzer(
                 session=kwargs.get("session")
             )
         )
