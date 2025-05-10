@@ -1,9 +1,13 @@
 # FastAPI Injectable Migration Guide
 
-> **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture 
+> **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture
 > and transition strategy, please refer to the [DI Architecture Guide](di_architecture.md).
 >
 > **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
+>
+> **WARNING**: When testing components using the injectable pattern, be aware of potential event loop issues.
+> See the [Event Loop Handling in Tests](injectable_patterns.md#event-loop-handling-in-tests) section for guidance
+> on avoiding common problems.
 
 ## Overview
 
