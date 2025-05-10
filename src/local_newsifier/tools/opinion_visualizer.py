@@ -1,11 +1,10 @@
 """Tool for visualizing sentiment and opinion data."""
 
 import logging
-import os
-import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, TYPE_CHECKING
 
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.engine import with_session
@@ -18,57 +17,29 @@ else:
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class OpinionVisualizerTool:
-    """Tool for generating visualizations of sentiment and opinion data."""
+    """Tool for generating visualizations of sentiment and opinion data.
 
-    def __init__(self, session: Optional[Session] = None, container=None):
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with database and maintains state during visualization generation.
+    """
+
+    def __init__(self, session: Session):
         """
         Initialize the opinion visualizer.
 
         Args:
-            session: Optional SQLModel session for database operations
-                    When using with dependency injection, this will be injected automatically.
-                    For backward compatibility, it can be None and provided later at method level.
-            container: Optional DIContainer for backward compatibility
+            session: SQLModel session for database operations
         """
-        # Store the session for instance-level usage
         self.session = session
 
-        # Store container for backward compatibility
-        self._container = container
-
-    def set_container(self, container):
-        """Set the DI container for backward compatibility.
-
-        Args:
-            container: DIContainer instance
-        """
-        self._container = container
-
-    def _ensure_dependencies(self):
-        """Ensure all dependencies are available.
-
-        This provides backward compatibility with the container approach.
-        """
-        if self.session is None and self._container is not None:
-            # Try to get a session from the container if available
-            try:
-                session_factory = self._container.get("session_factory")
-                if session_factory:
-                    self.session = session_factory()
-            except (KeyError, AttributeError):
-                # Failed to get from container, continue with None
-                pass
-
-    @with_session
     def prepare_timeline_data(
         self,
         topic: str,
         start_date: datetime,
         end_date: datetime,
-        interval: str = "day",
-        *,
-        session: Optional[Session] = None
+        interval: str = "day"
     ) -> SentimentVisualizationData:
         """
         Prepare data for a sentiment timeline visualization.
@@ -82,11 +53,8 @@ class OpinionVisualizerTool:
         Returns:
             Sentiment visualization data
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-
-        # Use provided session or instance session
-        session = session or self.session
+        # Use the session that was injected in the constructor
+        session = self.session
 
         # Import necessary classes here to avoid circular imports
         from ..models.database.analysis_result import AnalysisResult
@@ -168,15 +136,12 @@ class OpinionVisualizerTool:
             },
         )
 
-    @with_session
     def prepare_comparison_data(
         self,
         topics: List[str],
         start_date: datetime,
         end_date: datetime,
-        interval: str = "day",
-        *,
-        session: Optional[Session] = None
+        interval: str = "day"
     ) -> Dict[str, SentimentVisualizationData]:
         """
         Prepare data for comparative sentiment visualization.
@@ -190,17 +155,14 @@ class OpinionVisualizerTool:
         Returns:
             Dictionary mapping topics to visualization data
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-
-        # Use provided session or instance session
-        session = session or self.session
+        # Use the session that was injected in the constructor
+        session = self.session
         
         comparison_data = {}
 
         for topic in topics:
             topic_data = self.prepare_timeline_data(
-                topic, start_date, end_date, interval, session=session
+                topic, start_date, end_date, interval
             )
             comparison_data[topic] = topic_data
 
