@@ -331,22 +331,17 @@ def get_trend_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_trend_reporter_tool(
-    file_writer=Depends(get_file_writer_tool)
-):
+def get_trend_reporter_tool():
     """Provide the trend reporter tool.
 
     Uses use_cache=False to create new instances for each injection, as it
     maintains state during report generation and handles file operations.
 
-    Args:
-        file_writer: File writer tool for report output
-
     Returns:
         TrendReporter instance
     """
     from local_newsifier.tools.trend_reporter import TrendReporter
-    return TrendReporter(output_dir="trend_output", file_writer=file_writer)
+    return TrendReporter(output_dir="trend_output")
 
 
 @injectable(use_cache=False)
