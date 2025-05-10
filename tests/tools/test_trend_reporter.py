@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,
                                             TrendType)
@@ -87,21 +88,21 @@ def sample_trends():
     return [trend1, trend2]
 
 
-def test_init():
+def test_init(event_loop_fixture):
     """Test TrendReporter initialization."""
     with patch("os.makedirs") as mock_makedirs:
         # Test with default output_dir
         reporter = TrendReporter()
         assert reporter.output_dir == "output"
         mock_makedirs.assert_called_with("output", exist_ok=True)
-        
+
         # Test with custom output_dir
         reporter = TrendReporter(output_dir="custom_output")
         assert reporter.output_dir == "custom_output"
         mock_makedirs.assert_called_with("custom_output", exist_ok=True)
 
 
-def test_generate_trend_summary_empty():
+def test_generate_trend_summary_empty(event_loop_fixture):
     """Test generating summary with no trends."""
     reporter = TrendReporter()
     
@@ -116,7 +117,7 @@ def test_generate_trend_summary_empty():
     assert "No significant trends" in summary
 
 
-def test_generate_text_summary(sample_trends):
+def test_generate_text_summary(event_loop_fixture, sample_trends):
     """Test generating text format summary."""
     reporter = TrendReporter()
     
@@ -141,7 +142,7 @@ def test_generate_text_summary(sample_trends):
     assert "New Downtown Project Announced" in summary
 
 
-def test_generate_markdown_summary(sample_trends):
+def test_generate_markdown_summary(event_loop_fixture, sample_trends):
     """Test generating markdown format summary."""
     reporter = TrendReporter()
     
@@ -176,7 +177,7 @@ def test_generate_markdown_summary(sample_trends):
     assert "| 2023-01-15 | 2 |" in summary
 
 
-def test_generate_json_summary(sample_trends):
+def test_generate_json_summary(event_loop_fixture, sample_trends):
     """Test generating JSON format summary."""
     reporter = TrendReporter()
     
