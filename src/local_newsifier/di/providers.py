@@ -225,11 +225,29 @@ def get_apify_source_config_crud():
 # Tool providers
 
 @injectable(use_cache=False)
+def get_nlp_model() -> Any:
+    """Provide the spaCy NLP model.
+
+    Uses use_cache=False to create new instances for each injection,
+    preventing shared state in NLP processing.
+
+    Returns:
+        Loaded spaCy Language model or None if loading fails
+    """
+    try:
+        import spacy
+        return spacy.load("en_core_web_lg")
+    except (ImportError, OSError) as e:
+        import logging
+        logging.warning(f"Failed to load NLP model: {str(e)}")
+        return None
+
+@injectable(use_cache=False)
 def get_web_scraper_tool():
     """Provide the web scraper tool.
-    
+
     Uses TRANSIENT scope as this tool may maintain state between operations.
-    
+
     Returns:
         WebScraperTool instance
     """

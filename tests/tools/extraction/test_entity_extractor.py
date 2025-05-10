@@ -12,6 +12,12 @@ This test suite covers:
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
+# Import testing utilities for injectable pattern
+from tests.conftest_injectable import (
+    mock_injectable_dependencies,
+    create_mock_service
+)
+
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 
 
@@ -94,22 +100,28 @@ def basic_entities():
 @pytest.fixture
 def entity_extractor(mock_spacy_model):
     """Create an EntityExtractor instance with mocked spaCy model."""
-    return EntityExtractor()
+    # This will directly pass the mock_spacy_model to the constructor
+    return create_mock_service(EntityExtractor, nlp_model=mock_spacy_model)
 
 
 class TestEntityExtractor:
-    """Test suite for EntityExtractor."""
+    """Test suite for EntityExtractor with traditional instantiation."""
     
     def test_initialization(self, mock_spacy_model):
         """Test initialization of EntityExtractor."""
-        extractor = EntityExtractor()
+        extractor = create_mock_service(EntityExtractor, nlp_model=mock_spacy_model)
+        assert extractor.nlp is mock_spacy_model
+    
+    def test_initialization_fallback(self, mock_spacy_model):
+        """Test initialization with fallback to loading model."""
+        extractor = EntityExtractor(nlp_model=None)
         assert extractor.nlp is mock_spacy_model
     
     def test_initialization_error(self):
         """Test initialization error handling."""
         with patch('spacy.load', side_effect=OSError("Model not found")):
             with pytest.raises(RuntimeError, match="spaCy model .* not found"):
-                EntityExtractor()
+                EntityExtractor(nlp_model=None)
     
     def test_extract_entities_basic(self, entity_extractor, basic_entities, mock_spacy_model):
         """Test basic entity extraction."""
