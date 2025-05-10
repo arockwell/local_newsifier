@@ -298,17 +298,31 @@ def get_opinion_visualizer_tool():
 
 
 @injectable(use_cache=False)
+def get_trend_analyzer_config():
+    """Provide the configuration for the trend analyzer tool.
+
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+
+    Returns:
+        Configuration dictionary with model_name
+    """
+    return {
+        "model_name": "en_core_web_lg"
+    }
+
+@injectable(use_cache=False)
 def get_trend_analyzer_tool():
     """Provide the trend analyzer tool.
-    
-    Uses use_cache=False to create new instances for each injection, as it 
+
+    Uses use_cache=False to create new instances for each injection, as it
     performs complex analysis that may maintain state during processing.
-    
+
     Returns:
         TrendAnalyzer instance
     """
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-    return TrendAnalyzer()
+    return TrendAnalyzer(nlp_model=get_nlp_model())
 
 
 @injectable(use_cache=False)
