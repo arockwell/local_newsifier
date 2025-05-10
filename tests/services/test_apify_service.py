@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch, MagicMock, PropertyMock
 
 from apify_client import ApifyClient
 from tests.ci_skip_config import ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.config.settings import settings
