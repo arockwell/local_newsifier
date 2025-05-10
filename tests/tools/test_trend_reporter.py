@@ -217,7 +217,7 @@ def test_generate_json_summary(event_loop_fixture, sample_trends):
 
 
 @patch("builtins.open", new_callable=mock_open)
-def test_save_report(mock_file, sample_trends):
+def test_save_report(mock_file, sample_trends, event_loop_fixture):
     """Test saving reports to file."""
     # Test only filename functionality and file_writer integration
     # We won't check content writing as it's difficult to mock consistently
