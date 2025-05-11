@@ -219,11 +219,11 @@ def test_generate_json_summary(sample_trends, event_loop_fixture):
 @patch("builtins.open", new_callable=mock_open)
 def test_save_report(mock_file, sample_trends, event_loop_fixture):
     """Test saving reports to file."""
-    with patch("local_newsifier.tools.trend_reporter.TrendReporter.generate_trend_summary") as mock_generate:
-        mock_generate.return_value = "Test report content"
+    # Create a reporter instance
+    reporter = TrendReporter(output_dir="test_output")
 
-        reporter = TrendReporter(output_dir="test_output")
-
+    # Each test needs its own mock for generate_trend_summary to ensure isolation
+    with patch.object(reporter, "generate_trend_summary", return_value="Test report content"):
         # Test saving with auto-generated filename
         with patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
             mock_date = MagicMock()
@@ -237,17 +237,46 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             mock_file().write.assert_called_with("Test report content")
 
         # Test saving with provided filename
-        filepath = reporter.save_report(
-            sample_trends, filename="custom_report", format=ReportFormat.MARKDOWN
-        )
+        with patch.object(reporter, "generate_trend_summary", return_value="Test report content"):
+            filepath = reporter.save_report(
+                sample_trends, filename="custom_report", format=ReportFormat.MARKDOWN
+            )
 
-        assert filepath == os.path.join("test_output", "custom_report.markdown")
-        mock_file.assert_called_with(filepath, "w")
+            assert filepath == os.path.join("test_output", "custom_report.markdown")
+            mock_file.assert_called_with(filepath, "w")
+            mock_file().write.assert_called_with("Test report content")
 
         # Test saving with filename that already has extension
-        filepath = reporter.save_report(
-            sample_trends, filename="custom_report.json", format=ReportFormat.JSON
-        )
+        with patch.object(reporter, "generate_trend_summary", return_value="Test report content"):
+            filepath = reporter.save_report(
+                sample_trends, filename="custom_report.json", format=ReportFormat.JSON
+            )
 
-        assert filepath == os.path.join("test_output", "custom_report.json")
-        mock_file.assert_called_with(filepath, "w")
+            assert filepath == os.path.join("test_output", "custom_report.json")
+            mock_file.assert_called_with(filepath, "w")
+            mock_file().write.assert_called_with("Test report content")
+
+
+def test_save_report_with_file_writer(sample_trends, event_loop_fixture):
+    """Test saving reports using the file_writer dependency."""
+    # Create a mock FileWriterTool
+    mock_file_writer = MagicMock()
+    mock_file_writer.write_file.return_value = "/mocked/path/report.text"
+
+    # Create reporter with the mocked file_writer
+    reporter = TrendReporter(output_dir="test_output", file_writer=mock_file_writer)
+
+    # Mock the generate_trend_summary method to return a test content
+    with patch.object(reporter, "generate_trend_summary", return_value="Test report content"):
+        # Test saving with auto-generated filename
+        with patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
+            mock_date = MagicMock()
+            mock_date.strftime.return_value = "20230115_120000"
+            mock_dt.now.return_value = mock_date
+
+            filepath = reporter.save_report(sample_trends, format=ReportFormat.TEXT)
+
+            # Verify that file_writer was used instead of direct file write
+            expected_path = os.path.join("test_output", "trend_report_20230115_120000.text")
+            mock_file_writer.write_file.assert_called_once_with(expected_path, "Test report content")
+            assert filepath == "/mocked/path/report.text"  # Should return the path from file_writer
