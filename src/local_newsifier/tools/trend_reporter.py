@@ -1,12 +1,16 @@
 """Tool for generating reports and visualizations of news trends."""
 
 import json
+import logging
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
-from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
+from local_newsifier.di.base import InjectableTool, auto_injectable
+from local_newsifier.models.trend import TrendAnalysis
+
+logger = logging.getLogger(__name__)
 
 
 class ReportFormat(str, Enum):
@@ -17,7 +21,7 @@ class ReportFormat(str, Enum):
     TEXT = "text"
 
 
-class TrendReporter:
+class TrendReporter(InjectableTool):
     """Tool for creating reports of detected trends."""
 
     def __init__(self, output_dir: str = "output"):
@@ -27,8 +31,12 @@ class TrendReporter:
         Args:
             output_dir: Directory for report output
         """
+        super().__init__()
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+
+        # Initialize injectable dependencies
+        self.file_writer = None
 
     def generate_trend_summary(
         self, trends: List[TrendAnalysis], format: ReportFormat = ReportFormat.TEXT
@@ -55,50 +63,58 @@ class TrendReporter:
 
     def _generate_text_summary(self, trends: List[TrendAnalysis]) -> str:
         """Generate text format summary."""
-        summary = f"LOCAL NEWS TRENDS REPORT - {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        summary = (
+            f"LOCAL NEWS TRENDS REPORT - {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        )
         summary += f"Found {len(trends)} significant trends in local news coverage.\n\n"
 
         for i, trend in enumerate(trends, 1):
             summary += f"{i}. {trend.name} (Confidence: {trend.confidence_score:.2f})\n"
             summary += f"   Type: {trend.trend_type.replace('_', ' ').title()}\n"
             summary += f"   {trend.description}\n"
-            
+
             if trend.entities and len(trend.entities) > 1:
                 summary += "   Related entities:\n"
                 for entity in trend.entities[1:4]:  # Show up to 3 related entities
                     summary += f"   - {entity.text} ({entity.entity_type})\n"
-            
+
             if trend.evidence:
                 summary += "   Supporting evidence:\n"
                 for ev in trend.evidence[:3]:  # Show up to 3 evidence items
                     date_str = ev.published_at.strftime("%Y-%m-%d")
-                    summary += f"   - [{date_str}] {ev.article_title or 'Untitled article'}\n"
-            
+                    summary += (
+                        f"   - [{date_str}] {ev.article_title or 'Untitled article'}\n"
+                    )
+
             summary += "\n"
 
         return summary
 
     def _generate_markdown_summary(self, trends: List[TrendAnalysis]) -> str:
         """Generate markdown format summary."""
-        summary = f"# Local News Trends Report - {datetime.now().strftime('%Y-%m-%d')}\n\n"
-        summary += f"Found **{len(trends)}** significant trends in local news coverage.\n\n"
+        summary = (
+            f"# Local News Trends Report - {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        )
+        summary += (
+            f"Found **{len(trends)}** significant trends in local news coverage.\n\n"
+        )
 
         for trend in trends:
             summary += f"## {trend.name}\n\n"
             summary += f"**Type:** {trend.trend_type.replace('_', ' ').title()}  \n"
             summary += f"**Confidence:** {trend.confidence_score:.2f}  \n"
             summary += f"**Description:** {trend.description}  \n\n"
-            
+
             if trend.tags:
                 tags = " ".join([f"#{tag}" for tag in trend.tags])
                 summary += f"**Tags:** {tags}  \n\n"
-            
+
             if trend.entities and len(trend.entities) > 1:
                 summary += "### Related entities\n\n"
                 for entity in trend.entities[1:]:
                     summary += f"- **{entity.text}** ({entity.entity_type}) - Relevance: {entity.relevance_score:.2f}\n"
                 summary += "\n"
-            
+
             if trend.evidence:
                 summary += "### Supporting evidence\n\n"
                 for ev in trend.evidence:
@@ -106,7 +122,7 @@ class TrendReporter:
                     title = ev.article_title or "Untitled article"
                     summary += f"- [{title}]({ev.article_url}) - {date_str}\n"
                 summary += "\n"
-                
+
             # Add frequency data if available
             if trend.frequency_data:
                 summary += "### Frequency over time\n\n"
@@ -115,7 +131,7 @@ class TrendReporter:
                 for date, count in sorted(trend.frequency_data.items()):
                     summary += f"| {date} | {count} |\n"
                 summary += "\n"
-            
+
             summary += "---\n\n"
 
         summary += f"*Report generated at {datetime.now().isoformat()}*"
@@ -124,7 +140,7 @@ class TrendReporter:
     def _generate_json_summary(self, trends: List[TrendAnalysis]) -> str:
         """Generate JSON format summary."""
         trend_data = []
-        
+
         for trend in trends:
             # Convert the trend to a dict
             trend_dict = {
@@ -157,9 +173,9 @@ class TrendReporter:
                 ],
                 "frequency_data": trend.frequency_data,
             }
-            
+
             trend_data.append(trend_dict)
-            
+
         return json.dumps(
             {
                 "report_date": datetime.now().isoformat(),
@@ -188,24 +204,36 @@ class TrendReporter:
         """
         # Generate report content
         content = self.generate_trend_summary(trends, format)
-        
+
         # Determine file extension
         ext = format.value
-        
+
         # Create filename if not provided
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"trend_report_{date_str}.{ext}"
-        
+
         # Ensure it has the right extension
         if not filename.endswith(f".{ext}"):
             filename = f"{filename}.{ext}"
-            
+
         # Full path
         filepath = os.path.join(self.output_dir, filename)
-        
-        # Save file
-        with open(filepath, "w") as f:
-            f.write(content)
-            
-        return filepath
+
+        # Use file_writer if available, otherwise fall back to direct file operations
+        if self.file_writer:
+            logger.debug(f"Using file_writer to save report to {filepath}")
+            return self.file_writer.write_file(filepath, content)
+        else:
+            logger.debug(
+                f"Falling back to direct file operations to save report to {filepath}"
+            )
+            # Save file directly
+            with open(filepath, "w") as f:
+                f.write(content)
+
+            return filepath
+
+
+# Apply the auto_injectable decorator
+TrendReporter = auto_injectable(use_cache=False)(TrendReporter)

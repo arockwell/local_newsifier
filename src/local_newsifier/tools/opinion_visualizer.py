@@ -2,10 +2,9 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Union
 
-from fastapi_injectable import injectable
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from local_newsifier.di.base import InjectableTool, auto_injectable
 
@@ -300,10 +299,12 @@ class OpinionVisualizerTool(InjectableTool):
         report += "=" * 50 + "\n\n"
 
         # Check if metadata is available
-        if (data.viz_metadata
-                and "start_date" in data.viz_metadata
-                and "end_date" in data.viz_metadata
-                and "interval" in data.viz_metadata):
+        if (
+            data.viz_metadata
+            and "start_date" in data.viz_metadata
+            and "end_date" in data.viz_metadata
+            and "interval" in data.viz_metadata
+        ):
             report += f"Time period: {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}\n"
             report += f"Interval: {data.viz_metadata['interval']}\n\n"
         else:
@@ -342,10 +343,12 @@ class OpinionVisualizerTool(InjectableTool):
             viz_metadata = data[first_topic].viz_metadata
 
             # Check if metadata is available
-            if (viz_metadata
-                    and "start_date" in viz_metadata
-                    and "end_date" in viz_metadata
-                    and "interval" in viz_metadata):
+            if (
+                viz_metadata
+                and "start_date" in viz_metadata
+                and "end_date" in viz_metadata
+                and "interval" in viz_metadata
+            ):
                 report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
                 report += f"Interval: {viz_metadata['interval']}\n\n"
             else:
@@ -409,10 +412,12 @@ class OpinionVisualizerTool(InjectableTool):
         report = f"# Sentiment Analysis Report: {data.topic}\n\n"
 
         # Check if metadata is available
-        if (data.viz_metadata
-                and "start_date" in data.viz_metadata
-                and "end_date" in data.viz_metadata
-                and "interval" in data.viz_metadata):
+        if (
+            data.viz_metadata
+            and "start_date" in data.viz_metadata
+            and "end_date" in data.viz_metadata
+            and "interval" in data.viz_metadata
+        ):
             report += f"**Time period:** {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}  \n"
             report += f"**Interval:** {data.viz_metadata['interval']}\n\n"
         else:
@@ -452,10 +457,12 @@ class OpinionVisualizerTool(InjectableTool):
             viz_metadata = data[first_topic].viz_metadata
 
             # Check if metadata is available
-            if (viz_metadata
-                    and "start_date" in viz_metadata
-                    and "end_date" in viz_metadata
-                    and "interval" in viz_metadata):
+            if (
+                viz_metadata
+                and "start_date" in viz_metadata
+                and "end_date" in viz_metadata
+                and "interval" in viz_metadata
+            ):
                 report += f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
                 report += f"**Interval:** {viz_metadata['interval']}\n\n"
             else:
@@ -543,12 +550,16 @@ class OpinionVisualizerTool(InjectableTool):
         report += f"<h1>Sentiment Analysis Report: {data.topic}</h1>\n"
 
         # Check if metadata is available
-        if (data.viz_metadata
-                and "start_date" in data.viz_metadata
-                and "end_date" in data.viz_metadata
-                and "interval" in data.viz_metadata):
+        if (
+            data.viz_metadata
+            and "start_date" in data.viz_metadata
+            and "end_date" in data.viz_metadata
+            and "interval" in data.viz_metadata
+        ):
             report += f"<p><strong>Time period:</strong> {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}<br>\n"
-            report += f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
+            report += (
+                f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
+            )
         else:
             # Fallback to basic information
             report += "<p><strong>Time period:</strong> Not specified<br>\n"
@@ -602,10 +613,12 @@ class OpinionVisualizerTool(InjectableTool):
             viz_metadata = data[first_topic].viz_metadata
 
             # Check if metadata is available
-            if (viz_metadata
-                    and "start_date" in viz_metadata
-                    and "end_date" in viz_metadata
-                    and "interval" in viz_metadata):
+            if (
+                viz_metadata
+                and "start_date" in viz_metadata
+                and "end_date" in viz_metadata
+                and "interval" in viz_metadata
+            ):
                 report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
                 report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
             else:
