@@ -32,9 +32,11 @@ def auto_injectable(use_cache: bool = False) -> Callable[[Type[T]], Type[T]]:
 
     def decorator(cls: Type[T]) -> Type[T]:
         # Check if we're in a test environment
-        in_test_env = ("pytest" in sys.modules
-                       or os.environ.get("PYTEST_CURRENT_TEST") is not None
-                       or sys.argv[0].endswith("pytest"))
+        in_test_env = (
+            "pytest" in sys.modules
+            or os.environ.get("PYTEST_CURRENT_TEST") is not None
+            or sys.argv[0].endswith("pytest")
+        )
 
         if in_test_env:
             logger.debug(

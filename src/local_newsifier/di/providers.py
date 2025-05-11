@@ -652,7 +652,9 @@ def get_analysis_service(
 def get_entity_service(
     entity_crud: Annotated[Any, Depends(get_entity_crud)],
     canonical_entity_crud: Annotated[Any, Depends(get_canonical_entity_crud)],
-    entity_mention_context_crud: Annotated[Any, Depends(get_entity_mention_context_crud)],
+    entity_mention_context_crud: Annotated[
+        Any, Depends(get_entity_mention_context_crud)
+    ],
     entity_profile_crud: Annotated[Any, Depends(get_entity_profile_crud)],
     article_crud: Annotated[Any, Depends(get_article_crud)],
     entity_extractor: Annotated[Any, Depends(get_entity_extractor)],
