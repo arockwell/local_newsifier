@@ -224,7 +224,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
     with patch("os.makedirs"):
         # Create reporter with no file_writer (uses direct file writes)
         reporter = TrendReporter(output_dir="test_output")
-        
+
         # Test saving with auto-generated filename
         with patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
             mock_date = MagicMock()
@@ -237,7 +237,8 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "trend_report_20230115_120000.text")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
-        
+            # Don't check write content - it's generated dynamically
+
         # Test saving with provided filename
         with patch("os.makedirs"):
             filepath = reporter.save_report(
@@ -248,6 +249,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "custom_report.markdown")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
+            # Don't check write content - it's generated dynamically
 
         # Test saving with filename that already has extension
         with patch("os.makedirs"):
@@ -259,6 +261,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "custom_report.json")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
+            # Don't check write content - it's generated dynamically
 
         # Test reporter with file_writer
         mock_file_writer = MagicMock()
@@ -275,6 +278,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             mock_file_writer.write_file.assert_called_once()
             assert filepath == "/mock/path/custom_report.json"
 
-            # Verify file_writer was called with correct content
+            # Only verify the filepath parameter, not the content
             file_writer_args = mock_file_writer.write_file.call_args[0]
             assert file_writer_args[0] == os.path.join("test_output", "custom_report.json")
+            # Don't check content parameter since it will change based on the trends
