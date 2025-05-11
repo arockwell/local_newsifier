@@ -374,27 +374,6 @@ def get_trend_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_trend_reporter_tool(
-    file_writer: Annotated[Any, Depends(get_file_writer_tool)]
-):
-    """Provide the trend reporter tool.
-
-    Uses use_cache=False to create new instances for each injection, as it
-    maintains state during report generation and handles file operations.
-
-    Args:
-        file_writer: FileWriterTool for writing files
-
-    Returns:
-        TrendReporter instance
-    """
-    from local_newsifier.tools.trend_reporter import TrendReporter
-    reporter = TrendReporter(output_dir="trend_output")
-    reporter.file_writer = file_writer
-    return reporter
-
-
-@injectable(use_cache=False)
 def get_context_analyzer_config():
     """Provide the configuration for the context analyzer tool.
 
@@ -595,6 +574,27 @@ def get_file_writer_tool(
     """
     from local_newsifier.tools.file_writer import FileWriterTool
     return FileWriterTool(output_dir=config["output_dir"])
+
+
+@injectable(use_cache=False)
+def get_trend_reporter_tool(
+    file_writer: Annotated[Any, Depends(get_file_writer_tool)]
+):
+    """Provide the trend reporter tool.
+
+    Uses use_cache=False to create new instances for each injection, as it
+    maintains state during report generation and handles file operations.
+
+    Args:
+        file_writer: FileWriterTool for writing files
+
+    Returns:
+        TrendReporter instance
+    """
+    from local_newsifier.tools.trend_reporter import TrendReporter
+    reporter = TrendReporter(output_dir="trend_output")
+    reporter.file_writer = file_writer
+    return reporter
 
 
 # Service providers
