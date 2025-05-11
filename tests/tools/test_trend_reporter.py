@@ -237,7 +237,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "trend_report_20230115_120000.text")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
-            # Don't check write content - it's generated dynamically
+            # Don't check write content - it's generated dynamically and changes with test data
 
         # Test saving with provided filename
         with patch("os.makedirs"):
@@ -249,7 +249,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "custom_report.markdown")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
-            # Don't check write content - it's generated dynamically
+            # Don't check write content - it's generated dynamically and changes with test data
 
         # Test saving with filename that already has extension
         with patch("os.makedirs"):
@@ -261,7 +261,7 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
             assert filepath == os.path.join("test_output", "custom_report.json")
             # Verify file was opened for writing
             mock_file.assert_called_with(filepath, "w")
-            # Don't check write content - it's generated dynamically
+            # Don't check write content - it's generated dynamically and changes with test data
 
         # Test reporter with file_writer
         mock_file_writer = MagicMock()
