@@ -3,7 +3,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union
+from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union, TYPE_CHECKING
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class SentimentTracker:
     """Tool for tracking and analyzing sentiment trends over time."""
 
-    def __init__(self, session: Optional[Session] = None, session_factory: Optional[Callable[[], Session]] = None):
+    def __init__(self, session=None, session_factory=None):
         """
         Initialize the sentiment tracker.
 
@@ -34,7 +34,7 @@ class SentimentTracker:
         self.session = session
         self.session_factory = session_factory
 
-    def _get_session(self, session: Optional[Session] = None) -> Optional[Session]:
+    def _get_session(self, session=None):
         """
         Get a session to use for database operations.
 

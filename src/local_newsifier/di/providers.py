@@ -297,7 +297,7 @@ def get_sentiment_analyzer_tool():
 
 @injectable(use_cache=False)
 def get_sentiment_tracker_tool(
-    session: Annotated[Session, Depends(get_session)]
+    session=Depends(get_session)
 ):
     """Provide the sentiment tracker tool.
 
