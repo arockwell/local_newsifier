@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
                                                       ReportFormat,
                                                       TrendAnalysisState)
@@ -95,7 +96,7 @@ def sample_trends():
     return [trend1, trend2]
 
 
-def test_trend_analysis_state_init():
+def test_trend_analysis_state_init(event_loop_fixture):
     """Test TrendAnalysisState initialization."""
     # Test with default config
     state = TrendAnalysisState()
@@ -116,7 +117,7 @@ def test_trend_analysis_state_init():
     assert state.config.min_articles == 5
 
 
-def test_trend_analysis_state_methods():
+def test_trend_analysis_state_methods(event_loop_fixture):
     """Test TrendAnalysisState methods."""
     state = TrendAnalysisState()
     
