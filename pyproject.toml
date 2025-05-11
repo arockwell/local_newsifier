@@ -60,7 +60,8 @@ python_files = ["test_*.py", "*_test.py"]
 
 # Configure parallel test execution with xdist
 # Run tests in parallel by default (auto-detect CPU count)
-addopts = "-n auto -vs"
+# Temporarily disabled: addopts = "-n auto -vs"
+addopts = "-vs"
 
 # Define custom markers for test categorization
 markers = [
