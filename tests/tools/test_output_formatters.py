@@ -409,7 +409,7 @@ class TestTrendReporterOutputFormatting:
         
         return [trend1, trend2]
 
-    def test_text_summary_structure(self, sample_trends):
+    def test_text_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of text format summaries."""
         reporter = TrendReporter()
         summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.TEXT)
@@ -432,7 +432,7 @@ class TestTrendReporterOutputFormatting:
         assert "Supporting evidence:" in summary
         assert "New Downtown Project Announced" in summary
 
-    def test_markdown_summary_structure(self, sample_trends):
+    def test_markdown_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of markdown format summaries."""
         reporter = TrendReporter()
         summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.MARKDOWN)
@@ -465,7 +465,7 @@ class TestTrendReporterOutputFormatting:
         assert "| Date | Mentions |" in summary
         assert "| 2023-01-15 | 2 |" in summary
 
-    def test_json_summary_structure(self, sample_trends):
+    def test_json_summary_structure(self, sample_trends, event_loop_fixture):
         """Test the structure of JSON format summaries."""
         reporter = TrendReporter()
         json_summary = reporter.generate_trend_summary(sample_trends, format=ReportFormat.JSON)
@@ -502,7 +502,7 @@ class TestTrendReporterOutputFormatting:
                 assert len(trend_data["evidence"]) == len(trend.evidence)
                 assert trend_data["evidence"][0]["title"] == trend.evidence[0].article_title
 
-    def test_empty_trends_handling(self):
+    def test_empty_trends_handling(self, event_loop_fixture):
         """Test handling of empty trends list."""
         reporter = TrendReporter()
         
@@ -516,7 +516,7 @@ class TestTrendReporterOutputFormatting:
         json_summary = reporter.generate_trend_summary([], format=ReportFormat.JSON)
         assert "No significant trends" in json_summary
 
-    def test_save_report_file_formats(self, sample_trends, tmp_path):
+    def test_save_report_file_formats(self, sample_trends, tmp_path, event_loop_fixture):
         """Test saving reports in different file formats."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
@@ -555,7 +555,7 @@ class TestTrendReporterOutputFormatting:
             assert "report_date" in json_content
             assert "trends" in json_content
 
-    def test_auto_filename_generation(self, sample_trends, tmp_path):
+    def test_auto_filename_generation(self, sample_trends, tmp_path, event_loop_fixture):
         """Test automatic filename generation."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
@@ -571,7 +571,7 @@ class TestTrendReporterOutputFormatting:
             assert path == expected_path
             assert os.path.exists(path)
 
-    def test_filename_extension_handling(self, sample_trends, tmp_path):
+    def test_filename_extension_handling(self, sample_trends, tmp_path, event_loop_fixture):
         """Test handling of filename extensions."""
         reporter = TrendReporter(output_dir=str(tmp_path))
         
