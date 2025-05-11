@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from tests.fixtures.event_loop import event_loop_fixture
 
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,
                                             TrendType)
