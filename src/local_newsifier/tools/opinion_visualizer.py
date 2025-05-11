@@ -25,7 +25,7 @@ class OpinionVisualizerTool:
     interacts with database and maintains state during visualization generation.
     """
 
-    def __init__(self, session: Optional[Session] = None, container=None):
+    def __init__(self, session=None, container=None):
         """
         Initialize the opinion visualizer.
 
