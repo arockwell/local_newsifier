@@ -221,71 +221,71 @@ def test_save_report(mock_file, sample_trends, event_loop_fixture):
     """Test saving reports to file."""
     # Test only filename functionality and file_writer integration
     with patch("os.makedirs"):
-        # Mock the generate_trend_summary method to return a consistent test string
-        with patch("local_newsifier.tools.trend_reporter.TrendReporter.generate_trend_summary", 
-                  return_value="Test report content"):
-            
-            # Create reporter with no file_writer (uses direct file writes)
-            reporter = TrendReporter(output_dir="test_output")
-            
-            # Test saving with auto-generated filename
-            with patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
-                mock_date = MagicMock()
-                mock_date.strftime.return_value = "20230115_120000"
-                mock_dt.now.return_value = mock_date
+        # Create reporter with no file_writer (uses direct file writes)
+        reporter = TrendReporter(output_dir="test_output")
+        
+        # Test saving with auto-generated filename
+        with patch.object(reporter, "generate_trend_summary", return_value="Test report content"), \
+             patch("local_newsifier.tools.trend_reporter.datetime") as mock_dt:
+            mock_date = MagicMock()
+            mock_date.strftime.return_value = "20230115_120000"
+            mock_dt.now.return_value = mock_date
 
-                filepath = reporter.save_report(sample_trends, format=ReportFormat.TEXT)
+            filepath = reporter.save_report(sample_trends, format=ReportFormat.TEXT)
 
-                # Verify the filepath is correct
-                assert filepath == os.path.join("test_output", "trend_report_20230115_120000.text")
-                # Verify file was opened for writing
-                mock_file.assert_called_with(filepath, "w")
-                # Verify content was written correctly
-                mock_file().write.assert_called_with("Test report content")
-            
-            # Test saving with provided filename
-            with patch("os.makedirs"):
-                filepath = reporter.save_report(
-                    sample_trends, filename="custom_report", format=ReportFormat.MARKDOWN
-                )
+            # Verify the filepath is correct
+            assert filepath == os.path.join("test_output", "trend_report_20230115_120000.text")
+            # Verify file was opened for writing
+            mock_file.assert_called_with(filepath, "w")
+            # Verify content was written correctly
+            mock_file().write.assert_called_with("Test report content")
+        
+        # Test saving with provided filename
+        with patch.object(reporter, "generate_trend_summary", return_value="Test report content"), \
+             patch("os.makedirs"):
+            filepath = reporter.save_report(
+                sample_trends, filename="custom_report", format=ReportFormat.MARKDOWN
+            )
 
-                # Verify the filepath is correct
-                assert filepath == os.path.join("test_output", "custom_report.markdown")
-                # Verify file was opened for writing
-                mock_file.assert_called_with(filepath, "w")
-                # Verify content was written correctly
-                mock_file().write.assert_called_with("Test report content")
+            # Verify the filepath is correct
+            assert filepath == os.path.join("test_output", "custom_report.markdown")
+            # Verify file was opened for writing
+            mock_file.assert_called_with(filepath, "w")
+            # Verify content was written correctly
+            mock_file().write.assert_called_with("Test report content")
 
-            # Test saving with filename that already has extension
-            with patch("os.makedirs"):
-                filepath = reporter.save_report(
-                    sample_trends, filename="custom_report.json", format=ReportFormat.JSON
-                )
+        # Test saving with filename that already has extension
+        with patch.object(reporter, "generate_trend_summary", return_value="Test report content"), \
+             patch("os.makedirs"):
+            filepath = reporter.save_report(
+                sample_trends, filename="custom_report.json", format=ReportFormat.JSON
+            )
 
-                # Verify the filepath is correct
-                assert filepath == os.path.join("test_output", "custom_report.json")
-                # Verify file was opened for writing
-                mock_file.assert_called_with(filepath, "w")
-                # Verify content was written correctly
-                mock_file().write.assert_called_with("Test report content")
+            # Verify the filepath is correct
+            assert filepath == os.path.join("test_output", "custom_report.json")
+            # Verify file was opened for writing
+            mock_file.assert_called_with(filepath, "w")
+            # Verify content was written correctly
+            mock_file().write.assert_called_with("Test report content")
 
-            # Test reporter with file_writer
-            mock_file_writer = MagicMock()
-            mock_file_writer.write_file.return_value = "/mock/path/custom_report.json"
+        # Test reporter with file_writer
+        mock_file_writer = MagicMock()
+        mock_file_writer.write_file.return_value = "/mock/path/custom_report.json"
 
-            reporter_with_writer = TrendReporter(output_dir="test_output", file_writer=mock_file_writer)
+        reporter_with_writer = TrendReporter(output_dir="test_output", file_writer=mock_file_writer)
 
-            with patch("os.makedirs"):
-                filepath = reporter_with_writer.save_report(
-                    sample_trends, filename="custom_report.json", format=ReportFormat.JSON
-                )
+        with patch.object(reporter_with_writer, "generate_trend_summary", return_value="Test report content"), \
+             patch("os.makedirs"):
+            filepath = reporter_with_writer.save_report(
+                sample_trends, filename="custom_report.json", format=ReportFormat.JSON
+            )
 
-                # Assert file_writer was used
-                mock_file_writer.write_file.assert_called_once()
-                assert filepath == "/mock/path/custom_report.json"
+            # Assert file_writer was used
+            mock_file_writer.write_file.assert_called_once()
+            assert filepath == "/mock/path/custom_report.json"
 
-                # Verify file_writer was called with correct path and content
-                mock_file_writer.write_file.assert_called_with(
-                    os.path.join("test_output", "custom_report.json"), 
-                    "Test report content"
-                )
+            # Verify file_writer was called with correct path and content
+            mock_file_writer.write_file.assert_called_with(
+                os.path.join("test_output", "custom_report.json"),
+                "Test report content"
+            )
