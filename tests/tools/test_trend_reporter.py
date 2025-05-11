@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                             TrendEvidenceItem, TrendStatus,
                                             TrendType)
@@ -216,7 +217,7 @@ def test_generate_json_summary(sample_trends):
 
 
 @patch("builtins.open", new_callable=mock_open)
-def test_save_report(mock_file, sample_trends):
+def test_save_report(mock_file, sample_trends, event_loop_fixture):
     """Test saving reports to file."""
     with patch("local_newsifier.tools.trend_reporter.TrendReporter.generate_trend_summary") as mock_generate:
         mock_generate.return_value = "Test report content"
