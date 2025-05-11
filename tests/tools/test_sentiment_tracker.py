@@ -13,6 +13,9 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
     sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
 ))).start()
 
+# Mock fastapi_injectable to avoid dependency resolution errors in tests
+patch('fastapi_injectable.injectable', lambda **kwargs: lambda cls: cls).start()
+
 # Import after patching
 with patch('spacy.language.Language', MagicMock()):
     from local_newsifier.tools.sentiment_tracker import SentimentTracker
@@ -30,6 +33,11 @@ class TestSentimentTracker:
     def tracker(self, mock_session):
         """Create a sentiment tracker instance."""
         return SentimentTracker(session=mock_session)
+
+    @pytest.fixture
+    def injectable_tracker(self, mock_session):
+        """Create a sentiment tracker instance using the injectable pattern."""
+        return SentimentTracker(session_factory=lambda: mock_session)
 
     def test_get_period_key(self, tracker):
         """Test period key generation."""
@@ -668,7 +676,7 @@ class TestSentimentTracker:
         with patch.object(
             tracker, 'detect_sentiment_shifts'
         ) as mock_detect_shifts:
-            
+
             # Mock detected shifts
             mock_shifts = [
                 {
@@ -683,11 +691,11 @@ class TestSentimentTracker:
                 }
             ]
             mock_detect_shifts.return_value = mock_shifts
-            
+
             # Call method
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
-            
+
             results = tracker.track_sentiment_shifts(
                 start_date=start_date,
                 end_date=end_date,
@@ -695,14 +703,26 @@ class TestSentimentTracker:
                 time_interval="day",
                 shift_threshold=0.3
             )
-            
+
             # Verify results format
             assert len(results) == 1
             assert results[0]["topic"] == "climate"
             assert results[0]["start_period"] == "2023-05-01"
             assert results[0]["shift_magnitude"] == 0.5
-            
+
             # Verify method calls
             mock_detect_shifts.assert_called_once_with(
                 ["climate"], start_date, end_date, "day", 0.3
             )
+
+    def test_injectable_pattern(self, injectable_tracker, mock_session):
+        """Test that the injectable pattern works correctly."""
+        # For this test, we'll simply verify that the session_factory attribute is properly set
+        # This confirms that the injectable pattern is working at a basic level
+        assert injectable_tracker.session_factory is not None
+
+        # Test that calling the session_factory returns the expected mock session
+        session = injectable_tracker.session_factory()
+        assert session is mock_session
+
+        # No need to test the full functionality again, as it's covered by other tests
