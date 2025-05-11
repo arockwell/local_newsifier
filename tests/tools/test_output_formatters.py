@@ -13,6 +13,7 @@ from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
                                          TrendEvidenceItem, TrendStatus,
                                          TrendType)
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
 
 

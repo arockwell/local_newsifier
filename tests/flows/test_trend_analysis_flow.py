@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 from tests.fixtures.event_loop import event_loop_fixture
 
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
                                                       ReportFormat,
                                                       TrendAnalysisState)
