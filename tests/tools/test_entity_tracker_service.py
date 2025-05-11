@@ -23,14 +23,12 @@ class MockEntityTracker:
             published_at=published_at
         )
 
-@pytest.mark.skip(reason="Database connection failure, to be fixed in a separate PR")
 def test_entity_tracker_uses_service():
     """Test that EntityTracker uses the new service.
-    
-    Note: This test verifies that the EntityTracker correctly delegates to
-    the EntityService, but uses a test double instead of the real implementation
-    to avoid database connectivity issues. The real implementation has the same
-    delegation pattern but includes database session management.
+
+    This test verifies that the EntityTracker correctly delegates to
+    the EntityService, using a patched version of the with_session decorator
+    to avoid database connectivity issues.
     """
     # Arrange
     mock_service = MagicMock()
@@ -44,27 +42,32 @@ def test_entity_tracker_uses_service():
             "framing_category": "neutral"
         }
     ]
-    
-    # Use our mock implementation instead
-    tracker = MockEntityTracker(entity_service=mock_service)
-    
-    # Act
-    result = tracker.process_article(
-        article_id=1,
-        content="John Doe visited the city.",
-        title="Test Article",
-        published_at=datetime(2025, 1, 1)
-    )
-    
-    # Assert
-    mock_service.process_article_entities.assert_called_once_with(
-        article_id=1,
-        content="John Doe visited the city.",
-        title="Test Article",
-        published_at=datetime(2025, 1, 1)
-    )
-    
-    assert len(result) == 1
-    assert result[0]["original_text"] == "John Doe"
-    assert result[0]["canonical_name"] == "John Doe"
-    assert result[0]["sentiment_score"] == 0.5
+
+    # Using patch to avoid database access
+    with patch("local_newsifier.tools.entity_tracker_service.with_session", lambda f: f):
+        # Create a real EntityTracker with our mock service
+        from local_newsifier.tools.entity_tracker_service import EntityTracker
+        tracker = EntityTracker(entity_service=mock_service)
+
+        # Act - provide a session since we patched out the decorator
+        mock_session = MagicMock()
+        result = tracker.process_article(
+            article_id=1,
+            content="John Doe visited the city.",
+            title="Test Article",
+            published_at=datetime(2025, 1, 1),
+            session=mock_session
+        )
+
+        # Assert
+        mock_service.process_article_entities.assert_called_once_with(
+            article_id=1,
+            content="John Doe visited the city.",
+            title="Test Article",
+            published_at=datetime(2025, 1, 1)
+        )
+
+        assert len(result) == 1
+        assert result[0]["original_text"] == "John Doe"
+        assert result[0]["canonical_name"] == "John Doe"
+        assert result[0]["sentiment_score"] == 0.5

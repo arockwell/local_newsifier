@@ -51,11 +51,6 @@ if TYPE_CHECKING:
     from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
     from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
 
-from local_newsifier.tools.entity_tracker_service import EntityTracker
-from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-
 logger = logging.getLogger(__name__)
 
 # Database providers
@@ -271,23 +266,6 @@ def get_web_scraper_tool():
         user_agent=user_agent
     )
 
-    # Create a new requests session for this instance
-    import requests
-    session = requests.Session()
-
-    # Set a standard user agent
-    user_agent = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    )
-    session.headers.update({"User-Agent": user_agent})
-
-    return WebScraperTool(
-        session=session,
-        web_driver=None,  # WebDriver will be created lazily when needed
-        user_agent=user_agent
-    )
-
 
 @injectable(use_cache=False)
 def get_sentiment_analyzer_config():
@@ -421,20 +399,6 @@ def get_context_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_apify_service():
-    """Provide the Apify service.
-    
-    Uses use_cache=False to create new instances for each injection, as it
-    interacts with external APIs that require fresh client instances.
-    
-    Returns:
-        ApifyService instance
-    """
-    from local_newsifier.services.apify_service import ApifyService
-    return ApifyService()
-
-
-@injectable(use_cache=False)
 def get_entity_extractor():
     """Provide the entity extractor tool.
     
@@ -510,20 +474,6 @@ def get_entity_resolver_tool():
 
 
 @injectable(use_cache=False)
-def get_entity_tracker_tool():
-    """Provide the entity tracker tool.
-    
-    Uses use_cache=False to create new instances for each injection, as this tool
-    maintains state during the entity tracking process.
-    
-    Returns:
-        EntityTracker instance
-    """
-    from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker()
-
-
-@injectable(use_cache=False)
 def get_rss_parser_config():
     """Provide the configuration for the RSS parser tool.
 
@@ -596,6 +546,85 @@ def get_file_writer_tool(
 
 
 # Service providers
+@injectable(use_cache=False)
+def get_entity_service(
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
+    canonical_entity_crud: Annotated["CRUDCanonicalEntity", Depends(get_canonical_entity_crud)],
+    entity_mention_context_crud: Annotated["CRUDEntityMentionContext", Depends(get_entity_mention_context_crud)],
+    entity_profile_crud: Annotated["CRUDEntityProfile", Depends(get_entity_profile_crud)],
+    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
+    entity_extractor: Annotated["EntityExtractor", Depends(get_entity_extractor)],
+    context_analyzer: Annotated["ContextAnalyzer", Depends(get_context_analyzer_tool)],
+    entity_resolver: Annotated["EntityResolver", Depends(get_entity_resolver)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        entity_crud: Entity CRUD component
+        canonical_entity_crud: Canonical entity CRUD component
+        entity_mention_context_crud: Entity mention context CRUD component
+        entity_profile_crud: Entity profile CRUD component
+        article_crud: Article CRUD component
+        entity_extractor: Entity extractor tool
+        context_analyzer: Context analyzer tool
+        entity_resolver: Entity resolver tool
+        session: Database session
+        
+    Returns:
+        EntityService instance
+    """
+    from local_newsifier.services.entity_service import EntityService
+    
+    return EntityService(
+        entity_crud=entity_crud,
+        canonical_entity_crud=canonical_entity_crud,
+        entity_mention_context_crud=entity_mention_context_crud,
+        entity_profile_crud=entity_profile_crud,
+        article_crud=article_crud,
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
+def get_entity_tracker_tool(
+    entity_service: Annotated["EntityService", Depends(get_entity_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity tracker tool.
+
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during the entity tracking process.
+    
+    Args:
+        entity_service: Service for entity operations
+        session: Database session
+
+    Returns:
+        EntityTracker instance
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker(entity_service=entity_service, session=session)
+
+
+@injectable(use_cache=False)
+def get_apify_service():
+    """Provide the Apify service.
+    
+    Uses use_cache=False to create new instances for each injection, as it
+    interacts with external APIs that require fresh client instances.
+    
+    Returns:
+        ApifyService instance
+    """
+    from local_newsifier.services.apify_service import ApifyService
+    return ApifyService()
 
 
 @injectable(use_cache=False)
@@ -656,52 +685,6 @@ def get_analysis_service(
         article_crud=article_crud,
         entity_crud=entity_crud,
         trend_analyzer=trend_analyzer,
-        session_factory=lambda: session
-    )
-
-
-@injectable(use_cache=False)
-def get_entity_service(
-    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
-    canonical_entity_crud: Annotated["CRUDCanonicalEntity", Depends(get_canonical_entity_crud)],
-    entity_mention_context_crud: Annotated["CRUDEntityMentionContext", Depends(get_entity_mention_context_crud)],
-    entity_profile_crud: Annotated["CRUDEntityProfile", Depends(get_entity_profile_crud)],
-    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
-    entity_extractor: Annotated["EntityExtractor", Depends(get_entity_extractor)],
-    context_analyzer: Annotated["ContextAnalyzer", Depends(get_context_analyzer_tool)],
-    entity_resolver: Annotated["EntityResolver", Depends(get_entity_resolver)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the entity service.
-    
-    Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations.
-    
-    Args:
-        entity_crud: Entity CRUD component
-        canonical_entity_crud: Canonical entity CRUD component
-        entity_mention_context_crud: Entity mention context CRUD component
-        entity_profile_crud: Entity profile CRUD component
-        article_crud: Article CRUD component
-        entity_extractor: Entity extractor tool
-        context_analyzer: Context analyzer tool
-        entity_resolver: Entity resolver tool
-        session: Database session
-        
-    Returns:
-        EntityService instance
-    """
-    from local_newsifier.services.entity_service import EntityService
-    
-    return EntityService(
-        entity_crud=entity_crud,
-        canonical_entity_crud=canonical_entity_crud,
-        entity_mention_context_crud=entity_mention_context_crud,
-        entity_profile_crud=entity_profile_crud,
-        article_crud=article_crud,
-        entity_extractor=entity_extractor,
-        context_analyzer=context_analyzer,
-        entity_resolver=entity_resolver,
         session_factory=lambda: session
     )
 
@@ -1037,6 +1020,27 @@ def get_public_opinion_flow(
 # CLI command providers
 
 @injectable(use_cache=False)
+def get_injectable_entity_tracker(
+    entity_service: Annotated["EntityService", Depends(get_entity_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the injectable entity tracker tool.
+    
+    Uses use_cache=False to create new instances for each injection, as this tool
+    maintains state during the entity tracking process.
+    
+    Args:
+        entity_service: Service for entity operations
+        session: Database session
+    
+    Returns:
+        InjectableEntityTracker instance with injected dependencies
+    """
+    from local_newsifier.tools.entity_tracker_service import EntityTracker
+    return EntityTracker(entity_service=entity_service, session=session)
+
+
+@injectable(use_cache=False)
 def get_apify_service_cli(token: Optional[str] = None):
     """Provide the Apify service for CLI commands.
     
@@ -1106,7 +1110,7 @@ def get_db_inspect_command():
         Function to execute db inspect command
     """
     from local_newsifier.cli.commands.db import inspect_record
-    return inspect_record
+    return db_inspect_command
 
 
 @injectable(use_cache=False)
