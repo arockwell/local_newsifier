@@ -332,17 +332,22 @@ def get_sentiment_tracker_tool():
 
 
 @injectable(use_cache=False)
-def get_opinion_visualizer_tool():
+def get_opinion_visualizer_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the opinion visualizer tool.
-    
+
     Uses use_cache=False to create new instances for each injection, as it
     interacts with database and maintains state during visualization generation.
-    
+
+    Args:
+        session: Database session for data access
+
     Returns:
         OpinionVisualizerTool instance
     """
     from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-    return OpinionVisualizerTool()
+    return OpinionVisualizerTool(session=session)
 
 
 @injectable(use_cache=False)
