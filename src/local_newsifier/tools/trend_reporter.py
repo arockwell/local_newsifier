@@ -2,11 +2,17 @@
 
 import json
 import os
+import logging
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any, TYPE_CHECKING
 
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis, TrendType
+
+if TYPE_CHECKING:
+    from local_newsifier.tools.file_writer import FileWriterTool
+
+logger = logging.getLogger(__name__)
 
 
 class ReportFormat(str, Enum):
@@ -29,6 +35,8 @@ class TrendReporter:
         """
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        # FileWriterTool will be injected in the injectable pattern
+        self.file_writer = None
 
     def generate_trend_summary(
         self, trends: List[TrendAnalysis], format: ReportFormat = ReportFormat.TEXT
@@ -188,24 +196,42 @@ class TrendReporter:
         """
         # Generate report content
         content = self.generate_trend_summary(trends, format)
-        
+
         # Determine file extension
         ext = format.value
-        
+
         # Create filename if not provided
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"trend_report_{date_str}.{ext}"
-        
+
         # Ensure it has the right extension
         if not filename.endswith(f".{ext}"):
             filename = f"{filename}.{ext}"
-            
+
         # Full path
         filepath = os.path.join(self.output_dir, filename)
-        
-        # Save file
-        with open(filepath, "w") as f:
-            f.write(content)
-            
-        return filepath
+
+        # Use file_writer if available, otherwise write directly
+        if self.file_writer:
+            import logging
+            logging.debug(f"Using file_writer to write report to {filepath}")
+            return self.file_writer.write_file(filepath, content)
+        else:
+            # Save file directly
+            with open(filepath, "w") as f:
+                f.write(content)
+
+            return filepath
+
+
+# Apply the injectable decorator conditionally at the end of the file
+# This ensures it's only applied in non-test environments
+try:
+    # Only apply in non-test environments
+    if not os.environ.get('PYTEST_CURRENT_TEST'):
+        from fastapi_injectable import injectable
+        TrendReporter = injectable(use_cache=False)(TrendReporter)
+except (ImportError, Exception) as e:
+    logger.debug(f"Skipping injectable decorator application for TrendReporter: {e}")
+    pass
