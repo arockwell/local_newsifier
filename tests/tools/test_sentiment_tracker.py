@@ -7,6 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
+# Import event loop fixture
+from tests.fixtures.event_loop import event_loop_fixture  # noqa
+
 # Mock imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
 patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
@@ -23,6 +26,11 @@ with patch('spacy.language.Language', MagicMock()):
 
 class TestSentimentTracker:
     """Test class for SentimentTracker."""
+
+    @pytest.fixture(autouse=True)
+    def setup_event_loop(self, event_loop_fixture):
+        """Ensure every test in this class has access to the event loop fixture."""
+        return event_loop_fixture
 
     @pytest.fixture
     def mock_session(self):

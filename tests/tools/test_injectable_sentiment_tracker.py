@@ -8,6 +8,9 @@ from fastapi import Depends
 from sqlmodel import Session
 from typing import Annotated
 
+# Import event loop fixture
+from tests.fixtures.event_loop import event_loop_fixture  # noqa
+
 # Patch imports to avoid requiring external dependencies
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
 patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
@@ -30,7 +33,12 @@ with patch('spacy.language.Language', MagicMock()):
 
 class TestInjectableSentimentTracker:
     """Test class for injectable SentimentTracker."""
-    
+
+    @pytest.fixture(autouse=True)
+    def setup_event_loop(self, event_loop_fixture):
+        """Ensure every test in this class has access to the event loop fixture."""
+        return event_loop_fixture
+
     @pytest.fixture
     def mock_session(self):
         """Create a mock database session."""
@@ -52,13 +60,13 @@ class TestInjectableSentimentTracker:
         with patch('local_newsifier.di.providers.get_session', return_value=mock_session):
             # Get the sentiment tracker from the provider
             tracker = get_sentiment_tracker_tool(mock_session)
-            
+
             # Verify it's an instance of SentimentTracker
             assert isinstance(tracker, SentimentTracker)
-            
+
             # Verify it has a session_factory
             assert tracker.session_factory is not None
-            
+
             # Verify the session_factory returns our mock session
             assert tracker.session_factory() is mock_session
             
