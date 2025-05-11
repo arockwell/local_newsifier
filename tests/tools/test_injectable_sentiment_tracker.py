@@ -33,20 +33,22 @@ class TestInjectableSentimentTracker:
         session = MagicMock()
         return session
         
-    def test_provider_function(self, mock_session):
+    def test_provider_function(self, mock_session, event_loop_fixture):
         """Test that provider functions create a properly configured SentimentTracker."""
         # Import here after patching
         with patch('local_newsifier.di.providers.get_session', return_value=mock_session):
             from local_newsifier.di.providers import get_sentiment_tracker_tool
             from local_newsifier.tools.sentiment_tracker import SentimentTracker
-            
-            # Get tracker from provider function
-            tracker = get_sentiment_tracker_tool(mock_session)
-            
-            # Verify tracker is properly configured
-            assert isinstance(tracker, SentimentTracker)
-            assert tracker.session_factory is not None
-            assert tracker.session_factory() is mock_session
+
+            # Mock the Depends function to avoid event loop issues
+            with patch('fastapi.Depends', return_value=mock_session):
+                # Get tracker from provider function - directly call without using Depends
+                tracker = get_sentiment_tracker_tool(session=mock_session)
+
+                # Verify tracker is properly configured
+                assert isinstance(tracker, SentimentTracker)
+                assert tracker.session_factory is not None
+                assert tracker.session_factory() is mock_session
             
     def test_session_injection(self, mock_session):
         """Test that the session is properly injected and used."""
