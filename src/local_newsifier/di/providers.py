@@ -296,17 +296,22 @@ def get_sentiment_analyzer_tool():
 
 
 @injectable(use_cache=False)
-def get_sentiment_tracker_tool():
+def get_sentiment_tracker_tool(
+    session=Depends(get_session)
+):
     """Provide the sentiment tracker tool.
-    
-    Uses use_cache=False to create new instances for each injection, as it 
+
+    Uses use_cache=False to create new instances for each injection, as it
     interacts with database and maintains state during tracking.
-    
+
+    Args:
+        session: Database session for data access
+
     Returns:
         SentimentTracker instance
     """
     from local_newsifier.tools.sentiment_tracker import SentimentTracker
-    return SentimentTracker()
+    return SentimentTracker(session_factory=lambda: session)
 
 
 @injectable(use_cache=False)

@@ -3,8 +3,10 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union, TYPE_CHECKING
 
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
@@ -17,17 +19,43 @@ from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 logger = logging.getLogger(__name__)
 
 
+@injectable(use_cache=False)
 class SentimentTracker:
     """Tool for tracking and analyzing sentiment trends over time."""
 
-    def __init__(self, session: Optional[Session] = None):
+    def __init__(self, session=None, session_factory=None):
         """
         Initialize the sentiment tracker.
 
         Args:
-            session: Optional SQLAlchemy session
+            session: Optional SQLAlchemy session (for backward compatibility)
+            session_factory: Optional callable that returns a session (for injectable pattern)
         """
         self.session = session
+        self.session_factory = session_factory
+
+    def _get_session(self, session=None):
+        """
+        Get a session to use for database operations.
+
+        The priority order for obtaining a session is:
+        1. Explicitly provided session parameter
+        2. Session from session_factory (injectable pattern)
+        3. Instance-level session (backward compatibility)
+
+        Args:
+            session: Optional session passed to method
+
+        Returns:
+            Session to use for database operations
+        """
+        if session is not None:
+            return session
+
+        if self.session_factory is not None:
+            return self.session_factory()
+
+        return self.session
 
     @with_session
     def get_sentiment_by_period(
@@ -51,6 +79,9 @@ class SentimentTracker:
         Returns:
             Dictionary mapping periods to sentiment data
         """
+        # Use session priority logic
+        session = self._get_session(session)
+
         # Get all articles in date range
         articles = self._get_articles_in_range(start_date, end_date, session=session)
 
@@ -108,8 +139,8 @@ class SentimentTracker:
         Returns:
             Dictionary mapping periods to entity sentiment data
         """
-        # Use provided session or instance session
-        session = session or self.session
+        # Use session priority logic
+        session = self._get_session(session)
         
         # Get all articles in date range
         articles = self._get_articles_in_range(start_date, end_date, session=session)
@@ -159,8 +190,8 @@ class SentimentTracker:
         Returns:
             List of detected sentiment shifts
         """
-        # Use provided session or instance session
-        session = session or self.session
+        # Use session priority logic
+        session = self._get_session(session)
         
         # Get sentiment by period for all specified topics
         sentiment_by_period = self.get_sentiment_by_period(
@@ -202,8 +233,8 @@ class SentimentTracker:
         Returns:
             Dictionary with correlation statistics
         """
-        # Use provided session or instance session
-        session = session or self.session
+        # Use session priority logic
+        session = self._get_session(session)
         
         # Get sentiment by period for both topics
         sentiment_by_period = self.get_sentiment_by_period(
@@ -265,17 +296,17 @@ class SentimentTracker:
     def _get_articles_in_range(self, start_date: datetime, end_date: datetime, *, session: Optional[Session] = None) -> List:
         """
         Get all articles published within the date range.
-        
+
         Args:
             start_date: Start date for the range
             end_date: End date for the range
             session: Optional SQLAlchemy session
-            
+
         Returns:
             List of articles in the date range
         """
-        # Use provided session or instance session
-        session = session or self.session
+        # Use session priority logic
+        session = self._get_session(session)
 
         # Use SQLModel query syntax with select
         statement = select(Article).where(
@@ -321,16 +352,16 @@ class SentimentTracker:
     def _get_sentiment_data_for_articles(self, article_ids: List[int], *, session: Optional[Session] = None) -> List[Dict]:
         """
         Get sentiment analysis results for articles.
-        
+
         Args:
             article_ids: List of article IDs to get sentiment data for
             session: Optional SQLAlchemy session
-            
+
         Returns:
             List of sentiment data dictionaries
         """
-        # Use provided session or instance session
-        session = session or self.session
+        # Use session priority logic
+        session = self._get_session(session)
         
         sentiment_data = []
 
