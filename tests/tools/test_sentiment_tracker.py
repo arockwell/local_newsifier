@@ -7,11 +7,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
+# Import event loop fixture to handle fastapi-injectable async operations
+from tests.fixtures.event_loop import event_loop_fixture
+
 # Mock imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
 patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
     sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
 ))).start()
+
+# Mock fastapi-injectable to prevent dependency resolution in tests
+injectable_mock = MagicMock()
+injectable_mock.side_effect = lambda **kwargs: lambda cls: cls
+patch('fastapi_injectable.injectable', injectable_mock).start()
 
 # Import after patching
 with patch('spacy.language.Language', MagicMock()):
@@ -20,6 +28,11 @@ with patch('spacy.language.Language', MagicMock()):
 
 class TestSentimentTracker:
     """Test class for SentimentTracker."""
+
+    @pytest.fixture(autouse=True)
+    def setup_event_loop(self, event_loop_fixture):
+        """Ensure every test in this class has access to the event loop fixture."""
+        return event_loop_fixture
 
     @pytest.fixture
     def mock_session(self):
@@ -30,6 +43,11 @@ class TestSentimentTracker:
     def tracker(self, mock_session):
         """Create a sentiment tracker instance."""
         return SentimentTracker(session=mock_session)
+
+    @pytest.fixture
+    def injectable_tracker(self, mock_session):
+        """Create a sentiment tracker instance using the injectable pattern."""
+        return SentimentTracker(session_factory=lambda: mock_session)
 
     def test_get_period_key(self, tracker):
         """Test period key generation."""
@@ -668,7 +686,7 @@ class TestSentimentTracker:
         with patch.object(
             tracker, 'detect_sentiment_shifts'
         ) as mock_detect_shifts:
-            
+
             # Mock detected shifts
             mock_shifts = [
                 {
@@ -683,11 +701,11 @@ class TestSentimentTracker:
                 }
             ]
             mock_detect_shifts.return_value = mock_shifts
-            
+
             # Call method
             start_date = datetime(2023, 5, 1, tzinfo=timezone.utc)
             end_date = datetime(2023, 5, 3, tzinfo=timezone.utc)
-            
+
             results = tracker.track_sentiment_shifts(
                 start_date=start_date,
                 end_date=end_date,
@@ -695,14 +713,25 @@ class TestSentimentTracker:
                 time_interval="day",
                 shift_threshold=0.3
             )
-            
+
             # Verify results format
             assert len(results) == 1
             assert results[0]["topic"] == "climate"
             assert results[0]["start_period"] == "2023-05-01"
             assert results[0]["shift_magnitude"] == 0.5
-            
+
             # Verify method calls
             mock_detect_shifts.assert_called_once_with(
                 ["climate"], start_date, end_date, "day", 0.3
             )
+
+    def test_injectable_pattern(self, injectable_tracker, mock_session):
+        """Test that the injectable pattern works correctly."""
+        # Test that _get_session method returns the expected session
+        test_session = injectable_tracker._get_session()
+        assert test_session is mock_session
+
+        # Test session priority logic
+        session1 = MagicMock(name="session1")
+        result1 = injectable_tracker._get_session(session=session1)
+        assert result1 is session1, "Explicitly provided session should have highest priority"
