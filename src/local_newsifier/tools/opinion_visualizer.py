@@ -4,9 +4,11 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, Annotated, TYPE_CHECKING
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi_injectable import injectable
 from sqlmodel import Session, select
+
+from local_newsifier.database.transaction import JoinTransactionMode
 
 if TYPE_CHECKING:
     from local_newsifier.models.sentiment import SentimentVisualizationData
@@ -24,13 +26,21 @@ class OpinionVisualizerTool:
     interacts with database and maintains state during visualization generation.
     """
 
-    def __init__(self, session: Annotated[Session, Depends()]):
+    def __init__(
+        self, 
+        session: Annotated[
+            Session, 
+            Depends(),
+            Query(JoinTransactionMode.CONDITIONAL_SAVEPOINT)
+        ]
+    ):
         """
         Initialize the opinion visualizer.
 
         Args:
             session: SQLModel session for database operations
                     Injected via FastAPI-Injectable dependency injection
+                    With transaction mode set to CONDITIONAL_SAVEPOINT
         """
         # Store the session for instance-level usage
         self.session = session
