@@ -209,10 +209,6 @@ class RSSParser:
         return new_items
 
 
-# Global parser instance
-_parser = RSSParser()
-
-
 def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     """
     Parse an RSS feed and return the content in a dictionary format.
@@ -226,8 +222,12 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     logger.info(f"Parsing RSS feed: {feed_url}")
     
     try:
+        # Get parser instance using the injectable provider
+        from local_newsifier.di.providers import get_rss_parser
+        parser = get_rss_parser()
+        
         # Use the parser to get items
-        items = _parser.parse_feed(feed_url)
+        items = parser.parse_feed(feed_url)
         
         # Extract feed title (use first item's title as fallback for feed title)
         feed_title = "Unknown Feed"
