@@ -317,7 +317,7 @@ class TestOpinionVisualizerTool:
 
     def test_injectable_compatibility(self, visualizer, mock_session, sample_data, event_loop_fixture):
         """Test that both injectable and legacy approaches work identically."""
-        # Create a second tool directly, skipping the injectable_visualizer fixture
+        # Create a second tool directly
         injectable_visualizer = OpinionVisualizerTool(session=mock_session)
         
         # Generate reports with both tools
@@ -330,21 +330,6 @@ class TestOpinionVisualizerTool:
         # Both tools should handle the same operations
         assert hasattr(visualizer, "prepare_timeline_data")
         assert hasattr(injectable_visualizer, "prepare_timeline_data")
-        
-        # Verify container fallback logic
-        container_mock = MagicMock()
-        session_mock = MagicMock()
-        session_factory_mock = MagicMock(return_value=session_mock)
-        container_mock.get.return_value = session_factory_mock
-        
-        # Create a tool without session but with container
-        tool = OpinionVisualizerTool(container=container_mock)
-        
-        # This should trigger _ensure_dependencies
-        tool.prepare_timeline_data("test", datetime.now(timezone.utc), datetime.now(timezone.utc))
-        
-        # Verify container was used to get session
-        container_mock.get.assert_called_with("session_factory")
 
     def test_timeline_report_with_empty_data(self, visualizer, event_loop_fixture):
         """Test timeline report with empty data."""

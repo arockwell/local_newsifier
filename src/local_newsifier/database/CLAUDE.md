@@ -11,9 +11,9 @@ The database module manages database connections, sessions, and transaction hand
 - Supports multiple database instances through environment variables
 
 ### Session Utilities
-- **session_utils.py**: Provides session management utilities
+- **session_utils.py**: Provides legacy session management utilities
 - Includes context managers and decorators for working with sessions
-- Integrates with the dependency injection container
+- The project is transitioning to FastAPI-Injectable for session management
 
 ## Database Connection Patterns
 
@@ -97,35 +97,51 @@ class SessionManager:
             self.session.close()
 ```
 
-### Container Integration
-Session management integrates with the DI container:
+### FastAPI-Injectable Session Provider (Preferred)
+
+The recommended approach for session management is using FastAPI-Injectable:
 
 ```python
-def with_container_session(func):
-    """Decorator to provide a session from the container.
+@injectable(use_cache=False)
+def get_session() -> Generator[Session, None, None]:
+    """Provide a database session.
     
-    Usage:
-        @with_container_session
-        def my_function(session, other_args):
-            # Use session for database operations
+    Returns a session from the session factory and ensures
+    it's properly closed when done.
+    
+    Yields:
+        Database session
     """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        container = kwargs.pop("container", None)
-        
-        if container is None:
-            # Import container lazily to avoid circular imports
-            from local_newsifier.container import container
-        
-        session_factory = container.get("session_factory")
-        if session_factory is None:
-            raise ValueError("Session factory not found in container")
-        
-        with session_factory() as session:
-            kwargs["session"] = session
-            return func(*args, **kwargs)
+    from local_newsifier.database.engine import get_session as get_db_session
     
-    return wrapper
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
+```
+
+This provider is used in services and components through dependency injection:
+
+```python
+@injectable(use_cache=False)
+def get_entity_service(
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
+    canonical_entity_crud: Annotated["CRUDCanonicalEntity", Depends(get_canonical_entity_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    """
+    from local_newsifier.services.entity_service import EntityService
+    
+    return EntityService(
+        entity_crud=entity_crud,
+        canonical_entity_crud=canonical_entity_crud,
+        session_factory=lambda: session
+    )
 ```
 
 ### Multiple Cursor Support
@@ -165,18 +181,30 @@ def get_database_url():
 ## Best Practices
 
 ### Session Usage
-- Use context managers for session handling:
-```python
-with SessionManager() as session:
-    # Use session for database operations
-```
+- For components using the FastAPI-Injectable pattern:
+  ```python
+  @injectable(use_cache=False)
+  class MyService:
+      def __init__(self, session: Annotated[Session, Depends(get_session)]):
+          self.session_factory = lambda: session
+  
+      def my_method(self):
+          with self.session_factory() as session:
+              # Use session for database operations
+  ```
 
-- For functions that need a session, use the decorator:
-```python
-@with_container_session
-def my_function(session, other_args):
-    # Use session for database operations
-```
+- For legacy components, use context managers for session handling:
+  ```python
+  with SessionManager() as session:
+      # Use session for database operations
+  ```
+
+- For decorated functions that need a session, use the `with_session` decorator:
+  ```python
+  @with_session
+  def my_function(session, other_args):
+      # Use session for database operations
+  ```
 
 ### Transaction Management
 - By default, sessions are committed at the end of the context manager
@@ -193,8 +221,8 @@ with SessionManager() as session:
 
 ### Connection Management
 - Don't create database engines directly, use `get_engine()`
-- Don't create sessions directly, use `SessionManager`
-- Always close sessions after use (done automatically by context manager)
+- Don't create sessions directly, use `SessionManager` or the FastAPI-Injectable provider
+- Always close sessions after use (done automatically by context manager or injectable provider)
 
 ### SQLModel Best Practices
 - Use `session.exec()` for SQLModel queries

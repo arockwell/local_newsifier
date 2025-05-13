@@ -2,6 +2,7 @@
 
 import json
 import os
+import inspect
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -27,9 +28,22 @@ class TestOpinionVisualizerOutputFormatting:
     @pytest.fixture
     def visualizer(self, mock_session, event_loop_fixture):
         """Create an opinion visualizer instance."""
-        # Mock the injectable framework to avoid FastAPI errors
-        with patch('fastapi_injectable.injectable', return_value=lambda x: x):
-            return OpinionVisualizerTool(session=mock_session)
+        # Create a direct instance bypassing the decorator
+        # Import the real class methods
+        from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+        
+        # Create a mock
+        visualizer = MagicMock()
+        visualizer.session = mock_session
+        visualizer.session_factory = lambda: mock_session
+        
+        # Copy the actual methods from the class (excluding __init__)
+        for name, method in inspect.getmembers(OpinionVisualizerTool, predicate=inspect.isfunction):
+            if name != '__init__':
+                # Bind the method to our mock object
+                visualizer.__dict__[name] = method.__get__(visualizer, OpinionVisualizerTool)
+                
+        return visualizer
 
     @pytest.fixture
     def sample_data(self):
