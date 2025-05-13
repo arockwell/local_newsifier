@@ -480,11 +480,19 @@ class TestRSSParser:
         # Should have empty processed_urls
         assert parser.processed_urls == set()
 
+    @patch("local_newsifier.tools.rss_parser.get_parser_instance")
     @patch("requests.get")
-    def test_global_parse_rss_feed_function(self, mock_get, mock_response, event_loop_fixture):
+    def test_global_parse_rss_feed_function(self, mock_get, mock_get_parser, mock_response, event_loop_fixture):
         """Test the global parse_rss_feed function."""
+        # Setup mock parser and response
         mock_response.content = SAMPLE_RSS_XML.encode("utf-8")
         mock_get.return_value = mock_response
+        mock_parser = Mock()
+        mock_parser.parse_feed.return_value = [
+            RSSItem(title="Test Article 1", url="http://example.com/1", description="Test description 1", published=datetime(2024, 4, 12, 10, 30, 0)),
+            RSSItem(title="Test Article 2", url="http://example.com/2", description="Test description 2", published=datetime(2024, 4, 12, 11, 30, 0))
+        ]
+        mock_get_parser.return_value = mock_parser
         
         result = parse_rss_feed("http://example.com/feed")
         

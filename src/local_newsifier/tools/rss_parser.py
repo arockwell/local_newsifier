@@ -209,8 +209,24 @@ class RSSParser:
         return new_items
 
 
-# Global parser instance
-_parser = RSSParser()
+def get_parser_instance() -> RSSParser:
+    """
+    Get an RSSParser instance safely.
+    
+    This function handles both production and test environments:
+    - In production, gets the parser from the fastapi-injectable provider
+    - In tests, creates a new parser instance if the provider is not available
+    
+    Returns:
+        An RSSParser instance
+    """
+    try:
+        # Try to get the parser from the injectable provider
+        from local_newsifier.di.providers import get_rss_parser as get_injectable_parser
+        return get_injectable_parser()
+    except (ImportError, RuntimeError):
+        # Fall back to creating a new instance in test environments
+        return RSSParser()
 
 
 def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
@@ -226,8 +242,11 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     logger.info(f"Parsing RSS feed: {feed_url}")
     
     try:
+        # Get parser instance in a test-friendly way
+        parser = get_parser_instance()
+        
         # Use the parser to get items
-        items = _parser.parse_feed(feed_url)
+        items = parser.parse_feed(feed_url)
         
         # Extract feed title (use first item's title as fallback for feed title)
         feed_title = "Unknown Feed"
