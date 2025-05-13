@@ -4,10 +4,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, Annotated, TYPE_CHECKING
 
+from fastapi import Depends
 from fastapi_injectable import injectable
 from sqlmodel import Session, select
-
-from local_newsifier.database.engine import with_session
 
 if TYPE_CHECKING:
     from local_newsifier.models.sentiment import SentimentVisualizationData
@@ -25,54 +24,25 @@ class OpinionVisualizerTool:
     interacts with database and maintains state during visualization generation.
     """
 
-    def __init__(self, session=None, container=None):
+    def __init__(self, session: Annotated[Session, Depends()]):
         """
         Initialize the opinion visualizer.
 
         Args:
-            session: Optional SQLModel session for database operations
-                    When using with dependency injection, this will be injected automatically.
-                    For backward compatibility, it can be None and provided later at method level.
-            container: Optional DIContainer for backward compatibility
+            session: SQLModel session for database operations
+                    Injected via FastAPI-Injectable dependency injection
         """
         # Store the session for instance-level usage
         self.session = session
+        # Create a session factory for ease of use
+        self.session_factory = lambda: session
 
-        # Store container for backward compatibility
-        self._container = container
-
-    def set_container(self, container):
-        """Set the DI container for backward compatibility.
-
-        Args:
-            container: DIContainer instance
-        """
-        self._container = container
-
-    def _ensure_dependencies(self):
-        """Ensure all dependencies are available.
-
-        This provides backward compatibility with the container approach.
-        """
-        if self.session is None and self._container is not None:
-            # Try to get a session from the container if available
-            try:
-                session_factory = self._container.get("session_factory")
-                if session_factory:
-                    self.session = session_factory()
-            except (KeyError, AttributeError):
-                # Failed to get from container, continue with None
-                pass
-
-    @with_session
     def prepare_timeline_data(
         self,
         topic: str,
         start_date: datetime,
         end_date: datetime,
         interval: str = "day",
-        *,
-        session: Optional[Session] = None
     ) -> SentimentVisualizationData:
         """
         Prepare data for a sentiment timeline visualization.
@@ -86,12 +56,6 @@ class OpinionVisualizerTool:
         Returns:
             Sentiment visualization data
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-
-        # Use provided session or instance session
-        session = session or self.session
-
         # Import necessary classes here to avoid circular imports
         from ..models.database.analysis_result import AnalysisResult
         from ..models.database.article import Article
@@ -103,7 +67,7 @@ class OpinionVisualizerTool:
             Article.published_at <= end_date
         ).join(Article)
         
-        results = session.execute(statement)
+        results = self.session.execute(statement)
         analysis_results = results.all()
 
         # Process results into time periods
@@ -172,15 +136,12 @@ class OpinionVisualizerTool:
             },
         )
 
-    @with_session
     def prepare_comparison_data(
         self,
         topics: List[str],
         start_date: datetime,
         end_date: datetime,
         interval: str = "day",
-        *,
-        session: Optional[Session] = None
     ) -> Dict[str, SentimentVisualizationData]:
         """
         Prepare data for comparative sentiment visualization.
@@ -193,18 +154,12 @@ class OpinionVisualizerTool:
 
         Returns:
             Dictionary mapping topics to visualization data
-        """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-
-        # Use provided session or instance session
-        session = session or self.session
-        
+        """        
         comparison_data = {}
 
         for topic in topics:
             topic_data = self.prepare_timeline_data(
-                topic, start_date, end_date, interval, session=session
+                topic, start_date, end_date, interval
             )
             comparison_data[topic] = topic_data
 
