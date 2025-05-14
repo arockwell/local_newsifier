@@ -4,34 +4,8 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, call
 
-from local_newsifier.services.rss_feed_service import (
-    RSSFeedService,
-    register_article_service,
-)
+from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
-from local_newsifier.di_container import DIContainer
-from local_newsifier.container import container
-
-
-@pytest.fixture
-def mock_container():
-    """Create a mock container for testing."""
-    mock_container = MagicMock(spec=DIContainer)
-    # Setup services dictionary as needed
-    mock_container._services = {}
-    mock_container._factories = {}
-    
-    # Setup get method to return a mock when asked for article_service
-    mock_article_service = MagicMock()
-    
-    def mock_get(name):
-        if name == "article_service":
-            return mock_article_service
-        return None
-    
-    mock_container.get.side_effect = mock_get
-    
-    return mock_container, mock_article_service
 
 
 @pytest.fixture
@@ -48,7 +22,6 @@ def mock_session_factory(mock_db_session):
     return mock_factory
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_feed_found(mock_db_session, mock_session_factory):
     """Test retrieving an existing feed by ID."""
@@ -89,7 +62,6 @@ def test_get_feed_found(mock_db_session, mock_session_factory):
 
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_feed_not_found(mock_db_session, mock_session_factory):
     """Test retrieving a non-existent feed by ID."""
     # Arrange
@@ -112,7 +84,6 @@ def test_get_feed_not_found(mock_db_session, mock_session_factory):
     assert result is None
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_feed_by_url_found(mock_db_session, mock_session_factory):
     """Test retrieving an existing feed by URL."""
@@ -150,7 +121,6 @@ def test_get_feed_by_url_found(mock_db_session, mock_session_factory):
 
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_feed_by_url_not_found(mock_db_session, mock_session_factory):
     """Test retrieving a non-existent feed by URL."""
     # Arrange
@@ -174,7 +144,6 @@ def test_get_feed_by_url_not_found(mock_db_session, mock_session_factory):
     assert result is None
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_list_feeds_all(mock_db_session, mock_session_factory):
     """Test listing all feeds."""
@@ -225,7 +194,6 @@ def test_list_feeds_all(mock_db_session, mock_session_factory):
 
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_list_feeds_active_only(mock_db_session, mock_session_factory):
     """Test listing active feeds only."""
     # Arrange
@@ -264,7 +232,6 @@ def test_list_feeds_active_only(mock_db_session, mock_session_factory):
     assert result[0]["is_active"] is True
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_create_feed_success(mock_db_session, mock_session_factory):
     """Test creating a new feed successfully."""
@@ -309,7 +276,6 @@ def test_create_feed_success(mock_db_session, mock_session_factory):
     assert result["is_active"] is True
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_create_feed_already_exists(mock_db_session, mock_session_factory):
     """Test creating a feed that already exists."""
@@ -671,208 +637,6 @@ def test_process_feed_success(mock_parse_rss_feed, mock_db_session, mock_session
     mock_rss_feed_crud.update_last_fetched.assert_called_once_with(mock_db_session, id=feed_id)
 
 
-# @patch('local_newsifier.services.rss_feed_service.parse_rss_feed')
-# def test_process_feed_with_global_task_func(mock_parse_rss_feed, reset_global_task, mock_db_session, mock_session_factory):
-#     """Test processing a feed with the global task function."""
-#     # Arrange
-#     import local_newsifier.services.rss_feed_service
-#     feed_id = 1
-#     
-#     # Set up global task
-#     mock_global_task = MagicMock()
-#     mock_global_task.delay = MagicMock()
-#     # Directly modify the module variable
-#     local_newsifier.services.rss_feed_service._process_article_task = mock_global_task
-#     
-#     # Mock RSS feed
-#     mock_rss_feed_crud = MagicMock()
-#     
-#     mock_feed = MagicMock()
-#     mock_feed.id = feed_id
-#     mock_feed.url = "https://example.com/feed"
-#     mock_feed.name = "Example Feed"
-#     
-#     mock_rss_feed_crud.get.return_value = mock_feed
-#     
-#     # Mock feed processing log
-#     mock_feed_processing_log_crud = MagicMock()
-#     
-#     mock_log = MagicMock()
-#     mock_log.id = 1
-#     mock_log.feed_id = feed_id
-#     
-#     mock_feed_processing_log_crud.create_processing_started.return_value = mock_log
-#     
-#     # Mock article service
-#     mock_article_service = MagicMock()
-#     mock_article_service.create_article_from_rss_entry.return_value = 123  # Article ID
-#     
-#     # Mock RSS data
-#     mock_parse_rss_feed.return_value = {
-#         "feed": {
-#             "title": "Example Feed",
-#             "link": "https://example.com",
-#             "description": "An example feed"
-#         },
-#         "entries": [
-#             {
-#                 "title": "Article 1",
-#                 "link": "https://example.com/article1",
-#                 "description": "First article"
-#             },
-#             {
-#                 "title": "Article 2",
-#                 "link": "https://example.com/article2",
-#                 "description": "Second article"
-#             }
-#         ]
-#     }
-#     
-#     # Create service with session factory but NO task_queue_func parameter
-#     # This should force it to use the global _process_article_task
-#     service = RSSFeedService(
-#         rss_feed_crud=mock_rss_feed_crud,
-#         feed_processing_log_crud=mock_feed_processing_log_crud,
-#         article_service=mock_article_service,
-#         session_factory=mock_session_factory
-#     )
-#     
-#     # Act
-#     result = service.process_feed(feed_id)  # Don't provide task_queue_func
-#     
-#     # Assert
-#     assert mock_article_service.create_article_from_rss_entry.call_count == 2
-#     assert mock_global_task.delay.call_count == 2  # This will verify _process_article_task.delay was called
-#     mock_global_task.delay.assert_has_calls([call(123), call(123)])
-#     
-#     assert result["status"] == "success"
-#     assert result["articles_added"] == 2
-
-
-# @patch('local_newsifier.services.rss_feed_service.ArticleService')
-# @patch('local_newsifier.services.rss_feed_service.parse_rss_feed')
-# def test_process_feed_no_service_no_task(mock_article_service_class, mock_parse_rss_feed, reset_global_task, mock_db_session, mock_session_factory):
-#     """Test processing a feed with no article service and no global task."""
-#     # Arrange
-#     import local_newsifier.services.rss_feed_service
-#     feed_id = 1
-#     # Ensure global task is None (done by reset_global_task fixture)
-#     
-#     # Mock RSS feed
-#     mock_rss_feed_crud = MagicMock()
-#     
-#     mock_feed = MagicMock()
-#     mock_feed.id = feed_id
-#     mock_feed.url = "https://example.com/feed"
-#     mock_feed.name = "Example Feed"
-#     
-#     mock_rss_feed_crud.get.return_value = mock_feed
-#     
-#     # Mock feed processing log
-#     mock_feed_processing_log_crud = MagicMock()
-#     
-#     mock_log = MagicMock()
-#     mock_log.id = 1
-#     mock_log.feed_id = feed_id
-#     
-#     mock_feed_processing_log_crud.create_processing_started.return_value = mock_log
-#     
-#     # Mock RSS data
-#     mock_parse_rss_feed.return_value = {
-#         "feed": {
-#             "title": "Example Feed",
-#             "link": "https://example.com",
-#             "description": "An example feed"
-#         },
-#         "entries": [
-#             {
-#                 "title": "Article 1",
-#                 "link": "https://example.com/article1",
-#                 "description": "First article"
-#             },
-#             {
-#                 "title": "Article 2",
-#                 "link": "https://example.com/article2",
-#                 "description": "Second article"
-#             }
-#         ]
-#     }
-#     
-#     # Setup the mock instance
-#     mock_temp_article_service = MagicMock()
-#     mock_temp_article_service.create_article_from_rss_entry.return_value = 123
-#     mock_article_service_class.return_value = mock_temp_article_service
-#     
-#     # Create service with no article service
-#     service = RSSFeedService(
-#         rss_feed_crud=mock_rss_feed_crud,
-#         feed_processing_log_crud=mock_feed_processing_log_crud,
-#         article_service=None,  # No article service
-#         session_factory=mock_session_factory
-#     )
-#     
-#     # Act
-#     result = service.process_feed(feed_id)
-#     
-#     # Assert
-#     mock_article_service_class.assert_called_once()
-#     assert mock_temp_article_service.create_article_from_rss_entry.call_count == 2
-#     
-#     assert result["status"] == "success"
-#     assert result["feed_id"] == feed_id
-#     assert result["feed_name"] == "Example Feed"
-#     assert result["articles_found"] == 2
-#     assert result["articles_added"] == 2
-
-
-# @patch('local_newsifier.services.rss_feed_service.ArticleService', side_effect=ValueError("Mock import error"))
-# @patch('local_newsifier.services.rss_feed_service.parse_rss_feed')
-# def test_process_feed_temp_service_fails(mock_article_service_class, mock_parse_rss_feed, reset_global_task, mock_db_session, mock_session_factory):
-#     """Test handling when temporary article service creation fails."""
-#     # Arrange
-#     import local_newsifier.services.rss_feed_service
-#     feed_id = 1
-#     # Ensure global task is None (done by reset_global_task fixture)
-#     
-#     # Mock RSS feed
-#     mock_rss_feed_crud = MagicMock()
-#     
-#     mock_feed = MagicMock()
-#     mock_feed.id = feed_id
-#     mock_feed.url = "https://example.com/feed"
-#     mock_feed.name = "Example Feed"
-#     
-#     mock_rss_feed_crud.get.return_value = mock_feed
-#     
-#     # Mock feed processing log
-#     mock_feed_processing_log_crud = MagicMock()
-#     
-#     mock_log = MagicMock()
-#     mock_log.id = 1
-#     mock_log.feed_id = feed_id
-#     
-#     mock_feed_processing_log_crud.create_processing_started.return_value = mock_log
-#     
-#     # Mock RSS data
-#     mock_parse_rss_feed.return_value = {
-#         "feed": {"title": "Example Feed"},
-#         "entries": [{"title": "Article 1"}, {"title": "Article 2"}]
-#     }
-#     
-#     # Create service with no article service
-#     service = RSSFeedService(
-#         rss_feed_crud=mock_rss_feed_crud,
-#         feed_processing_log_crud=mock_feed_processing_log_crud,
-#         article_service=None,  # No article service
-#         session_factory=mock_session_factory
-#     )
-#     
-#     # Act & Assert
-#     # We need to be more specific about the error message since it includes our mock error
-#     with pytest.raises(ValueError, match="Article service not initialized and failed to create temporary service"):
-#         service.process_feed(feed_id)
-
-
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_process_feed_feed_not_found(mock_db_session, mock_session_factory):
     """Test handling when feed is not found."""
@@ -1011,83 +775,13 @@ def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
     assert result[1]["error_message"] == "Connection error"
 
 
-# def test_register_process_article_task(reset_global_task):
-#     """Test registering the process article task."""
-#     # Arrange
-#     import local_newsifier.services.rss_feed_service
-#     # Ensure global task is None (done by reset_global_task fixture)
-#     
-#     # Create mock task
-#     mock_task = MagicMock()
-#     
-#     # Act
-#     local_newsifier.services.rss_feed_service.register_process_article_task(mock_task)
-#     
-#     # Assert - should be set to the mock task
-#     assert local_newsifier.services.rss_feed_service._process_article_task is mock_task
-
-
-@pytest.fixture
-def patch_get_container(mock_container):
-    """Patch the get_container function in rss_feed_service module."""
-    mock_di_container, mock_article_service = mock_container
-    
-    # Patch the get_container function in the RSSFeedService module
-    with patch('local_newsifier.services.rss_feed_service.get_container', return_value=mock_di_container):
-        yield mock_di_container, mock_article_service
-
-
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_register_article_service():
-    """Test registering the article service.
-    
-    This test is mainly to maintain backward compatibility during migration.
-    In the future, direct container access should be used instead.
-    """
-    # Create a mock container
-    mock_container = MagicMock(spec=DIContainer)
-    mock_rss_feed_service = MagicMock()
-    
-    # Make the mock container return our mock rss_feed_service
-    def mock_get(name):
-        if name == "rss_feed_service":
-            return mock_rss_feed_service
-        return None
-    
-    mock_container.get.side_effect = mock_get
-    
-    # Mock article service
-    mock_article_service = MagicMock()
-    
-    # Patch the container module import in the function
-    with patch('local_newsifier.container.container', mock_container):
-        # Act
-        register_article_service(mock_article_service)
-        
-        # Assert
-        mock_container.get.assert_called_with("rss_feed_service")
-        assert mock_rss_feed_service.article_service == mock_article_service
-
-
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_process_feed_uses_container_article_service(mock_db_session, mock_session_factory):
-    """Test that process_feed uses article_service from the container when not injected."""
+def test_process_feed_uses_injectable_article_service(mock_db_session, mock_session_factory):
+    """Test that process_feed uses article_service from injectable provider when not injected."""
     # Arrange
-    # Create mock article_service that will be returned by container.get
+    # Create mock article_service that will be returned by the provider
     mock_article_service = MagicMock()
     mock_article_service.create_article_from_rss_entry.return_value = 123  # Article ID
-    
-    # Mock container that will return our mock article_service
-    mock_container = MagicMock(spec=DIContainer)
-    def mock_get(name):
-        if name == "article_service":
-            return mock_article_service
-        elif name == "process_article_task":
-            task_mock = MagicMock()
-            task_mock.delay = MagicMock()
-            return task_mock
-        return None
-    mock_container.get.side_effect = mock_get
     
     # Mock the feed and RSS data
     feed_id = 1
@@ -1116,18 +810,16 @@ def test_process_feed_uses_container_article_service(mock_db_session, mock_sessi
         rss_feed_crud=mock_rss_feed_crud,
         feed_processing_log_crud=mock_feed_processing_log_crud,
         article_service=None,  # No article service injected
-        session_factory=mock_session_factory,
-        container=mock_container  # Inject the mock container directly
+        session_factory=mock_session_factory
     )
     
-    # Only patch parse_rss_feed, we're using our mock container directly
+    # Patch parse_rss_feed and get_injected_obj to return our mock service
     with patch('local_newsifier.services.rss_feed_service.parse_rss_feed', mock_parse_rss_feed):
-        
-        # Act
-        result = service.process_feed(feed_id, task_queue_func=MagicMock())
-        
-        # Assert
-        mock_container.get.assert_called_with("article_service")
-        assert mock_article_service.create_article_from_rss_entry.call_count == 2
-        assert result["status"] == "success"
-        assert result["articles_added"] == 2
+        with patch('fastapi_injectable.get_injected_obj', return_value=mock_article_service):
+            # Act
+            result = service.process_feed(feed_id, task_queue_func=MagicMock())
+            
+            # Assert
+            assert mock_article_service.create_article_from_rss_entry.call_count == 2
+            assert result["status"] == "success"
+            assert result["articles_added"] == 2

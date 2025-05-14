@@ -7,9 +7,6 @@ from datetime import datetime, timezone
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
-from tests.utils.test_container import mock_service
-# Import fixtures directly
-from tests.utils.conftest import test_container, mock_session
 
 # Create a sample feed for testing
 @pytest.fixture
