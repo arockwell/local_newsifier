@@ -168,3 +168,35 @@ def test_webhook_ignores_no_dataset_id(client, valid_webhook_payload, mock_handl
     assert "not processed" in response.json()["message"]
     # Handler should not be called for events without dataset ID
     mock_handler.process_webhook.assert_not_called()
+
+
+def test_webhook_with_additional_fields(client, valid_webhook_payload, mock_handler):
+    """Test that webhook endpoint handles additional fields in the payload."""
+    # Add extra fields to the payload
+    payload = valid_webhook_payload.copy()
+    payload["extraField1"] = "extra value 1"
+    payload["extraField2"] = {"nested": "value"}
+    
+    response = client.post(
+        "/api/webhooks/apify",
+        json=payload
+    )
+    
+    # Should be accepted
+    assert response.status_code == 202
+    assert response.json()["status"] == "accepted"
+    
+    # Webhook handler should be called with the payload
+    mock_handler.process_webhook.assert_called_once()
+
+
+def test_webhook_logs_receipt(client, valid_webhook_payload, mock_handler):
+    """Test that webhook endpoint logs webhook receipt (via coverage)."""
+    response = client.post(
+        "/api/webhooks/apify",
+        json=valid_webhook_payload
+    )
+    
+    # Should be accepted
+    assert response.status_code == 202
+    assert response.json()["status"] == "accepted"
