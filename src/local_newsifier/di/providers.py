@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.apify_service import ApifyService
+    from local_newsifier.services.apify_webhook_handler import ApifyWebhookHandler
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
@@ -1172,3 +1173,31 @@ def get_feeds_process_command():
     """
     from local_newsifier.cli.commands.feeds import process_feed
     return process_feed
+
+
+@injectable(use_cache=False)
+def get_apify_webhook_handler(
+    apify_service: Annotated[Any, Depends(get_apify_service)],
+    article_service: Annotated[Any, Depends(get_article_service)],
+    session: Annotated[Session, Depends(get_session)]
+) -> Any:
+    """Provide the Apify webhook handler service.
+    
+    Uses use_cache=False to create new instances for each injection, as this service
+    interacts with the database and external APIs.
+    
+    Args:
+        apify_service: Service for Apify API operations
+        article_service: Service for article operations
+        session: Database session
+        
+    Returns:
+        ApifyWebhookHandler instance
+    """
+    from local_newsifier.services.apify_webhook_handler import ApifyWebhookHandler
+    
+    return ApifyWebhookHandler(
+        apify_service=apify_service,
+        article_service=article_service,
+        session_factory=lambda: session
+    )
