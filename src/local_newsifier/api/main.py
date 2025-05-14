@@ -5,6 +5,7 @@ import os
 import pathlib
 from typing import Annotated, Dict
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -12,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi_injectable import register_app
+from sqlmodel import Session
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
@@ -21,6 +23,8 @@ from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 from local_newsifier.fastapi_injectable_adapter import lifespan_with_injectable, migrate_container_services
+from local_newsifier.di.providers import get_article_crud, get_session
+from local_newsifier.crud.article import CRUDArticle
 
 # Configure logging
 logging.basicConfig(
@@ -82,15 +86,35 @@ app.include_router(tasks.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(
-    request: Request, 
+    request: Request,
+    article_crud: Annotated[CRUDArticle, Depends(get_article_crud)],
+    session: Annotated[Session, Depends(get_session)],
     templates: Jinja2Templates = Depends(get_templates)
 ):
-    """Root endpoint serving home page."""
+    """Root endpoint serving home page with recent headlines."""
+    # Get recent articles from the last 30 days
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=30)
+    
+    recent_articles = article_crud.get_by_date_range(
+        session, 
+        start_date=start_date, 
+        end_date=end_date
+    )
+    
+    # Order by published date (newest first) and limit to 20 articles
+    recent_articles = sorted(
+        recent_articles, 
+        key=lambda x: x.published_at, 
+        reverse=True
+    )[:20]
+    
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "title": "Local Newsifier",
+            "recent_articles": recent_articles
         },
     )
 
