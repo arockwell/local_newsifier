@@ -436,7 +436,7 @@ def register_services(container):
     
     # ApifyService - use test_mode in test environment
     container.register_factory("apify_service",
-        lambda c: ApifyService(test_mode=(environment == "testing"))
+        lambda c: ApifyService(test_mode=(c.get("environment") == "testing"))
     )
 
     # Import at runtime to avoid circular imports
