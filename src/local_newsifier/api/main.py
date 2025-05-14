@@ -96,18 +96,22 @@ async def root(
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
     
-    recent_articles = article_crud.get_by_date_range(
-        session, 
-        start_date=start_date, 
-        end_date=end_date
-    )
-    
-    # Order by published date (newest first) and limit to 20 articles
-    recent_articles = sorted(
-        recent_articles, 
-        key=lambda x: x.published_at, 
-        reverse=True
-    )[:20]
+    recent_articles = []
+    try:
+        recent_articles = article_crud.get_by_date_range(
+            session, 
+            start_date=start_date, 
+            end_date=end_date
+        )
+        
+        # Order by published date (newest first) and limit to 20 articles
+        recent_articles = sorted(
+            recent_articles, 
+            key=lambda x: x.published_at, 
+            reverse=True
+        )[:20]
+    except Exception as e:
+        logger.error(f"Error fetching recent articles: {str(e)}")
     
     return templates.TemplateResponse(
         "index.html",
