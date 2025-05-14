@@ -1,8 +1,9 @@
 """
 Database session utilities for standardized session management.
 
-This module provides utilities for consistent database session access and management
-across the application via the dependency injection container.
+This module provides legacy utilities for consistent database session access and 
+management. These functions are deprecated and will be removed in a future version.
+Please use the fastapi-injectable pattern for new code.
 """
 
 import logging
@@ -11,8 +12,8 @@ import sys
 from typing import TypeVar, Callable, Any, Optional, Dict
 
 from sqlmodel import Session
-
-# Import container at runtime to avoid circular imports
+from fastapi_injectable import get_injected_obj
+from local_newsifier.di.providers import get_session
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -23,49 +24,46 @@ T = TypeVar('T')
 
 
 def get_container_session(container=None, test_mode: bool = False, **kwargs):
-    """Get a session from the container's session factory.
+    """Get a session using the injectable session provider.
     
-    This function obtains the session factory from the container
-    and returns a session context manager.
+    This function is deprecated. Use fastapi-injectable's get_session directly
+    in new code.
     
     Args:
-        container: The DI container instance (optional, will be imported if not provided)
+        container: No longer used, kept for backward compatibility
         test_mode: If True, use optimized settings for tests
-        **kwargs: Additional parameters to pass to the session factory
+        **kwargs: Additional parameters (no longer used)
         
     Returns:
-        A session context manager
+        A database session
     """
-    # Lazy import to avoid circular dependency
-    if container is None:
-        # Import only when needed to avoid circular imports
-        from local_newsifier.container import container
-        
-    session_factory = container.get("session_factory")
-    if session_factory is None:
-        logger.error("Session factory not available in container")
-        raise ValueError("Session factory not available in container")
+    logger.warning("get_container_session is deprecated. Use fastapi-injectable's get_session instead.")
     
-    # Detect if we're running in a test environment
-    if 'pytest' in sys.modules:
-        test_mode = True
-        
-    return session_factory(test_mode=test_mode)
+    # Use the injectable get_session provider
+    session_generator = get_injected_obj(get_session)
+    
+    # Return the session context
+    return session_generator
 
 
 def with_container_session(func: F = None, *, container=None) -> F:
-    """Decorator that provides a container-managed session to the decorated function.
+    """Decorator that provides a session to the decorated function.
+    
+    This function is deprecated. Use fastapi-injectable's get_session directly
+    in new code.
     
     If a session is already provided as a keyword argument, it will be used directly.
-    Otherwise, a new session will be obtained from the container.
+    Otherwise, a new session will be obtained from the injectable provider.
     
     Args:
         func: The function to decorate
-        container: Optional container instance to use
+        container: No longer used, kept for backward compatibility
         
     Returns:
         The decorated function with session management
     """
+    logger.warning("with_container_session is deprecated. Use fastapi-injectable's get_session instead.")
+    
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args, session: Optional[Session] = None, **kwargs):
@@ -73,11 +71,12 @@ def with_container_session(func: F = None, *, container=None) -> F:
             if session is not None:
                 return func(*args, session=session, **kwargs)
             
-            # Otherwise, get a new session from the container
+            # Otherwise, get a new session from the injectable provider
             try:
-                with get_container_session(container=container) as new_session:
+                session_generator = get_injected_obj(get_session)
+                with session_generator as new_session:
                     if new_session is None:
-                        logger.error("Failed to obtain a valid session from container")
+                        logger.error("Failed to obtain a valid session from injectable provider")
                         return None
                     return func(*args, session=new_session, **kwargs)
             except Exception as e:

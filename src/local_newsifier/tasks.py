@@ -13,7 +13,6 @@ from sqlmodel import Session
 
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
-from local_newsifier.container import container
 from local_newsifier.database.session_utils import get_container_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -99,13 +98,7 @@ class BaseTask(Task):
         """Get RSS feed service using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_rss_feed_service
-        service = get_rss_feed_service()
-        
-        # For backward compatibility during transition
-        if hasattr(service, 'container'):
-            service.container = container
-            
-        return service
+        return get_rss_feed_service()
 
     def __del__(self):
         """Clean up session if it exists."""
@@ -271,7 +264,3 @@ def on_worker_ready(sender, **kwargs):
     Executed when a Celery worker starts up.
     """
     logger.info("Celery worker is ready")
-    
-    # Register the process_article task in the container for backward compatibility
-    # This can be removed once full transition to injectable is completed
-    container.register("process_article_task", process_article)

@@ -21,38 +21,31 @@ from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 class EntityTracker:
     """Tool for tracking entities across news articles using the EntityService."""
     
-    def __init__(self, entity_service=None, session=None, container=None):
+    def __init__(self, entity_service=None, session=None):
         """Initialize with dependencies.
         
         Args:
             entity_service: Service for entity operations
             session: Database session
-            container: Optional DI container for backward compatibility
         """
         self.entity_service = entity_service
         self.session = session
-        self._container = container
         
         # Initialize dependencies if needed
         self._ensure_dependencies()
     
     def _ensure_dependencies(self):
-        """Ensure all dependencies are available.
-        
-        This handles backward compatibility by attempting to get
-        missing dependencies from the container.
-        """
+        """Ensure all dependencies are available."""
         # Create a default entity service if none was provided
         if self.entity_service is None:
-            if self._container is not None:
-                try:
-                    # Try to get from container first
-                    self.entity_service = self._container.get("entity_service")
-                except (KeyError, AttributeError):
-                    # Fall back to creating a default service
-                    self.entity_service = self._create_default_service()
-            else:
-                # No container, create default service
+            # Get service from injectable provider or create a default service
+            try:
+                # Try to get from injectable provider first
+                from local_newsifier.di.providers import get_entity_service
+                from fastapi_injectable import get_injected_obj
+                self.entity_service = get_injected_obj(get_entity_service)
+            except (ImportError, Exception):
+                # Fall back to creating a default service
                 self.entity_service = self._create_default_service()
     
     def _create_default_service(self):
