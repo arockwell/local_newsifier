@@ -1064,7 +1064,12 @@ def get_apify_service_cli(token: Optional[str] = None):
         ApifyService instance
     """
     from local_newsifier.services.apify_service import ApifyService
-    return ApifyService(token=token)
+    
+    # Get the current environment for test detection
+    import os
+    is_testing = os.environ.get("PYTEST_CURRENT_TEST") is not None
+    
+    return ApifyService(token=token, test_mode=is_testing)
 
 
 @injectable(use_cache=False)

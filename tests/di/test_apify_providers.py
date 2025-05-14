@@ -31,5 +31,6 @@ def test_apify_service_cli_test_mode():
     
     # Test without token (should use settings or environment)
     with patch("local_newsifier.services.apify_service.ApifyService.__init__", return_value=None) as mock_init:
-        get_apify_service_cli()
-        mock_init.assert_called_once_with(token=None, test_mode=False)
+        with patch.dict(os.environ, {}, clear=True):  # No PYTEST_CURRENT_TEST
+            get_apify_service_cli()
+            mock_init.assert_called_once_with(token=None, test_mode=False)
