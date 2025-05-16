@@ -3,8 +3,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-# Skip tests using legacy mock_container
-pytestmark = pytest.mark.skip(reason="Legacy container mocking functionality has been removed")
+# Tests for injectable sentiment analyzer providers
 
 # Import event loop fixture
 pytest.importorskip("tests.fixtures.event_loop")
@@ -15,12 +14,6 @@ def mock_nlp():
     """Create a mock spaCy NLP model."""
     return MagicMock()
 
-@pytest.fixture
-def mock_container(mock_nlp):
-    """Create a mock container with dependencies."""
-    # Add mock to container
-    with patch("local_newsifier.di.providers.get_nlp_model", return_value=mock_nlp):
-        yield None
 
 @patch('fastapi_injectable.decorator.run_coroutine_sync')
 def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
@@ -40,7 +33,7 @@ def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
     assert config["model_name"] == "en_core_web_sm"
 
 @patch('fastapi_injectable.decorator.run_coroutine_sync')
-def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, event_loop_fixture):
+def test_get_sentiment_analyzer_tool(mock_run_sync, mock_nlp, event_loop_fixture):
     """Test the sentiment analyzer tool provider."""
     # Set up the mock to use our event loop
     mock_run_sync.side_effect = lambda x: event_loop_fixture.run_until_complete(x)
@@ -60,6 +53,6 @@ def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, ev
 
 # Skip this test to avoid issues with PublicOpinionFlow's crewai imports
 @pytest.mark.skip(reason="Skipping public opinion flow test due to crewai dependency")
-def test_public_opinion_flow_with_sentiment_analyzer(mock_container, mock_nlp):
+def test_public_opinion_flow_with_sentiment_analyzer(mock_nlp):
     """Test the public opinion flow provider with sentiment analyzer."""
     pass

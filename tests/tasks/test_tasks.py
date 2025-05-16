@@ -5,9 +5,6 @@ Unit tests for Celery tasks in the Local Newsifier project.
 import pytest
 from unittest.mock import Mock, patch, MagicMock, call
 
-# Skip all tests that depend on the legacy container
-pytestmark = pytest.mark.skip(reason="Legacy container functionality has been removed")
-
 from celery import Task
 from celery.result import AsyncResult
 
@@ -19,39 +16,15 @@ from local_newsifier.tasks import (
 
 
 @pytest.fixture
-def mock_container():
-    """Mock container fixture for providing service dependencies."""
-    mock_article_service = MagicMock()
-    mock_article_crud = MagicMock()
-    mock_entity_crud = MagicMock()
-    mock_entity_service = MagicMock()
-    mock_rss_feed_service = MagicMock()
-    
-    with patch("local_newsifier.tasks.container") as mock_container_obj:
-        # Setup container to return mocked services
-        def mock_get(service_name):
-            if service_name == "article_service":
-                return mock_article_service
-            elif service_name == "article_crud":
-                return mock_article_crud
-            elif service_name == "entity_crud":
-                return mock_entity_crud
-            elif service_name == "entity_service":
-                return mock_entity_service
-            elif service_name == "rss_feed_service":
-                return mock_rss_feed_service
-            return None
-            
-        mock_container_obj.get.side_effect = mock_get
-        
-        yield (
-            mock_container_obj, 
-            mock_article_service, 
-            mock_article_crud, 
-            mock_entity_crud,
-            mock_entity_service,
-            mock_rss_feed_service
-        )
+def mock_services():
+    """Mock service fixtures for testing tasks."""
+    return {
+        "article_service": MagicMock(),
+        "article_crud": MagicMock(),
+        "entity_crud": MagicMock(),
+        "entity_service": MagicMock(),
+        "rss_feed_service": MagicMock()
+    }
 
 
 @pytest.fixture
@@ -69,7 +42,7 @@ class TestBaseTask:
     """Tests for the BaseTask class."""
     
     @patch("local_newsifier.database.engine.get_session")
-    def test_session_factory_property(self, mock_get_session, mock_container):
+    def test_session_factory_property(self, mock_get_session):
         """Test that the session_factory property returns a lambda using get_session."""
         # Set up mock
         mock_get_session.return_value = Mock()
@@ -91,7 +64,7 @@ class TestBaseTask:
         mock_get_session.assert_called_once()
     
     @patch("local_newsifier.database.engine.get_session")
-    def test_db_property(self, mock_get_session, mock_container):
+    def test_db_property(self, mock_get_session):
         """Test that the db property returns a database session from session factory."""
         # Set up mock
         mock_session = Mock()
@@ -110,7 +83,7 @@ class TestBaseTask:
         mock_get_session.assert_called_once()
         
     @patch("local_newsifier.di.providers.get_article_service")
-    def test_article_service_property(self, mock_get_article_service, mock_container):
+    def test_article_service_property(self, mock_get_article_service):
         """Test that the article_service property returns service from provider."""
         mock_service = Mock()
         mock_get_article_service.return_value = mock_service
@@ -126,7 +99,7 @@ class TestBaseTask:
         mock_get_article_service.assert_called_once()
         
     @patch("local_newsifier.di.providers.get_article_crud")
-    def test_article_crud_property(self, mock_get_article_crud, mock_container):
+    def test_article_crud_property(self, mock_get_article_crud):
         """Test that the article_crud property returns crud from provider."""
         mock_crud = Mock()
         mock_get_article_crud.return_value = mock_crud
@@ -142,7 +115,7 @@ class TestBaseTask:
         mock_get_article_crud.assert_called_once()
         
     @patch("local_newsifier.di.providers.get_entity_crud")
-    def test_entity_crud_property(self, mock_get_entity_crud, mock_container):
+    def test_entity_crud_property(self, mock_get_entity_crud):
         """Test that the entity_crud property returns crud from provider."""
         mock_crud = Mock()
         mock_get_entity_crud.return_value = mock_crud
@@ -166,7 +139,7 @@ class TestProcessArticle:
     @patch("local_newsifier.di.providers.get_article_crud")
     def test_process_article_success(
         self, mock_get_article_crud, mock_get_news_pipeline_flow, 
-        mock_get_entity_tracking_flow, mock_article, mock_container
+        mock_get_entity_tracking_flow, mock_article
     ):
         """Test that the process_article task processes an article successfully."""
         # Setup mocks for provider functions
@@ -216,7 +189,7 @@ class TestProcessArticle:
             assert result["article_title"] == mock_article.title
         
     @patch("local_newsifier.di.providers.get_article_crud")
-    def test_process_article_not_found(self, mock_get_article_crud, mock_container):
+    def test_process_article_not_found(self, mock_get_article_crud):
         """Test that the process_article task handles a missing article properly."""
         # Setup mocks for provider functions
         mock_article_crud = Mock()
@@ -254,7 +227,7 @@ class TestProcessArticle:
             assert result["status"] == "error"
             assert "Article not found" in result["message"]
         
-    def test_process_article_error(self, mock_article, mock_container):
+    def test_process_article_error(self, mock_article):
         """Test that the process_article task handles errors properly."""
         # At this point, we're mainly testing our improved exception handling
         # Let's test that the function returns a proper dictionary on error
@@ -296,7 +269,7 @@ class TestFetchRssFeeds:
     @patch("local_newsifier.di.providers.get_rss_parser")
     def test_fetch_rss_feeds_success(
         self, mock_get_rss_parser, mock_get_article_crud, 
-        mock_get_article_service, mock_parse_rss, mock_container
+        mock_get_article_service, mock_parse_rss
     ):
         """Test that the fetch_rss_feeds task fetches feeds successfully."""
         # Setup mocks for provider functions
@@ -383,7 +356,7 @@ class TestFetchRssFeeds:
     @patch("local_newsifier.di.providers.get_rss_parser")
     def test_fetch_rss_feeds_with_existing_articles(
         self, mock_get_rss_parser, mock_get_article_crud,
-        mock_get_article_service, mock_parse_rss, mock_container
+        mock_get_article_service, mock_parse_rss
     ):
         """Test that the fetch_rss_feeds task handles existing articles properly."""
         # Setup mocks for provider functions
