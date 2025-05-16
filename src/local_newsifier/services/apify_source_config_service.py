@@ -25,8 +25,7 @@ class ApifySourceConfigService:
         self, 
         apify_source_config_crud: CRUDApifySourceConfig,
         apify_service,  # ApifyService, but avoiding circular imports
-        session_factory,
-        container=None
+        session_factory
     ):
         """Initialize the service.
         
@@ -34,12 +33,10 @@ class ApifySourceConfigService:
             apify_source_config_crud: CRUD for Apify source configurations
             apify_service: Service for interacting with Apify API
             session_factory: Function that returns a database session
-            container: Optional DI container for service resolution
         """
         self.apify_source_config_crud = apify_source_config_crud
         self.apify_service = apify_service
         self.session_factory = session_factory
-        self.container = container
     
     @handle_service_error(service="apify")
     def list_configs(

@@ -1,15 +1,13 @@
 """
 Database session utilities for standardized session management.
 
-This module provides legacy utilities for consistent database session access and 
-management. These functions are deprecated and will be removed in a future version.
-Please use the fastapi-injectable pattern for new code.
+This module provides utilities for consistent database session access and management
+using fastapi-injectable.
 """
 
 import logging
 import functools
-import sys
-from typing import TypeVar, Callable, Any, Optional, Dict
+from typing import TypeVar, Callable, Any, Optional
 
 from sqlmodel import Session
 from fastapi_injectable import get_injected_obj
@@ -18,52 +16,23 @@ from local_newsifier.di.providers import get_session
 # Set up logger
 logger = logging.getLogger(__name__)
 
-# Type variables for the with_container_session decorator
+# Type variables for the with_session decorator
 F = TypeVar('F', bound=Callable[..., Any])
 T = TypeVar('T')
 
 
-def get_container_session(container=None, test_mode: bool = False, **kwargs):
-    """Get a session using the injectable session provider.
-    
-    This function is deprecated. Use fastapi-injectable's get_session directly
-    in new code.
-    
-    Args:
-        container: No longer used, kept for backward compatibility
-        test_mode: If True, use optimized settings for tests
-        **kwargs: Additional parameters (no longer used)
-        
-    Returns:
-        A database session
-    """
-    logger.warning("get_container_session is deprecated. Use fastapi-injectable's get_session instead.")
-    
-    # Use the injectable get_session provider
-    session_generator = get_injected_obj(get_session)
-    
-    # Return the session context
-    return session_generator
-
-
-def with_container_session(func: F = None, *, container=None) -> F:
+def with_session(func: F = None) -> F:
     """Decorator that provides a session to the decorated function.
-    
-    This function is deprecated. Use fastapi-injectable's get_session directly
-    in new code.
     
     If a session is already provided as a keyword argument, it will be used directly.
     Otherwise, a new session will be obtained from the injectable provider.
     
     Args:
         func: The function to decorate
-        container: No longer used, kept for backward compatibility
         
     Returns:
         The decorated function with session management
     """
-    logger.warning("with_container_session is deprecated. Use fastapi-injectable's get_session instead.")
-    
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args, session: Optional[Session] = None, **kwargs):
@@ -80,7 +49,7 @@ def with_container_session(func: F = None, *, container=None) -> F:
                         return None
                     return func(*args, session=new_session, **kwargs)
             except Exception as e:
-                logger.exception(f"Error in with_container_session: {e}")
+                logger.exception(f"Error in with_session: {e}")
                 return None
                 
         return wrapper
@@ -89,3 +58,12 @@ def with_container_session(func: F = None, *, container=None) -> F:
     if func is None:
         return decorator
     return decorator(func)
+
+
+def get_session_factory():
+    """Get a session factory function from the injectable provider.
+    
+    Returns:
+        A callable that yields a database session when called
+    """
+    return get_injected_obj(get_session)
