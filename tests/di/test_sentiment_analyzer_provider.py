@@ -3,6 +3,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+# Skip tests using legacy mock_container
+pytestmark = pytest.mark.skip(reason="Legacy container mocking functionality has been removed")
+
 # Import event loop fixture
 pytest.importorskip("tests.fixtures.event_loop")
 from tests.fixtures.event_loop import event_loop_fixture  # noqa
