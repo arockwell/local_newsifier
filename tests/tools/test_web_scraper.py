@@ -340,7 +340,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="No text content found in article"):
             self.scraper.extract_article_text(html)
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_success(self, mock_get, mock_http_response):
         """Test successful URL fetching."""
@@ -352,7 +351,6 @@ class TestWebScraper:
         assert html == "<html><body>Test content</body></html>"
         mock_get.assert_called_once()
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_404(self, mock_get):
         """Test URL fetching with 404 error."""
@@ -363,7 +361,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="Article not found"):
             self.scraper._fetch_url("https://example.com/404")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_403(self, mock_get):
         """Test URL fetching with 403 error."""
@@ -374,7 +371,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="Access denied"):
             self.scraper._fetch_url("https://example.com/403")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_401(self, mock_get):
         """Test URL fetching with 401 error."""
@@ -385,7 +381,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="Authentication required"):
             self.scraper._fetch_url("https://example.com/401")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_404_like_content(self, mock_get, mock_http_response):
         """Test URL fetching with 404-like content."""
@@ -395,7 +390,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="Page appears to be a 404"):
             self.scraper._fetch_url("https://example.com")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_subscription_content(self, mock_get, mock_http_response):
         """Test URL fetching with subscription required content."""
@@ -405,7 +399,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="Page appears to be a 404"):
             self.scraper._fetch_url("https://example.com")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_selenium_success(self, mock_get, mock_webdriver):
         """Test successful URL fetching with Selenium fallback."""
@@ -420,7 +413,6 @@ class TestWebScraper:
         assert html == "<html><body>Selenium content</body></html>"
         mock_webdriver.get.assert_called_once_with("https://example.com")
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_selenium_404(self, mock_get, mock_webdriver):
         """Test URL fetching with Selenium 404 fallback."""
@@ -608,7 +600,6 @@ class TestWebScraper:
         assert "Log In" not in text
     
     @patch("requests.Session.get")
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     def test_fetch_url_paywall_detection(self, mock_get, mock_http_response):
         """Test paywall detection during URL fetching."""
         # Create HTML with subscription keywords
@@ -634,7 +625,6 @@ class TestWebScraper:
         with pytest.raises(ValueError, match="HTTP error occurred: Page appears to be a 404 or requires subscription"):
             self.scraper._fetch_url("https://example.com/premium")
     
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_with_retry(self, mock_get):
         """Test URL fetching with retry mechanism."""
@@ -654,7 +644,6 @@ class TestWebScraper:
         html = self.scraper._fetch_url("https://example.com/retry")
         assert "Success content" in html
     
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_with_dynamic_content(self, mock_get, mock_webdriver, sample_html_dynamic_content):
         """Test fetching URL with dynamic content using Selenium."""
@@ -812,7 +801,6 @@ class TestWebScraper:
                 # Expected when using mocks without full configuration
                 pass
 
-    @pytest.mark.skip(reason="Provider test has issues with event loop")
     def test_provider_function(self, event_loop_fixture):
         """Test that the provider function correctly creates WebScraperTool instances.
 

@@ -47,7 +47,3 @@ def test_apify_group():
     assert "web-scraper" in result.output
 
 
-@pytest.mark.skip(reason="apify-config has been removed")
-def test_apify_config_group():
-    """Test skipped as apify-config command group has been removed."""
-    pass
