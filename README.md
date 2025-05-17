@@ -45,6 +45,19 @@ curl -sSL https://install.python-poetry.org | python3 -
 poetry install
 ```
 
+If your environment lacks internet access, generate the wheels directory on a
+connected machine first:
+
+```bash
+make build-wheels
+```
+
+Copy the resulting `wheels/` directory and install from it locally:
+
+```bash
+pip install --no-index --find-links=wheels -r requirements.txt
+```
+
 3. Download spaCy model:
 ```bash
 poetry run python -m spacy download en_core_web_lg
