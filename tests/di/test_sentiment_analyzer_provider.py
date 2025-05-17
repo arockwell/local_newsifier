@@ -19,6 +19,11 @@ def mock_container(mock_nlp):
     with patch("local_newsifier.di.providers.get_nlp_model", return_value=mock_nlp):
         yield None
 
+@pytest.fixture
+def mock_session():
+    """Create a mock database session."""
+    return MagicMock()
+
 @patch('fastapi_injectable.decorator.run_coroutine_sync')
 def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
     """Test the sentiment analyzer configuration provider."""
@@ -37,7 +42,7 @@ def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
     assert config["model_name"] == "en_core_web_sm"
 
 @patch('fastapi_injectable.decorator.run_coroutine_sync')
-def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, event_loop_fixture):
+def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, mock_session, event_loop_fixture):
     """Test the sentiment analyzer tool provider."""
     # Set up the mock to use our event loop
     mock_run_sync.side_effect = lambda x: event_loop_fixture.run_until_complete(x)
@@ -47,7 +52,7 @@ def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, ev
     
     with patch("local_newsifier.di.providers.get_nlp_model", return_value=mock_nlp):
         # Get the sentiment analyzer from the provider
-        sentiment_analyzer = get_sentiment_analyzer_tool()
+        sentiment_analyzer = get_sentiment_analyzer_tool(session=mock_session)
         
         # Verify it has the right attributes
         assert hasattr(sentiment_analyzer, "analyze_sentiment")

@@ -10,7 +10,6 @@ from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
-from local_newsifier.database.engine import with_session
 from local_newsifier.models.sentiment import SentimentAnalysis, OpinionTrend, SentimentShift
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
@@ -57,7 +56,6 @@ class SentimentTracker:
 
         return self.session
 
-    @with_session
     def get_sentiment_by_period(
         self,
         start_date: datetime,
@@ -117,7 +115,6 @@ class SentimentTracker:
 
         return results
 
-    @with_session
     def get_entity_sentiment_trends(
         self,
         entity_name: str,
@@ -166,7 +163,6 @@ class SentimentTracker:
 
         return results
 
-    @with_session
     def detect_sentiment_shifts(
         self,
         topics: List[str],
@@ -209,7 +205,6 @@ class SentimentTracker:
 
         return shifts
 
-    @with_session
     def calculate_topic_correlation(
         self,
         topic1: str,
@@ -292,7 +287,6 @@ class SentimentTracker:
 
         return correlation
 
-    @with_session
     def _get_articles_in_range(self, start_date: datetime, end_date: datetime, *, session: Optional[Session] = None) -> List:
         """
         Get all articles published within the date range.
@@ -348,7 +342,6 @@ class SentimentTracker:
         else:
             return date.strftime("%Y-%m-%d")  # Default to day
 
-    @with_session
     def _get_sentiment_data_for_articles(self, article_ids: List[int], *, session: Optional[Session] = None) -> List[Dict]:
         """
         Get sentiment analysis results for articles.

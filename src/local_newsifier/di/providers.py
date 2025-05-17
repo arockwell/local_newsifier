@@ -282,7 +282,9 @@ def get_sentiment_analyzer_config():
     }
 
 @injectable(use_cache=False)
-def get_sentiment_analyzer_tool():
+def get_sentiment_analyzer_tool(
+    session: Annotated[Session, Depends(get_session)]
+):
     """Provide the sentiment analyzer tool.
 
     Uses use_cache=False to create new instances for each injection, as sentiment
@@ -292,7 +294,10 @@ def get_sentiment_analyzer_tool():
         SentimentAnalyzer instance
     """
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-    return SentimentAnalyzer(nlp_model=get_nlp_model())
+    return SentimentAnalyzer(
+        nlp_model=get_nlp_model(),
+        session=session
+    )
 
 
 @injectable(use_cache=False)
@@ -615,7 +620,10 @@ def get_entity_tracker_tool(
         EntityTracker instance
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service, session=session)
+    return EntityTracker(
+        entity_service=entity_service,
+        session_factory=lambda: session
+    )
 
 
 @injectable(use_cache=False)
@@ -1070,7 +1078,10 @@ def get_injectable_entity_tracker(
         InjectableEntityTracker instance with injected dependencies
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service, session=session)
+    return EntityTracker(
+        entity_service=entity_service,
+        session_factory=lambda: session
+    )
 
 
 @injectable(use_cache=False)

@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any
 
 from sqlmodel import Session
 
-from local_newsifier.database.engine import with_session, get_session
+from local_newsifier.database.engine import get_session
 from local_newsifier.services.entity_service import EntityService
 from local_newsifier.crud.entity import entity as entity_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
@@ -21,16 +21,16 @@ from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 class EntityTracker:
     """Tool for tracking entities across news articles using the EntityService."""
     
-    def __init__(self, entity_service=None, session=None, container=None):
+    def __init__(self, entity_service=None, session_factory=get_session, container=None):
         """Initialize with dependencies.
-        
+
         Args:
             entity_service: Service for entity operations
-            session: Database session
+            session_factory: Callable that returns a database session
             container: Optional DI container for backward compatibility
         """
         self.entity_service = entity_service
-        self.session = session
+        self.session_factory = session_factory
         self._container = container
         
         # Initialize dependencies if needed
@@ -66,18 +66,17 @@ class EntityTracker:
             entity_extractor=EntityExtractor(),
             context_analyzer=ContextAnalyzer(),
             entity_resolver=EntityResolver(),
-            session_factory=get_session
+            session_factory=self.session_factory
         )
     
-    @with_session
     def process_article(
-        self, 
+        self,
         article_id: int,
         content: str,
         title: str,
         published_at: datetime,
         *,
-        session: Session = None
+        session: Session | None = None
     ) -> List[Dict[str, Any]]:
         """Process an article to track entity mentions.
         
@@ -86,7 +85,7 @@ class EntityTracker:
             content: Article content
             title: Article title
             published_at: Article publication date
-            session: Database session
+            session: Database session (optional, reserved for backward compatibility)
             
         Returns:
             List of processed entity mentions

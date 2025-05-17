@@ -10,9 +10,10 @@ from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
 from fastapi import Depends
+from typing import Annotated
 from fastapi_injectable import injectable
 
-from local_newsifier.database.engine import with_session
+from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.models.article import Article
@@ -55,14 +56,14 @@ class SentimentAnalyzer:
         self,
         nlp_model: Optional[Any] = None,
         model_name: str = "en_core_web_sm",
-        session: Optional[Any] = None
+        session: Annotated[Session, Depends(get_session)] | None = None
     ):
         """Initialize the sentiment analysis tool with required models.
 
         Args:
             nlp_model: Pre-loaded spaCy NLP model (injected)
             model_name: Name of the spaCy model to use as fallback
-            session: Optional SQLAlchemy session for database access
+            session: Database session for data access
         """
         self.nlp = nlp_model
         self.session = session
@@ -214,7 +215,6 @@ class SentimentAnalyzer:
 
         return state
 
-    @with_session
     def analyze_article(
         self, article_id: int, *, session: Optional[Session] = None
     ) -> Dict[str, Any]:
@@ -251,7 +251,6 @@ class SentimentAnalyzer:
             return {}
         return state.analysis_results.get("sentiment", {})
 
-    @with_session
     def analyze_article_sentiment(self, article_id: int, *, session: Optional[Session] = None) -> AnalysisResult:
         """
         Analyze sentiment of an article and save results to database.
