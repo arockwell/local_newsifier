@@ -1,4 +1,4 @@
-"""Tests for RSSFeedService focusing on standard dependency injection."""
+"""Tests for RSSFeedService focusing on standard dependency injection pattern."""
 
 import pytest
 from unittest.mock import MagicMock, patch
