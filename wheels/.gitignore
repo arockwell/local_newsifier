@@ -1,0 +1,5 @@
+# Ignore all wheel files by default
+*.whl
+
+# But allow for a README file or other documentation
+!README.md
