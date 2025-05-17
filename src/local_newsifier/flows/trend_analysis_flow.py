@@ -308,13 +308,3 @@ class NewsTrendAnalysisFlow(Flow):
 
         return state
         
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            analysis_service=container.get("analysis_service"),
-            trend_reporter=container.get("trend_reporter_tool"),
-            session=container.get("session")
-        )
