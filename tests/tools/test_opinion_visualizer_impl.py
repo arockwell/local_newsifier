@@ -20,10 +20,11 @@ from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.models.sentiment import (
-    SentimentVisualizationData, 
-    SentimentAnalysis,
+    SentimentVisualizationData,
     OpinionTrend
 )
+from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import (
     EntityMention, 
     CanonicalEntity,
@@ -82,55 +83,64 @@ class TestOpinionVisualizerImplementation:
     def sample_sentiment_data(self, db_session, sample_entities, sample_articles):
         """Create sample sentiment data for testing."""
         sentiment_data = []
-        # Create sentiment analyses with positive and negative values
-        for i, entity in enumerate(sample_entities):
-            for j, article in enumerate(sample_articles[:3]):  # Only use first 3 articles
-                sentiment = 0.5 if i == 0 else -0.3  # First entity positive, second negative
-                
-                # Create entity mention
-                mention = EntityMention(
-                    canonical_entity_id=entity.id,
+
+        for i, canonical in enumerate(sample_entities):
+            for j, article in enumerate(sample_articles[:3]):
+                sentiment = 0.5 if i == 0 else -0.3
+
+                # Create entity representing the mention in the article
+                entity = Entity(
                     article_id=article.id,
-                    mention_text=entity.name,
-                    confidence=0.9
+                    text=canonical.name,
+                    entity_type="PERSON",
+                    confidence=0.9,
+                )
+                db_session.add(entity)
+                db_session.commit()
+
+                # Map entity to canonical entity
+                mention = EntityMention(
+                    canonical_entity_id=canonical.id,
+                    entity_id=entity.id,
+                    article_id=article.id,
+                    confidence=0.9,
                 )
                 db_session.add(mention)
                 db_session.commit()
-                
-                # Create mention context
+
+                # Store context of the mention
                 context = EntityMentionContext(
-                    entity_mention_id=mention.id,
-                    text_before="Text before",
-                    text_after="Text after",
-                    context_type="sentence"
+                    entity_id=entity.id,
+                    article_id=article.id,
+                    context_text=f"Context for {canonical.name} article {j}",
+                    context_type="sentence",
+                    sentiment_score=sentiment,
                 )
                 db_session.add(context)
                 db_session.commit()
-                
-                # Create sentiment analysis
-                analysis = SentimentAnalysis(
-                    entity_mention_id=mention.id,
-                    sentiment_score=sentiment,
-                    confidence=0.8,
-                    analysis_method="test"
+
+                # Create analysis result for the article
+                analysis = AnalysisResult(
+                    article_id=article.id,
+                    analysis_type="SENTIMENT",
+                    results={"topic_sentiments": {canonical.name: sentiment}},
                 )
                 db_session.add(analysis)
                 db_session.commit()
                 sentiment_data.append(analysis)
-                
-                # Create opinion trend for the last day
+
+                # Add a simple opinion trend entry
                 if j == 0:
                     trend = OpinionTrend(
-                        entity_id=entity.id,
-                        date=datetime.now(timezone.utc).date(),
-                        average_sentiment=sentiment,
-                        article_count=3,
-                        sentiment_change=0.1 if i == 0 else -0.1,
-                        topic_correlation={}
+                        topic=canonical.name,
+                        period=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                        period_type="day",
+                        avg_sentiment=sentiment,
+                        sentiment_count=3,
                     )
                     db_session.add(trend)
                     db_session.commit()
-        
+
         return sentiment_data
 
     @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")
