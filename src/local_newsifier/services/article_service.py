@@ -9,7 +9,6 @@ from fastapi import Depends
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
 
 

@@ -5,8 +5,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@patch('local_newsifier.services.article_service.SessionManager')
-def test_process_article(mock_session_manager):
+def test_process_article():
     """Test the complete article processing flow using the service."""
     # Arrange
     # Mock the entity service
@@ -31,6 +30,7 @@ def test_process_article(mock_session_manager):
     mock_analysis_result_crud.create.return_value = MagicMock(id=1)
     
     # Mock session manager
+    mock_session_manager = MagicMock()
     mock_session = MagicMock()
     mock_session_manager.return_value.__enter__.return_value = mock_session
     
@@ -73,8 +73,7 @@ def test_process_article(mock_session_manager):
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@patch('local_newsifier.services.article_service.SessionManager')
-def test_get_article(mock_session_manager):
+def test_get_article():
     """Test retrieving an article with its analysis results."""
     # Arrange
     # Mock CRUD operations
@@ -110,6 +109,7 @@ def test_get_article(mock_session_manager):
     ]
     
     # Mock session manager
+    mock_session_manager = MagicMock()
     mock_session = MagicMock()
     mock_session_manager.return_value.__enter__.return_value = mock_session
     
@@ -139,8 +139,7 @@ def test_get_article(mock_session_manager):
     assert result["analysis_results"][0]["statistics"]["total_entities"] == 1
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-@patch('local_newsifier.services.article_service.SessionManager')
-def test_get_article_not_found(mock_session_manager):
+def test_get_article_not_found():
     """Test retrieving a non-existent article."""
     # Arrange
     # Mock CRUD operations
@@ -148,6 +147,7 @@ def test_get_article_not_found(mock_session_manager):
     mock_article_crud.get.return_value = None
     
     # Mock session manager
+    mock_session_manager = MagicMock()
     mock_session = MagicMock()
     mock_session_manager.return_value.__enter__.return_value = mock_session
     
