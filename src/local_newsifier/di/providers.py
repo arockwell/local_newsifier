@@ -661,6 +661,34 @@ def get_apify_schedule_manager(
 
 
 @injectable(use_cache=False)
+def get_apify_source_config_service(
+    apify_source_config_crud: Annotated["CRUDApifySourceConfig", Depends(get_apify_source_config_crud)],
+    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the ApifySourceConfigService for CLI commands.
+
+    This provider returns a fresh service instance on every injection,
+    ensuring state is not shared across operations.
+
+    Args:
+        apify_source_config_crud: CRUD for Apify source configurations
+        apify_service: Apify service for API interactions
+        session: Database session
+
+    Returns:
+        ApifySourceConfigService instance
+    """
+    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+
+    return ApifySourceConfigService(
+        apify_source_config_crud=apify_source_config_crud,
+        apify_service=apify_service,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
 def get_analysis_service(
     analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
     article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
