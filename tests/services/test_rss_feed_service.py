@@ -4,13 +4,9 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, call
 
-from local_newsifier.services.rss_feed_service import (
-    RSSFeedService,
-    register_article_service,
-)
+from local_newsifier.services.rss_feed_service import RSSFeedService
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.di_container import DIContainer
-from local_newsifier.container import container
 
 
 
@@ -1005,38 +1001,6 @@ def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
 #     
 #     # Assert - should be set to the mock task
 #     assert local_newsifier.services.rss_feed_service._process_article_task is mock_task
-
-
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_register_article_service():
-    """Test registering the article service.
-    
-    This test is mainly to maintain backward compatibility during migration.
-    In the future, direct container access should be used instead.
-    """
-    # Create a mock container
-    mock_container = MagicMock(spec=DIContainer)
-    mock_rss_feed_service = MagicMock()
-    
-    # Make the mock container return our mock rss_feed_service
-    def mock_get(name):
-        if name == "rss_feed_service":
-            return mock_rss_feed_service
-        return None
-    
-    mock_container.get.side_effect = mock_get
-    
-    # Mock article service
-    mock_article_service = MagicMock()
-    
-    # Patch the container module import in the function
-    with patch('local_newsifier.container.container', mock_container):
-        # Act
-        register_article_service(mock_article_service)
-        
-        # Assert
-        mock_container.get.assert_called_with("rss_feed_service")
-        assert mock_rss_feed_service.article_service == mock_article_service
 
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")

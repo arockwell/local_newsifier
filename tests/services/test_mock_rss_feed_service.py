@@ -4,11 +4,7 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, call
 
-from local_newsifier.services.rss_feed_service import (
-    RSSFeedService,
-    register_article_service,
-)
-from local_newsifier.container import container
+from local_newsifier.services.rss_feed_service import RSSFeedService
 
 
 @pytest.fixture

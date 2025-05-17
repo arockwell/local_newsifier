@@ -7,12 +7,10 @@ import logging
 from typing import Dict, List, Optional, Iterator
 
 from celery import Task, current_task
-from celery.signals import worker_ready
 from sqlmodel import Session
 
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
-from local_newsifier.container import container
 from local_newsifier.di.providers import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
@@ -31,7 +29,7 @@ class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
     
     def __init__(self):
-        """Initialize BaseTask with session factory from container."""
+        """Initialize BaseTask with lazy session factory."""
         self._session = None
         self._session_factory = None
     
@@ -98,13 +96,7 @@ class BaseTask(Task):
         """Get RSS feed service using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_rss_feed_service
-        service = get_rss_feed_service()
-        
-        # For backward compatibility during transition
-        if hasattr(service, 'container'):
-            service.container = container
-            
-        return service
+        return get_rss_feed_service()
 
     def __del__(self):
         """Clean up session if it exists."""
@@ -263,14 +255,3 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
         }
 
 
-@worker_ready.connect
-def on_worker_ready(sender, **kwargs):
-    """
-    Signal handler for worker_ready event.
-    Executed when a Celery worker starts up.
-    """
-    logger.info("Celery worker is ready")
-    
-    # Register the process_article task in the container for backward compatibility
-    # This can be removed once full transition to injectable is completed
-    container.register("process_article_task", process_article)

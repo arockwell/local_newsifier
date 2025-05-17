@@ -279,23 +279,3 @@ def test_temporary_service_creation():
             assert mock_temp_article_service.create_article_from_rss_entry.call_count == 2
 
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_register_article_service_with_container():
-    """Test registering the article service in RSSFeedService through container."""
-    from local_newsifier.services.rss_feed_service import register_article_service
-    
-    # Create mock objects
-    mock_article_service = MagicMock()
-    mock_rss_feed_service = MagicMock()
-    mock_container = MagicMock()
-    
-    # Configure container to return our mock service
-    mock_container.get.return_value = mock_rss_feed_service
-    
-    # Test the function
-    with patch('local_newsifier.container.container', mock_container):
-        register_article_service(mock_article_service)
-        
-        # Verify the article service was registered
-        mock_container.get.assert_called_with("rss_feed_service")
-        assert mock_rss_feed_service.article_service == mock_article_service
