@@ -101,23 +101,19 @@ else:
 ```
 
 ### Container-Based Services
-Services are retrieved from the central DI container:
+Services are injected directly using fastapi-injectable provider functions:
 
 ```python
-def get_container() -> DIContainer:
-    """Get the central DI container.
-    
-    This dependency provides access to the dependency injection container.
-    """
-    from local_newsifier.container import container
-    return container
+from typing import Annotated
+from fastapi import Depends
+from local_newsifier.services.task_service import TaskService
+from local_newsifier.di.providers import get_task_service
 
 @router.get("/tasks")
 async def get_tasks(
-    request: Request, 
-    container: DIContainer = Depends(get_container)
+    request: Request,
+    task_service: Annotated[TaskService, Depends(get_task_service)],
 ):
-    task_service = container.get("task_service")
     tasks = task_service.get_recent_tasks()
     return templates.TemplateResponse(...)
 ```
