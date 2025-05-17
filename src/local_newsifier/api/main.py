@@ -47,8 +47,8 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing fastapi-injectable")
         await register_app(app)
         
-        # Migrate container services to fastapi-injectable
-        logger.info("Migrating container services to fastapi-injectable")
+        # Register legacy DIContainer services with fastapi-injectable
+        logger.info("Registering DIContainer services with fastapi-injectable")
         await migrate_container_services(app)
         
         logger.info("fastapi-injectable initialization completed")

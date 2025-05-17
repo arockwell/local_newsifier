@@ -1,4 +1,4 @@
-"""Tests for RSSFeedService focusing on container-based dependency injection."""
+"""Tests for RSSFeedService focusing on legacy container integration."""
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -8,7 +8,7 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_container_task_usage():
-    """Test that the service uses the task from the container when no task_queue_func is provided."""
+    """Test that the service uses the task from the legacy container when no task_queue_func is provided."""
     # Create mock dependencies
     mock_rss_feed_crud = MagicMock()
     mock_feed_processing_log_crud = MagicMock()

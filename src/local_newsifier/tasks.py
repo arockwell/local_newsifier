@@ -31,7 +31,7 @@ class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
     
     def __init__(self):
-        """Initialize BaseTask with session factory from container."""
+        """Initialize BaseTask with session factory from injectable providers."""
         self._session = None
         self._session_factory = None
     
@@ -100,7 +100,7 @@ class BaseTask(Task):
         from local_newsifier.di.providers import get_rss_feed_service
         service = get_rss_feed_service()
         
-        # For backward compatibility during transition
+        # For backward compatibility with the legacy DIContainer
         if hasattr(service, 'container'):
             service.container = container
             
@@ -271,6 +271,5 @@ def on_worker_ready(sender, **kwargs):
     """
     logger.info("Celery worker is ready")
     
-    # Register the process_article task in the container for backward compatibility
-    # This can be removed once full transition to injectable is completed
+    # Legacy registration for code that still relies on DIContainer
     container.register("process_article_task", process_article)

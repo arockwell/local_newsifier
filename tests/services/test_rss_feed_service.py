@@ -1010,9 +1010,9 @@ def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_register_article_service():
     """Test registering the article service.
-    
-    This test is mainly to maintain backward compatibility during migration.
-    In the future, direct container access should be used instead.
+
+    This test preserves compatibility with the legacy DIContainer.
+    In the future, direct fastapi-injectable providers should be used instead.
     """
     # Create a mock container
     mock_container = MagicMock(spec=DIContainer)

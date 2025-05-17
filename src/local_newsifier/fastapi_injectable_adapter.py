@@ -1,9 +1,8 @@
-"""Adapter module for integrating fastapi-injectable with the DIContainer.
+"""Adapter module bridging the legacy DIContainer with fastapi-injectable.
 
-This module provides a comprehensive adapter layer between the current DIContainer
-and fastapi-injectable, allowing both systems to coexist during migration. It includes
-utilities for registering services, resolving dependencies, and providing compatibility
-between the two DI systems.
+This adapter exposes helper functions for registering services and resolving
+dependencies so that components using the older container can continue to work
+alongside the fastapi-injectable approach.
 """
 
 import inspect
@@ -316,7 +315,7 @@ async def migrate_container_services(app: FastAPI) -> None:
             logger.warning(f"Could not register factory {name}: {str(e)}")
 
     # Log summary
-    logger.info("Migration complete. Registered services with fastapi-injectable.")
+    logger.info("Service registration with fastapi-injectable completed.")
 
 
 @asynccontextmanager

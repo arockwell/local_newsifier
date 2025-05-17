@@ -23,11 +23,11 @@ class EntityTracker:
     
     def __init__(self, entity_service=None, session=None, container=None):
         """Initialize with dependencies.
-        
+
         Args:
             entity_service: Service for entity operations
             session: Database session
-            container: Optional DI container for backward compatibility
+            container: Optional legacy container for backward compatibility
         """
         self.entity_service = entity_service
         self.session = session
@@ -40,19 +40,19 @@ class EntityTracker:
         """Ensure all dependencies are available.
         
         This handles backward compatibility by attempting to get
-        missing dependencies from the container.
+        missing dependencies from the legacy container.
         """
         # Create a default entity service if none was provided
         if self.entity_service is None:
             if self._container is not None:
                 try:
-                    # Try to get from container first
+                    # Try to get from the legacy container first
                     self.entity_service = self._container.get("entity_service")
                 except (KeyError, AttributeError):
                     # Fall back to creating a default service
                     self.entity_service = self._create_default_service()
             else:
-                # No container, create default service
+                # No legacy container, create default service
                 self.entity_service = self._create_default_service()
     
     def _create_default_service(self):

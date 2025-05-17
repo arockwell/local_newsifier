@@ -331,7 +331,7 @@ class TestRegistration:
 
 
 class TestMigration:
-    """Tests for DI container migration."""
+    """Tests for integrating legacy DIContainer services."""
 
     def test_register_bulk_services_functionality(self, mock_di_container):
         """Test bulk service registration functionality."""

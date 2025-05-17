@@ -349,13 +349,13 @@ class RSSFeedService:
         }
 
 
-# For backwards compatibility during transition
-# Will be removed once all code is updated to use the container
+# For backwards compatibility with legacy DIContainer
+# Will be removed once all code uses fastapi-injectable
 def register_article_service(article_svc):
     """Register the article service to avoid circular imports.
     
     This function will be called from tasks.py after all imports are complete.
-    TEMPORARY: Will be removed once all code is updated to use the container.
+    TEMPORARY: Will be removed once all code uses fastapi-injectable.
     
     Args:
         article_svc: The initialized article service

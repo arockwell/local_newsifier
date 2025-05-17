@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
-# No direct container import as we're using injectable providers
+# Use injectable providers directly instead of the DIContainer
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
 

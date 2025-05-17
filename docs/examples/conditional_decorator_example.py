@@ -28,10 +28,10 @@ class DataProcessorTool:
     
     def __init__(self, session: Optional[Session] = None, container=None):
         """Initialize with optional dependencies.
-        
+
         Args:
             session: Optional database session for data persistence
-            container: Optional DI container for backward compatibility
+            container: Optional legacy container for backward compatibility
         """
         self.session = session
         self._container = container
@@ -47,17 +47,17 @@ class DataProcessorTool:
     def _ensure_dependencies(self):
         """Ensure all dependencies are available.
         
-        This provides backward compatibility with the container approach
+        This provides backward compatibility with the legacy container approach
         and ensures the component can function in both approaches.
         """
         if self.session is None and self._container is not None:
-            # Try to get a session from the container if available
+            # Try to get a session from the legacy container if available
             try:
                 session_factory = self._container.get("session_factory")
                 if session_factory:
                     self.session = session_factory()
             except (KeyError, AttributeError):
-                # Failed to get from container, continue with None
+                # Failed to get from legacy container, continue with None
                 pass
     
     def process_data(self, 

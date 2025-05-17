@@ -1,4 +1,4 @@
-"""Test core functionality of the fastapi-injectable migration."""
+"""Test core functionality of the fastapi-injectable integration."""
 
 from unittest.mock import MagicMock, patch
 
