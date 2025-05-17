@@ -25,57 +25,42 @@ The services module contains business logic that coordinates between CRUD operat
 ## Service Patterns
 
 ### Service Initialization
-Services accept dependencies through constructor injection:
+Services accept dependencies through constructor injection. Dependencies are
+provided by **fastapi-injectable** provider functions:
 
 ```python
 class EntityService:
     def __init__(
-        self, 
-        entity_crud=None, 
+        self,
+        entity_crud=None,
         canonical_entity_crud=None,
         entity_relationship_crud=None,
         session_factory=None,
-        container=None
     ):
         """Initialize the entity service.
-        
+
         Args:
             entity_crud: CRUD operations for entities
             canonical_entity_crud: CRUD operations for canonical entities
             entity_relationship_crud: CRUD operations for entity relationships
             session_factory: Database session factory
-            container: DI container for lazy dependency resolution
         """
         self.entity_crud = entity_crud
         self.canonical_entity_crud = canonical_entity_crud
         self.entity_relationship_crud = entity_relationship_crud
         self.session_factory = session_factory
-        self.container = container
         self._ensure_dependencies()
 ```
 
 ### Dependency Resolution
-Services may resolve dependencies from the DI container:
+Services validate injected dependencies:
 
 ```python
 def _ensure_dependencies(self):
     """Ensure all dependencies are available."""
-    if self.entity_crud is None and self.container:
-        self.entity_crud = self.container.get("entity_crud")
-        
-    if self.canonical_entity_crud is None and self.container:
-        self.canonical_entity_crud = self.container.get("canonical_entity_crud")
-        
-    if self.entity_relationship_crud is None and self.container:
-        self.entity_relationship_crud = self.container.get("entity_relationship_crud")
-        
-    if self.session_factory is None and self.container:
-        self.session_factory = self.container.get("session_factory")
-        
-    # Verify required dependencies
     if self.entity_crud is None:
         raise ValueError("EntityService requires entity_crud")
-        
+
     if self.session_factory is None:
         raise ValueError("EntityService requires session_factory")
 ```
@@ -145,14 +130,11 @@ def analyze_entity_sentiment(self, entity_id):
         if not entity:
             raise ValueError(f"Entity not found: {entity_id}")
             
-        # Get sentiment analyzer tool
-        sentiment_analyzer = self.container.get("sentiment_analyzer_tool")
-        
         # Get context for entity
         context = entity.sentence_context or ""
-        
-        # Analyze sentiment
-        sentiment = sentiment_analyzer.analyze_sentiment(context)
+
+        # Analyze sentiment using injected analyzer
+        sentiment = self.sentiment_analyzer.analyze_sentiment(context)
         
         # Create analysis result
         analysis_result = AnalysisResult(
@@ -193,11 +175,8 @@ def process_article_with_state(self, state: EntityTrackingState) -> EntityTracki
             if not article:
                 raise ValueError(f"Article not found: {state.article_id}")
                 
-            # Get entity extractor tool
-            entity_extractor = self.container.get("entity_extractor_tool")
-            
-            # Extract entities
-            entities = entity_extractor.extract_entities(article.content)
+            # Extract entities using injected extractor
+            entities = self.entity_extractor.extract_entities(article.content)
             
             # Update state with extracted entities
             state.entities = entities
@@ -260,41 +239,27 @@ class ApifyService:
         return self.client.actor(actor_id).call(run_input=run_input)
 ```
 
-## Service Registration in Container
+## Provider-Based Dependency Injection
 
-Services are registered in the DI container:
+Dependencies are exposed through provider functions in
+`local_newsifier.di.providers`. Services decorated with `@injectable` receive
+implementations automatically from these providers. For example:
 
 ```python
-# Register article service
-container.register_factory("article_service", lambda c: ArticleService(
-    article_crud=c.get("article_crud"),
-    entity_crud=c.get("entity_crud"),
-    session_factory=c.get("session_factory"),
-    container=c
-))
-
-# Register entity service
-container.register_factory("entity_service", lambda c: EntityService(
-    entity_crud=c.get("entity_crud"),
-    canonical_entity_crud=c.get("canonical_entity_crud"),
-    entity_relationship_crud=c.get("entity_relationship_crud"),
-    session_factory=c.get("session_factory"),
-    container=c
-))
-
-# Register analysis service with configurable parameters
-container.register_factory_with_params(
-    "analysis_service", 
-    lambda c, **kwargs: AnalysisService(
-        analysis_result_crud=c.get("analysis_result_crud"),
-        article_crud=c.get("article_crud"),
-        entity_crud=c.get("entity_crud"),
-        session_factory=c.get("session_factory"),
-        container=c,
-        min_confidence=kwargs.get("min_confidence", 0.5)
-    )
-)
+@injectable
+class ArticleService:
+    def __init__(
+        self,
+        article_crud: Annotated[ArticleCRUD, Depends(get_article_crud)],
+        session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    ):
+        self.article_crud = article_crud
+        self.session_factory = session_factory
 ```
+
+The application registers the provider functions with FastAPI at startup. This
+approach avoids manual container configuration and keeps service constructors
+simple.
 
 ## Best Practices
 
@@ -313,7 +278,7 @@ container.register_factory_with_params(
 
 ### Dependency Injection
 - Accept dependencies through constructor parameters
-- Resolve missing dependencies from container
+- Use provider functions to supply implementations
 - Verify required dependencies are available
 - Use lazy loading for expensive dependencies
 
