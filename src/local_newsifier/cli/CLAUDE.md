@@ -57,24 +57,30 @@ def scrape_content(url, max_pages, max_depth, token, output):
     # Command implementation...
 ```
 
-### Container-Based Services
-CLI commands use the DI container to get services:
+### Dependency Injection in CLI
+CLI commands call provider functions directly or use helpers from
+`fastapi-injectable`:
 
 ```python
+from fastapi_injectable import get_injected_obj
+from local_newsifier.di.providers import (
+    get_rss_feed_service,
+    get_session,
+)
+
+@click.command(name="list")
 def list_feeds():
-    """List all configured RSS feeds."""
-    try:
-        # Get the container
-        from local_newsifier.container import container
-        
-        # Get the RSS feed service
-        feed_service = container.get("rss_feed_service")
-        
-        # Get feeds and display them
-        feeds = feed_service.list_feeds()
-        # ...
-    except Exception as e:
-        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+    """List configured RSS feeds."""
+    feed_service = get_rss_feed_service()
+    feeds = feed_service.list_feeds()
+    # ...
+
+@click.command(name="stats")
+def db_stats():
+    """Show database statistics using a session provider."""
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
+    # ...
 ```
 
 ### Error Handling
@@ -272,8 +278,8 @@ nf db count --table articles
 - Format structured data as tables
 - Support both human-readable and machine-readable output
 
-### Service Integration
-- Use the DI container to get services
+-### Service Integration
+- Use provider functions or injection helpers to access services
 - Avoid direct database access in command handlers
 - Delegate business logic to services
 - Handle both direct processing and task queuing
