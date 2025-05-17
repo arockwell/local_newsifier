@@ -321,3 +321,7 @@ with patch("my_module.async_dependency", AsyncMock(return_value=mock_result)):
 def test_problematic_in_ci(event_loop_fixture):
     # Test code here
 ```
+## Maintaining AGENTS.md
+
+Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.
+
