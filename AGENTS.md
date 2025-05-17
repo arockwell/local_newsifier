@@ -14,6 +14,5 @@ Additional information is available in all Markdown files under the `docs/` dire
 - FastAPI-Injectable-Migration-Plan.md
 - README.md
 - README_CLI.md
-- implementation_summary_issue_214.md
 
 If a new `CLAUDE.md` file is added or removed, update this document so Codex can locate every guide.
