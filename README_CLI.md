@@ -164,6 +164,26 @@ poetry run nf apify get-dataset dataset_id
 poetry run nf apify get-dataset dataset_id --limit 20 --format table
 ```
 
+#### Manage Source Configurations
+
+```bash
+# List stored configurations
+poetry run nf apify-config list
+
+# Add a new configuration
+poetry run nf apify-config add --name "Example" --actor-id apify/web-scraper --source-type news --schedule "0 8 * * *" --input input.json
+```
+
+#### Manage Schedules
+
+```bash
+# Create a schedule for a config
+poetry run nf apify schedules create 1
+
+# Check schedule status
+poetry run nf apify schedules status 1
+```
+
 For more comprehensive documentation on Apify integration, see [docs/apify_integration.md](docs/apify_integration.md).
 
 ## Testing the CLI

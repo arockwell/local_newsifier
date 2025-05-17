@@ -118,13 +118,15 @@ To add a new source for scraping with Apify:
    ```
 
 4. **Configure Database Entry**:
-   Once you've established a working configuration, you can add it to the database for regular scheduling. This typically involves:
+   Once you've established a working configuration, register it with the CLI so it can be scheduled automatically:
 
-   - Creating an `ApifySourceConfig` record with the actor ID and input configuration
-   - Setting up scheduling parameters
-   - Enabling the source
+   - Use `nf apify-config add` to create an `ApifySourceConfig` record with the actor ID and input configuration
+   - Set the cron schedule and mark the source as active
+   - Manage schedules with `nf apify schedules` (e.g., `create`, `status`, `update`)
 
-   *Note: Direct database configuration is currently managed through scripts or API. Dedicated CLI commands for managing Apify sources are planned for future releases.*
+   These commands persist the configuration in the `ApifySourceConfig` table and synchronize scheduling information with Apify.
+
+   After the configuration is stored, run `nf apify schedules create <CONFIG_ID>` to create the schedule in Apify and use `nf apify schedules update` to keep it synchronized with any changes.
 
 ## Scheduling & Webhooks
 

@@ -96,6 +96,14 @@ nf apify web-scraper https://example.com --selector "article a"
 
 # Get items from an Apify dataset
 nf apify get-dataset <dataset_id>
+
+# Manage stored configurations
+nf apify-config list
+nf apify-config add --name "Example" --actor-id apify/web-scraper --source-type news --schedule "0 8 * * *" --input input.json
+
+# Create or check schedules
+nf apify schedules create <config_id>
+nf apify schedules status <config_id>
 ```
 
 For detailed Apify integration documentation, see [docs/apify_integration.md](docs/apify_integration.md).
