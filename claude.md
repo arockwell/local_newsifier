@@ -166,14 +166,21 @@ class ApifyService:
 ```
 
 ### Session Management
-- Use context managers for database sessions:
+Use the `get_session` provider to obtain a database session:
 ```python
-with SessionManager() as session:
+from typing import Annotated, Generator
+from fastapi import Depends
+from sqlmodel import Session
+
+from local_newsifier.di.providers import get_session
+
+async def some_endpoint(
+    session: Annotated[Session, Depends(get_session)]
+):
     # Database operations here
-    # Session is committed on exit, or rolled back on exception
 ```
 
-- For service methods:
+For service methods:
 ```python
 with self.session_factory() as session:
     # Use session for database operations

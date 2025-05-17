@@ -320,9 +320,10 @@ When reviewing code, look for these warning signs:
 6. Complex code executed at module level
 7. Multiple different ways to access the same dependency
 
-## Converting Legacy Code
+## Converting Legacy Code (completed)
 
-When updating old code that still references the former container:
+The migration to `fastapi-injectable` is finished. The steps below are preserved
+for historical reference only:
 
 1. Create provider functions in `di/providers.py` with appropriate scope
 2. Update code to use these providers instead of direct instantiation
