@@ -1,9 +1,8 @@
 """
 Provider functions for fastapi-injectable.
 
-This module contains provider functions for all core dependencies
-that can be used with fastapi-injectable. These providers gradually
-replace the DIContainer factories with injectable providers.
+This module contains provider functions for all core dependencies and
+serves as the project's only dependency injection mechanism.
 
 Dependency injection approach:
 - use_cache=False: Used for components that interact with databases or maintain state
