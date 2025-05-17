@@ -350,18 +350,7 @@ class RSSFeedService:
 
 
 # For backwards compatibility during transition
-# Will be removed once all code is updated to use the container
+# This helper is deprecated and kept for reference only
 def register_article_service(article_svc):
-    """Register the article service to avoid circular imports.
-    
-    This function will be called from tasks.py after all imports are complete.
-    TEMPORARY: Will be removed once all code is updated to use the container.
-    
-    Args:
-        article_svc: The initialized article service
-    """
-    # Import at runtime to avoid circular imports
-    from local_newsifier.container import container
-    rss_feed_service = container.get("rss_feed_service")
-    if rss_feed_service:
-        rss_feed_service.article_service = article_svc
+    """Register the article service to avoid circular imports."""
+    # No-op; legacy container usage has been removed
