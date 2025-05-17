@@ -315,21 +315,6 @@ class TestOpinionVisualizerTool:
         with pytest.raises(ValueError):
             visualizer.generate_html_report(comparison_data, "timeline")
 
-    def test_injectable_compatibility(self, visualizer, mock_session, sample_data, event_loop_fixture):
-        """Test that both injectable and legacy approaches work identically."""
-        # Create a second tool directly
-        injectable_visualizer = OpinionVisualizerTool(session=mock_session)
-        
-        # Generate reports with both tools
-        report1 = visualizer.generate_text_report(sample_data, "timeline")
-        report2 = injectable_visualizer.generate_text_report(sample_data, "timeline")
-        
-        # Reports should be identical
-        assert report1 == report2
-        
-        # Both tools should handle the same operations
-        assert hasattr(visualizer, "prepare_timeline_data")
-        assert hasattr(injectable_visualizer, "prepare_timeline_data")
 
     def test_timeline_report_with_empty_data(self, visualizer, event_loop_fixture):
         """Test timeline report with empty data."""

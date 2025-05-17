@@ -5,6 +5,7 @@ This module defines asynchronous tasks for processing articles and fetching RSS 
 
 import logging
 from typing import Dict, List, Optional, Iterator
+from datetime import datetime, timezone
 
 from celery import Task, current_task
 from celery.signals import worker_ready
@@ -16,6 +17,7 @@ from local_newsifier.di.providers import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.models.state import EntityTrackingState
 
 logger = logging.getLogger(__name__)
 
@@ -141,12 +143,18 @@ def process_article(self, article_id: int) -> Dict:
             if article.url:
                 news_pipeline.process_url_directly(article.url)
             
-            # Process entities in the article
-            # Get the flow using provider function
+            # Process entities in the article using the state-based flow
             from local_newsifier.di.providers import get_entity_tracking_flow
             entity_flow = get_entity_tracking_flow()
-            
-            entities = entity_flow.process_article(article.id)
+
+            state = EntityTrackingState(
+                article_id=article.id,
+                content=article.content,
+                title=article.title,
+                published_at=article.published_at or datetime.now(timezone.utc)
+            )
+            result_state = entity_flow.process(state)
+            entities = result_state.entities
             
             return {
                 "article_id": article_id,

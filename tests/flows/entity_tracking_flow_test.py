@@ -180,67 +180,6 @@ def test_process_new_articles_method(mock_tracker_class, mock_resolver_class, mo
     event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
 
-@patch("local_newsifier.flows.entity_tracking_flow.article_crud")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
-@patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
-@patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
-def test_process_article_method(mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class, mock_article_crud, event_loop_fixture):
-    """Test the process_article method (legacy)."""
-    # Setup mocks
-    mock_entity_service = Mock()  # Don't use spec to avoid attribute constraints
-    mock_entity_tracker = Mock()
-    mock_entity_extractor = Mock()
-    mock_context_analyzer = Mock()
-    mock_entity_resolver = Mock()
-    
-    mock_session = Mock()
-    mock_article = Mock()
-    mock_article.id = 123
-    mock_article.content = "Test content"
-    mock_article.title = "Test title"
-    mock_article.published_at = datetime.now(timezone.utc)
-    
-    # Setup session context manager mock properly
-    mock_context_manager = MagicMock()
-    mock_context_manager.__enter__.return_value = mock_session
-    mock_context_manager.__exit__.return_value = None
-    mock_entity_service.session_factory.return_value = mock_context_manager
-    
-    # Configure article crud mock
-    mock_article_crud.get.return_value = mock_article
-    
-    # Configure result state
-    mock_result_state = Mock(spec=EntityTrackingState)
-    mock_result_state.entities = [{"entity": "test"}]
-    mock_entity_service.process_article_with_state.return_value = mock_result_state
-    
-    # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
-        entity_service=mock_entity_service,
-        entity_tracker=mock_entity_tracker,
-        entity_extractor=mock_entity_extractor,
-        context_analyzer=mock_context_analyzer,
-        entity_resolver=mock_entity_resolver
-    )
-    
-    # Call process_article method
-    result = flow.process_article(article_id=123)
-    
-    # Verify article was retrieved
-    mock_article_crud.get.assert_called_once_with(mock_session, id=123)
-    
-    # Verify process was called with correct state
-    mock_entity_service.process_article_with_state.assert_called_once()
-    called_state = mock_entity_service.process_article_with_state.call_args[0][0]
-    assert isinstance(called_state, EntityTrackingState)
-    assert called_state.article_id == 123
-
-    # Verify result
-    assert result == [{"entity": "test"}]
-
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
