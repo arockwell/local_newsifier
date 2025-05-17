@@ -409,4 +409,4 @@ Here are specific benefits that the decorator-based approach provides:
 
 5. **Consistent error handling**:
    - Use the same pattern across all services
-   - Ensure API endpoints handle ServiceError consistently
+   - Ensure API endpoints handle ServiceError consistently 
