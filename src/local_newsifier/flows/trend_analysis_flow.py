@@ -140,7 +140,7 @@ class NewsTrendAnalysisFlow(Flow):
                 raise RuntimeError(
                     "Cannot initialize AnalysisService without required dependencies. "
                     "Please provide an analysis_service instance or ensure the required "
-                    "dependencies are available through the DI container."
+                    "dependencies are available via fastapi-injectable providers."
                 )
         
         # For backwards compatibility with tests
