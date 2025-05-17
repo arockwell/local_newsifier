@@ -8,7 +8,7 @@ resolution and lifecycle management.
 
 from local_newsifier.di_container import DIContainer, Scope
 from local_newsifier.database.engine import SessionManager
-from local_newsifier.database.session_utils import get_container_session
+from local_newsifier.di.providers import get_session
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,10 +71,10 @@ def init_container(environment="production"):
         container.register_factory("session_factory", 
                                 lambda c: SessionManager)
     
-    # Register session utility
+    # Register session utility using injectable provider
     container.register_factory_with_params(
-        "get_session", 
-        lambda c, **kwargs: get_container_session(c, **kwargs)
+        "get_session",
+        lambda c, **kwargs: get_session()
     )
     
     # Register Core Tools
