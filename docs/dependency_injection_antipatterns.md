@@ -113,8 +113,7 @@ async def get_async_thing():
 class ServiceWithHiddenDependencies:
     def __init__(self):
         # Hidden dependency fetched internally
-        from some_container import container  # Legacy pattern
-        self.dependency = container.get("some_dependency")
+        self.dependency = SomeDependency()
 ```
 
 **Why it's problematic:**
@@ -323,7 +322,7 @@ When reviewing code, look for these warning signs:
 
 ## Converting Legacy Code
 
-When migrating from the old container to fastapi-injectable:
+When updating old code that still references the former container:
 
 1. Create provider functions in `di/providers.py` with appropriate scope
 2. Update code to use these providers instead of direct instantiation

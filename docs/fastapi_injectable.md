@@ -1,7 +1,6 @@
-# FastAPI Injectable Migration Guide
+# FastAPI Injectable Guide
 
-> **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture
-> and transition strategy, please refer to the [DI Architecture Guide](di_architecture.md).
+Local Newsifier now uses **fastapi-injectable** exclusively. For a high-level overview of the architecture, see the [DI Architecture Guide](di_architecture.md).
 >
 > **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
 >
@@ -30,9 +29,9 @@ The migration to fastapi-injectable provides these benefits:
 4. **Less Boilerplate**: Automatic dependency resolution with decorators
 5. **Framework Alignment**: Better integration with FastAPI's dependency system
 
-## Migration Summary
+## Migration Summary (Completed)
 
-The project previously used a custom container but has now fully migrated to fastapi-injectable.
+The project previously used a custom container but has fully migrated to fastapi-injectable.
 All components rely on provider functions and the adapter has been removed.
 
 ## Implementation Components

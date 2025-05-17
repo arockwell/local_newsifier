@@ -24,7 +24,7 @@ We have completed the migration to fastapi-injectable:
 - ✅ Update documentation
 - ✅ Fix issues related to instance caching (use_cache=False/True)
 
-### Phase 2: Gradual Migration (In Progress)
+### Phase 2: Gradual Migration (Completed)
 
 The migration will proceed in a layered approach, moving from the data layer toward UI layers:
 
@@ -48,7 +48,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Migrate pipeline flows
    - Ensure proper session handling in flows
 
-### Phase 3: API Integration (Planned)
+### Phase 3: API Integration (Completed)
 
 1. **API Dependencies**
    - Convert API dependency functions to use fastapi-injectable
@@ -60,7 +60,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Standardize response models and error handling
    - Optimize dependency chains for performance
 
-### Phase 4: CLI Integration (Planned)
+### Phase 4: CLI Integration (Completed)
 
 1. **Command Infrastructure**
    - Adapt CLI commands to use injected dependencies
@@ -71,7 +71,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Update fixtures for CLI testing
    - Add integration tests for end-to-end flows
 
-### Phase 5: Complete Migration (Planned)
+### Phase 5: Complete Migration (Completed)
 
 1. **Cleanup**
    - Remove legacy DI container dependencies

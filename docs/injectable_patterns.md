@@ -2,6 +2,8 @@
 
 This guide provides comprehensive documentation and examples for using the injectable pattern in Local Newsifier.
 
+The migration from the previous container-based system is complete. The migration guide below is kept for reference when updating any remaining legacy code.
+
 ## Table of Contents
 
 1. [Overview](#overview)
