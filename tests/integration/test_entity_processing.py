@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 from sqlmodel import Session, SQLModel, create_engine
 from sqlalchemy.orm import sessionmaker
 
-@pytest.mark.skip(reason="Integration test requires full environment and NLP models")
 def test_entity_processing_integration():
     """Test the complete entity processing flow with real components."""
     # Setup in-memory database

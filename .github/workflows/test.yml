@@ -91,10 +91,9 @@ jobs:
         # Note: Dependencies like psycopg2-binary, sqlalchemy, and pydantic-settings
         # are already managed by Poetry and should not be installed separately
 
-    - name: Download spaCy models
+    - name: Initialize spaCy models
       run: |
-        poetry run python -m spacy download en_core_web_sm
-        poetry run python -m spacy download en_core_web_lg
+        bash scripts/init_spacy_models.sh
 
     - name: Create test database
       env:
