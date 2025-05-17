@@ -33,10 +33,11 @@ Flows use state objects to track processing state:
 
 ```python
 class EntityTrackingFlow:
-    def __init__(self, entity_service=None, container=None):
+    def __init__(
+        self,
+        entity_service: Annotated[EntityService, Depends(get_entity_service)],
+    ):
         self.entity_service = entity_service
-        self.container = container
-        self._ensure_dependencies()
         
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process an article using the entity service.
@@ -102,18 +103,6 @@ def process_batch(self, batch_id, articles):
     return results
 ```
 
-### Dependency Management
-Flows get dependencies from the container:
-
-```python
-def _ensure_dependencies(self):
-    """Ensure all dependencies are available."""
-    if self.entity_service is None and self.container:
-        self.entity_service = self.container.get("entity_service")
-        
-    if self.entity_service is None:
-        raise ValueError("EntityTrackingFlow requires entity_service")
-```
 
 ### Multi-stage Processing
 Flows coordinate multiple processing stages:
@@ -202,15 +191,13 @@ Flows coordinate between multiple services:
 ```python
 class PublicOpinionFlow:
     def __init__(
-        self, 
-        entity_service=None, 
-        analysis_service=None,
-        container=None
+        self,
+        entity_service: Annotated[EntityService, Depends(get_entity_service)],
+        analysis_service: Annotated[AnalysisService, Depends(get_analysis_service)]
     ):
         self.entity_service = entity_service
         self.analysis_service = analysis_service
-        self.container = container
-        self._ensure_dependencies()
+
         
     def analyze_entity_opinion(self, entity_id, date_range=None):
         """Analyze public opinion for an entity.
@@ -246,21 +233,26 @@ class PublicOpinionFlow:
 
 ## Flow Registration in Container
 
-Flows are registered in the DI container:
+Flows are exposed via provider functions:
 
 ```python
-# In container initialization
-container.register_factory("entity_tracking_flow", lambda c: EntityTrackingFlow(
-    entity_service=c.get("entity_service"),
-    container=c
-))
+@injectable(use_cache=False)
+def get_entity_tracking_flow(
+    entity_service: Annotated[EntityService, Depends(get_entity_service)]
+) -> EntityTrackingFlow:
+    return EntityTrackingFlow(entity_service=entity_service)
 
-container.register_factory("news_pipeline", lambda c: NewsPipeline(
-    article_service=c.get("article_service"),
-    entity_tracking_flow=c.get("entity_tracking_flow"),
-    analysis_service=c.get("analysis_service"),
-    container=c
-))
+@injectable(use_cache=False)
+def get_news_pipeline(
+    article_service: Annotated[ArticleService, Depends(get_article_service)],
+    entity_tracking_flow: Annotated[EntityTrackingFlow, Depends(get_entity_tracking_flow)],
+    analysis_service: Annotated[AnalysisService, Depends(get_analysis_service)],
+) -> NewsPipeline:
+    return NewsPipeline(
+        article_service=article_service,
+        entity_tracking_flow=entity_tracking_flow,
+        analysis_service=analysis_service,
+    )
 ```
 
 ## Best Practices
@@ -287,7 +279,7 @@ container.register_factory("news_pipeline", lambda c: NewsPipeline(
 ### Flow Composition
 - Build complex flows from simpler flows
 - Inject flows into other flows as dependencies
-- Use the container to resolve flow dependencies
+- Use provider functions to resolve flow dependencies
 
 ### Documentation
 - Document flow stages and state transitions

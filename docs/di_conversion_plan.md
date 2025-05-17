@@ -1,10 +1,10 @@
 # Dependency Injection Conversion Plan
 
-This document outlines the plan for completing the dependency injection (DI) conversion across the Local Newsifier codebase.
+This document summarizes the plan that was used to complete the dependency injection (DI) conversion across the Local Newsifier codebase.
 
 ## Overview
 
-Most of the codebase already uses the `fastapi-injectable` framework. The remaining work focuses on adding provider functions and injectable classes where they are still missing.
+All components now use the `fastapi-injectable` framework. Provider functions and injectable classes are in place across the codebase.
 
 ## Areas for Conversion
 
