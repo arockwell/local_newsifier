@@ -2,13 +2,10 @@
 
 import logging
 import os
-import pathlib
-from typing import Annotated, Dict
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi_injectable import register_app
@@ -17,7 +14,6 @@ from fastapi_injectable import register_app
 import local_newsifier.models
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks
-from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 
