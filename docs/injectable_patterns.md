@@ -25,7 +25,7 @@ This guide provides comprehensive documentation and examples for using the injec
 
 ## Overview
 
-The Local Newsifier project is transitioning from a custom DIContainer to the `fastapi-injectable` framework. This guide provides practical examples and patterns to follow when implementing or migrating components.
+The Local Newsifier project uses the `fastapi-injectable` framework for dependency injection. This guide provides practical examples and patterns to follow when implementing components.
 
 ### Key Principles
 
@@ -323,11 +323,11 @@ def process_feed_cli(feed_id: int, limit: Optional[int] = None):
     process_feed_command(feed_id, limit)
 ```
 
-## Migration Guide
+## Implementation Guide
 
-### Step-by-Step Migration
+### Step-by-Step Process
 
-Follow these steps to migrate a component from DIContainer to injectable pattern:
+Follow these steps to create an injectable component:
 
 1. **Identify Dependencies**
    - List all dependencies used by the component

@@ -6,9 +6,9 @@ This document outlines a comprehensive plan for migrating from our custom DI con
 
 ## Current Status
 
-We have successfully implemented the foundation for migration to fastapi-injectable:
+We have completed the migration to fastapi-injectable:
 
-- The adapter layer is in place to bridge between DIContainer and fastapi-injectable
+- The former adapter layer has been removed
 - Core provider functions are defined for fundamental dependencies
 - Documentation is complete with examples and best practices
 - FastAPI integration is working with proper session management
@@ -157,7 +157,7 @@ Testing is critical to ensure the migration doesn't introduce regressions. The s
 The migration will be considered successful when:
 
 1. All components use fastapi-injectable for dependency resolution
-2. No direct references to DIContainer remain in the codebase
+2. No references to the old container remain in the codebase
 3. All tests pass with the new dependency injection system
 4. Performance matches or exceeds the previous implementation
 5. Documentation is complete and up-to-date

@@ -1,6 +1,6 @@
 # Dependency Injection Anti-Patterns
 
-This document identifies common anti-patterns related to dependency injection in the Local Newsifier codebase, particularly as we migrate from the legacy DIContainer to fastapi-injectable.
+This document identifies common anti-patterns related to dependency injection in the Local Newsifier codebase using fastapi-injectable.
 
 ## Identified Anti-Patterns
 

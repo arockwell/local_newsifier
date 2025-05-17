@@ -24,16 +24,14 @@ This system automatically fetches local news articles, performs Named Entity Rec
 
 ### Dependency Injection
 
-Local Newsifier uses a hybrid dependency injection (DI) approach as it migrates from a custom DI container to fastapi-injectable:
+Local Newsifier uses **fastapi-injectable** for all dependency injection. Provider
+functions defined in `local_newsifier.di.providers` expose dependencies and are
+injected with FastAPI's `Depends()` pattern.
 
-- **Custom DIContainer**: The original DI system for service management
-- **fastapi-injectable**: The newer DI framework leveraging FastAPI's dependency injection
-- **Adapter Layer**: Bridges both systems during the transition period
-
-For detailed information on our DI architecture, testing strategies, and migration guidelines, see:
+For details on the architecture and testing strategies see:
 - [DI Architecture Guide](docs/di_architecture.md)
-- [Original DIContainer Documentation](docs/dependency_injection.md)
-- [fastapi-injectable Migration Guide](docs/fastapi_injectable.md)
+- [Dependency Injection Guide](docs/dependency_injection.md)
+- [fastapi-injectable Guide](docs/fastapi_injectable.md)
 
 ## Setup
 
