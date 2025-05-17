@@ -23,6 +23,22 @@ poetry shell
 make setup-spacy
 ```
 
+### Offline Installation
+
+If your deployment environment cannot reach PyPI, build dependency wheels on a
+machine with internet access:
+
+```bash
+make build-wheels
+```
+
+Copy the generated `wheels/` directory to the target machine and install
+packages locally:
+
+```bash
+pip install --no-index --find-links=wheels -r requirements.txt
+```
+
 If you need to manually select a specific Python version for Poetry to use:
 
 ```bash

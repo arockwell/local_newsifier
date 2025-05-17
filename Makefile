@@ -1,14 +1,15 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy build-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
+	@echo "  make build-wheels      - Download dependency wheels"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
-	@echo "  make test-serial        - Run tests serially (for debugging)"
+	@echo "  make test-serial       - Run tests serially (for debugging)"
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
 	@echo "  make clean             - Clean build artifacts"
@@ -33,6 +34,11 @@ setup-spacy:
 	poetry run python -m spacy download en_core_web_sm
 	poetry run python -m spacy download en_core_web_lg
 	@echo "spaCy models installed successfully"
+
+# Build dependency wheels for offline installation
+build-wheels:
+	@echo "Building wheels into ./wheels..."
+	./scripts/build_wheels.sh
 
 # Testing
 test:

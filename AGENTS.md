@@ -16,3 +16,7 @@ Additional information is available in all Markdown files under the `docs/` dire
 - README_CLI.md
 
 If a new `CLAUDE.md` file is added or removed, update this document so Codex can locate every guide.
+
+## Wheelhouse
+
+Dependencies can be installed offline using pre-built wheels. Run `make build-wheels` on a machine with internet access to populate the `wheels/` directory, then install with `pip install --no-index --find-links=wheels -r requirements.txt`.
