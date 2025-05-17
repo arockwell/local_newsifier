@@ -36,7 +36,7 @@
   - Changed from `session.exec(query, params)` to `session.exec(query.bindparams(...))`
 
 ### System Structure
-- ✅ Implemented dependency injection container for better management of component relationships
+- ✅ Implemented dependency injection system for better management of component relationships
 - ✅ Fixed circular import dependencies between modules
 - ✅ Standardized tool, service, and flow registrations
 - ✅ Improved session management to avoid "Instance is not bound to a Session" errors

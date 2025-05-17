@@ -6,7 +6,7 @@
 - Database schema management with Alembic
 - SQLAlchemy session management in asynchronous tasks
 - Resolving circular dependencies with dependency injection
-- Standardizing all tool, service, and flow registrations in the dependency injection container
+- Standardizing all tool, service, and flow registrations using fastapi-injectable
 - Apify integration for automated web scraping
 
 ## Recent Changes
@@ -22,26 +22,26 @@
   - Updated settings.py to import from common.py instead of defining the shared constants directly
   - Updated database.py to use runtime imports for settings to break the circular dependency
   - Updated engine.py to use runtime imports for settings to break the circular dependency
-  - Updated session_utils.py to use runtime imports for the container to break the circular dependency
+  - Updated session_utils.py to use runtime imports for dependency providers to break the circular dependency
   - Updated the config/__init__.py file to ensure the imports are in the correct order
   - Maintained backward compatibility for tests by re-exporting get_settings
   - Resolved conflicts with main branch and updated the pull request
 
 - Fixed circular import in dependency injection system
-  - Modified session_utils.py to use lazy imports when getting the container
-  - Enhanced with_container_session decorator to accept optional container parameter
+  - Modified session_utils.py to use lazy imports when getting providers
+  - Enhanced with_container_session decorator to accept optional provider parameter
   - Added proper validation and null checks for session factory
   - Resolved CI pipeline failure with better module initialization order
   - Improved error handling with detailed logging
 
-- Registered all service and flow classes in the dependency injection container
+- Registered all service and flow classes using provider functions
   - Added lifecycle management with init, start, stop, and cleanup handlers
   - Standardized all service registrations with consistent scope (singleton)
   - Resolved circular dependencies through lazy loading
   - Added proper error handling and logging
   - Simplified flow class registration with proper dependency structure
 
-- Registered all tool classes in the dependency injection container
+- Registered all tool classes using provider functions
   - Created standardized organization with dedicated registration functions
   - Implemented consistent naming conventions with *_tool suffix
   - Added backward compatibility registrations to maintain existing code
@@ -49,15 +49,14 @@
   - Added comprehensive tests for tool registration in tests/utils/test_tool_registration.py
   - Created documentation for tool registration patterns in docs/dependency_injection_tools.md
 
-- Implemented dependency injection container pattern
-  - Created DIContainer class with service registration and resolution
-  - Added container initialization module that registers all services
-  - Updated API dependencies to use container-based services
+- Implemented fastapi-injectable pattern
+  - Created provider module with service registration and resolution
+  - Updated API dependencies to use injected services
   - Updated tasks router to use dependency-injected services
-  - Modified tasks.py to use the container
-  - Updated RSSFeedService to use the container
-  - Updated CLI commands to use container-based service resolution
-  - Updated tests to support container-based dependency resolution
+  - Modified tasks.py to use dependency injection
+  - Updated RSSFeedService to use injected dependencies
+  - Updated CLI commands to use provider-based service resolution
+  - Updated tests to support provider-based dependency resolution
   - Resolved circular dependencies between services that previously required globals
 - Improved test coverage above the 87% threshold
   - Added comprehensive tests for database engine (75% coverage, up from 55%)
@@ -75,11 +74,11 @@
   - Added a --no-process option to skip article processing if needed
   - Added detailed console output for article processing status
 
-- Fixed circular dependency issue in RSS feed processing with DI container
-  - Replaced global singletons with container-provided services
+- Fixed circular dependency issue in RSS feed processing
+  - Replaced global singletons with injected services
   - Removed direct imports between modules that caused circular imports
-  - Added proper dependency resolution through the container
-  - Services now get dependencies from container when needed
+  - Added proper dependency resolution through providers
+  - Services now get dependencies through injection when needed
   - No more need for global registration functions and circular imports
 
 - Fixed SQLAlchemy "Instance is not bound to a Session" error in RSS feed processing
@@ -139,25 +138,23 @@ We've added Apify integration to automate web scraping. The integration includes
    ```
 
 ### Dependency Injection Circular Import Fix
-We fixed a circular import issue between container.py and session_utils.py that was causing CI failures. The problem was that:
+We fixed a circular import issue between the provider module and session_utils.py. The problem was that both modules imported each other at import time.
 
-1. container.py imported session_utils.get_container_session
-2. session_utils.py imported container.container
-
-This created a circular dependency that failed during module initialization. The solution was:
+The solution was to use lazy imports and optional provider parameters:
 
 ```python
 # Old problematic code in session_utils.py
-from local_newsifier.container import container  # Top-level import
+from local_newsifier.provider_module import get_session  # Top-level import
 
 # New working solution
-def get_container_session(container=None, **kwargs):
-    if container is None:
-        # Import only when needed to avoid circular imports
-        from local_newsifier.container import container
+def get_session_lazy(provider=None, **kwargs):
+    if provider is None:
+        from local_newsifier.provider_module import get_session
+        provider = get_session
+    return provider()
 ```
 
-This approach uses lazy imports to break the circular dependency. The container is only imported when actually needed, not at module initialization time. We also made the container injectable as a parameter, further improving flexibility.
+This approach breaks the circular dependency by importing the provider only when needed.
 
 ### Web Interface Status
 - The web application is now working correctly

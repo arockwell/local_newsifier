@@ -115,23 +115,7 @@ class Article(SQLModel, table=True):
 
 ### Dependency Injection
 
-> **Note:** The project is currently transitioning between two dependency injection systems: the original custom DIContainer and fastapi-injectable. For more details, see the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md).
-
-#### Legacy DIContainer
-- The original system uses a central DIContainer for managing dependencies
-- Components are registered with the container
-- Services get dependencies through the container
-- Example container usage:
-```python
-# Get a service from the container
-article_service = container.get("article_service")
-
-# Register a service with the container
-container.register_factory("article_service", lambda c: ArticleService(
-    article_crud=c.get("article_crud"),
-    session_factory=c.get("session_factory")
-))
-```
+> **Note:** Local Newsifier now uses the `fastapi-injectable` framework for dependency injection. The old custom container has been removed. See the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md) for details.
 
 #### FastAPI-Injectable System
 - Newer components use the fastapi-injectable framework
@@ -163,8 +147,7 @@ def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
             session, start_date, end_date
         )
 
-        trend_analyzer = self.container.get("trend_analyzer_tool")
-        results = trend_analyzer.extract_keywords([a.title for a in articles])
+        results = self.trend_analyzer.extract_keywords([a.title for a in articles])
 
         return {"trending_terms": results}
 ```
@@ -201,7 +184,7 @@ with self.session_factory() as session:
 
 ### Best Practices
 - Return IDs rather than SQLModel objects across session boundaries
-- Use lazy loading with the container for circular dependencies
+- Use provider functions to lazily load dependencies and avoid circular imports
 - Bind parameters to SQLModel queries before execution:
 ```python
 # Correct way to bind parameters in SQLModel

@@ -33,7 +33,7 @@ Local Newsifier is a tool for fetching, analyzing, and storing local news articl
 3. ✅ Analysis pipeline
 4. ✅ Web interface for database exploration
 5. ✅ Fix for SQLModel parameter binding issue
-6. ✅ Dependency injection container implementation
+6. ✅ Dependency injection system implementation
 7. ✅ Circular dependency resolution
 8. ✅ RSS feed processing implementation
 9. ✅ Celery task queue integration

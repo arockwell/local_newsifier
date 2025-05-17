@@ -357,10 +357,9 @@ Follow these steps to create an injectable component:
 ```python
 class ArticleService:
     def __init__(self, article_crud=None, session_factory=None):
-        from local_newsifier.container import container
-        self.article_crud = article_crud or container.get("article_crud")
-        self.session_factory = session_factory or container.get("session_factory")
-    
+        self.article_crud = article_crud or ArticleCRUD()
+        self.session_factory = session_factory or SessionManager
+
     def get_article(self, article_id):
         with self.session_factory() as session:
             return self.article_crud.get(session, id=article_id)
@@ -396,12 +395,10 @@ class ArticleService:
 **Before:**
 ```python
 class NewsPipelineFlow:
-    def __init__(self, container=None):
-        from local_newsifier.container import container as default_container
-        self.container = container or default_container
-        self.article_service = self.container.get("article_service")
-        self.entity_service = self.container.get("entity_service")
-        self.entity_tracker = self.container.get("entity_tracker_tool")
+    def __init__(self, article_service=None, entity_service=None, entity_tracker=None):
+        self.article_service = article_service or ArticleService()
+        self.entity_service = entity_service or EntityService()
+        self.entity_tracker = entity_tracker or EntityTracker()
     
     def process_article(self, article_id):
         article = self.article_service.get_article(article_id)
@@ -717,19 +714,8 @@ To avoid event loop issues, use the "Conditional Decorator Pattern" - applying t
 class OpinionVisualizerTool:
     """Tool for generating visualizations of sentiment and opinion data."""
 
-    def __init__(self, session: Optional[Session] = None, container=None):
+    def __init__(self, session: Optional[Session] = None):
         self.session = session
-        self._container = container
-
-    def _ensure_dependencies(self):
-        """Ensure all dependencies are available."""
-        if self.session is None and self._container is not None:
-            try:
-                session_factory = self._container.get("session_factory")
-                if session_factory:
-                    self.session = session_factory()
-            except (KeyError, AttributeError):
-                pass
 
     # ... rest of the class implementation ...
 
@@ -750,37 +736,11 @@ Follow these steps to implement this pattern:
 1. **Define your class normally** without applying the decorator directly
    ```python
    class MyTool:
-       def __init__(self, session: Optional[Session] = None, container=None):
-           # Initialize with dependencies that could come from constructor or container
+       def __init__(self, session: Optional[Session] = None):
            self.session = session
-           self._container = container
    ```
 
-2. **Add dependency fallback mechanism** to support both direct instantiation and container
-   ```python
-   def _ensure_dependencies(self):
-       """Ensure required dependencies are available."""
-       if self.session is None and self._container is not None:
-           try:
-               session_factory = self._container.get("session_factory")
-               if session_factory:
-                   self.session = session_factory()
-           except (KeyError, AttributeError):
-               pass
-   ```
-
-3. **Call the fallback mechanism** at the beginning of methods that need dependencies
-   ```python
-   def process_data(self, data):
-       # Ensure dependencies before using them
-       self._ensure_dependencies()
-
-       # Now use the session or other dependencies
-       if self.session:
-           # Do something with session
-   ```
-
-4. **Apply the decorator conditionally** at the end of your file
+2. **Apply the decorator conditionally** at the end of your file
    ```python
    try:
        # Only apply in non-test environments
@@ -870,30 +830,9 @@ logger = logging.getLogger(__name__)
 class MyAnalyzerTool:
     """Tool for analyzing data."""
 
-    def __init__(self, session: Optional[Session] = None, container=None):
-        """Initialize with optional dependencies.
-
-        Args:
-            session: Optional database session
-            container: Optional DI container for backward compatibility
-        """
+    def __init__(self, session: Optional[Session] = None):
+        """Initialize with optional dependencies."""
         self.session = session
-        self._container = container
-
-    def set_container(self, container):
-        """Set the DI container for backward compatibility."""
-        self._container = container
-
-    def _ensure_dependencies(self):
-        """Ensure all dependencies are available."""
-        if self.session is None and self._container is not None:
-            try:
-                session_factory = self._container.get("session_factory")
-                if session_factory:
-                    self.session = session_factory()
-            except (KeyError, AttributeError):
-                # Failed to get from container, continue with None
-                pass
 
     def analyze_data(self, data: Dict[str, Any], *, session: Optional[Session] = None) -> List[Dict]:
         """Analyze the provided data.
@@ -905,9 +844,6 @@ class MyAnalyzerTool:
         Returns:
             Analysis results
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-
         # Use provided session or instance session
         session = session or self.session
 
@@ -962,19 +898,10 @@ class TestMyAnalyzerToolInjectable:
     def mock_session(self):
         return Mock()
 
-    def test_with_container_fallback(self, mock_session, event_loop_fixture):
-        # Create mock container
-        mock_container = Mock()
-        mock_container.get.return_value = lambda: mock_session
-
-        # Create analyzer with container but no session
-        analyzer = MyAnalyzerTool(container=mock_container)
-
-        # Call method, which should trigger _ensure_dependencies
-        analyzer.analyze_data({"key": "value"})
-
-        # Verify container was used to get session
-        mock_container.get.assert_called_with("session_factory")
+    def test_with_session_override(self, mock_session, event_loop_fixture):
+        """Test providing a session override at call time."""
+        analyzer = MyAnalyzerTool()
+        analyzer.analyze_data({"key": "value"}, session=mock_session)
 ```
 
 ### Performance Considerations
