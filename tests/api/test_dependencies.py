@@ -41,14 +41,14 @@ class TestServiceDependencies:
     
     @pytest.mark.skip(reason="Integration test only - complex mocking needed")
     def test_get_article_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_article_service returns the service from the container."""
+        """Test that get_article_service returns the service from the injectable provider."""
         # This test is too complex to mock properly due to runtime imports in dependencies.py
         # The functionality is tested through integration tests
         pass
     
     @pytest.mark.skip(reason="Integration test only - complex mocking needed")
     def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_rss_feed_service returns the service from the container."""
+        """Test that get_rss_feed_service returns the service from the injectable provider."""
         # This test is too complex to mock properly due to runtime imports in dependencies.py
         # The functionality is tested through integration tests
         pass
