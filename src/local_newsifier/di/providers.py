@@ -815,37 +815,6 @@ def get_rss_feed_service(
     )
 
 
-@injectable(use_cache=False)
-def get_analysis_service_legacy(
-    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
-    analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
-    trend_analyzer: Annotated["TrendAnalyzer", Depends(get_trend_analyzer_tool)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the analysis service.
-    
-    Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations.
-    
-    Args:
-        article_crud: Article CRUD component
-        analysis_result_crud: Analysis result CRUD component
-        trend_analyzer: Trend analyzer tool
-        session: Database session
-        
-    Returns:
-        AnalysisService instance
-    """
-    from local_newsifier.services.analysis_service import AnalysisService
-    
-    return AnalysisService(
-        article_crud=article_crud,
-        analysis_result_crud=analysis_result_crud,
-        trend_analyzer=trend_analyzer,
-        session_factory=lambda: session
-    )
-
-
 # Flow providers
 
 @injectable(use_cache=False)
