@@ -355,3 +355,19 @@ class WebScraperTool:
             raise
 
         return state
+
+    # ------------------------------------------------------------------
+    # Backwards compatibility aliases
+    # ------------------------------------------------------------------
+    def fetch_url(self, url: str) -> str:
+        """Alias for :meth:`_fetch_url` to maintain older API."""
+        return self._fetch_url(url)
+
+    def extract_article(self, html_content: str) -> str:
+        """Alias for :meth:`extract_article_text` to maintain older API."""
+        return self.extract_article_text(html_content)
+
+    def get_driver(self):
+        """Alias for :meth:`_get_driver` to maintain older API."""
+        return self._get_driver()
+

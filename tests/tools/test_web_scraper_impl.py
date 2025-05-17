@@ -33,8 +33,8 @@ class TestWebScraperImplementation:
             yield scraper
             
             # Clean up
-            if hasattr(scraper, '_driver') and scraper._driver:
-                scraper._driver.quit()
+            if scraper.driver:
+                scraper.driver.quit()
 
     @pytest.fixture
     def mock_response_factory(self):
@@ -47,13 +47,11 @@ class TestWebScraperImplementation:
             return mock_response
         return _create_mock_response
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     def test_initialization(self, web_scraper):
         """Test WebScraperTool initialization."""
         assert web_scraper.user_agent == "Test User Agent"
         assert web_scraper.driver is None  # Using the attribute name from the actual implementation
 
-    @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     def test_get_driver(self, web_scraper):
         """Test getting a Selenium webdriver."""
         with patch('local_newsifier.tools.web_scraper.webdriver') as mock_webdriver:
@@ -70,7 +68,6 @@ class TestWebScraperImplementation:
             assert second_driver is mock_driver
             mock_webdriver.Chrome.assert_called_once()
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_fetch_url_success(self, web_scraper, mock_response_factory):
         """Test successful URL fetching."""
         mock_response = mock_response_factory(
@@ -92,7 +89,6 @@ class TestWebScraperImplementation:
             assert "<h1>Test Article</h1>" in content
             assert "<p>Test content</p>" in content
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_fetch_url_retry(self, web_scraper):
         """Test URL fetching with retries."""
         # First request fails, second succeeds
@@ -114,7 +110,6 @@ class TestWebScraperImplementation:
             # Verify content from second request
             assert "Success after retry" in content
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_fetch_url_selenium_fallback(self, web_scraper):
         """Test fallback to Selenium when requests fails."""
         # All requests attempts fail
@@ -133,7 +128,6 @@ class TestWebScraperImplementation:
                 # Verify content from Selenium
                 assert "Selenium content" in content
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_fetch_url_error_handling(self, web_scraper):
         """Test error handling in fetch_url."""
         # All requests fail, including Selenium
@@ -143,7 +137,6 @@ class TestWebScraperImplementation:
                 content = web_scraper.fetch_url("https://example.com/error")
                 assert content is None
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'extract_article', to be fixed in a separate PR")
     def test_extract_article_standard_content(self):
         """Test article extraction from standard content."""
         scraper = WebScraperTool()
@@ -173,7 +166,6 @@ class TestWebScraperImplementation:
         # Verify sidebar content was excluded
         assert "Unrelated content" not in text
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'extract_article', to be fixed in a separate PR")
     def test_extract_article_complex_content(self):
         """Test article extraction from complex content with multiple strategies."""
         scraper = WebScraperTool()
@@ -211,7 +203,6 @@ class TestWebScraperImplementation:
         assert "Site Header" not in text
         assert "Site Footer" not in text
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'extract_article', to be fixed in a separate PR")
     def test_extract_article_with_paywall(self):
         """Test article extraction with paywall detection."""
         scraper = WebScraperTool()
@@ -249,7 +240,6 @@ class TestWebScraperImplementation:
         # Verify hidden content was not included
         assert "This is the rest of the article that's behind the paywall." not in text
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'extract_article', to be fixed in a separate PR")
     def test_extract_article_no_content(self):
         """Test article extraction with no meaningful content."""
         scraper = WebScraperTool()
@@ -273,7 +263,6 @@ class TestWebScraperImplementation:
         text = scraper.extract_article(None)
         assert "Failed to extract article content" in text
 
-    @pytest.mark.skip(reason="WebScraperTool implementation issues, to be fixed in a separate PR")
     def test_detect_subscription_content(self):
         """Test detection of subscription/paywall content."""
         scraper = WebScraperTool()
@@ -296,7 +285,6 @@ class TestWebScraperImplementation:
             is_paywall = scraper._detect_subscription_content(soup)
             assert is_paywall is True
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_scrape_url_success(self, web_scraper):
         """Test successful URL scraping."""
         with patch.object(web_scraper, 'fetch_url') as mock_fetch:
@@ -326,7 +314,6 @@ class TestWebScraperImplementation:
             assert "Article content paragraph 1." in result["content"]
             assert "Article content paragraph 2." in result["content"]
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute 'fetch_url', to be fixed in a separate PR")
     def test_scrape_url_failure(self, web_scraper):
         """Test URL scraping failure."""
         with patch.object(web_scraper, 'fetch_url', return_value=None):
@@ -338,11 +325,10 @@ class TestWebScraperImplementation:
             assert "error" in result
             assert "Failed to fetch URL" in result["error"]
 
-    @pytest.mark.skip(reason="WebScraperTool has no attribute '_driver', to be fixed in a separate PR")
     def test_cleanup(self, web_scraper):
         """Test driver cleanup in __del__ method."""
         # Create a real driver to test cleanup
-        with patch.object(web_scraper, '_driver') as mock_driver:
+        with patch.object(web_scraper, 'driver') as mock_driver:
             # Manually call __del__
             web_scraper.__del__()
             
@@ -350,5 +336,5 @@ class TestWebScraperImplementation:
             mock_driver.quit.assert_called_once()
             
         # Test with no driver (should not raise error)
-        web_scraper._driver = None
+        web_scraper.driver = None
         web_scraper.__del__()  # Should not raise exception
