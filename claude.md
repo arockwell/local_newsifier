@@ -1,5 +1,9 @@
 # Local Newsifier Development Guide
 
+> **Symlink Convention:** `AGENTS.md` files in this repository should be symbolic
+> links that point back to this `claude.md`. When creating a new `AGENTS.md`,
+> use a symlink instead of duplicating the contents.
+
 ## Project Overview
 - News article analysis system using SQLModel, PostgreSQL, and dependency injection
 - Focuses on entity tracking, sentiment analysis, and headline trend detection
