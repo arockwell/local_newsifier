@@ -54,9 +54,3 @@ def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, ev
         
         # Verify it's using the injected NLP model
         assert sentiment_analyzer.nlp is mock_nlp
-
-# Skip this test to avoid issues with PublicOpinionFlow's crewai imports
-@pytest.mark.skip(reason="Skipping public opinion flow test due to crewai dependency")
-def test_public_opinion_flow_with_sentiment_analyzer(mock_container, mock_nlp):
-    """Test the public opinion flow provider with sentiment analyzer."""
-    pass

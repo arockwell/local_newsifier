@@ -121,7 +121,6 @@ class TestEntityServiceImplementation:
         db_session.refresh(article)
         return article
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_article_entities_implementation(self, entity_service, sample_article):
         """Test the actual implementation of process_article_entities."""
         # Process the article with all required parameters
@@ -155,7 +154,6 @@ class TestEntityServiceImplementation:
         assert "canonical_name" in result[0]
         assert "canonical_id" in result[0]
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_article_with_state_implementation(self, entity_service, sample_article):
         """Test the implementation of process_article_with_state."""
         # Create a tracking state object for the article
@@ -183,7 +181,6 @@ class TestEntityServiceImplementation:
         assert isinstance(result, EntityTrackingState)
         assert len(result.entities) == 3  # Based on our mock extractor
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_articles_batch_implementation(self, entity_service, db_session):
         """Test the implementation of process_articles_batch."""
         # Create multiple articles
@@ -219,7 +216,6 @@ class TestEntityServiceImplementation:
         # Even if the process fails, we should have initiated the batch processing
         assert result.total_articles > 0
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_find_entity_relationships_implementation(self, entity_service, db_session):
         """Test the implementation of find_entity_relationships."""
         # Create canonical entities
@@ -287,7 +283,6 @@ class TestEntityServiceImplementation:
         # We just want to make sure the function runs without errors
         assert result.status in [TrackingStatus.SUCCESS, TrackingStatus.FAILED]
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_generate_entity_dashboard_implementation(self, entity_service, db_session):
         """Test the implementation of generate_entity_dashboard."""
         # Create a canonical entity

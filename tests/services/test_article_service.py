@@ -4,7 +4,6 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_process_article():
     """Test the complete article processing flow using the service."""
     # Arrange
@@ -72,7 +71,6 @@ def test_process_article():
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_article():
     """Test retrieving an article with its analysis results."""
     # Arrange
@@ -138,7 +136,6 @@ def test_get_article():
     assert len(result["analysis_results"]) == 1
     assert result["analysis_results"][0]["statistics"]["total_entities"] == 1
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_get_article_not_found():
     """Test retrieving a non-existent article."""
     # Arrange

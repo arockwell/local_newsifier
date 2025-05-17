@@ -16,7 +16,6 @@ from local_newsifier.api.dependencies import get_session, get_article_service, g
 class TestSessionDependency:
     """Tests for the database session dependency."""
 
-    @pytest.mark.skip(reason="Now using injectable provider directly")
     def test_get_session_from_injectable(self):
         """Test that get_session uses the injectable provider."""
         # Create a mock session
@@ -38,20 +37,9 @@ class TestSessionDependency:
 
 class TestServiceDependencies:
     """Tests for service dependencies."""
-    
-    @pytest.mark.skip(reason="Integration test only - complex mocking needed")
-    def test_get_article_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_article_service returns the service from the injectable provider."""
-        # This test is too complex to mock properly due to runtime imports in dependencies.py
-        # The functionality is tested through integration tests
-        pass
-    
-    @pytest.mark.skip(reason="Integration test only - complex mocking needed")
-    def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_rss_feed_service returns the service from the injectable provider."""
-        # This test is too complex to mock properly due to runtime imports in dependencies.py
-        # The functionality is tested through integration tests
-        pass
+
+    # These integration tests were removed due to heavy mocking requirements
+    # and lack of coverage value. Service functionality is validated elsewhere.
 
 
 class TestTemplatesDependency:

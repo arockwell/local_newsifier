@@ -13,7 +13,6 @@ from local_newsifier.models.trend import TrendAnalysis, TrendType, TrendStatus
 from local_newsifier.tools.trend_reporter import TrendReporter, ReportFormat
 
 
-@pytest.mark.skip(reason="Known issue with event loop in CI - Fixed in parallel PR")
 def test_injectable_trend_reporter_with_event_loop(event_loop_fixture):
     """Test that trend reporter works with event loop integration."""
     # Create a reporter

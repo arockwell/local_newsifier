@@ -44,7 +44,6 @@ class MockEntityTracker:
         )
 
 
-@pytest.mark.skip(reason="Missing dependency: fastapi_injectable")
 def test_entity_tracker_uses_service():
     """Test that EntityTracker uses the new service.
 
