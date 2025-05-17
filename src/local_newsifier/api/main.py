@@ -3,6 +3,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+import asyncio
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -34,8 +35,8 @@ async def lifespan(app: FastAPI):
     # Startup logic
     logger.info("Application startup initiated")
     try:
-        # Initialize database tables
-        create_db_and_tables()
+        # Initialize database tables in a separate thread to avoid blocking the event loop
+        await asyncio.to_thread(create_db_and_tables)
         logger.info("Database initialization completed")
         
         # Initialize fastapi-injectable
