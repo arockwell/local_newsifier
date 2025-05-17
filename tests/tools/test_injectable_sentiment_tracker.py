@@ -34,7 +34,6 @@ class TestInjectableSentimentTracker:
         session = MagicMock()
         return session
         
-    @ci_skip_injectable
     def test_provider_function(self, mock_session, event_loop_fixture):
         """Test that provider functions create a properly configured SentimentTracker.
 

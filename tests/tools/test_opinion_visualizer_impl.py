@@ -187,7 +187,6 @@ class TestOpinionVisualizerImplementation:
             if topic in result:
                 assert isinstance(result[topic], SentimentVisualizationData)
 
-    @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
     def test_save_visualization_to_file(self, visualizer_with_db, sample_data, tmp_path, event_loop_fixture):
         """Test saving visualization data to file."""
         # Create test visualization data
@@ -226,7 +225,6 @@ class TestOpinionVisualizerImplementation:
                 content = f.read()
                 assert "test_topic" in content
 
-    @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'save_visualization', to be fixed in a separate PR")
     def test_save_visualization_unknown_format(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test saving with unknown format raises error."""
         # Create test visualization data
@@ -268,7 +266,6 @@ class TestOpinionVisualizerImplementation:
             }
         )
 
-    @pytest.mark.skip(reason="OpinionVisualizerTool has no attribute 'calculate_summary_stats', to be fixed in a separate PR")
     def test_calculate_summary_stats(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test calculating summary statistics."""
         # Calculate stats directly 
@@ -281,8 +278,13 @@ class TestOpinionVisualizerImplementation:
         assert "min_sentiment" in stats
         assert "max_sentiment" in stats
 
-    @pytest.mark.skip(reason="Injectable pattern compatibility test skipped due to test environment setup")
     def test_injectable_compatibility(self, visualizer_with_db, sample_data, event_loop_fixture):
         """Test compatibility between directly instantiated and injectable instances."""
-        # Skip this test since the actual methods are also skipped
-        pass
+        from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
+
+        direct_instance = OpinionVisualizerTool(session=visualizer_with_db.session)
+
+        result_injected = visualizer_with_db.generate_text_report(sample_data)
+        result_direct = direct_instance.generate_text_report(sample_data)
+
+        assert result_direct == result_injected

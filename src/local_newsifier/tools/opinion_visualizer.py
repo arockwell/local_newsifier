@@ -621,3 +621,76 @@ class OpinionVisualizerTool:
         report += "</table>\n"
         report += "</body></html>"
         return report
+
+    def save_visualization(
+        self,
+        visualization_data: Union[
+            SentimentVisualizationData, Dict[str, SentimentVisualizationData]
+        ],
+        *,
+        report_type: str = "timeline",
+        output_format: str = "text",
+        filename: Optional[str] = None,
+    ) -> str:
+        """Save visualization data to a file.
+
+        Args:
+            visualization_data: The visualization data to save.
+            report_type: "timeline" or "comparison".
+            output_format: Desired output format ("text", "markdown", "html").
+            filename: Optional filename for the output file. If omitted a name
+                is generated automatically.
+
+        Returns:
+            Confirmation message describing where the file was saved.
+
+        Raises:
+            ValueError: If an unsupported ``output_format`` is provided.
+        """
+
+        if output_format not in {"text", "markdown", "html"}:
+            raise ValueError(f"Unsupported format: {output_format}")
+
+        if output_format == "text":
+            content = self.generate_text_report(visualization_data, report_type)
+        elif output_format == "markdown":
+            content = self.generate_markdown_report(
+                visualization_data, report_type
+            )
+        else:  # html
+            content = self.generate_html_report(visualization_data, report_type)
+
+        if filename is None:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"visualization_{ts}.{output_format}"
+
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return f"Report saved to {filename}"
+
+    def calculate_summary_stats(
+        self, data: SentimentVisualizationData
+    ) -> Dict[str, float]:
+        """Calculate summary statistics for visualization data."""
+        sentiments = list(data.sentiment_values)
+        total_articles = sum(data.article_counts)
+
+        if sentiments:
+            average = sum(sentiments) / len(sentiments)
+            minimum = min(sentiments)
+            maximum = max(sentiments)
+            change = sentiments[-1] - sentiments[0] if len(sentiments) > 1 else 0.0
+        else:
+            average = 0.0
+            minimum = 0.0
+            maximum = 0.0
+            change = 0.0
+
+        return {
+            "average_sentiment": average,
+            "min_sentiment": minimum,
+            "max_sentiment": maximum,
+            "total_articles": total_articles,
+            "sentiment_change": change,
+        }
