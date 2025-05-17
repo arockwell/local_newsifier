@@ -13,7 +13,7 @@ This module provides commands for managing RSS feeds, including:
 
 import json
 import click
-from datetime import datetime
+from datetime import datetime, timezone
 from tabulate import tabulate
 
 from local_newsifier.di.providers import (
@@ -23,6 +23,7 @@ from local_newsifier.di.providers import (
     get_entity_tracking_flow,
     get_news_pipeline_flow,
 )
+from local_newsifier.models.state import EntityTrackingState
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
 
 
@@ -209,11 +210,18 @@ def direct_process_article(article_id):
         # Process the article through the news pipeline
         if article.url and news_pipeline_flow:
             news_pipeline_flow.process_url_directly(article.url)
-        
-        # Process entities in the article
+
+        # Process entities in the article using the state-based flow
         entities = None
         if entity_tracking_flow:
-            entities = entity_tracking_flow.process_article(article.id)
+            state = EntityTrackingState(
+                article_id=article.id,
+                content=article.content,
+                title=article.title,
+                published_at=article.published_at or datetime.now(timezone.utc)
+            )
+            result_state = entity_tracking_flow.process(state)
+            entities = result_state.entities
         
         click.echo(f"Processed article {article_id}: {article.title}")
         if entities:

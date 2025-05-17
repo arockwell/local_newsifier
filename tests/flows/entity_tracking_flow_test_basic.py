@@ -44,35 +44,35 @@ def test_entity_tracking_flow_init_basic(
     assert mock_entity_tracker_class.call_count == 2
 
 
-@patch("local_newsifier.flows.entity_tracking_flow.article_crud")
-def test_process_article_basic(mock_article_crud):
-    """Test process_article method with mocked service."""
-    # Setup mocks to bypass session handling
+def test_process_basic():
+    """Test process method using state pattern."""
     mock_session = MagicMock()
     mock_article = MagicMock(id=1, title="Test article", content="Test content", url="http://example.com")
     mock_article.published_at = datetime.now(timezone.utc)
-    mock_article_crud.get.return_value = mock_article
-    
-    # Mock the entity service
+
     mock_entity_service = Mock()
     mock_result_state = Mock()
     mock_result_state.entities = [{"entity_id": 1, "entity_name": "Entity"}]
     mock_entity_service.process_article_with_state.return_value = mock_result_state
-    
-    # Setup session factory
+
     mock_context_manager = MagicMock()
     mock_context_manager.__enter__.return_value = mock_session
     mock_context_manager.__exit__.return_value = None
     mock_entity_service.session_factory.return_value = mock_context_manager
-    
-    # Test process_article
+
     flow = EntityTrackingFlow(entity_service=mock_entity_service)
-    result = flow.process_article(article_id=1)
-    
-    # Basic assertions
-    assert isinstance(result, list)
-    mock_article_crud.get.assert_called_once()
-    mock_entity_service.process_article_with_state.assert_called_once()
+
+    state = EntityTrackingState(
+        article_id=mock_article.id,
+        content=mock_article.content,
+        title=mock_article.title,
+        published_at=mock_article.published_at,
+    )
+
+    result_state = flow.process(state)
+
+    assert result_state is mock_result_state
+    mock_entity_service.process_article_with_state.assert_called_once_with(state)
 
 
 def test_get_entity_dashboard_basic():

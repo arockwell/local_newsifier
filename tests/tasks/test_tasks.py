@@ -4,6 +4,8 @@ Unit tests for Celery tasks in the Local Newsifier project.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock, call
+from datetime import datetime, timezone
+from local_newsifier.models.state import EntityTrackingState
 
 from celery import Task
 from celery.result import AsyncResult
@@ -143,7 +145,9 @@ class TestProcessArticle:
         
         # Setup return values
         mock_article_crud.get.return_value = mock_article
-        mock_entity_flow.process_article.return_value = [{"id": 1, "name": "Test Entity"}]
+        mock_result_state = Mock()
+        mock_result_state.entities = [{"id": 1, "name": "Test Entity"}]
+        mock_entity_flow.process.return_value = mock_result_state
         
         # Create a mock task instance with a mock session factory
         task = process_article
@@ -169,7 +173,17 @@ class TestProcessArticle:
             # Verify task called methods with session
             mock_article_crud.get.assert_called_once_with(mock_session, id=mock_article.id)
             mock_pipeline.process_url_directly.assert_called_once_with(mock_article.url)
-            mock_entity_flow.process_article.assert_called_once_with(mock_article.id)
+            expected_state = EntityTrackingState(
+                article_id=mock_article.id,
+                content=mock_article.content,
+                title=mock_article.title,
+                published_at=mock_article.published_at or datetime.now(timezone.utc)
+            )
+            mock_entity_flow.process.assert_called_once()
+            called_state = mock_entity_flow.process.call_args[0][0]
+            assert called_state.article_id == expected_state.article_id
+            assert called_state.content == expected_state.content
+            assert called_state.title == expected_state.title
             
             # Verify result
             assert result["article_id"] == mock_article.id

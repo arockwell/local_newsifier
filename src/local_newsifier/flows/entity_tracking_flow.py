@@ -108,35 +108,6 @@ class EntityTrackingFlow(Flow):
             
         return self.entity_service.process_articles_batch(state)
 
-    def process_article(self, article_id: int) -> List[Dict]:
-        """Legacy method for processing a single article by ID.
-        
-        Args:
-            article_id: ID of the article to process
-            
-        Returns:
-            List of processed entity mentions
-        """
-        with self.entity_service.session_factory() as session:
-            # Get article
-            article = article_crud.get(session, id=article_id)
-                
-            if not article:
-                raise ValueError(f"Article with ID {article_id} not found")
-            
-            # Create state for processing
-            state = EntityTrackingState(
-                article_id=article.id,
-                content=article.content,
-                title=article.title,
-                published_at=article.published_at or datetime.now(timezone.utc)
-            )
-            
-            # Process article
-            result_state = self.process(state)
-            
-            # Return processed entities
-            return result_state.entities
 
     def get_entity_dashboard(
         self, days: int = 30, entity_type: str = "PERSON"

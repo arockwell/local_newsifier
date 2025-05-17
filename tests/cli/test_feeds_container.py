@@ -93,7 +93,9 @@ def test_feeds_process_with_injectable(sample_feed):
     
     mock_news_flow = MagicMock()
     mock_entity_flow = MagicMock()
-    mock_entity_flow.process_article.return_value = ["Entity1", "Entity2"]
+    mock_result_state = MagicMock()
+    mock_result_state.entities = ["Entity1", "Entity2"]
+    mock_entity_flow.process.return_value = mock_result_state
     
     # Create all patches
     with patch('local_newsifier.cli.commands.feeds.get_rss_feed_service', return_value=mock_rss_service), \
