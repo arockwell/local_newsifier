@@ -329,4 +329,4 @@ When migrating from the old container to fastapi-injectable:
 2. Update code to use these providers instead of direct instantiation
 3. Ensure all dependencies are explicitly injected
 4. Test thoroughly to catch any circular dependencies
-5. Fix import ordering issues to avoid problems with module-level code 
+5. Fix import ordering issues to avoid problems with module-level code

@@ -559,4 +559,4 @@ target_metadata = SQLModel.metadata
 2. Focus migrations on specific, targeted changes
 3. Test migrations in development before applying to production
 4. Never modify existing committed migration scripts
-5. Use descriptive migration messages 
+5. Use descriptive migration messages
