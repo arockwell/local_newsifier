@@ -33,9 +33,8 @@ Flows use state objects to track processing state:
 
 ```python
 class EntityTrackingFlow:
-    def __init__(self, entity_service=None, container=None):
+    def __init__(self, entity_service=None):
         self.entity_service = entity_service
-        self.container = container
         self._ensure_dependencies()
         
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
@@ -103,14 +102,15 @@ def process_batch(self, batch_id, articles):
 ```
 
 ### Dependency Management
-Flows get dependencies from the container:
+Flows call provider functions to obtain dependencies:
 
 ```python
 def _ensure_dependencies(self):
     """Ensure all dependencies are available."""
-    if self.entity_service is None and self.container:
-        self.entity_service = self.container.get("entity_service")
-        
+    if self.entity_service is None:
+        from local_newsifier.di.providers import get_entity_service
+        self.entity_service = get_entity_service()
+
     if self.entity_service is None:
         raise ValueError("EntityTrackingFlow requires entity_service")
 ```
@@ -202,14 +202,12 @@ Flows coordinate between multiple services:
 ```python
 class PublicOpinionFlow:
     def __init__(
-        self, 
-        entity_service=None, 
-        analysis_service=None,
-        container=None
+        self,
+        entity_service=None,
+        analysis_service=None
     ):
         self.entity_service = entity_service
         self.analysis_service = analysis_service
-        self.container = container
         self._ensure_dependencies()
         
     def analyze_entity_opinion(self, entity_id, date_range=None):
@@ -244,24 +242,19 @@ class PublicOpinionFlow:
         }
 ```
 
-## Flow Registration in Container
+## Instantiating Flows
 
-Flows are registered in the DI container:
+Create flows by calling provider functions directly:
 
 ```python
-# In container initialization
-container.register_factory("entity_tracking_flow", lambda c: EntityTrackingFlow(
-    entity_service=c.get("entity_service"),
-    container=c
-))
+from local_newsifier.di.providers import get_entity_tracking_flow
 
-container.register_factory("news_pipeline", lambda c: NewsPipeline(
-    article_service=c.get("article_service"),
-    entity_tracking_flow=c.get("entity_tracking_flow"),
-    analysis_service=c.get("analysis_service"),
-    container=c
-))
+entity_tracking_flow = get_entity_tracking_flow()
+result = entity_tracking_flow.process(state)
 ```
+
+Provider functions automatically supply required dependencies, so manual
+container registration is no longer necessary.
 
 ## Best Practices
 
@@ -287,7 +280,7 @@ container.register_factory("news_pipeline", lambda c: NewsPipeline(
 ### Flow Composition
 - Build complex flows from simpler flows
 - Inject flows into other flows as dependencies
-- Use the container to resolve flow dependencies
+- Call provider functions to resolve flow dependencies
 
 ### Documentation
 - Document flow stages and state transitions
