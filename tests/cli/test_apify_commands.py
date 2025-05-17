@@ -127,7 +127,7 @@ class TestApifyCommands:
         settings.APIFY_TOKEN = None
         assert _ensure_token() is False
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_test_connection(
         self, mock_get_injected_obj, mock_apify_service, runner, original_token
     ):
@@ -147,7 +147,7 @@ class TestApifyCommands:
         # Verify the lambda function was called with the token
         # Since we can't directly check the lambda, we check that get_injected_obj was called
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_test_connection_with_token_param(
         self, mock_get_injected_obj, mock_apify_service, runner, original_token
     ):
@@ -162,7 +162,7 @@ class TestApifyCommands:
         assert result.exit_code == 0
         assert "Connection to Apify API successful" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_run_actor(
         self, mock_get_injected_obj, mock_apify_service, runner, original_token
     ):
@@ -182,7 +182,7 @@ class TestApifyCommands:
         assert "Actor run completed" in result.output
         assert "Default dataset ID: test_dataset" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_run_actor_with_input_file(
         self, mock_get_injected_obj, mock_apify_service, runner, original_token
     ):
@@ -208,7 +208,7 @@ class TestApifyCommands:
             # Clean up
             os.unlink(input_file)
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_run_actor_with_output_file(
         self, mock_get_injected_obj, mock_apify_service, runner, original_token
     ):
@@ -239,7 +239,7 @@ class TestApifyCommands:
             # Clean up
             os.unlink(output_file)
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_get_dataset(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -256,7 +256,7 @@ class TestApifyCommands:
         assert "Retrieving items from dataset test_dataset" in result.output
         assert "Retrieved 1 items" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_get_dataset_with_table_format(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -275,7 +275,7 @@ class TestApifyCommands:
         # Table output should have headers - lowercase column names
         assert "title" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_get_actor(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -295,7 +295,7 @@ class TestApifyCommands:
         assert "Description: Test actor description" in result.output
         assert "Input Schema" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_scrape_content(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -314,7 +314,7 @@ class TestApifyCommands:
         assert "Scraping complete!" in result.output
         assert "Retrieved 1 pages of content" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_scrape_content_with_output(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -345,7 +345,7 @@ class TestApifyCommands:
             # Clean up
             os.unlink(output_file)
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_web_scraper(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -363,7 +363,7 @@ class TestApifyCommands:
         assert "Using selector: a, max pages: 5" in result.output
         assert "Retrieved 1 pages of data" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_web_scraper_with_options(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):
@@ -393,7 +393,7 @@ class TestApifyCommands:
         assert "Scraping website from https://example.com" in result.output
         assert "Using selector: article a, max pages: 10" in result.output
 
-    @patch("local_newsifier.cli.commands.apify.get_injected_obj")
+    @patch("local_newsifier.cli.cli_utils.load_dependency")
     def test_web_scraper_with_output(
         self, mock_get_injected_obj, runner, original_token, mock_apify_service
     ):

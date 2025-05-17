@@ -12,9 +12,8 @@ This module provides commands for managing Apify source configurations, includin
 import json
 import click
 from datetime import datetime
-from tabulate import tabulate
 
-from fastapi_injectable import get_injected_obj
+from local_newsifier.cli.cli_utils import load_dependency, print_table
 
 from local_newsifier.di.providers import get_apify_source_config_service
 
@@ -34,7 +33,7 @@ def apify_config_group():
 def list_configs(active_only, json_output, limit, skip, source_type):
     """List all Apify source configurations with optional filtering."""
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     # Get configs based on filters
     configs_dict = apify_source_config_service.list_configs(
@@ -82,7 +81,7 @@ def list_configs(active_only, json_output, limit, skip, source_type):
     
     # Display table
     headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
-    click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    print_table(headers, table_data)
 
 
 @apify_config_group.command(name="add")
@@ -95,7 +94,7 @@ def list_configs(active_only, json_output, limit, skip, source_type):
 def add_config(name, actor_id, source_type, source_url, schedule, input):
     """Add a new Apify source configuration."""
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     # Parse input configuration if provided
     input_configuration = None
@@ -143,7 +142,7 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
 def show_config(id, json_output):
     """Show Apify source configuration details."""
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     try:
         config = apify_source_config_service.get_config(id)
@@ -187,7 +186,7 @@ def show_config(id, json_output):
 def remove_config(id, force):
     """Remove an Apify source configuration."""
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     try:
         config = apify_source_config_service.get_config(id)
@@ -221,7 +220,7 @@ def remove_config(id, force):
 def update_config(id, name, actor_id, source_type, source_url, schedule, active, input):
     """Update Apify source configuration properties."""
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     try:
         # Check if at least one property to update was provided
@@ -288,7 +287,7 @@ def run_config(id, output):
         nf apify-config run 2 --output result.json
     """
     # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
+    apify_source_config_service = load_dependency(get_apify_source_config_service)
     
     try:
         # Run the configuration

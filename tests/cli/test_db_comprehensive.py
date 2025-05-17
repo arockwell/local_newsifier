@@ -81,7 +81,7 @@ def mock_entity():
 class TestDBStats:
     """Tests for the db stats command."""
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_db_stats_with_data(self, mock_get_injected_obj, mock_article):
         """Test the db stats command with actual data."""
         # Set up mock session
@@ -105,7 +105,7 @@ class TestDBStats:
         assert "Active: 2" in result.output
         assert "Inactive: 1" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_db_stats_json_output(self, mock_get_injected_obj, mock_article):
         """Test the db stats command with JSON output."""
         # Set up mock session
@@ -133,7 +133,7 @@ class TestDBStats:
 class TestDBDuplicates:
     """Tests for the db duplicates command."""
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_check_duplicates_with_duplicates(self, mock_get_injected_obj, mock_article):
         """Test the duplicates command when duplicates are found."""
         # Set up mock session
@@ -163,7 +163,7 @@ class TestDBDuplicates:
         assert "Number of duplicates: 2" in result.output
         assert "Number of duplicates: 3" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_check_duplicates_json_output(self, mock_get_injected_obj, mock_article):
         """Test the duplicates command with JSON output."""
         # Set up mock session
@@ -195,7 +195,7 @@ class TestDBDuplicates:
 class TestDBArticles:
     """Tests for the db articles command."""
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_list_articles_with_results(self, mock_get_injected_obj, mock_article):
         """Test the articles command when articles are found."""
         # Set up mock session
@@ -216,7 +216,7 @@ class TestDBArticles:
         assert "Test Article" in result.output
         assert "https://example.com/test" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_list_articles_with_filters(self, mock_get_injected_obj):
         """Test the articles command with various filters."""
         # Set up mock session
@@ -244,7 +244,7 @@ class TestDBArticles:
         assert result.exit_code == 0
         assert "No articles found matching the criteria" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_list_articles_json_output(self, mock_get_injected_obj, mock_article):
         """Test the articles command with JSON output."""
         # Set up mock session
@@ -268,7 +268,7 @@ class TestDBArticles:
         assert output[0]["title"] == "Test Article"
         assert output[0]["url"] == "https://example.com/test"
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_list_articles_invalid_date(self, mock_get_injected_obj):
         """Test the articles command with invalid date format."""
         # Set up mock session
@@ -287,7 +287,7 @@ class TestDBArticles:
 class TestDBInspect:
     """Tests for the db inspect command."""
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_article_found(self, mock_get_injected_obj, mock_article):
         """Test the inspect command with a found article."""
         # Create mocks for session and crud
@@ -318,7 +318,7 @@ class TestDBInspect:
         assert "Test Article" in result.output
         assert "https://example.com/test" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_rss_feed_found(self, mock_get_injected_obj, mock_feed, mock_feed_log):
         """Test the inspect command with a found RSS feed."""
         # Create mocks for session and crud
@@ -354,7 +354,7 @@ class TestDBInspect:
         assert "Recent Processing Logs" in result.output
         assert "success" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_feed_log_found(self, mock_get_injected_obj, mock_feed_log):
         """Test the inspect command with a found feed log."""
         # Create mocks for session and crud
@@ -386,7 +386,7 @@ class TestDBInspect:
         assert "10" in result.output  # articles_found
         assert "5" in result.output   # articles_added
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_entity_found(self, mock_get_injected_obj, mock_entity):
         """Test the inspect command with a found entity."""
         # Create mocks for session and crud
@@ -417,7 +417,7 @@ class TestDBInspect:
         assert "Test Entity" in result.output
         assert "PERSON" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_rss_feed_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent RSS feed."""
         # Create mocks for session and crud
@@ -446,7 +446,7 @@ class TestDBInspect:
         assert result.exit_code == 0
         assert "Error: RSS Feed with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_feed_log_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent feed log."""
         # Create mocks for session and crud
@@ -475,7 +475,7 @@ class TestDBInspect:
         assert result.exit_code == 0
         assert "Error: Feed Processing Log with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_entity_not_found(self, mock_get_injected_obj):
         """Test the inspect command with a non-existent entity."""
         # Create mocks for session and crud
@@ -504,7 +504,7 @@ class TestDBInspect:
         assert result.exit_code == 0
         assert "Error: Entity with ID 999 not found" in result.output
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_inspect_json_output(self, mock_get_injected_obj, mock_article):
         """Test the inspect command with JSON output."""
         # Create mocks for session and crud
@@ -542,7 +542,7 @@ class TestDBInspect:
 class TestDBPurgeDuplicates:
     """Tests for the db purge-duplicates command."""
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_purge_duplicates_with_duplicates(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command when duplicates are found."""
         # Set up mock session and mock article_crud
@@ -594,7 +594,7 @@ class TestDBPurgeDuplicates:
         # Verify session.commit was called
         mock_session.commit.assert_called_once()
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_purge_duplicates_dry_run(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with dry run option."""
         # Set up mock session and mock article_crud
@@ -645,7 +645,7 @@ class TestDBPurgeDuplicates:
         # Verify session.commit was not called
         mock_session.commit.assert_not_called()
 
-    @patch('local_newsifier.cli.commands.db.get_injected_obj')
+    @patch('local_newsifier.cli.cli_utils.load_dependency')
     def test_purge_duplicates_json_output(self, mock_get_injected_obj, mock_article):
         """Test the purge-duplicates command with JSON output."""
         # Set up mock session and mock article_crud
