@@ -1,12 +1,14 @@
 # Dependency Injection Conversion Plan
 
+**Status:** Completed
+
 This document summarizes the plan that was used to complete the dependency injection (DI) conversion across the Local Newsifier codebase.
 
 ## Overview
 
 All components now use the `fastapi-injectable` framework. Provider functions and injectable classes are in place across the codebase.
 
-## Areas for Conversion
+## Areas for Conversion (All Completed)
 
 ### 1. Flow Classes
 
@@ -14,11 +16,11 @@ Flow classes are central to the application's business logic and need to be full
 
 | Class | Current Status | Tasks |
 |-------|---------------|-------|
-| `EntityTrackingFlow` | Basic integration | - Update constructor to accept dependencies<br>- Add provider function<br>- Update tests |
-| `NewsPipelineFlow` | Basic integration | - Update constructor to accept dependencies<br>- Add provider function<br>- Update tests |
-| `TrendAnalysisFlow` | Not integrated | - Update constructor to accept dependencies<br>- Add provider function<br>- Update tests |
-| `PublicOpinionFlow` | Not integrated | - Update constructor to accept dependencies<br>- Add provider function<br>- Update tests |
-| `RSSScrapingFlow` | Partial integration | - Complete constructor parameters<br>- Update tests |
+| `EntityTrackingFlow` | Completed | — |
+| `NewsPipelineFlow` | Completed | — |
+| `TrendAnalysisFlow` | Completed | — |
+| `PublicOpinionFlow` | Completed | — |
+| `RSSScrapingFlow` | Completed | — |
 
 ### 2. Tool Classes
 
@@ -26,13 +28,13 @@ Tool classes provide utilities used throughout the application and should be exp
 
 | Tool | Current Status | Tasks |
 |------|---------------|-------|
-| `RSSParser` | Registered | - Update instantiation to use provider functions |
-| `WebScraper` | Registered | - Update instantiation to use provider functions |
-| `SentimentAnalyzer` | Not registered | - Add provider function<br>- Update usages |
-| `EntityExtractor` | Not registered | - Add provider function<br>- Update usages |
-| `EntityResolver` | Not registered | - Add provider function<br>- Update usages |
-| `FileWriter` | Not registered | - Add provider function<br>- Update usages |
-| `TrendReporter` | Not registered | - Add provider function<br>- Update usages |
+| `RSSParser` | Completed | — |
+| `WebScraper` | Completed | — |
+| `SentimentAnalyzer` | Completed | — |
+| `EntityExtractor` | Completed | — |
+| `EntityResolver` | Completed | — |
+| `FileWriter` | Completed | — |
+| `TrendReporter` | Completed | — |
 
 ### 3. API Dependencies
 
@@ -40,9 +42,9 @@ API dependencies provide FastAPI integration points that need proper DI usage.
 
 | API Component | Current Status | Tasks |
 |--------------|---------------|-------|
-| API Dependencies | Basic integration | - Review all dependencies<br>- Ensure consistent patterns<br>- Add missing dependencies |
-| API Routes | Varied integration | - Ensure all routes use dependencies<br>- Review manual instantiation |
-| API Middleware | Not integrated | - Implement request scoping |
+| API Dependencies | Completed | — |
+| API Routes | Completed | — |
+| API Middleware | Completed | — |
 
 ### 4. Testing Infrastructure
 
@@ -50,33 +52,33 @@ Testing infrastructure needs to support easy mocking of provider functions and i
 
 | Component | Current Status | Tasks |
 |-----------|---------------|-------|
-| Test Fixtures | Basic fixtures | - Create injectable fixtures<br>- Add service mocking helpers |
-| Mock Services | Manual mocking | - Standardize service mocking pattern |
-| Test Isolation | Manual setup | - Implement dependency overrides<br>- Reset providers between tests |
+| Test Fixtures | Completed | — |
+| Mock Services | Completed | — |
+| Test Isolation | Completed | — |
 
 ## Implementation Phases
 
-### Phase 1: Complete Flow Classes Integration
+### Phase 1: Complete Flow Classes Integration (completed)
 
 1. Update each flow class to accept dependencies via constructor
 2. Create provider functions for each flow
 3. Update tests to use the provider functions
 4. Ensure circular dependencies are handled properly
 
-### Phase 2: Tool Registration and Usage
+### Phase 2: Tool Registration and Usage (completed)
 
 1. Create provider functions for all tools
 2. Update code that directly instantiates tools to use injection
 3. Implement appropriate fallbacks for direct usage
 4. Add tests for provider-based tool usage
 
-### Phase 3: Refine API Dependencies
+### Phase 3: Refine API Dependencies (completed)
 
 1. Review API dependencies for consistent patterns
 2. Implement request scoping for web requests
 3. Update API tests to use dependency overrides
 
-### Phase 4: Enhance Testing Infrastructure
+### Phase 4: Enhance Testing Infrastructure (completed)
 
 1. Create standardized test fixtures for injectable usage
 2. Implement helpers for service mocking in tests

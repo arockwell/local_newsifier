@@ -355,7 +355,7 @@ Follow these steps to create an injectable component:
 
 #### Service Migration Example
 
-**Before:**
+**Before (legacy pattern using `SessionManager`):**
 ```python
 class ArticleService:
     def __init__(self, article_crud=None, session_factory=None):

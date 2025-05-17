@@ -192,18 +192,6 @@ def get_database_url():
               # Use session for database operations
   ```
 
-- For legacy components, use context managers for session handling:
-  ```python
-  with SessionManager() as session:
-      # Use session for database operations
-  ```
-
-- For decorated functions that need a session, use the `with_session` decorator:
-  ```python
-  @with_session
-  def my_function(session, other_args):
-      # Use session for database operations
-  ```
 
 ### Transaction Management
 - By default, sessions are committed at the end of the context manager
