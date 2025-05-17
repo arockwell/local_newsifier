@@ -1,15 +1,13 @@
 """Tests for ApifySourceConfigService."""
 
 import json
+import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+from sqlmodel import Session
 
 # Skip tests that depend on the legacy container
 pytestmark = pytest.mark.skip(reason="Legacy container functionality has been removed")
-
-
-import pytest
-from sqlmodel import Session
 
 from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
 from local_newsifier.models.apify import ApifySourceConfig
