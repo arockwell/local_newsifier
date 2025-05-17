@@ -242,3 +242,13 @@ def test_analyze_mixed_sentiment(mock_textblob, sentiment_analyzer, event_loop_f
     assert result.analysis_results["sentiment"]["document_magnitude"] > 0
     assert result.analysis_results["sentiment"]["document_sentiment"] == 0.2
     assert result.analysis_results["sentiment"]["document_magnitude"] == 0.9
+
+
+def test_initialization_missing_model():
+    """SentimentAnalyzer should raise RuntimeError if spaCy model is missing."""
+    with patch("spacy.load", side_effect=OSError("Model not found")):
+        with pytest.raises(
+            RuntimeError,
+            match="spaCy model 'nonexistent' not found. Please install it using: python -m spacy download nonexistent",
+        ):
+            SentimentAnalyzer(nlp_model=None, model_name="nonexistent")
