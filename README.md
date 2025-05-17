@@ -15,6 +15,7 @@ This system automatically fetches local news articles, performs Named Entity Rec
 - Headline trend analysis with NLP-powered keyword extraction
 - Temporal tracking of trending terms in news coverage
 - Web scraping via Apify integration for websites without RSS feeds
+- Apify configuration management and scheduling via CLI ([README_CLI.md](README_CLI.md), [docs/apify_integration.md](docs/apify_integration.md))
 - Robust error handling and retry mechanisms
 - State persistence and workflow resumption
 - Comprehensive logging and monitoring
