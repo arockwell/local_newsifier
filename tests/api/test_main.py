@@ -91,51 +91,54 @@ class TestLifespan:
         assert callable(lifespan), "lifespan should be a callable function"
 
     def test_create_db_called_in_lifespan(self):
-        """Test that create_db_and_tables is called during lifespan startup."""
-        with patch("local_newsifier.database.engine.create_db_and_tables") as mock_create_db:
-            import inspect
-            
-            # Get the source code of the lifespan function
-            source = inspect.getsource(lifespan)
-            
-            # Verify the function contains a call to create_db_and_tables
-            assert "create_db_and_tables" in source, "create_db_and_tables should be called in lifespan"
+        """Test that database initialization is called during lifespan startup."""
+        import inspect
+        
+        # Get the source code of the lifespan function
+        source = inspect.getsource(lifespan)
+        
+        # Verify the function contains a call to get_async_db_initializer
+        assert "get_async_db_initializer" in source, "get_async_db_initializer should be called in lifespan"
+        
+        # Verify the async initialization pattern
+        assert "db_initializer = await get_async_db_initializer()" in source, "async database initialization should be used"
+        assert "db_init_result = await db_initializer()" in source, "async database initialization should be awaited"
 
     def test_lifespan_startup_success(self, mock_logger, event_loop_fixture):
         """Test successful startup in lifespan context manager."""
         # Create a completely mocked version of the lifespan function to test the flow
         # This avoids any actual database connection attempts
         
-        # Create a mock of the create_db_and_tables function
-        create_db_mock = MagicMock()
-        # Use AsyncMock for async functions
+        # Create mocks for all dependencies
+        db_initializer_mock = AsyncMock(return_value=True)
         register_app_mock = AsyncMock()
+        migrate_services_mock = AsyncMock()
         
-        # Use multiple patches to mock all external dependencies
-        with patch("local_newsifier.database.engine.create_db_and_tables", create_db_mock), \
-             patch("local_newsifier.api.main.register_app", register_app_mock):
+        # Use patches to mock all external dependencies directly
+        with patch("local_newsifier.di.providers.get_async_db_initializer", new_callable=AsyncMock) as get_db_init_mock, \
+             patch("local_newsifier.api.main.register_app", register_app_mock), \
+             patch("local_newsifier.api.main.migrate_container_services", migrate_services_mock):
             
-            # Create a simplified test lifespan function that mimics the behavior
-            # but doesn't try to actually connect to the database
-            @asynccontextmanager
-            async def test_lifespan(app: FastAPI):
-                # Startup logic - mimics the real lifespan but with mocked functions
-                create_db_mock()  # Call our mock instead of the real function
-                await register_app_mock(app)  # Call our mock instead of the real function
-                yield  # This is where FastAPI serves requests
-                # No shutdown logic needed for this test
+            # Set up the return value for get_async_db_initializer
+            get_db_init_mock.return_value = db_initializer_mock
             
-            # Now test our mocked lifespan
+            # Create a test app instance
+            test_app = FastAPI()
+            
+            # Now test the real lifespan function with our mocks
             async def run_lifespan():
-                async with test_lifespan(app):
+                from local_newsifier.api.main import lifespan
+                async with lifespan(test_app):
                     pass
             
             # Run the async function using the event loop fixture
             event_loop_fixture.run_until_complete(run_lifespan())
             
             # Verify our mocks were called as expected
-            create_db_mock.assert_called_once()
-            register_app_mock.assert_called_once_with(app)
+            register_app_mock.assert_called_with(test_app)
+            get_db_init_mock.assert_called()
+            db_initializer_mock.assert_called()
+            migrate_services_mock.assert_called_with(test_app)
 
     def test_lifespan_startup_error(self, mock_logger, event_loop_fixture):
         """Test error handling during startup in lifespan context manager."""
@@ -144,34 +147,34 @@ class TestLifespan:
         
         # Setup the error to be raised
         error_message = "Database connection error"
-        create_db_mock = MagicMock(side_effect=Exception(error_message))
+        db_initializer_mock = AsyncMock(side_effect=Exception(error_message))
+        register_app_mock = AsyncMock()
         
         # Use patches to mock all external dependencies
-        with patch("local_newsifier.api.main.create_db_and_tables", create_db_mock), \
+        with patch("local_newsifier.di.providers.get_async_db_initializer", new_callable=AsyncMock) as get_db_init_mock, \
+             patch("local_newsifier.api.main.register_app", register_app_mock), \
              patch("local_newsifier.api.main.logger", mock_logger):
             
-            # Create a simplified test lifespan function that mimics the behavior
-            # but with controlled error handling
-            @asynccontextmanager
-            async def test_lifespan(app: FastAPI):
-                # Startup logic with error handling
-                try:
-                    create_db_mock()  # This will raise our mocked exception
-                except Exception as e:
-                    mock_logger.exception(f"Error during startup: {str(e)}")
-                yield  # This is where FastAPI serves requests
+            # Set up the return value for get_async_db_initializer
+            get_db_init_mock.return_value = db_initializer_mock
             
-            # Now test our mocked lifespan
+            # Create a test app instance
+            test_app = FastAPI()
+            
+            # Now test the real lifespan function with our mocks
             async def run_lifespan():
-                async with test_lifespan(app):
+                from local_newsifier.api.main import lifespan
+                async with lifespan(test_app):
                     pass
             
             # Run the async function using the event loop fixture
             event_loop_fixture.run_until_complete(run_lifespan())
             
             # Verify our mocks were called as expected
-            create_db_mock.assert_called_once()
-            mock_logger.exception.assert_called_with(f"Error during startup: {error_message}")
+            register_app_mock.assert_called_with(test_app)
+            get_db_init_mock.assert_called()
+            db_initializer_mock.assert_called()
+            mock_logger.error.assert_any_call(f"Startup error: {error_message}")
 
 
 class TestAppConfiguration:
