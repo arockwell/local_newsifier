@@ -71,35 +71,90 @@ class BaseTask(Task):
         """Get article service using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_article_service
-        return get_article_service()
+        import asyncio
+        from fastapi_injectable.concurrency import run_coroutine_sync
+        
+        # Ensure there's an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the injectable provider function and get the result
+        return run_coroutine_sync(get_article_service())
     
     @property
     def article_crud(self):
         """Get article CRUD using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_article_crud
-        return get_article_crud()
+        import asyncio
+        from fastapi_injectable.concurrency import run_coroutine_sync
+        
+        # Ensure there's an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the injectable provider function and get the result
+        return run_coroutine_sync(get_article_crud())
     
     @property
     def entity_crud(self):
         """Get entity CRUD using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_entity_crud
-        return get_entity_crud()
+        import asyncio
+        from fastapi_injectable.concurrency import run_coroutine_sync
+        
+        # Ensure there's an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the injectable provider function and get the result
+        return run_coroutine_sync(get_entity_crud())
     
     @property
     def entity_service(self):
         """Get entity service using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_entity_service
-        return get_entity_service()
+        import asyncio
+        from fastapi_injectable.concurrency import run_coroutine_sync
+        
+        # Ensure there's an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the injectable provider function and get the result
+        return run_coroutine_sync(get_entity_service())
     
     @property
     def rss_feed_service(self):
         """Get RSS feed service using provider function."""
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_rss_feed_service
-        service = get_rss_feed_service()
+        import asyncio
+        from fastapi_injectable.concurrency import run_coroutine_sync
+        
+        # Ensure there's an event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the injectable provider function and get the result
+        service = run_coroutine_sync(get_rss_feed_service())
         
         # For backward compatibility during transition
         if hasattr(service, 'container'):
@@ -143,7 +198,17 @@ def process_article(self, article_id: int) -> Dict:
             # Process the article through the news pipeline
             # Get the flow using provider function
             from local_newsifier.di.providers import get_news_pipeline_flow
-            news_pipeline = get_news_pipeline_flow()
+            import asyncio
+            from fastapi_injectable.concurrency import run_coroutine_sync
+            
+            # Ensure there's an event loop for this thread
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            news_pipeline = run_coroutine_sync(get_news_pipeline_flow())
             
             if article.url:
                 news_pipeline.process_url_directly(article.url)
@@ -151,7 +216,17 @@ def process_article(self, article_id: int) -> Dict:
             # Process entities in the article
             # Get the flow using provider function
             from local_newsifier.di.providers import get_entity_tracking_flow
-            entity_flow = get_entity_tracking_flow()
+            import asyncio
+            from fastapi_injectable.concurrency import run_coroutine_sync
+            
+            # Ensure there's an event loop for this thread
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            entity_flow = run_coroutine_sync(get_entity_tracking_flow())
             
             entities = entity_flow.process_article(article.id)
             
@@ -207,7 +282,17 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
         with self.session_factory() as session:
             # Get RSSParser from providers
             from local_newsifier.di.providers import get_rss_parser
-            rss_parser = get_rss_parser()
+            import asyncio
+            from fastapi_injectable.concurrency import run_coroutine_sync
+            
+            # Ensure there's an event loop for this thread
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            rss_parser = run_coroutine_sync(get_rss_parser())
             
             for feed_url in feed_urls:
                 try:
