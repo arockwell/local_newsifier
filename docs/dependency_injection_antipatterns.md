@@ -113,7 +113,7 @@ async def get_async_thing():
 class ServiceWithHiddenDependencies:
     def __init__(self):
         # Hidden dependency fetched internally
-        from local_newsifier.container import container
+        from some_container import container  # Legacy pattern
         self.dependency = container.get("some_dependency")
 ```
 
