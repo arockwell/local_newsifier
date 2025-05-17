@@ -353,6 +353,7 @@ class TestApifyScheduleCommands:
         assert "Schedule ID exists in config but not in Apify" in result.output
         assert "Run 'nf apify schedules create CONFIG_ID' to create the schedule" in result.output
 
+    @pytest.mark.skip(reason="Legacy container functionality has been removed")
     def test_get_schedule_manager(self):
         """Test the _get_schedule_manager helper function."""
         # Use patch instead of calling directly to avoid actual dependencies

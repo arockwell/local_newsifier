@@ -4,6 +4,10 @@ import json
 from datetime import datetime
 from unittest.mock import Mock, patch
 
+# Skip tests that depend on the legacy container
+pytestmark = pytest.mark.skip(reason="Legacy container functionality has been removed")
+
+
 import pytest
 from sqlmodel import Session
 

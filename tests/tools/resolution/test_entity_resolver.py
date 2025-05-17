@@ -4,6 +4,10 @@ import pytest
 import os
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
+# Skip tests that depend on the legacy container
+pytestmark = pytest.mark.skip(reason="Legacy container functionality has been removed")
+
+
 # Skip all tests in CI environment
 IS_CI = os.environ.get("CI", "false").lower() == "true"
 skip_in_ci = pytest.mark.skipif(

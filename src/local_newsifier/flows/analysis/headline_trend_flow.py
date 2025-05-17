@@ -213,11 +213,5 @@ class HeadlineTrendFlow(Flow):
         report += "</body></html>"
         return report
         
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            analysis_service=container.get("analysis_service")
-        )
+    # Legacy container-based factory method has been removed as part of
+    # migrating to FastAPI-Injectable dependency injection

@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.apify_service import ApifyService
+    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
@@ -633,6 +634,34 @@ def get_apify_service():
 
 
 @injectable(use_cache=False)
+def get_apify_source_config_service(
+    apify_source_config_crud: Annotated["CRUDApifySourceConfig", Depends(get_apify_source_config_crud)],
+    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the Apify source config service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    preventing state leakage between operations.
+    
+    Args:
+        apify_source_config_crud: CRUD for Apify source configurations
+        apify_service: Apify service for API interactions
+        session: Database session
+        
+    Returns:
+        ApifySourceConfigService instance
+    """
+    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+    
+    return ApifySourceConfigService(
+        apify_source_config_crud=apify_source_config_crud,
+        apify_service=apify_service,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
 def get_apify_schedule_manager(
     apify_service: Annotated["ApifyService", Depends(get_apify_service)],
     apify_source_config_crud: Annotated["CRUDApifySourceConfig", Depends(get_apify_source_config_crud)],
@@ -1115,7 +1144,7 @@ def get_db_inspect_command():
         Function to execute db inspect command
     """
     from local_newsifier.cli.commands.db import inspect_record
-    return db_inspect_command
+    return inspect_record
 
 
 @injectable(use_cache=False)

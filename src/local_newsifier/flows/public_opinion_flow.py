@@ -454,14 +454,5 @@ class PublicOpinionFlow(Flow):
             logger.error(f"Error generating comparison report: {str(e)}")
             return f"Error generating comparison report: {str(e)}"
             
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            sentiment_analyzer=container.get("sentiment_analyzer_tool"),
-            sentiment_tracker=container.get("sentiment_tracker_tool"),
-            opinion_visualizer=container.get("opinion_visualizer_tool"),
-            session_factory=container.get("session_factory")
-        )
+    # Legacy container-based factory method has been removed as part of
+    # migrating to FastAPI-Injectable dependency injection

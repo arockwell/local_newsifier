@@ -43,19 +43,28 @@ if is_apify_command():
         from local_newsifier.cli.commands.apify import apify_group
         cli.add_command(apify_group)
     elif sys.argv[1] == "apify-config":
-        from local_newsifier.cli.commands.apify_config import apify_config_group
-        cli.add_command(apify_config_group)
+        try:
+            from local_newsifier.cli.commands.apify_config import apify_config_group
+            cli.add_command(apify_config_group)
+        except ImportError:
+            # Skip apify_config_group if it's not available
+            pass
 else:
     # Load all other command groups
     from local_newsifier.cli.commands.feeds import feeds_group
     from local_newsifier.cli.commands.db import db_group
     from local_newsifier.cli.commands.apify import apify_group
-    from local_newsifier.cli.commands.apify_config import apify_config_group
+    # Import apify_config_group conditionally to avoid errors if it's not available
+    try:
+        from local_newsifier.cli.commands.apify_config import apify_config_group
+        cli.add_command(apify_config_group)
+    except ImportError:
+        # Skip apify_config_group if it's not available
+        pass
 
     cli.add_command(feeds_group)
     cli.add_command(db_group)
     cli.add_command(apify_group)
-    cli.add_command(apify_config_group)
 
 
 def main():

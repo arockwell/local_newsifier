@@ -556,13 +556,13 @@ def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
     Returns:
         ApifyScheduleManager: Configured schedule manager
     """
-    apify_service = ApifyService(token)
-    session_factory = lambda: SessionManager()
-    return ApifyScheduleManager(
-        apify_service=apify_service,
-        apify_source_config_crud=config_crud,
-        session_factory=session_factory
-    )
+    from local_newsifier.di.providers import get_apify_service_cli, get_apify_schedule_manager
+    
+    # Get ApifyService with token parameter
+    apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+    
+    # Get schedule manager using the service
+    return get_injected_obj(lambda: get_apify_schedule_manager(apify_service))
 
 
 @schedules_group.command(name="list")

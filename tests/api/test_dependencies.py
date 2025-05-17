@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
 from tests.fixtures.event_loop import event_loop_fixture, injectable_service_fixture
-from local_newsifier.container import container
 
 from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 

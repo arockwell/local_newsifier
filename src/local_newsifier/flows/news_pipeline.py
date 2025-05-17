@@ -261,19 +261,5 @@ class NewsPipelineFlow(Flow):
         """
         return self.pipeline_service.process_url(url)
     
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            article_service=container.get("article_service"),
-            entity_service=container.get("entity_service"),
-            pipeline_service=container.get("news_pipeline_service"),
-            web_scraper=container.get("web_scraper_tool"),
-            file_writer=container.get("file_writer_tool"),
-            entity_extractor=container.get("entity_extractor"),
-            context_analyzer=container.get("context_analyzer"),
-            entity_resolver=container.get("entity_resolver"),
-            session_factory=container.get("session_factory")
-        )
+    # Legacy container-based factory method has been removed as part of
+    # migrating to FastAPI-Injectable dependency injection

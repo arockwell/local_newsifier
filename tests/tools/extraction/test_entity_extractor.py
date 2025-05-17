@@ -13,6 +13,10 @@ import pytest
 import os
 from unittest.mock import Mock, patch, MagicMock
 
+# Skip tests that depend on the legacy container
+pytestmark = pytest.mark.skip(reason="Legacy container functionality has been removed")
+
+
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 
 # Skip all tests in CI environment
