@@ -114,15 +114,3 @@ class RSSScrapingFlow(Flow):
 
         return results
         
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            rss_feed_service=container.get("rss_feed_service"),
-            article_service=container.get("article_service"),
-            rss_parser=container.get("rss_parser"),
-            web_scraper=container.get("web_scraper_tool"),
-            session_factory=container.get("session_factory")
-        )

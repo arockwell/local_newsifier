@@ -10,26 +10,6 @@ from local_newsifier.di_container import DIContainer
 from local_newsifier.container import container
 
 
-@pytest.fixture
-def mock_container():
-    """Create a mock container for testing."""
-    mock_container = MagicMock(spec=DIContainer)
-    # Setup services dictionary as needed
-    mock_container._services = {}
-    mock_container._factories = {}
-    
-    # Setup get method to return a mock when asked for article_service
-    mock_article_service = MagicMock()
-    
-    def mock_get(name):
-        if name == "article_service":
-            return mock_article_service
-        return None
-    
-    mock_container.get.side_effect = mock_get
-    
-    return mock_container, mock_article_service
-
 
 @pytest.fixture
 def mock_db_session():
@@ -1022,9 +1002,6 @@ def test_get_feed_processing_logs(mock_db_session, mock_session_factory):
 #     
 #     # Assert - should be set to the mock task
 #     assert local_newsifier.services.rss_feed_service._process_article_task is mock_task
-
-
-
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_process_feed_uses_container_article_service(mock_db_session, mock_session_factory):
