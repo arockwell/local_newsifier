@@ -164,6 +164,121 @@ poetry run nf apify get-dataset dataset_id
 poetry run nf apify get-dataset dataset_id --limit 20 --format table
 ```
 
+### Managing Apify Source Configurations
+
+#### List Configs
+
+```bash
+# List all configs
+poetry run nf apify-config list
+
+# Only active configs
+poetry run nf apify-config list --active-only
+
+# Output as JSON
+poetry run nf apify-config list --json
+```
+
+#### Add a Config
+
+```bash
+# Add a configuration
+poetry run nf apify-config add --name "Example" --actor-id apify/web-scraper --source-type news --source-url https://example.com
+
+# With schedule and input from file
+poetry run nf apify-config add --name "Example" --actor-id apify/web-scraper --source-type news --schedule "0 8 * * *" --input config.json
+```
+
+#### Show Config Details
+
+```bash
+# Show config details
+poetry run nf apify-config show 1
+
+# Output as JSON
+poetry run nf apify-config show 1 --json
+```
+
+#### Update a Config
+
+```bash
+# Update name and deactivate
+poetry run nf apify-config update 1 --name "Updated" --inactive
+
+# Update schedule
+poetry run nf apify-config update 1 --schedule "0 12 * * *"
+```
+
+#### Remove a Config
+
+```bash
+# Remove with confirmation
+poetry run nf apify-config remove 1
+
+# Skip confirmation
+poetry run nf apify-config remove 1 --force
+```
+
+#### Run a Config
+
+```bash
+# Run actor using saved config
+poetry run nf apify-config run 1
+
+# Save output to file
+poetry run nf apify-config run 1 --output result.json
+```
+
+### Managing Apify Schedules
+
+#### List Schedules
+
+```bash
+# Show configured schedules
+poetry run nf apify schedules list
+
+# Include Apify status
+poetry run nf apify schedules list --with-apify
+
+# Output as JSON
+poetry run nf apify schedules list --format json
+```
+
+#### Sync Schedules
+
+```bash
+# Synchronize database configs with Apify
+poetry run nf apify schedules sync
+```
+
+#### Create a Schedule
+
+```bash
+# Create schedule for a config
+poetry run nf apify schedules create 1
+```
+
+#### Update a Schedule
+
+```bash
+# Update schedule for a config
+poetry run nf apify schedules update 1
+```
+
+#### Delete a Schedule
+
+```bash
+# Delete schedule for a config
+poetry run nf apify schedules delete 1
+```
+
+#### Check Schedule Status
+
+```bash
+# Check schedule details
+poetry run nf apify schedules status 1
+```
+
 For more comprehensive documentation on Apify integration, see [docs/apify_integration.md](docs/apify_integration.md).
 
 ## Testing the CLI
