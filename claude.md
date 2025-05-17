@@ -72,7 +72,6 @@ src/
 │   ├── cli/            # Command-line interface
 │   │   └── commands/   # CLI command implementations
 │   ├── config/         # Configuration settings
-│   ├── container.py    # Dependency injection container
 │   ├── crud/           # Database CRUD operations
 │   ├── database/       # Database connection and session management
 │   ├── flows/          # High-level workflow definitions
@@ -115,7 +114,7 @@ class Article(SQLModel, table=True):
 
 ### Dependency Injection
 
-> **Note:** Local Newsifier now uses the `fastapi-injectable` framework for dependency injection. The old custom container has been removed. See the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md) for details.
+> **Note:** Local Newsifier now uses the `fastapi-injectable` framework for dependency injection. The old custom container has been removed. See the [Dependency Injection Guide](docs/dependency_injection.md) for provider usage and the [DI Architecture Guide](docs/di_architecture.md) for design details.
 
 #### FastAPI-Injectable System
 - Newer components use the fastapi-injectable framework
