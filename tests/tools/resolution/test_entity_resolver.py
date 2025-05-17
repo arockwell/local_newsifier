@@ -49,6 +49,12 @@ def test_calculate_name_similarity(entity_resolver):
     
     # Test with middle initial
     assert entity_resolver.calculate_name_similarity("Joe R. Biden", "Joe Biden") > 0.85
+
+    # Test with reversed name
+    assert entity_resolver.calculate_name_similarity("Biden, Joe", "Joe Biden") == 1.0
+
+    # Test comparing two normalized forms
+    assert entity_resolver.calculate_name_similarity("President Joe Biden", "Biden, Joe") == 1.0
     
     # Test with different names
     assert entity_resolver.calculate_name_similarity("Joe Biden", "Donald Trump") < 0.5
