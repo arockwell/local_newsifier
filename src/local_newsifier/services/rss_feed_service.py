@@ -347,10 +347,3 @@ class RSSFeedService:
             "started_at": log.started_at.isoformat(),
             "completed_at": log.completed_at.isoformat() if log.completed_at else None,
         }
-
-
-# For backwards compatibility during transition
-# This helper is deprecated and kept for reference only
-def register_article_service(article_svc):
-    """Register the article service to avoid circular imports."""
-    # No-op; legacy container usage has been removed
