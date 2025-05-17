@@ -14,8 +14,8 @@ def mock_nlp():
 
 @pytest.fixture
 def mock_container(mock_nlp):
-    """Create a mock container with dependencies."""
-    # Add mock to container
+    """Create a mock provider environment with dependencies."""
+    # Inject the mock into the provider environment
     with patch("local_newsifier.di.providers.get_nlp_model", return_value=mock_nlp):
         yield None
 
