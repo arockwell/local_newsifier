@@ -37,10 +37,10 @@ class DataProcessorTool:
         self._container = container
     
     def set_container(self, container):
-        """Set the DI container for backward compatibility.
-        
+        """Set the legacy container for backward compatibility.
+
         Args:
-            container: DIContainer instance
+            container: optional container instance
         """
         self._container = container
     

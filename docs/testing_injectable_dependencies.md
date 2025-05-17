@@ -273,36 +273,6 @@ async def test_async_service(mock_injectable_dependencies):
     api_client_mock.fetch_data.assert_called_once()
 ```
 
-### Testing Integration with Both DI Systems
-
-During the transition, some components may interact with both DI systems:
-
-```python
-def test_hybrid_component(mock_injectable_dependencies):
-    # Arrange - setup DIContainer mock
-    container_mock = MagicMock()
-    legacy_service_mock = MagicMock()
-    container_mock.get.return_value = legacy_service_mock
-    
-    # Setup injectable mocks
-    mock = mock_injectable_dependencies
-    injectable_service_mock = MagicMock()
-    mock.register("get_injectable_service", injectable_service_mock)
-    
-    # Patch adapter
-    with patch("local_newsifier.fastapi_injectable_adapter.di_container", container_mock):
-        # Create hybrid component that uses both systems
-        component = HybridComponent(
-            injectable_service=injectable_service_mock
-        )
-        
-        # Act
-        component.process_data()
-        
-        # Assert
-        legacy_service_mock.method.assert_called_once()
-        injectable_service_mock.method.assert_called_once()
-```
 
 ## Common Pitfalls and Solutions
 
