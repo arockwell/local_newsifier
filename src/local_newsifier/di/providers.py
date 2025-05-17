@@ -54,8 +54,17 @@ async def get_async_db_initializer():
         """
         logger.info("Starting async database initialization")
         try:
+            # Get or create event loop - handle the case where there's no current event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # No event loop in current thread, create a new one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                logger.info("Created new event loop for async database initialization")
+            
             # Run the blocking operation in a thread pool
-            result = await asyncio.get_event_loop().run_in_executor(
+            result = await loop.run_in_executor(
                 _thread_pool, create_db_and_tables
             )
             logger.info(f"Async database initialization completed with result: {result}")
