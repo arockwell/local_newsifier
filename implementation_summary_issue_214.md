@@ -12,13 +12,9 @@ This implementation creates comprehensive CRUD operations for managing Apify sou
 2. **Added to CRUD Package Exports**:
    - Updated `/src/local_newsifier/crud/__init__.py` to export the new CRUD module
 
-3. **Added to Container Registration**:
-   - Updated `/src/local_newsifier/container.py` to register the CRUD module in the DI container
-
-4. **Added FastAPI Injectable Provider**:
+3. **Added FastAPI Injectable Provider**:
    - Added provider function to `/src/local_newsifier/di/providers.py` for fastapi-injectable compatibility
-
-5. **Added Comprehensive Tests**:
+4. **Added Comprehensive Tests**:
    - Created `/tests/crud/test_apify_source_config.py` with thorough test coverage
 
 ## Implementation Details
@@ -68,8 +64,7 @@ The test suite includes comprehensive tests for:
 This implementation integrates with:
 
 1. **Dependency Injection**:
-   - Traditional container registration through `container.py`
-   - Modern fastapi-injectable registration through provider functions
+   - Uses fastapi-injectable provider functions for dependency management
 
 2. **Error Handling Framework**:
    - Uses the standardized error handling approach with `ServiceError`
