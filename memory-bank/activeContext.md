@@ -266,4 +266,4 @@ The proper way to reference the module in Procfile and railway.json is `local_ne
 3. Railway deployment requires proper configuration of both railway.json and Procfile
 4. Database connection depends on environment variables being correctly set
 5. Celery works much better with Redis as broker than with PostgreSQL
-6. Apify provides a powerful platform for web scraping that integrates well with our system 
+6. Apify provides a powerful platform for web scraping that integrates well with our system

@@ -933,4 +933,4 @@ def get_debug_entity_service(
     print(f"Creating EntityService with {entity_crud} and {session}")
     from local_newsifier.services.entity_service import EntityService
     return EntityService(entity_crud=entity_crud, session=session)
-``` 
+```

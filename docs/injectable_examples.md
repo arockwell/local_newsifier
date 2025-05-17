@@ -553,4 +553,4 @@ class EntityService:
         canonical_name = self.entity_resolver.resolve_entity(entity_name)
         # Process with canonical name
         return canonical_name
-``` 
+```
