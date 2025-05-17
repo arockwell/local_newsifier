@@ -1,24 +1,22 @@
 # Wheel Directory
 
-This directory is used to store Python wheels for offline installation. 
+This directory contains Python wheels for offline installation. All necessary wheel files are included in the repository, allowing for a truly offline installation experience.
 
 ## Usage
 
-1. **Generate wheels** (requires internet connection):
-   ```bash
-   ./scripts/build_wheels.sh
-   ```
+Simply run the offline installation command:
+```bash
+pip install --no-index --find-links=wheels -r requirements.txt
+```
 
-2. **Install offline** (no internet connection needed):
-   ```bash
-   pip install --no-index --find-links=wheels -r requirements.txt
-   ```
+No internet connection is required as all dependencies are already available as wheels in this directory.
 
-The `.gitignore` in this directory prevents wheel files from being committed to the repository to avoid bloating the repo size. However, the directory structure is preserved for easy offline installation.
+## Regenerating Wheels
 
-## Supporting Offline Environments
+If you need to update the wheel files (e.g., when project dependencies change):
 
-For completely offline environments:
-1. Run `./scripts/build_wheels.sh` on a machine with internet access
-2. Copy the entire project including the generated wheels/ directory to the offline machine
-3. Run the offline installation command
+```bash
+./scripts/build_wheels.sh
+```
+
+This will download all required wheels with their dependencies to this directory.
