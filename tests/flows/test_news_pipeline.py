@@ -224,6 +224,31 @@ def test_pipeline_resume_from_save_failed(pipeline):
     pipeline.writer.save.assert_called_once()
 
 
+def test_pipeline_resume_from_save_failed_retry_logged(pipeline):
+    """Ensure resuming from a save failure logs the retry and succeeds."""
+    state = NewsAnalysisState(target_url="https://example.com/save-failed")
+    state.status = AnalysisStatus.SAVE_FAILED
+    state.scraped_text = "Test content"
+    state.analysis_results = {"entities": {"PERSON": []}}
+
+    def successful_save(state):
+        state.saved_at = datetime.now()
+        state.status = AnalysisStatus.SAVE_SUCCEEDED
+        return state
+
+    pipeline.save_results = Mock(side_effect=successful_save)
+
+    resumed_state = pipeline.resume_pipeline("test_run", state)
+
+    assert resumed_state.status == AnalysisStatus.SAVE_SUCCEEDED
+    assert resumed_state.saved_at is not None
+    assert any("Retry attempt for saving" in log for log in resumed_state.run_logs)
+
+    pipeline.scraper.scrape.assert_not_called()
+    pipeline.article_service.process_article.assert_not_called()
+    pipeline.save_results.assert_called_once()
+
+
 def test_pipeline_resume_invalid_state(pipeline):
     """Test pipeline resumption with invalid state."""
     # Create completed state
