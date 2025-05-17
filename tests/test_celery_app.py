@@ -1,9 +1,11 @@
 """Tests for celery application configuration."""
 
+import importlib
 import pytest
 from unittest.mock import patch, MagicMock
 from celery import Celery
 
+import local_newsifier.celery_app as celery_app_module
 from local_newsifier.celery_app import app
 
 
@@ -34,3 +36,23 @@ def test_celery_app_main_execution():
         
         # Verify start was called
         assert mock_start.call_count == 1
+
+
+def test_celery_app_uses_custom_broker_and_backend(monkeypatch):
+    """Reload celery_app with patched settings and verify configuration."""
+    custom_settings = MagicMock()
+    custom_settings.CELERY_BROKER_URL = "redis://test-broker:6379/0"
+    custom_settings.CELERY_RESULT_BACKEND = "redis://test-backend:6379/1"
+
+    monkeypatch.setattr(
+        "local_newsifier.config.settings.settings",
+        custom_settings,
+        raising=False,
+    )
+
+    reloaded_module = importlib.reload(celery_app_module)
+    assert reloaded_module.app.conf.broker_url == custom_settings.CELERY_BROKER_URL
+    assert (
+        reloaded_module.app.conf.result_backend
+        == custom_settings.CELERY_RESULT_BACKEND
+    )
