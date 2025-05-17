@@ -11,7 +11,7 @@ from local_newsifier.di.providers import get_apify_service_cli
 from local_newsifier.services.apify_service import ApifyService
 
 
-@patch('local_newsifier.cli.commands.apify.get_injected_obj')
+@patch('local_newsifier.cli.cli_utils.load_dependency')
 def test_apify_service_injection(mock_get_injected_obj):
     """Test the Apify service injection in CLI commands."""
     # Set up mock apify service
@@ -36,7 +36,7 @@ def test_apify_service_injection(mock_get_injected_obj):
     mock_get_injected_obj.assert_called_once()
 
 
-@patch('local_newsifier.cli.commands.db.get_injected_obj')
+@patch('local_newsifier.cli.cli_utils.load_dependency')
 def test_db_stats_integration(mock_get_injected_obj):
     """Test the db stats command with injectable dependencies."""
     # Create a side effect to handle different calls to get_injected_obj
@@ -75,7 +75,7 @@ def test_db_stats_integration(mock_get_injected_obj):
     assert "Database Statistics" in result.output
 
 
-@patch('local_newsifier.cli.commands.db.get_injected_obj')
+@patch('local_newsifier.cli.cli_utils.load_dependency')
 def test_db_articles_integration(mock_get_injected_obj):
     """Test the db articles command with injectable dependencies."""
     # Set up mock session and article crud

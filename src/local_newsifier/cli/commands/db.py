@@ -11,12 +11,12 @@ This module provides commands for inspecting and managing database state, includ
 import json
 import click
 from datetime import datetime
-from tabulate import tabulate
 from typing import Dict, List, Any, Optional, Annotated
 from sqlalchemy import text, func
 from sqlmodel import Session, select
 from fastapi import Depends
-from fastapi_injectable import get_injected_obj
+
+from local_newsifier.cli.cli_utils import load_dependency, print_table
 
 from local_newsifier.di.providers import (
     get_session, 
@@ -38,7 +38,7 @@ def db_group():
 def db_stats(json_output: bool):
     """Show database statistics for all major tables."""
     # Get dependencies using injectable providers
-    session_gen = get_injected_obj(get_session)
+    session_gen = load_dependency(get_session)
     session = next(session_gen)
     
     # Import models only when needed
@@ -129,7 +129,7 @@ def db_stats(json_output: bool):
 def check_duplicates(limit: int, json_output: bool):
     """Find duplicate articles (same URL) and show details."""
     # Get dependencies using injectable providers
-    session_gen = get_injected_obj(get_session)
+    session_gen = load_dependency(get_session)
     session = next(session_gen)
     
     # Import the Article model directly
@@ -197,7 +197,7 @@ def check_duplicates(limit: int, json_output: bool):
             ])
         
         headers = ["ID", "Title", "Created At", "Status", "Content Length"]
-        click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+        print_table(headers, table_data)
 
 
 @db_group.command(name="articles")
@@ -212,7 +212,7 @@ def list_articles(source: Optional[str], status: Optional[str],
                  limit: int, json_output: bool):
     """List articles with filtering options."""
     # Get dependencies using injectable providers
-    session_gen = get_injected_obj(get_session)
+    session_gen = load_dependency(get_session)
     session = next(session_gen)
     
     # Import the Article model directly
@@ -294,8 +294,16 @@ def list_articles(source: Optional[str], status: Optional[str],
             article["content_len"],
         ])
     
-    headers = ["ID", "Title", "URL", "Source", "Status", "Created At", "Content Length"]
-    click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    headers = [
+        "ID",
+        "Title",
+        "URL",
+        "Source",
+        "Status",
+        "Created At",
+        "Content Length",
+    ]
+    print_table(headers, table_data)
 
 
 @db_group.command(name="inspect")
@@ -305,12 +313,12 @@ def list_articles(source: Optional[str], status: Optional[str],
 def inspect_record(table: str, id: int, json_output: bool):
     """Inspect a specific database record in detail."""
     # Get dependencies using injectable providers
-    session_gen = get_injected_obj(get_session)
+    session_gen = load_dependency(get_session)
     session = next(session_gen)
-    article_crud = get_injected_obj(get_article_crud)
-    rss_feed_crud = get_injected_obj(get_rss_feed_crud)
-    entity_crud = get_injected_obj(get_entity_crud)
-    feed_processing_log_crud = get_injected_obj(get_feed_processing_log_crud)
+    article_crud = load_dependency(get_article_crud)
+    rss_feed_crud = load_dependency(get_rss_feed_crud)
+    entity_crud = load_dependency(get_entity_crud)
+    feed_processing_log_crud = load_dependency(get_feed_processing_log_crud)
     
     # Import model only when needed for feed_log
     from local_newsifier.models.rss_feed import RSSFeedProcessingLog
@@ -424,7 +432,7 @@ def inspect_record(table: str, id: int, json_output: bool):
             continue  # Handle logs separately
         table_data.append([key, value])
     
-    click.echo(tabulate(table_data, headers=["Field", "Value"], tablefmt="simple"))
+    print_table(["Field", "Value"], table_data)
     
     # Show logs if available
     if table == "rss_feed" and result.get("recent_logs"):
@@ -445,8 +453,16 @@ def inspect_record(table: str, id: int, json_output: bool):
                 log["error_message"] or "",
             ])
         
-        log_headers = ["ID", "Started At", "Completed At", "Status", "Found", "Added", "Error"]
-        click.echo(tabulate(log_table, headers=log_headers, tablefmt="simple"))
+        log_headers = [
+            "ID",
+            "Started At",
+            "Completed At",
+            "Status",
+            "Found",
+            "Added",
+            "Error",
+        ]
+        print_table(log_headers, log_table)
 
 
 @db_group.command(name="purge-duplicates")
@@ -456,9 +472,9 @@ def inspect_record(table: str, id: int, json_output: bool):
 def purge_duplicates(dry_run: bool, json_output: bool):
     """Remove duplicate articles, keeping the oldest version."""
     # Get dependencies using injectable providers
-    session_gen = get_injected_obj(get_session)
+    session_gen = load_dependency(get_session)
     session = next(session_gen)
-    article_crud = get_injected_obj(get_article_crud)
+    article_crud = load_dependency(get_article_crud)
     
     # Import the Article model directly
     from local_newsifier.models.article import Article

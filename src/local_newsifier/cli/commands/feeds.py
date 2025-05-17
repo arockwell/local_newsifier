@@ -14,7 +14,8 @@ This module provides commands for managing RSS feeds, including:
 import json
 import click
 from datetime import datetime
-from tabulate import tabulate
+
+from local_newsifier.cli.cli_utils import print_table
 
 from local_newsifier.di.providers import (
     get_rss_feed_service,
@@ -67,7 +68,7 @@ def list_feeds(active_only, json_output, limit, skip):
     
     # Display table
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
-    click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    print_table(headers, table_data)
 
 
 @feeds_group.command(name="add")
@@ -152,8 +153,16 @@ def show_feed(id, json_output, show_logs):
                 log["error_message"] or ""
             ])
         
-        log_headers = ["ID", "Started At", "Completed At", "Status", "Found", "Added", "Error"]
-        click.echo(tabulate(log_data, headers=log_headers, tablefmt="simple"))
+        log_headers = [
+            "ID",
+            "Started At",
+            "Completed At",
+            "Status",
+            "Found",
+            "Added",
+            "Error",
+        ]
+        print_table(log_headers, log_data)
 
 
 @feeds_group.command(name="remove")

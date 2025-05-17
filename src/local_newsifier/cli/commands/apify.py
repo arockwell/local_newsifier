@@ -14,9 +14,9 @@ import os
 from typing import Optional
 
 import click
-from tabulate import tabulate
 from sqlmodel import Session
-from fastapi_injectable import get_injected_obj
+
+from local_newsifier.cli.cli_utils import load_dependency, print_table
 
 from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
@@ -75,7 +75,7 @@ def test_connection(token):
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Test if we can access the client
         client = apify_service.client
@@ -144,7 +144,7 @@ def run_actor(actor_id, input, wait, token, output):
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
@@ -208,7 +208,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
@@ -261,7 +261,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
                         row.append(value)
                     table_data.append(row)
 
-                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+                print_table(headers, table_data)
             else:
                 click.echo("Cannot display as table - items are not dictionaries")
                 click.echo(json.dumps(items, indent=2))
@@ -294,7 +294,7 @@ def get_actor(actor_id, token):
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Get actor details
         click.echo(f"Retrieving details for actor {actor_id}...")
@@ -349,7 +349,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Configure the actor input
         run_input = {
@@ -403,7 +403,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
 
             if items:
                 headers = ["#", "Title", "URL"]
-                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+                print_table(headers, table_data)
 
                 if len(items) > 10:
                     remaining_items = len(items) - 10
@@ -446,7 +446,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
 
     try:
         # Get ApifyService from injectable provider with token parameter
-        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        apify_service = load_dependency(lambda: get_apify_service_cli(token))
 
         # Default page function if not provided
         default_page_function = """
@@ -526,7 +526,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
 
             if items:
                 headers = ["#", "Title", "URL"]
-                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+                print_table(headers, table_data)
 
                 if len(items) > 10:
                     remaining_items = len(items) - 10
@@ -641,8 +641,17 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
                 ]
                 table_data.append(row)
                 
-            headers = ["ID", "Name", "Schedule", "Status", "Schedule ID", "Exists", "Synced", "Last Run"]
-            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+            headers = [
+                "ID",
+                "Name",
+                "Schedule",
+                "Status",
+                "Schedule ID",
+                "Exists",
+                "Synced",
+                "Last Run",
+            ]
+            print_table(headers, table_data)
         else:
             # Simple table without Apify API calls
             table_data = []
@@ -660,8 +669,15 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
                 ]
                 table_data.append(row)
                 
-            headers = ["ID", "Name", "Schedule", "Status", "Schedule ID", "Last Run"]
-            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+            headers = [
+                "ID",
+                "Name",
+                "Schedule",
+                "Status",
+                "Schedule ID",
+                "Last Run",
+            ]
+            print_table(headers, table_data)
             
     except Exception as e:
         click.echo(click.style(f"Error listing schedules: {str(e)}", fg="red"), err=True)
