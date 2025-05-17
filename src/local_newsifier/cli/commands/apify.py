@@ -22,8 +22,7 @@ from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import apify_source_config as config_crud
-from local_newsifier.database.engine import SessionManager
-from local_newsifier.di.providers import get_apify_service_cli
+from local_newsifier.di.providers import get_apify_service_cli, get_session
 
 
 @click.group(name="apify")
@@ -557,11 +556,11 @@ def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
         ApifyScheduleManager: Configured schedule manager
     """
     apify_service = ApifyService(token)
-    session_factory = lambda: SessionManager()
+    session = get_session()
     return ApifyScheduleManager(
         apify_service=apify_service,
         apify_source_config_crud=config_crud,
-        session_factory=session_factory
+        session_factory=lambda: session
     )
 
 
@@ -585,19 +584,19 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
     try:
         # Get all scheduled configs from database
         configs = []
-        with SessionManager() as session:
-            db_configs = config_crud.get_scheduled_configs(session, enabled_only=False)
-            # Convert to dictionaries to avoid session binding issues
-            for config in db_configs:
-                configs.append({
-                    "id": config.id,
-                    "name": config.name,
-                    "actor_id": config.actor_id,
-                    "schedule": config.schedule,
-                    "schedule_id": config.schedule_id,
-                    "is_active": config.is_active,
-                    "last_run_at": config.last_run_at,
-                })
+        session = get_session()
+        db_configs = config_crud.get_scheduled_configs(session, enabled_only=False)
+        # Convert to dictionaries to avoid session binding issues
+        for config in db_configs:
+            configs.append({
+                "id": config.id,
+                "name": config.name,
+                "actor_id": config.actor_id,
+                "schedule": config.schedule,
+                "schedule_id": config.schedule_id,
+                "is_active": config.is_active,
+                "last_run_at": config.last_run_at,
+            })
             
         if not configs:
             click.echo("No scheduled configurations found.")
