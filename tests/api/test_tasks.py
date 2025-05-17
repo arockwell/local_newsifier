@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_async
 
 from local_newsifier.api.dependencies import get_templates, get_session, get_article_service, get_rss_feed_service
 from local_newsifier.api.routers.tasks import router
@@ -136,8 +135,6 @@ class TestTasksDashboard:
 class TestProcessArticle:
     """Tests for process article endpoint."""
 
-    # Keep the ci_skip_async decorator for this test until we can fully fix it
-    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
     def test_process_article_success(
         self, mock_process_article, client, mock_article_service, sample_article, event_loop_fixture
@@ -198,7 +195,6 @@ class TestProcessArticle:
 class TestFetchRSSFeeds:
     """Tests for fetch RSS feeds endpoint."""
 
-    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     def test_fetch_rss_feeds_default(
@@ -237,7 +233,6 @@ class TestFetchRSSFeeds:
             # Clean up
             client.app.dependency_overrides = {}
 
-    @ci_skip_async
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     def test_fetch_rss_feeds_custom_urls(
         self, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
