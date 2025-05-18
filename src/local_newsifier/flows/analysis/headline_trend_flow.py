@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Any
 from crewai import Flow
 from sqlmodel import Session
 
-from local_newsifier.database.engine import get_session, with_session
+
 from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
@@ -30,36 +30,31 @@ class HeadlineTrendFlow(Flow):
     """Flow for analyzing trends in article headlines over time."""
 
     def __init__(
-        self, 
-        analysis_service: Optional[AnalysisService] = None, 
-        session: Optional[Session] = None
+        self,
+        session: Session,
+        analysis_service: Optional[AnalysisService] = None,
     ):
         """
         Initialize the headline trend analysis flow.
 
         Args:
+            session: Database session to use
             analysis_service: Optional AnalysisService instance
-            session: Optional SQLModel session to use
         """
         super().__init__()
         
-        # Setup session management
         self.session = session
-        self._owns_session = False
-        
-        if session is None:
-            self._owns_session = True
-            self.session = get_session().__next__()
         
         # Store analysis service
         self.analysis_service = analysis_service
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
-        if hasattr(self, '_owns_session') and self._owns_session and hasattr(self, 'session'):
-            # Only close the session if we created it
-            if self.session:
+        if hasattr(self, 'session') and self.session is not None:
+            try:
                 self.session.close()
+            except Exception:
+                pass
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20
