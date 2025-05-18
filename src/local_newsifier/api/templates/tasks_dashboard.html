@@ -119,17 +119,14 @@ document.getElementById('process-article-form').addEventListener('submit', async
     const articleId = document.getElementById('article-id').value;
     
     try {
-        const response = await fetch(`/tasks/process-article/${articleId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+        const response = await fetch(`/tasks/process_article?article_id=${articleId}`, {
+            method: 'POST'
         });
         
         const result = await response.json();
         if (response.ok) {
-            addRecentTask(result.task_id, 'Process Article', result.article_title || `Article #${articleId}`, 'queued');
-            checkTaskStatus(result.task_id);
+            addRecentTask(result.id, 'process_article', `Article #${articleId}`, result.status);
+            checkTaskStatus(result.id);
         } else {
             showError(result.detail || 'Failed to submit task');
         }
@@ -165,8 +162,8 @@ document.getElementById('fetch-rss-form').addEventListener('submit', async funct
         
         const result = await response.json();
         if (response.ok) {
-            addRecentTask(result.task_id, 'Fetch RSS Feeds', `${result.feed_count} feeds`, 'queued');
-            checkTaskStatus(result.task_id);
+            addRecentTask(result.id, 'fetch_rss_feeds', `${feedUrls.length || 'default'} feeds`, result.status);
+            checkTaskStatus(result.id);
         } else {
             showError(result.detail || 'Failed to submit task');
         }
@@ -194,7 +191,7 @@ document.getElementById('cancel-task-button').addEventListener('click', async fu
     }
     
     try {
-        const response = await fetch(`/tasks/cancel/${taskId}`, {
+        const response = await fetch(`/tasks/${taskId}`, {
             method: 'DELETE'
         });
         
@@ -202,7 +199,7 @@ document.getElementById('cancel-task-button').addEventListener('click', async fu
         showTaskResult(result);
         
         // Update the task in the recent tasks list
-        updateRecentTaskStatus(taskId, 'canceled');
+        updateRecentTaskStatus(taskId, 'cancelled');
     } catch (error) {
         showError('Error: ' + error.message);
     }
@@ -213,7 +210,7 @@ async function checkTaskStatus(taskId) {
     try {
         document.getElementById('task-id').value = taskId;
         
-        const response = await fetch(`/tasks/status/${taskId}`);
+        const response = await fetch(`/tasks/${taskId}`);
         const result = await response.json();
         
         showTaskResult(result);
@@ -222,7 +219,7 @@ async function checkTaskStatus(taskId) {
         updateRecentTaskStatus(taskId, result.status);
         
         // If task is still running, check again in 2 seconds
-        if (result.status === 'PENDING' || result.status === 'STARTED' || result.status === 'PROGRESS') {
+        if (result.status === 'queued' || result.status === 'running') {
             setTimeout(() => checkTaskStatus(taskId), 2000);
         }
     } catch (error) {
@@ -245,12 +242,12 @@ function showTaskResult(result) {
             <h5>Task Completed Successfully</h5>
             <pre class="mt-3">${JSON.stringify(result.result, null, 2)}</pre>
         </div>`;
-    } else if (result.status === 'PROGRESS') {
+    } else if (result.status === 'running') {
         html = `<div class="alert alert-info">
             <h5>Task In Progress</h5>
             <pre class="mt-3">${JSON.stringify(result.progress, null, 2)}</pre>
         </div>`;
-    } else if (result.status === 'PENDING' || result.status === 'STARTED') {
+    } else if (result.status === 'queued' || result.status === 'running') {
         html = `<div class="alert alert-warning">
             <h5>Task Pending or Starting</h5>
             <p>Task ID: ${result.task_id}</p>
@@ -337,16 +334,14 @@ function updateRecentTasksDisplay() {
             case 'failed':
                 statusBadge = '<span class="badge bg-danger">Failed</span>';
                 break;
-            case 'progress':
+            case 'running':
                 statusBadge = '<span class="badge bg-info">In Progress</span>';
                 break;
-            case 'pending':
-            case 'started':
-                statusBadge = '<span class="badge bg-warning">Pending</span>';
+            case 'queued':
+                statusBadge = '<span class="badge bg-warning">Queued</span>';
                 break;
-            case 'canceled':
-            case 'revoked':
-                statusBadge = '<span class="badge bg-secondary">Canceled</span>';
+            case 'cancelled':
+                statusBadge = '<span class="badge bg-secondary">Cancelled</span>';
                 break;
             default:
                 statusBadge = `<span class="badge bg-secondary">${task.status}</span>`;
