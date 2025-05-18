@@ -96,7 +96,7 @@ test-wheels:
 
 # Testing
 test:
-	poetry run pytest
+	poetry run pytest -n auto
 
 # Run tests serially (non-parallel) if needed for debugging
 test-serial:
