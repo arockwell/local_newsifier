@@ -17,9 +17,20 @@ from local_newsifier.api.main import app, lifespan
 
 
 @pytest.fixture
-def client():
-    """Test client for the FastAPI application."""
-    return TestClient(app)
+def client(event_loop_fixture):
+    """Test client for the FastAPI application.
+    
+    This client fixture is properly configured to work with event loops 
+    and fastapi-injectable.
+    """
+    # Setup any required mocks for database operations to avoid actual DB connections
+    with patch("local_newsifier.database.engine.create_db_and_tables"), \
+         patch("local_newsifier.database.engine.get_engine"), \
+         patch("local_newsifier.crud.article.article.get_by_date_range", return_value=[]):
+        
+        # Create a TestClient with proper event loop handling
+        client = TestClient(app)
+        yield client
 
 
 @pytest.fixture
@@ -32,16 +43,14 @@ def mock_logger():
 class TestEndpoints:
     """Tests for API endpoints."""
 
-    @pytest.mark.skip(reason="Requires special event loop handling for fastapi-injectable")
-    def test_root_endpoint(self, client):
+    def test_root_endpoint(self, client, event_loop_fixture):
         """Test the root endpoint returns HTML content."""
         response = client.get("/")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "Local Newsifier" in response.text
         
-    @pytest.mark.skip(reason="Requires special event loop handling for fastapi-injectable")
-    def test_root_endpoint_recent_headlines_content(self, client):
+    def test_root_endpoint_recent_headlines_content(self, client, event_loop_fixture):
         """Test that the root endpoint has the correct structure for recent headlines."""
         response = client.get("/")
         assert response.status_code == 200
