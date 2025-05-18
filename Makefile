@@ -7,10 +7,10 @@ help:
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
-	@echo "  make build-wheels      - Build wheels for current Python version"
-	@echo "  make build-wheels-all  - Build wheels for all supported Python versions"
-	@echo "  make organize-wheels   - Organize existing wheels into version-specific directories" 
-	@echo "  make test-wheels       - Test offline installation with current Python version"
+	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
+	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
+	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
+	@echo "  make test-wheels       - Test offline installation with current Python version on current platform"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
 	@echo "  make test-serial       - Run tests serially (for debugging)"
 	@echo "  make lint              - Run linting"
@@ -73,7 +73,7 @@ build-wheels-all:
 	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
 
 organize-wheels:
-	@echo "Organizing existing wheels into version-specific directories..."
+	@echo "Organizing existing wheels into version-specific and platform-specific directories..."
 	./scripts/organize_wheels.sh
 
 test-wheels:

@@ -18,16 +18,51 @@ fi
 
 # Get Python version information
 PYTHON_VERSION=$($PYTHON_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-PYTHON_DIR="py${PYTHON_VERSION//./}"
+
+# Determine platform type for directory name
+if [[ "$(uname)" == "Darwin" ]]; then
+    OS_TYPE="macos"
+elif [[ "$(uname)" == "Linux" ]]; then
+    OS_TYPE="linux"
+elif [[ "$(uname)" == *"MINGW"* ]] || [[ "$(uname)" == *"MSYS"* ]]; then
+    OS_TYPE="windows"
+else
+    OS_TYPE="other"
+fi
+
+# Create an abbreviated architecture name
+MACHINE_TYPE=$(uname -m)
+if [[ "$MACHINE_TYPE" == "x86_64" ]] || [[ "$MACHINE_TYPE" == "AMD64" ]]; then
+    ARCH="x64"
+elif [[ "$MACHINE_TYPE" == "arm64" ]] || [[ "$MACHINE_TYPE" == "aarch64" ]]; then
+    ARCH="arm64"
+else
+    ARCH="$MACHINE_TYPE"
+fi
+
+PYTHON_DIR="py${PYTHON_VERSION//./}-${OS_TYPE}-${ARCH}"
 WHEELS_DIR="wheels/${PYTHON_DIR}"
 
-echo "Testing offline installation for Python $PYTHON_VERSION"
+echo "Testing offline installation for Python $PYTHON_VERSION on $OS_TYPE-$ARCH"
 
 # Check if the wheels directory exists
 if [ ! -d "$WHEELS_DIR" ]; then
-    echo "Error: Wheels directory for Python $PYTHON_VERSION not found: $WHEELS_DIR"
-    echo "Please build wheels first with: ./scripts/build_wheels.sh $PYTHON_CMD"
-    exit 1
+    echo "Warning: Platform-specific wheels directory not found: $WHEELS_DIR"
+    echo "Checking for Python version-specific directory..."
+    
+    # Fall back to version-specific directory without platform
+    PYTHON_DIR="py${PYTHON_VERSION//./}"
+    WHEELS_DIR="wheels/${PYTHON_DIR}"
+    
+    if [ ! -d "$WHEELS_DIR" ]; then
+        echo "Error: No wheels directory found for Python $PYTHON_VERSION"
+        echo "Please build wheels first with: ./scripts/build_wheels.sh $PYTHON_CMD"
+        echo "For cross-platform support, wheels need to be built on each target platform."
+        exit 1
+    else
+        echo "Found Python version-specific wheels directory without platform: $WHEELS_DIR"
+        echo "Note: These wheels may not be compatible with your current platform."
+    fi
 fi
 
 # Count the wheels
