@@ -1,7 +1,7 @@
-Python Version: 312
-Platform: macos-arm64
+Python Version: 3.12
+Platform: macOS-15.2-arm64-arm-64bit
 OS Type: macos
 Architecture: arm64
-Wheel Count: 0
-Date: Sat May 18 00:47:22 PDT 2025
-SQLAlchemy: Not found
+Machine: arm64
+Date: Sun May 18 01:06:31 EDT 2025
+Wheel Count:      208
