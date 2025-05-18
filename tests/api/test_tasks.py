@@ -138,9 +138,16 @@ class TestProcessArticle:
 
     # Keep the ci_skip_async decorator for this test until we can fully fix it
     @ci_skip_async
-    @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
+    # Patch the Celery task's delay method directly to avoid triggering
+    # task initialization logic that requires an event loop.
+    @patch("local_newsifier.api.routers.tasks.process_article.delay")
     def test_process_article_success(
-        self, mock_process_article, client, mock_article_service, sample_article, event_loop_fixture
+        self,
+        mock_process_article_delay,
+        client,
+        mock_article_service,
+        sample_article,
+        event_loop_fixture,
     ):
         """Test successful article processing."""
         # Set up mocks
@@ -148,7 +155,7 @@ class TestProcessArticle:
         
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
-        mock_process_article.delay.return_value = mock_task
+        mock_process_article_delay.return_value = mock_task
 
         # Register the dependency override
         client.app.dependency_overrides[get_article_service] = lambda: mock_article_service
@@ -168,7 +175,7 @@ class TestProcessArticle:
 
         # Verify mocks were called
         mock_article_service.get_article.assert_called_once_with(article_id)
-        mock_process_article.delay.assert_called_once_with(article_id)
+        mock_process_article_delay.assert_called_once_with(article_id)
 
         # Clean up
         client.app.dependency_overrides = {}
@@ -199,10 +206,16 @@ class TestFetchRSSFeeds:
     """Tests for fetch RSS feeds endpoint."""
 
     @ci_skip_async
-    @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
+    # Patch the Celery task's delay method directly and the settings module.
+    @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds.delay")
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     def test_fetch_rss_feeds_default(
-        self, mock_settings, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
+        self,
+        mock_settings,
+        mock_fetch_rss_feeds_delay,
+        client,
+        mock_rss_feed_service,
+        event_loop_fixture,
     ):
         """Test fetching RSS feeds with default URLs from settings."""
         # Set up mocks
@@ -210,7 +223,7 @@ class TestFetchRSSFeeds:
         
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
-        mock_fetch_rss_feeds.delay.return_value = mock_task
+        mock_fetch_rss_feeds_delay.return_value = mock_task
 
         # Patch all async operations to avoid event loop issues
         with patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service), \
@@ -232,15 +245,20 @@ class TestFetchRSSFeeds:
             assert response_data["task_url"] == f"/tasks/status/test-task-id"
 
             # Verify mocks were called
-            mock_fetch_rss_feeds.delay.assert_called_once_with(mock_settings.RSS_FEED_URLS)
+            mock_fetch_rss_feeds_delay.assert_called_once_with(mock_settings.RSS_FEED_URLS)
 
             # Clean up
             client.app.dependency_overrides = {}
 
     @ci_skip_async
-    @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
+    # Patch the Celery task's delay method directly.
+    @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds.delay")
     def test_fetch_rss_feeds_custom_urls(
-        self, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
+        self,
+        mock_fetch_rss_feeds_delay,
+        client,
+        mock_rss_feed_service,
+        event_loop_fixture,
     ):
         """Test fetching RSS feeds with custom URLs."""
         # Set up mocks
@@ -248,7 +266,7 @@ class TestFetchRSSFeeds:
         
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
-        mock_fetch_rss_feeds.delay.return_value = mock_task
+        mock_fetch_rss_feeds_delay.return_value = mock_task
 
         # Patch all async operations to avoid event loop issues
         with patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service), \
@@ -270,7 +288,7 @@ class TestFetchRSSFeeds:
             assert response_data["task_url"] == f"/tasks/status/test-task-id"
 
             # Verify mocks were called
-            mock_fetch_rss_feeds.delay.assert_called_once_with(custom_feeds)
+            mock_fetch_rss_feeds_delay.assert_called_once_with(custom_feeds)
 
             # Clean up
             client.app.dependency_overrides = {}
