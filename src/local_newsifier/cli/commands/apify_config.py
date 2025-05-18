@@ -11,20 +11,26 @@ This module provides commands for managing Apify source configurations, includin
 
 import json
 import click
+import logging
 from datetime import datetime
 from tabulate import tabulate
 from contextlib import contextmanager
+from typing import Optional, Dict, Any
 
 from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
 from local_newsifier.di.providers import get_apify_source_config_crud, get_apify_service
 
+logger = logging.getLogger(__name__)
 
 @contextmanager
-def get_apify_source_config_service_direct():
+def get_apify_source_config_service_direct(token: Optional[str] = None):
     """Get a directly instantiated ApifySourceConfigService to avoid async event loop issues.
     
     This helper function creates all dependencies directly instead of using
     fastapi-injectable to avoid 'no current event loop' errors in the CLI.
+    
+    Args:
+        token: Optional Apify API token to use
     
     Yields:
         ApifySourceConfigService: Service for managing Apify source configurations
@@ -35,6 +41,10 @@ def get_apify_source_config_service_direct():
     session = next(get_db_session())
     apify_source_config_crud = get_apify_source_config_crud()
     apify_service = get_apify_service()
+    
+    # Configure token if provided
+    if token:
+        apify_service.token = token
     
     # Create service
     service = ApifySourceConfigService(
@@ -170,38 +180,39 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def show_config(id, json_output):
     """Show Apify source configuration details."""
-    with get_apify_source_config_service_direct() as apify_source_config_service:
-        config = apify_source_config_service.get_config(id)
-        if not config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
-            return
-        
-        if json_output:
-            click.echo(json.dumps(config, indent=2, default=str))
-            return
-        
-        # Display config details
-        click.echo(click.style(f"Configuration #{config['id']}: {config['name']}", fg="green", bold=True))
-        click.echo(f"Actor ID: {config['actor_id']}")
-        click.echo(f"Source Type: {config['source_type']}")
-        if config['source_url']:
-            click.echo(f"Source URL: {config['source_url']}")
-        click.echo(f"Active: {'Yes' if config['is_active'] else 'No'}")
-        
-        if config['schedule']:
-            click.echo(f"Schedule: {config['schedule']}")
-        
-        last_run = config['last_run_at']
-        if last_run:
-            click.echo(f"Last Run: {last_run}")
-        else:
-            click.echo("Last Run: Never")
-        
-        click.echo("\nInput Configuration:")
-        click.echo(json.dumps(config['input_configuration'], indent=2))
-        
-        created_at = config['created_at']
-        click.echo(f"\nCreated At: {created_at}")
+    try:
+        with get_apify_source_config_service_direct() as apify_source_config_service:
+            config = apify_source_config_service.get_config(id)
+            if not config:
+                click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
+                return
+            
+            if json_output:
+                click.echo(json.dumps(config, indent=2, default=str))
+                return
+            
+            # Display config details
+            click.echo(click.style(f"Configuration #{config['id']}: {config['name']}", fg="green", bold=True))
+            click.echo(f"Actor ID: {config['actor_id']}")
+            click.echo(f"Source Type: {config['source_type']}")
+            if config['source_url']:
+                click.echo(f"Source URL: {config['source_url']}")
+            click.echo(f"Active: {'Yes' if config['is_active'] else 'No'}")
+            
+            if config['schedule']:
+                click.echo(f"Schedule: {config['schedule']}")
+            
+            last_run = config['last_run_at']
+            if last_run:
+                click.echo(f"Last Run: {last_run}")
+            else:
+                click.echo("Last Run: Never")
+            
+            click.echo("\nInput Configuration:")
+            click.echo(json.dumps(config['input_configuration'], indent=2))
+            
+            created_at = config['created_at']
+            click.echo(f"\nCreated At: {created_at}")
     except Exception as e:
         click.echo(click.style(f"Error retrieving configuration: {str(e)}", fg="red"), err=True)
 

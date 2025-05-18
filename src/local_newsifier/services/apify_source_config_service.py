@@ -74,8 +74,8 @@ class ApifySourceConfigService:
                     session, skip=skip, limit=limit
                 )
             
-            # Convert to dictionaries
-            # Use explicit parameters for model_dump to avoid any environment variable reference
+            # Convert to dictionaries, using explicit parameters for model_dump
+            # to avoid any environment variable reference issues
             return [config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False) for config in configs]
     
     @handle_service_error(service="apify")
@@ -92,6 +92,7 @@ class ApifySourceConfigService:
             config = self.apify_source_config_crud.get(session, id=config_id)
             if not config:
                 return None
+            # Use explicit parameters for model_dump to avoid any environment variable reference issues
             return config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
     
     @handle_service_error(service="apify")
@@ -143,6 +144,7 @@ class ApifySourceConfigService:
                 config = self.apify_source_config_crud.create(
                     session, obj_in=config_data
                 )
+                # Use explicit parameters for model_dump to avoid any environment variable reference issues
                 return config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
             except ServiceError as e:
                 # Re-raise ServiceError
@@ -214,6 +216,7 @@ class ApifySourceConfigService:
                 updated_config = self.apify_source_config_crud.update(
                     session, db_obj=db_config, obj_in=update_data
                 )
+                # Use explicit parameters for model_dump to avoid any environment variable reference issues
                 return updated_config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
             except ServiceError as e:
                 # Re-raise ServiceError
@@ -276,6 +279,7 @@ class ApifySourceConfigService:
             )
             if not updated_config:
                 return None
+            # Use explicit parameters for model_dump to avoid any environment variable reference issues
             return updated_config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
     
     @handle_service_error(service="apify")
@@ -364,4 +368,5 @@ class ApifySourceConfigService:
             configs = self.apify_source_config_crud.get_scheduled_configs(
                 session, enabled_only=enabled_only
             )
+            # Use explicit parameters for model_dump to avoid any environment variable reference issues
             return [config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False) for config in configs]
