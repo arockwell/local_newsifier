@@ -1,13 +1,15 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy build-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
-	@echo "  make build-wheels      - Download dependency wheels"
+	@echo "  make build-wheels      - Build wheels for current Python version"
+	@echo "  make build-wheels-all  - Build wheels for all supported Python versions"
+	@echo "  make test-wheels       - Test offline installation with current Python version"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
 	@echo "  make test-serial       - Run tests serially (for debugging)"
 	@echo "  make lint              - Run linting"
@@ -37,8 +39,40 @@ setup-spacy:
 
 # Build dependency wheels for offline installation
 build-wheels:
-	@echo "Building wheels into ./wheels..."
+	@echo "Building wheels for current Python version..."
 	./scripts/build_wheels.sh
+
+build-wheels-all:
+	@echo "Building wheels for all supported Python versions..."
+	@if command -v python3.10 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.10..."; \
+		./scripts/build_wheels.sh python3.10; \
+	else \
+		echo "Python 3.10 not found, skipping"; \
+	fi
+	@if command -v python3.11 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.11..."; \
+		./scripts/build_wheels.sh python3.11; \
+	else \
+		echo "Python 3.11 not found, skipping"; \
+	fi
+	@if command -v python3.12 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.12..."; \
+		./scripts/build_wheels.sh python3.12; \
+	else \
+		echo "Python 3.12 not found, skipping"; \
+	fi
+	@if command -v python3.13 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.13..."; \
+		./scripts/build_wheels.sh python3.13; \
+	else \
+		echo "Python 3.13 not found, skipping"; \
+	fi
+	@echo "Wheel building complete for all available Python versions"
+
+test-wheels:
+	@echo "Testing offline installation with current Python version..."
+	./scripts/test_offline_install.sh
 
 # Testing
 test:

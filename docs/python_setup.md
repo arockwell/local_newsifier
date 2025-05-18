@@ -4,7 +4,7 @@ This guide provides instructions for setting up the Python environment for Local
 
 ## Python Version
 
-The project requires Python 3.10-3.12, with Python 3.12 recommended to match our CI environment.
+The project requires Python 3.10-3.13, with Python 3.12 recommended to match our CI environment.
 
 A `.python-version` file is included in the project root that specifies Python 3.12.3.
 
@@ -29,14 +29,39 @@ If your deployment environment cannot reach PyPI, build dependency wheels on a
 machine with internet access:
 
 ```bash
-make build-wheels
+# Build wheels for the current Python version
+./scripts/build_wheels.sh
+
+# Or specify a Python version explicitly
+./scripts/build_wheels.sh python3.12
+./scripts/build_wheels.sh python3.13
+```
+
+Wheels are organized by Python version to ensure compatibility:
+
+```
+wheels/
+├── py310/     # Wheels for Python 3.10
+├── py311/     # Wheels for Python 3.11
+├── py312/     # Wheels for Python 3.12
+└── py313/     # Wheels for Python 3.13
 ```
 
 Copy the generated `wheels/` directory to the target machine and install
-packages locally:
+packages locally using the appropriate Python version subdirectory:
 
 ```bash
-pip install --no-index --find-links=wheels -r requirements.txt
+# For Python 3.13
+python3.13 -m pip install --no-index --find-links=wheels/py313 -r requirements.txt
+
+# For Python 3.12
+python3.12 -m pip install --no-index --find-links=wheels/py312 -r requirements.txt
+```
+
+You can test the offline installation process with:
+
+```bash
+./scripts/test_offline_install.sh [python_command]
 ```
 
 If you need to manually select a specific Python version for Poetry to use:
@@ -58,6 +83,13 @@ poetry env use python3.12  # or the path to your Python executable
 
 3. **"spaCy model not found"**
    Install the required models: `make setup-spacy`
+
+4. **"No matching distribution found for sqlalchemy..."**
+   This typically happens during offline installation when wheels for your Python version are missing.
+   Build wheels for your specific Python version:
+   ```bash
+   ./scripts/build_wheels.sh python3.xx  # Replace with your Python version
+   ```
 
 ### Poetry Environment Management
 
