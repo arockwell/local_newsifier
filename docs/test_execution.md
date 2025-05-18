@@ -1,6 +1,6 @@
 # Test Execution Guide
 
-This document provides information on how to effectively run tests for the Local Newsifier project, with special focus on parallel test execution.
+This document explains how to run tests for the Local Newsifier project. Pytest-xdist can be used for parallel execution, but tests run serially by default.
 
 ## Test Configuration
 
@@ -16,27 +16,34 @@ There are several ways to run tests in this project:
 
 ### Basic Test Execution
 
-Run all tests in parallel (using all available CPU cores):
+Run all tests serially using the default configuration:
 
 ```bash
 make test  # Runs: poetry run pytest
 ```
 
-This is the default behavior and provides the fastest execution, especially on multi-core machines.
+Tests run without `pytest-xdist` by default because `pyproject.toml` sets `addopts = "-vs"`.
+Parallel execution must be enabled manually.
 
 ### Serial Test Execution
 
-In some cases, especially for debugging, you might want to run tests serially:
+The `make test` command already runs tests serially, but a dedicated target exists for clarity:
 
 ```bash
 make test-serial  # Runs: poetry run pytest -n 0
 ```
 
-This is slower but can be helpful for troubleshooting test interactions or when debugging.
+Use this target when you want to be explicit about disabling parallel workers.
 
-### Custom Parallel Execution
+### Parallel Test Execution
 
-You can manually specify the number of parallel processes:
+To enable pytest-xdist and run tests across multiple workers, pass the `-n` option manually:
+
+```bash
+poetry run pytest -n auto  # Use all available CPU cores
+```
+
+You can also specify an explicit number of workers:
 
 ```bash
 poetry run pytest -n 4  # Uses 4 worker processes
