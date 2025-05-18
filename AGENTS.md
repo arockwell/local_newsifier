@@ -20,14 +20,18 @@ If a `CLAUDE.md` file is added or removed, update this list.
 
 ## Quick Setup
 
-1. **Install dependencies offline first**:
+1. **Install dependencies using Poetry offline**:
+   After building or copying wheels, run:
    ```bash
-   python -m pip install --no-index --find-links=wheels -r requirements.txt
+   make setup-poetry -- --no-index --find-links=wheels
+   # or
+   poetry install --with dev --no-index --find-links=wheels
    ```
-   The development environment normally has no internet access. Use
-   `make setup-poetry` only if you have network connectivity.
-2. Install spaCy models (needed for NLP features): `make setup-spacy`
-3. Run the test suite: `make test`
+   `make test` relies on these dev dependencies.
+2. If spaCy models are already available locally: `make setup-spacy`
+3. Run the test suite from the Poetry environment: `make test`
+
+For detailed offline commands, see [`docs/python_setup.md`](docs/python_setup.md).
 
 ## Dependency Management with Wheels
 
@@ -60,6 +64,8 @@ make build-linux-wheels-py312
 ```
 
 This requires Docker and builds all dependencies, including platform-specific ones like psycopg2-binary.
+After building wheels, run `make test-wheels` or
+`./scripts/test_offline_install.sh <python>` to verify that all required runtime and development packages are present before running tests.
 
 #### Organizing Existing Wheels
 
@@ -73,6 +79,30 @@ If you have wheels in the wrong directories, organize them by Python version and
 Verify that the wheels installation works correctly:
 ```bash
 ./scripts/test_offline_install.sh python3.12
+```
+
+### Dev Dependency Wheels
+
+Development tools are defined in `[tool.poetry.group.dev.dependencies]` inside
+`pyproject.toml`. Generate wheels for these packages (either extend
+`scripts/build_wheels.sh` or create a dedicated `scripts/build_dev_wheels.sh`)
+so they live in the same `wheels/py<version>-<platform>/` directory as the
+runtime wheels.
+
+Before running the test suite, install these dev wheels. You can list the
+packages explicitly:
+
+```bash
+pip install --no-index --find-links=wheels/py312-linux-x64 \
+    pytest pytest-mock pytest-asyncio pre-commit black isort \
+    flake8 flake8-docstrings pytest-profiling pytest-xdist
+```
+
+Alternatively, maintain a `requirements-dev.txt` file with the dev packages and
+install it in the same way:
+
+```bash
+pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements-dev.txt
 ```
 
 ### Directory Structure
