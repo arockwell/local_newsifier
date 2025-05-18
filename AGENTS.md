@@ -60,6 +60,8 @@ make build-linux-wheels-py312
 ```
 
 This requires Docker and builds all dependencies, including platform-specific ones like psycopg2-binary.
+After building wheels, run `make test-wheels` or
+`./scripts/test_offline_install.sh <python>` to verify that all required runtime and development packages are present before running tests.
 
 #### Organizing Existing Wheels
 
