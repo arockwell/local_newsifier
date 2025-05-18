@@ -1,7 +1,6 @@
-# FastAPI Injectable Migration Guide
+# FastAPI Injectable Guide
 
-> **NOTE**: This document is part of the ongoing DI system transition. For a high-level overview of the DI architecture
-> and transition strategy, please refer to the [DI Architecture Guide](di_architecture.md).
+Local Newsifier now uses **fastapi-injectable** exclusively. For a high-level overview of the architecture, see the [DI Architecture Guide](di_architecture.md).
 >
 > **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
 >
@@ -11,7 +10,7 @@
 
 ## Overview
 
-Local Newsifier is transitioning from a custom DIContainer to the fastapi-injectable framework. This guide provides comprehensive information on the migration process, implementation details, and best practices.
+Local Newsifier uses **fastapi-injectable** as its dependency injection framework. This guide provides information on provider conventions, implementation details, and best practices.
 
 ## Background and Motivation
 
@@ -30,25 +29,10 @@ The migration to fastapi-injectable provides these benefits:
 4. **Less Boilerplate**: Automatic dependency resolution with decorators
 5. **Framework Alignment**: Better integration with FastAPI's dependency system
 
-## Migration Strategy
+## Migration Summary (Completed)
 
-The migration follows a phased approach to minimize disruption while allowing both systems to coexist during transition:
-
-### Phase 1: Foundation (Current)
-- Set up basic infrastructure
-- Create provider functions for core dependencies
-- Configure testing utilities
-- Implement adapter layer for compatibility
-
-### Phase 2: Gradual Migration
-- Migrate individual services incrementally
-- Update tests to use the new pattern
-- Keep both systems working during transition
-
-### Phase 3: Complete Migration
-- Fully migrate all components
-- Remove the legacy DI container
-- Update documentation
+The project previously used a custom container but has fully migrated to fastapi-injectable.
+All components rely on provider functions and the adapter has been removed.
 
 ## Implementation Components
 
@@ -70,10 +54,10 @@ setup_graceful_shutdown()
 
 # Caching strategy helper function
 def should_cache(scope: str) -> bool:
-    """Convert DIContainer scope to fastapi-injectable use_cache value.
+    """Convert a legacy scope string to a `use_cache` value.
 
     Args:
-        scope: DIContainer scope string ("singleton", "transient", "scoped")
+        scope: Scope string ("singleton", "transient", "scoped")
 
     Returns:
         Boolean indicating whether to cache the dependency
@@ -114,40 +98,7 @@ def get_entity_crud():
     return entity
 ```
 
-### 3. Adapter Layer
-
-The adapter `fastapi_injectable_adapter.py` bridges between systems:
-
-```python
-def get_service_factory(service_name: str) -> Callable:
-    """Create a factory function that gets a service from DIContainer."""
-    # These patterns indicate components that should not be cached
-    stateful_patterns = [
-        "_service", "tool", "analyzer", "parser", "extractor", "resolver", "_crud"
-    ]
-
-    # Determine appropriate caching behavior based on service type
-    use_cache = True  # Default to caching for performance
-
-    # For stateful components or those interacting with databases, disable caching
-    for pattern in stateful_patterns:
-        if pattern in service_name:
-            use_cache = False
-            break
-
-    @injectable(use_cache=use_cache)
-    def service_factory():
-        """Factory function to get service from DIContainer."""
-        return di_container.get(service_name)
-
-    # Set better function name for debugging
-    service_factory.__name__ = f"get_{service_name}"
-    logger.info(f"Created provider for {service_name} with use_cache={use_cache}")
-
-    return service_factory
-```
-
-### 4. Service Migration Pattern
+### 3. Service Migration Pattern
 
 Services can be migrated using the `@injectable` decorator:
 
@@ -368,10 +319,6 @@ reliability and maintainability outweigh this concern for our application.
 - Consider creating a custom fixture to patch multiple dependencies at once
 - Test both with direct instantiation and through the DI system
 
-### Adapter Usage
-- Use the adapter during transition to avoid breaking changes
-- Register existing services with the adapter when needed
-- Gradually replace adapter usage with direct injectable components
 
 ## Troubleshooting
 

@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
 from tests.fixtures.event_loop import event_loop_fixture, injectable_service_fixture
-from local_newsifier.container import container
 
 from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 
@@ -42,14 +41,14 @@ class TestServiceDependencies:
     
     @pytest.mark.skip(reason="Integration test only - complex mocking needed")
     def test_get_article_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_article_service returns the service from the container."""
+        """Test that get_article_service returns the service from the injectable provider."""
         # This test is too complex to mock properly due to runtime imports in dependencies.py
         # The functionality is tested through integration tests
         pass
     
     @pytest.mark.skip(reason="Integration test only - complex mocking needed")
     def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_rss_feed_service returns the service from the container."""
+        """Test that get_rss_feed_service returns the service from the injectable provider."""
         # This test is too complex to mock properly due to runtime imports in dependencies.py
         # The functionality is tested through integration tests
         pass

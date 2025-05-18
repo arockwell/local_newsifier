@@ -1,6 +1,7 @@
 """
 Dependency Injection module.
 
-This module provides the migration path from the custom DIContainer 
-to fastapi-injectable.
+fastapi-injectable is now the sole dependency injection mechanism for
+Local Newsifier. The migration from the custom DIContainer has been
+fully completed.
 """

@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from local_newsifier.services.article_service import ArticleService
-from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database, handle_web_scraper
 
 

@@ -57,20 +57,16 @@ def scrape_content(url, max_pages, max_depth, token, output):
     # Command implementation...
 ```
 
-### Container-Based Services
-CLI commands use the DI container to get services:
+### Service Access
+CLI commands obtain services via provider functions:
 
 ```python
+from local_newsifier.di.providers import get_rss_feed_service
+
 def list_feeds():
     """List all configured RSS feeds."""
     try:
-        # Get the container
-        from local_newsifier.container import container
-        
-        # Get the RSS feed service
-        feed_service = container.get("rss_feed_service")
-        
-        # Get feeds and display them
+        feed_service = get_rss_feed_service()
         feeds = feed_service.list_feeds()
         # ...
     except Exception as e:
@@ -273,7 +269,7 @@ nf db count --table articles
 - Support both human-readable and machine-readable output
 
 ### Service Integration
-- Use the DI container to get services
+- Use provider functions to obtain services
 - Avoid direct database access in command handlers
 - Delegate business logic to services
 - Handle both direct processing and task queuing

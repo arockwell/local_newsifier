@@ -11,9 +11,8 @@ The database module manages database connections, sessions, and transaction hand
 - Supports multiple database instances through environment variables
 
 ### Session Utilities
-- **session_utils.py**: Provides legacy session management utilities
-- Includes context managers and decorators for working with sessions
-- The project is transitioning to FastAPI-Injectable for session management
+- Legacy `session_utils.py` module has been removed
+- Use the `get_session` provider via FastAPI-Injectable for session management
 
 ## Database Connection Patterns
 
@@ -193,18 +192,6 @@ def get_database_url():
               # Use session for database operations
   ```
 
-- For legacy components, use context managers for session handling:
-  ```python
-  with SessionManager() as session:
-      # Use session for database operations
-  ```
-
-- For decorated functions that need a session, use the `with_session` decorator:
-  ```python
-  @with_session
-  def my_function(session, other_args):
-      # Use session for database operations
-  ```
 
 ### Transaction Management
 - By default, sessions are committed at the end of the context manager

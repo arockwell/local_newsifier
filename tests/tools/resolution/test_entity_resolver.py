@@ -2,13 +2,10 @@
 
 import pytest
 import os
+from tests.fixtures.event_loop import event_loop_fixture
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
-# Skip all tests in CI environment
-IS_CI = os.environ.get("CI", "false").lower() == "true"
-skip_in_ci = pytest.mark.skipif(
-    IS_CI, reason="Skipping EntityResolver tests in CI due to event loop issues"
-)
+pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
 
 @pytest.fixture
@@ -21,7 +18,6 @@ def entity_resolver():
     return EntityResolver(similarity_threshold=0.85)
 
 
-@skip_in_ci
 def test_normalize_entity_name(entity_resolver):
     """Test normalizing entity names."""
     # Test with title
@@ -40,7 +36,6 @@ def test_normalize_entity_name(entity_resolver):
     assert entity_resolver.normalize_entity_name("Joe Biden") == "Joe Biden"
 
 
-@skip_in_ci
 def test_calculate_name_similarity(entity_resolver):
     """Test calculating similarity between entity names."""
     # Test exact match
@@ -59,7 +54,6 @@ def test_calculate_name_similarity(entity_resolver):
     assert entity_resolver.calculate_name_similarity("Joe Biden", "Donald Trump") < 0.5
 
 
-@skip_in_ci
 def test_find_matching_entity(entity_resolver):
     """Test finding matching entity from existing entities."""
     # Create test entities
@@ -94,7 +88,6 @@ def test_find_matching_entity(entity_resolver):
     assert match is None
 
 
-@skip_in_ci
 def test_resolve_entity_new(entity_resolver):
     """Test resolving a new entity."""
     # Resolve entity with no existing entities
@@ -108,7 +101,6 @@ def test_resolve_entity_new(entity_resolver):
     assert result["original_text"] == "Joe Biden"
 
 
-@skip_in_ci
 def test_resolve_entity_existing(entity_resolver):
     """Test resolving an entity that matches an existing entity."""
     # Create test entities
@@ -128,7 +120,6 @@ def test_resolve_entity_existing(entity_resolver):
     assert result["original_text"] == "President Joe Biden"
 
 
-@skip_in_ci
 def test_resolve_entity_no_match(entity_resolver):
     """Test resolving an entity that doesn't match any existing entity."""
     # Create test entities
@@ -148,7 +139,6 @@ def test_resolve_entity_no_match(entity_resolver):
     assert result["original_text"] == "Barack Obama"
 
 
-@skip_in_ci
 def test_resolve_entities(entity_resolver):
     """Test resolving multiple entities."""
     # Create test entities
@@ -192,7 +182,6 @@ def test_resolve_entities(entity_resolver):
     assert results[3]["canonical"]["is_new"] is True
 
 
-@skip_in_ci
 def test_resolve_entities_empty(entity_resolver):
     """Test resolving an empty list of entities."""
     # Resolve empty list
@@ -202,7 +191,6 @@ def test_resolve_entities_empty(entity_resolver):
     assert results == []
 
 
-@skip_in_ci
 def test_resolve_entities_missing_fields(entity_resolver):
     """Test resolving entities with missing fields."""
     # Create test entities with missing fields

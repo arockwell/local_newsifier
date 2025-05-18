@@ -23,8 +23,8 @@ import pytest
 from tests.ci_skip_config import ci_skip_injectable
 from tests.fixtures.event_loop import event_loop_fixture
 
-from local_newsifier.models.state import (AnalysisStatus, ErrorDetails,
-                                          NewsAnalysisState)
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.models.base_state import ErrorDetails
 from local_newsifier.tools.file_writer import FileWriterTool
 
 

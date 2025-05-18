@@ -55,7 +55,6 @@ class TestApifySourceConfigService:
             apify_source_config_crud=mock_crud,
             apify_service=mock_apify_service,
             session_factory=mock_session_factory,
-            container=None
         )
 
     def test_list_configs(self, service, mock_crud, mock_session_factory, mock_session):

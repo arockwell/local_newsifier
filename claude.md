@@ -72,7 +72,6 @@ src/
 │   ├── cli/            # Command-line interface
 │   │   └── commands/   # CLI command implementations
 │   ├── config/         # Configuration settings
-│   ├── container.py    # Dependency injection container
 │   ├── crud/           # Database CRUD operations
 │   ├── database/       # Database connection and session management
 │   ├── flows/          # High-level workflow definitions
@@ -115,23 +114,7 @@ class Article(SQLModel, table=True):
 
 ### Dependency Injection
 
-> **Note:** The project is currently transitioning between two dependency injection systems: the original custom DIContainer and fastapi-injectable. For more details, see the [DI Architecture Guide](docs/di_architecture.md) and [FastAPI-Injectable Migration Guide](docs/fastapi_injectable.md).
-
-#### Legacy DIContainer
-- The original system uses a central DIContainer for managing dependencies
-- Components are registered with the container
-- Services get dependencies through the container
-- Example container usage:
-```python
-# Get a service from the container
-article_service = container.get("article_service")
-
-# Register a service with the container
-container.register_factory("article_service", lambda c: ArticleService(
-    article_crud=c.get("article_crud"),
-    session_factory=c.get("session_factory")
-))
-```
+> **Note:** Local Newsifier now uses the `fastapi-injectable` framework for dependency injection. The old custom container has been removed. See the [Dependency Injection Guide](docs/dependency_injection.md) for provider usage and the [DI Architecture Guide](docs/di_architecture.md) for design details.
 
 #### FastAPI-Injectable System
 - Newer components use the fastapi-injectable framework
@@ -163,8 +146,7 @@ def analyze_headline_trends(self, start_date, end_date, time_interval="day"):
             session, start_date, end_date
         )
 
-        trend_analyzer = self.container.get("trend_analyzer_tool")
-        results = trend_analyzer.extract_keywords([a.title for a in articles])
+        results = self.trend_analyzer.extract_keywords([a.title for a in articles])
 
         return {"trending_terms": results}
 ```
@@ -184,14 +166,21 @@ class ApifyService:
 ```
 
 ### Session Management
-- Use context managers for database sessions:
+Use the `get_session` provider to obtain a database session:
 ```python
-with SessionManager() as session:
+from typing import Annotated, Generator
+from fastapi import Depends
+from sqlmodel import Session
+
+from local_newsifier.di.providers import get_session
+
+async def some_endpoint(
+    session: Annotated[Session, Depends(get_session)]
+):
     # Database operations here
-    # Session is committed on exit, or rolled back on exception
 ```
 
-- For service methods:
+For service methods:
 ```python
 with self.session_factory() as session:
     # Use session for database operations
@@ -201,7 +190,7 @@ with self.session_factory() as session:
 
 ### Best Practices
 - Return IDs rather than SQLModel objects across session boundaries
-- Use lazy loading with the container for circular dependencies
+- Use provider functions to lazily load dependencies and avoid circular imports
 - Bind parameters to SQLModel queries before execution:
 ```python
 # Correct way to bind parameters in SQLModel
@@ -321,3 +310,7 @@ with patch("my_module.async_dependency", AsyncMock(return_value=mock_result)):
 def test_problematic_in_ci(event_loop_fixture):
     # Test code here
 ```
+## Maintaining AGENTS.md
+
+Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.
+

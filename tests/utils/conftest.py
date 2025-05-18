@@ -1,65 +1,48 @@
-"""
-Test fixtures for container-based testing.
-
-This module provides pytest fixtures that make it easier to use the dependency injection
-container in tests.
-"""
+"""Common fixtures for tests using provider patching."""
 
 import pytest
-from unittest.mock import MagicMock, patch
-
-from local_newsifier.di_container import DIContainer
-from tests.utils.test_container import create_test_container, create_mock_session_factory, mock_service
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
-def test_container():
-    """Create a test container that doesn't affect other tests."""
-    container = create_test_container()
-    yield container
-    container.clear()
+def mock_session(monkeypatch):
+    """Patch the get_session provider and return a mock session."""
+    session = MagicMock()
+    monkeypatch.setattr(
+        "local_newsifier.di.providers.get_session", lambda: session
+    )
+    return session
 
 
 @pytest.fixture
-def mock_session(test_container):
-    """Create a mock database session for testing."""
-    mock_factory, mock_session = create_mock_session_factory()
-    test_container.register("session_factory", mock_factory)
-    return mock_session
+def mock_rss_feed_service(monkeypatch):
+    """Patch the RSS feed service provider."""
+    service = MagicMock()
+    monkeypatch.setattr(
+        "local_newsifier.di.providers.get_rss_feed_service", lambda: service
+    )
+    return service
 
 
 @pytest.fixture
-def patched_container(test_container):
-    """Patch the singleton container with our test container.
-    
-    This fixture temporarily replaces the application container with a test container,
-    allowing tests to control the behavior of components that directly use the container.
-    """
-    with patch('local_newsifier.container.container', test_container):
-        with patch('local_newsifier.cli.commands.feeds.container', test_container):
-            yield test_container
+def mock_article_crud(monkeypatch):
+    """Patch the article CRUD provider."""
+    crud = MagicMock()
+    monkeypatch.setattr(
+        "local_newsifier.di.providers.get_article_crud", lambda: crud
+    )
+    return crud
 
 
 @pytest.fixture
-def mock_rss_feed_service(patched_container):
-    """Create a mock RSSFeedService and register it with the container."""
-    mock = mock_service(patched_container, "rss_feed_service")
-    return mock
-
-
-@pytest.fixture
-def mock_article_crud(patched_container):
-    """Create a mock article CRUD and register it with the container."""
-    mock = mock_service(patched_container, "article_crud")
-    return mock
-
-
-@pytest.fixture
-def mock_flows(patched_container):
-    """Create mock flow services and register them with the container."""
-    news_pipeline_flow = mock_service(patched_container, "news_pipeline_flow")
-    entity_tracking_flow = mock_service(patched_container, "entity_tracking_flow")
-    return {
-        "news_pipeline_flow": news_pipeline_flow,
-        "entity_tracking_flow": entity_tracking_flow
-    }
+def mock_flows(monkeypatch):
+    """Patch flow providers and return mocks."""
+    news_flow = MagicMock()
+    entity_flow = MagicMock()
+    monkeypatch.setattr(
+        "local_newsifier.di.providers.get_news_pipeline_flow", lambda: news_flow
+    )
+    monkeypatch.setattr(
+        "local_newsifier.di.providers.get_entity_tracking_flow", lambda: entity_flow
+    )
+    return {"news_pipeline_flow": news_flow, "entity_tracking_flow": entity_flow}

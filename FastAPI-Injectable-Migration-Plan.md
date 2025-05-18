@@ -6,9 +6,9 @@ This document outlines a comprehensive plan for migrating from our custom DI con
 
 ## Current Status
 
-We have successfully implemented the foundation for migration to fastapi-injectable:
+We have completed the migration to fastapi-injectable:
 
-- The adapter layer is in place to bridge between DIContainer and fastapi-injectable
+- The former adapter layer has been removed
 - Core provider functions are defined for fundamental dependencies
 - Documentation is complete with examples and best practices
 - FastAPI integration is working with proper session management
@@ -24,7 +24,7 @@ We have successfully implemented the foundation for migration to fastapi-injecta
 - ✅ Update documentation
 - ✅ Fix issues related to instance caching (use_cache=False/True)
 
-### Phase 2: Gradual Migration (In Progress)
+### Phase 2: Gradual Migration (Completed)
 
 The migration will proceed in a layered approach, moving from the data layer toward UI layers:
 
@@ -48,7 +48,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Migrate pipeline flows
    - Ensure proper session handling in flows
 
-### Phase 3: API Integration (Planned)
+### Phase 3: API Integration (Completed)
 
 1. **API Dependencies**
    - Convert API dependency functions to use fastapi-injectable
@@ -60,7 +60,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Standardize response models and error handling
    - Optimize dependency chains for performance
 
-### Phase 4: CLI Integration (Planned)
+### Phase 4: CLI Integration (Completed)
 
 1. **Command Infrastructure**
    - Adapt CLI commands to use injected dependencies
@@ -71,7 +71,7 @@ The migration will proceed in a layered approach, moving from the data layer tow
    - Update fixtures for CLI testing
    - Add integration tests for end-to-end flows
 
-### Phase 5: Complete Migration (Planned)
+### Phase 5: Complete Migration (Completed)
 
 1. **Cleanup**
    - Remove legacy DI container dependencies
@@ -157,7 +157,7 @@ Testing is critical to ensure the migration doesn't introduce regressions. The s
 The migration will be considered successful when:
 
 1. All components use fastapi-injectable for dependency resolution
-2. No direct references to DIContainer remain in the codebase
+2. No references to the old container remain in the codebase
 3. All tests pass with the new dependency injection system
 4. Performance matches or exceeds the previous implementation
 5. Documentation is complete and up-to-date

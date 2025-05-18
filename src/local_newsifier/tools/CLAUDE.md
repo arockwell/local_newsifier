@@ -77,14 +77,17 @@ def _ensure_nlp_model(self):
             raise
 ```
 
-### Container-based Dependencies
-Tools may get dependencies from the DI container:
+### Provider-based Dependencies
+Tools receive dependencies via provider functions:
 
 ```python
-def _ensure_dependencies(self):
-    """Ensure all dependencies are available."""
-    if self.web_scraper is None and self.container:
-        self.web_scraper = self.container.get("web_scraper_tool")
+@injectable(use_cache=False)
+def get_web_scraper_tool() -> WebScraper:
+    return WebScraper()
+
+class SomeTool:
+    def __init__(self, web_scraper: Annotated[WebScraper, Depends(get_web_scraper_tool)]):
+        self.web_scraper = web_scraper
 ```
 
 ### Input Validation
@@ -175,52 +178,32 @@ Tools are typically not used directly but are wrapped by services:
 ```python
 # In a service
 def analyze_entity_sentiment(self, entity_id):
-    with self.session_factory() as session:
-        entity = self.entity_crud.get(session, entity_id)
-        if not entity:
-            raise ValueError(f"Entity not found: {entity_id}")
-            
-        # Get the sentiment analyzer tool
-        sentiment_analyzer = self.container.get("sentiment_analyzer_tool")
-        
-        # Analyze sentiment
-        context = entity.sentence_context or ""
-        sentiment = sentiment_analyzer.analyze_sentiment(context)
-        
-        # Save results
-        # ...
-        
-        return sentiment
+    entity = self.entity_crud.get(self.session, entity_id)
+    if not entity:
+        raise ValueError(f"Entity not found: {entity_id}")
+
+    # Analyze sentiment
+    context = entity.sentence_context or ""
+    sentiment = self.sentiment_analyzer.analyze_sentiment(context)
+
+    # Save results
+    # ...
+
+    return sentiment
 ```
 
-## Tool Registration in Container
+## Tool Providers
 
-Tools are registered in the DI container in standardized functions:
+Tools are exposed via provider functions:
 
 ```python
-def register_analysis_tools(container):
-    """Register analysis tools in the container."""
-    try:
-        from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
-        from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-        
-        # Register trend analyzer with configurable parameters
-        container.register_factory_with_params(
-            "trend_analyzer_tool", 
-            lambda c, **kwargs: TrendAnalyzer(
-                min_frequency=kwargs.get("min_frequency", 3)
-            )
-        )
-        
-        # Backward compatibility registration
-        container.register_factory(
-            "trend_analyzer", 
-            lambda c: c.get("trend_analyzer_tool")
-        )
-        
-        # ... more registrations ...
-    except ImportError as e:
-        print(f"Error registering analysis tools: {e}")
+@injectable(use_cache=False)
+def get_trend_analyzer_tool() -> TrendAnalyzer:
+    return TrendAnalyzer(min_frequency=3)
+
+@injectable(use_cache=False)
+def get_context_analyzer_tool() -> ContextAnalyzer:
+    return ContextAnalyzer()
 ```
 
 ## Best Practices
@@ -251,6 +234,6 @@ def register_analysis_tools(container):
 - Release resources when they're no longer needed
 
 ### Integration
-- Use the container for tool registration
+- Use provider functions for tool registration
 - Follow naming conventions (`tool_name_tool`)
 - Use factory functions for configurable initialization

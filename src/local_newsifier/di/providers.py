@@ -1,9 +1,8 @@
 """
 Provider functions for fastapi-injectable.
 
-This module contains provider functions for all core dependencies
-that can be used with fastapi-injectable. These providers gradually
-replace the DIContainer factories with injectable providers.
+This module contains provider functions for all core dependencies and
+serves as the project's only dependency injection mechanism.
 
 Dependency injection approach:
 - use_cache=False: Used for components that interact with databases or maintain state
@@ -661,6 +660,34 @@ def get_apify_schedule_manager(
 
 
 @injectable(use_cache=False)
+def get_apify_source_config_service(
+    apify_source_config_crud: Annotated["CRUDApifySourceConfig", Depends(get_apify_source_config_crud)],
+    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the ApifySourceConfigService for CLI commands.
+
+    This provider returns a fresh service instance on every injection,
+    ensuring state is not shared across operations.
+
+    Args:
+        apify_source_config_crud: CRUD for Apify source configurations
+        apify_service: Apify service for API interactions
+        session: Database session
+
+    Returns:
+        ApifySourceConfigService instance
+    """
+    from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+
+    return ApifySourceConfigService(
+        apify_source_config_crud=apify_source_config_crud,
+        apify_service=apify_service,
+        session_factory=lambda: session
+    )
+
+
+@injectable(use_cache=False)
 def get_analysis_service(
     analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
     article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
@@ -783,37 +810,6 @@ def get_rss_feed_service(
         rss_feed_crud=rss_feed_crud,
         feed_processing_log_crud=feed_processing_log_crud,
         article_service=article_service,
-        session_factory=lambda: session
-    )
-
-
-@injectable(use_cache=False)
-def get_analysis_service_legacy(
-    article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
-    analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
-    trend_analyzer: Annotated["TrendAnalyzer", Depends(get_trend_analyzer_tool)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    """Provide the analysis service.
-    
-    Uses use_cache=False to create new instances for each injection,
-    preventing state leakage between operations.
-    
-    Args:
-        article_crud: Article CRUD component
-        analysis_result_crud: Analysis result CRUD component
-        trend_analyzer: Trend analyzer tool
-        session: Database session
-        
-    Returns:
-        AnalysisService instance
-    """
-    from local_newsifier.services.analysis_service import AnalysisService
-    
-    return AnalysisService(
-        article_crud=article_crud,
-        analysis_result_crud=analysis_result_crud,
-        trend_analyzer=trend_analyzer,
         session_factory=lambda: session
     )
 

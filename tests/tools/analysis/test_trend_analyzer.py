@@ -7,16 +7,13 @@ from unittest.mock import MagicMock, patch, Mock
 import numpy as np
 import importlib
 import sys
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TrendType, TimeFrame
 
-# Skip all tests in CI environment
-IS_CI = os.environ.get("CI", "false").lower() == "true"
-skip_in_ci = pytest.mark.skipif(
-    IS_CI, reason="Skipping TrendAnalyzer tests in CI due to event loop issues"
-)
+pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
 # Create a mock TrendAnalyzer class that works without dependency injection
 class MockTrendAnalyzer:
@@ -54,7 +51,6 @@ def trend_analyzer():
     return create_test_analyzer(nlp_model=mock_nlp)
 
 
-@skip_in_ci
 class TestTrendAnalyzer:
     """Tests for the TrendAnalyzer class."""
 

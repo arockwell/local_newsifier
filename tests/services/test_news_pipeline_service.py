@@ -4,8 +4,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url(mock_session_manager):
+def test_process_url():
     """Test processing an article from a URL."""
     # Arrange
     # Mock the web scraper
@@ -43,9 +42,6 @@ def test_process_url(mock_session_manager):
         }
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -78,17 +74,13 @@ def test_process_url(mock_session_manager):
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url_scraping_failed(mock_session_manager):
+def test_process_url_scraping_failed():
     """Test processing an article when scraping fails."""
     # Arrange
     # Mock the web scraper to return None (scraping failed)
     mock_web_scraper = MagicMock()
     mock_web_scraper.scrape_url.return_value = None
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -105,8 +97,7 @@ def test_process_url_scraping_failed(mock_session_manager):
     assert result["status"] == "error"
     assert "Failed to scrape content" in result["message"]
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_content(mock_session_manager):
+def test_process_content():
     """Test processing article content directly."""
     # Arrange
     # Mock the article service
@@ -136,9 +127,6 @@ def test_process_content(mock_session_manager):
         }
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -173,8 +161,7 @@ def test_process_content(mock_session_manager):
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_content_with_file_writer(mock_session_manager):
+def test_process_content_with_file_writer():
     """Test processing article content with file writer."""
     # Arrange
     # Mock the article service
@@ -191,9 +178,6 @@ def test_process_content_with_file_writer(mock_session_manager):
     mock_file_writer = MagicMock()
     mock_file_writer.write_results.return_value = "/path/to/output.json"
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService

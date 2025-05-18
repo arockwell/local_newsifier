@@ -5,7 +5,6 @@ This module defines asynchronous tasks for processing articles and fetching RSS 
 
 import logging
 from typing import Dict, List, Optional, Iterator
-import contextlib
 
 from celery import Task, current_task
 from celery.signals import worker_ready
@@ -13,8 +12,7 @@ from sqlmodel import Session
 
 from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
-from local_newsifier.container import container
-from local_newsifier.database.session_utils import get_container_session
+from local_newsifier.di.providers import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 from local_newsifier.tools.rss_parser import parse_rss_feed
@@ -24,15 +22,15 @@ logger = logging.getLogger(__name__)
 
 # Expose get_db as a module-level function for tests
 def get_db() -> Iterator[Session]:
-    """Get a database session generator using container."""
-    with contextlib.closing(get_container_session()) as session:
+    """Get a database session generator using the injectable provider."""
+    with next(get_session()) as session:
         yield session
 
 class BaseTask(Task):
     """Base Task class with common functionality for all tasks."""
     
     def __init__(self):
-        """Initialize BaseTask with session factory from container."""
+        """Initialize BaseTask with lazy session factory."""
         self._session = None
         self._session_factory = None
     
@@ -100,11 +98,6 @@ class BaseTask(Task):
         # Import at runtime to avoid circular dependencies
         from local_newsifier.di.providers import get_rss_feed_service
         service = get_rss_feed_service()
-        
-        # For backward compatibility during transition
-        if hasattr(service, 'container'):
-            service.container = container
-            
         return service
 
     def __del__(self):
@@ -266,12 +259,5 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
 
 @worker_ready.connect
 def on_worker_ready(sender, **kwargs):
-    """
-    Signal handler for worker_ready event.
-    Executed when a Celery worker starts up.
-    """
+    """Signal handler for worker_ready event."""
     logger.info("Celery worker is ready")
-    
-    # Register the process_article task in the container for backward compatibility
-    # This can be removed once full transition to injectable is completed
-    container.register("process_article_task", process_article)

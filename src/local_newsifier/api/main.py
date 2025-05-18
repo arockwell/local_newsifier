@@ -2,14 +2,11 @@
 
 import logging
 import os
-import pathlib
-from typing import Annotated, Dict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi_injectable import register_app
@@ -19,12 +16,9 @@ from sqlmodel import Session
 import local_newsifier.models
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks
-from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
-from local_newsifier.fastapi_injectable_adapter import lifespan_with_injectable, migrate_container_services
 from local_newsifier.di.providers import get_article_crud, get_session
-from local_newsifier.crud.article import CRUDArticle
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +47,7 @@ async def lifespan(app: FastAPI):
         
         # Migrate container services to fastapi-injectable
         logger.info("Migrating container services to fastapi-injectable")
+        from local_newsifier.fastapi_injectable_adapter import migrate_container_services
         await migrate_container_services(app)
         
         logger.info("fastapi-injectable initialization completed")

@@ -166,7 +166,7 @@ def injectable_service_fixture(event_loop_fixture):
     """
     # Define helper function to inject a service
     def get_injected_service(service_factory, *args, **kwargs):
-        """Get a service from the injected container with proper event loop handling.
+        """Get a service from an injectable provider with proper event loop handling.
         
         This function wraps the fastapi-injectable `get_injected_obj` function
         to ensure it runs in a proper event loop, falling back to a thread-specific

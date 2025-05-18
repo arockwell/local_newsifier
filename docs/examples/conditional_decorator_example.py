@@ -20,45 +20,19 @@ logger = logging.getLogger(__name__)
 
 class DataProcessorTool:
     """Example tool that processes data with optional database interaction.
-    
+
     This example demonstrates the conditional decorator pattern for handling
     event loop issues in tests. The class is defined normally without the decorator,
     and the decorator is applied conditionally at the end of the file.
     """
-    
-    def __init__(self, session: Optional[Session] = None, container=None):
+
+    def __init__(self, session: Optional[Session] = None):
         """Initialize with optional dependencies.
-        
+
         Args:
             session: Optional database session for data persistence
-            container: Optional DI container for backward compatibility
         """
         self.session = session
-        self._container = container
-    
-    def set_container(self, container):
-        """Set the DI container for backward compatibility.
-        
-        Args:
-            container: DIContainer instance
-        """
-        self._container = container
-    
-    def _ensure_dependencies(self):
-        """Ensure all dependencies are available.
-        
-        This provides backward compatibility with the container approach
-        and ensures the component can function in both approaches.
-        """
-        if self.session is None and self._container is not None:
-            # Try to get a session from the container if available
-            try:
-                session_factory = self._container.get("session_factory")
-                if session_factory:
-                    self.session = session_factory()
-            except (KeyError, AttributeError):
-                # Failed to get from container, continue with None
-                pass
     
     def process_data(self, 
                     data: Dict[str, Any], 
@@ -73,9 +47,6 @@ class DataProcessorTool:
         Returns:
             Processing results
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-        
         # Use provided session or instance session
         session = session or self.session
         
@@ -105,9 +76,6 @@ class DataProcessorTool:
         Returns:
             True if successful, False otherwise
         """
-        # Ensure dependencies are initialized
-        self._ensure_dependencies()
-        
         # Use provided session or instance session
         session = session or self.session
         
