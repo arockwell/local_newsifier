@@ -30,6 +30,7 @@ var/
 # Virtual Environment
 venv/
 env/
+env312/
 ENV/
 
 # IDE
