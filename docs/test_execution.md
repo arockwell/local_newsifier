@@ -19,7 +19,7 @@ There are several ways to run tests in this project:
 Run all tests in parallel (using all available CPU cores):
 
 ```bash
-make test  # Runs: poetry run pytest
+make test  # Runs: poetry run pytest -n auto
 ```
 
 This is the default behavior and provides the fastest execution, especially on multi-core machines.

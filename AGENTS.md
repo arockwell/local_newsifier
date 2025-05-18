@@ -31,6 +31,16 @@ If a `CLAUDE.md` file is added or removed, update this list.
 2. If spaCy models are already available locally: `make setup-spacy`
 3. Run the test suite from the Poetry environment: `make test`
 
+### Faster Testing
+
+You can run tests in parallel with pytest-xdist:
+
+```bash
+poetry run pytest -n auto -q
+```
+
+If parallel runs cause issues, run tests serially for debugging with `make test-serial`.
+
 For detailed offline commands, see [`docs/python_setup.md`](docs/python_setup.md).
 
 ## Dependency Management with Wheels
