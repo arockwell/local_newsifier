@@ -13,10 +13,41 @@ import json
 import click
 from datetime import datetime
 from tabulate import tabulate
+from contextlib import contextmanager
 
-from fastapi_injectable import get_injected_obj
+from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
+from local_newsifier.di.providers import get_apify_source_config_crud, get_apify_service
 
-from local_newsifier.di.providers import get_apify_source_config_service
+
+@contextmanager
+def get_apify_source_config_service_direct():
+    """Get a directly instantiated ApifySourceConfigService to avoid async event loop issues.
+    
+    This helper function creates all dependencies directly instead of using
+    fastapi-injectable to avoid 'no current event loop' errors in the CLI.
+    
+    Yields:
+        ApifySourceConfigService: Service for managing Apify source configurations
+    """
+    from local_newsifier.database.engine import get_session as get_db_session
+    
+    # Create components directly
+    session = next(get_db_session())
+    apify_source_config_crud = get_apify_source_config_crud()
+    apify_service = get_apify_service()
+    
+    # Create service
+    service = ApifySourceConfigService(
+        apify_source_config_crud=apify_source_config_crud,
+        apify_service=apify_service,
+        session_factory=lambda: session
+    )
+    
+    try:
+        yield service
+    finally:
+        # Ensure session is closed
+        session.close()
 
 
 @click.group(name="apify-config")
@@ -33,16 +64,14 @@ def apify_config_group():
 @click.option("--source-type", help="Filter by source type (e.g., news, blog)")
 def list_configs(active_only, json_output, limit, skip, source_type):
     """List all Apify source configurations with optional filtering."""
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    # Get configs based on filters
-    configs_dict = apify_source_config_service.list_configs(
-        skip=skip, 
-        limit=limit, 
-        active_only=active_only, 
-        source_type=source_type
-    )
+    with get_apify_source_config_service_direct() as apify_source_config_service:
+        # Get configs based on filters
+        configs_dict = apify_source_config_service.list_configs(
+            skip=skip, 
+            limit=limit, 
+            active_only=active_only, 
+            source_type=source_type
+        )
     
     if json_output:
         click.echo(json.dumps(configs_dict, indent=2, default=str))
@@ -94,47 +123,46 @@ def list_configs(active_only, json_output, limit, skip, source_type):
 @click.option("--input", "-i", help="JSON string or file path for actor input configuration")
 def add_config(name, actor_id, source_type, source_url, schedule, input):
     """Add a new Apify source configuration."""
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    # Parse input configuration if provided
-    input_configuration = None
-    if input:
-        if input.startswith("{") or input.startswith("["):
-            try:
-                input_configuration = json.loads(input)
-            except json.JSONDecodeError:
-                click.echo(click.style("Error: Input must be valid JSON", fg="red"), err=True)
-                return
-        elif input.endswith(".json") and input.find("/") != -1:
-            # Looks like a file path
-            try:
-                with open(input, "r") as f:
-                    input_configuration = json.load(f)
-                click.echo(f"Loaded input configuration from file: {input}")
-            except Exception as e:
-                click.echo(
-                    click.style(f"Error loading input file: {str(e)}", fg="red"),
-                    err=True,
-                )
-                return
-    
-    try:
-        config = apify_source_config_service.create_config(
-            name=name,
-            actor_id=actor_id,
-            source_type=source_type,
-            source_url=source_url,
-            schedule=schedule,
-            input_configuration=input_configuration
-        )
+    # Get the service using direct instantiation to avoid event loop issues
+    with get_apify_source_config_service_direct() as apify_source_config_service:
+        # Parse input configuration if provided
+        input_configuration = None
+        if input:
+            if input.startswith("{") or input.startswith("["):
+                try:
+                    input_configuration = json.loads(input)
+                except json.JSONDecodeError:
+                    click.echo(click.style("Error: Input must be valid JSON", fg="red"), err=True)
+                    return
+            elif input.endswith(".json") and input.find("/") != -1:
+                # Looks like a file path
+                try:
+                    with open(input, "r") as f:
+                        input_configuration = json.load(f)
+                    click.echo(f"Loaded input configuration from file: {input}")
+                except Exception as e:
+                    click.echo(
+                        click.style(f"Error loading input file: {str(e)}", fg="red"),
+                        err=True,
+                    )
+                    return
         
-        click.echo(f"Apify source configuration added successfully with ID: {config['id']}")
-        click.echo(f"Name: {config['name']}")
-        click.echo(f"Actor ID: {config['actor_id']}")
-        click.echo(f"Source Type: {config['source_type']}")
-    except Exception as e:
-        click.echo(click.style(f"Error adding configuration: {str(e)}", fg="red"), err=True)
+        try:
+            config = apify_source_config_service.create_config(
+                name=name,
+                actor_id=actor_id,
+                source_type=source_type,
+                source_url=source_url,
+                schedule=schedule,
+                input_configuration=input_configuration
+            )
+            
+            click.echo(f"Apify source configuration added successfully with ID: {config['id']}")
+            click.echo(f"Name: {config['name']}")
+            click.echo(f"Actor ID: {config['actor_id']}")
+            click.echo(f"Source Type: {config['source_type']}")
+        except Exception as e:
+            click.echo(click.style(f"Error adding configuration: {str(e)}", fg="red"), err=True)
 
 
 @apify_config_group.command(name="show")
@@ -142,10 +170,7 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def show_config(id, json_output):
     """Show Apify source configuration details."""
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    try:
+    with get_apify_source_config_service_direct() as apify_source_config_service:
         config = apify_source_config_service.get_config(id)
         if not config:
             click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
@@ -186,27 +211,26 @@ def show_config(id, json_output):
 @click.option("--force", is_flag=True, help="Skip confirmation")
 def remove_config(id, force):
     """Remove an Apify source configuration."""
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    try:
-        config = apify_source_config_service.get_config(id)
-        if not config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
-            return
-        
-        if not force:
-            if not click.confirm(f"Are you sure you want to remove configuration '{config['name']}' (ID: {id})?"):
-                click.echo("Operation canceled.")
+    # Get the service using direct instantiation to avoid event loop issues
+    with get_apify_source_config_service_direct() as apify_source_config_service:
+        try:
+            config = apify_source_config_service.get_config(id)
+            if not config:
+                click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
                 return
-        
-        result = apify_source_config_service.remove_config(id)
-        if result:
-            click.echo(f"Configuration '{config['name']}' (ID: {id}) removed successfully.")
-        else:
-            click.echo(click.style(f"Error removing configuration with ID {id}", fg="red"), err=True)
-    except Exception as e:
-        click.echo(click.style(f"Error removing configuration: {str(e)}", fg="red"), err=True)
+            
+            if not force:
+                if not click.confirm(f"Are you sure you want to remove configuration '{config['name']}' (ID: {id})?"):
+                    click.echo("Operation canceled.")
+                    return
+            
+            result = apify_source_config_service.remove_config(id)
+            if result:
+                click.echo(f"Configuration '{config['name']}' (ID: {id}) removed successfully.")
+            else:
+                click.echo(click.style(f"Error removing configuration with ID {id}", fg="red"), err=True)
+        except Exception as e:
+            click.echo(click.style(f"Error removing configuration: {str(e)}", fg="red"), err=True)
 
 
 @apify_config_group.command(name="update")
@@ -220,56 +244,55 @@ def remove_config(id, force):
 @click.option("--input", "-i", help="JSON string or file path for actor input configuration")
 def update_config(id, name, actor_id, source_type, source_url, schedule, active, input):
     """Update Apify source configuration properties."""
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    try:
-        # Check if at least one property to update was provided
-        if all(v is None for v in [name, actor_id, source_type, source_url, schedule, active, input]):
-            click.echo("No properties specified for update. Use --name, --actor-id, etc.")
-            return
-        
-        # Parse input configuration if provided
-        input_configuration = None
-        if input:
-            if input.startswith("{") or input.startswith("["):
-                try:
-                    input_configuration = json.loads(input)
-                except json.JSONDecodeError:
-                    click.echo(click.style("Error: Input must be valid JSON", fg="red"), err=True)
-                    return
-            elif input.endswith(".json") and input.find("/") != -1:
-                # Looks like a file path
-                try:
-                    with open(input, "r") as f:
-                        input_configuration = json.load(f)
-                    click.echo(f"Loaded input configuration from file: {input}")
-                except Exception as e:
-                    click.echo(
-                        click.style(f"Error loading input file: {str(e)}", fg="red"),
-                        err=True,
-                    )
-                    return
-        
-        # Update config
-        updated_config = apify_source_config_service.update_config(
-            config_id=id,
-            name=name,
-            actor_id=actor_id,
-            source_type=source_type,
-            source_url=source_url,
-            schedule=schedule,
-            is_active=active,
-            input_configuration=input_configuration
-        )
-        
-        if not updated_config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
-            return
+    # Get the service using direct instantiation to avoid event loop issues
+    with get_apify_source_config_service_direct() as apify_source_config_service:
+        try:
+            # Check if at least one property to update was provided
+            if all(v is None for v in [name, actor_id, source_type, source_url, schedule, active, input]):
+                click.echo("No properties specified for update. Use --name, --actor-id, etc.")
+                return
             
-        click.echo(f"Configuration '{updated_config['name']}' (ID: {id}) updated successfully.")
-    except Exception as e:
-        click.echo(click.style(f"Error updating configuration: {str(e)}", fg="red"), err=True)
+            # Parse input configuration if provided
+            input_configuration = None
+            if input:
+                if input.startswith("{") or input.startswith("["):
+                    try:
+                        input_configuration = json.loads(input)
+                    except json.JSONDecodeError:
+                        click.echo(click.style("Error: Input must be valid JSON", fg="red"), err=True)
+                        return
+                elif input.endswith(".json") and input.find("/") != -1:
+                    # Looks like a file path
+                    try:
+                        with open(input, "r") as f:
+                            input_configuration = json.load(f)
+                        click.echo(f"Loaded input configuration from file: {input}")
+                    except Exception as e:
+                        click.echo(
+                            click.style(f"Error loading input file: {str(e)}", fg="red"),
+                            err=True,
+                        )
+                        return
+            
+            # Update config
+            updated_config = apify_source_config_service.update_config(
+                config_id=id,
+                name=name,
+                actor_id=actor_id,
+                source_type=source_type,
+                source_url=source_url,
+                schedule=schedule,
+                is_active=active,
+                input_configuration=input_configuration
+            )
+            
+            if not updated_config:
+                click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
+                return
+                
+            click.echo(f"Configuration '{updated_config['name']}' (ID: {id}) updated successfully.")
+        except Exception as e:
+            click.echo(click.style(f"Error updating configuration: {str(e)}", fg="red"), err=True)
 
 
 @apify_config_group.command(name="run")
@@ -287,32 +310,31 @@ def run_config(id, output):
         nf apify-config run 1
         nf apify-config run 2 --output result.json
     """
-    # Get the service using the injectable provider
-    apify_source_config_service = get_injected_obj(get_apify_source_config_service)
-    
-    try:
-        # Run the configuration
-        result = apify_source_config_service.run_configuration(id)
-        
-        if result["status"] == "success":
-            click.echo(click.style("✓ Actor run completed successfully!", fg="green"))
-            click.echo(f"Configuration: {result['config_name']} (ID: {result['config_id']})")
-            click.echo(f"Actor ID: {result['actor_id']}")
-            click.echo(f"Run ID: {result['run_id']}")
+    # Get the service using direct instantiation to avoid event loop issues
+    with get_apify_source_config_service_direct() as apify_source_config_service:
+        try:
+            # Run the configuration
+            result = apify_source_config_service.run_configuration(id)
             
-            # Output dataset info if available
-            if "dataset_id" in result and result["dataset_id"]:
-                click.echo(f"Dataset ID: {result['dataset_id']}")
-                click.echo(f"To retrieve the data: nf apify get-dataset {result['dataset_id']}")
-            
-            # Save or display the results
-            if output:
-                with open(output, "w") as f:
-                    json.dump(result, f, indent=2)
-                click.echo(f"Output saved to {output}")
-        else:
-            click.echo(click.style("✗ Actor run failed.", fg="red"), err=True)
-            click.echo(click.style(f"Error: {result.get('message', 'Unknown error')}", fg="red"), err=True)
-            
-    except Exception as e:
-        click.echo(click.style(f"Error running configuration: {str(e)}", fg="red"), err=True)
+            if result["status"] == "success":
+                click.echo(click.style("✓ Actor run completed successfully!", fg="green"))
+                click.echo(f"Configuration: {result['config_name']} (ID: {result['config_id']})")
+                click.echo(f"Actor ID: {result['actor_id']}")
+                click.echo(f"Run ID: {result['run_id']}")
+                
+                # Output dataset info if available
+                if "dataset_id" in result and result["dataset_id"]:
+                    click.echo(f"Dataset ID: {result['dataset_id']}")
+                    click.echo(f"To retrieve the data: nf apify get-dataset {result['dataset_id']}")
+                
+                # Save or display the results
+                if output:
+                    with open(output, "w") as f:
+                        json.dump(result, f, indent=2)
+                    click.echo(f"Output saved to {output}")
+            else:
+                click.echo(click.style("✗ Actor run failed.", fg="red"), err=True)
+                click.echo(click.style(f"Error: {result.get('message', 'Unknown error')}", fg="red"), err=True)
+                
+        except Exception as e:
+            click.echo(click.style(f"Error running configuration: {str(e)}", fg="red"), err=True)
