@@ -6,7 +6,7 @@ This guide provides instructions for setting up the Python environment for Local
 
 The project requires Python 3.10-3.12, with Python 3.12 recommended to match our CI environment.
 
-A `.python-version` file is included in the project root that specifies Python 3.12.3.
+A `.python-version` file is included in the project root that specifies Python 3.12.10.
 
 ## Setup with Poetry
 
