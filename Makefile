@@ -1,13 +1,17 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy build-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
-	@echo "  make build-wheels      - Download dependency wheels"
+	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
+	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
+	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
+	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
+	@echo "  make test-wheels       - Test offline installation with current Python version on current platform"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
 	@echo "  make test-serial       - Run tests serially (for debugging)"
 	@echo "  make lint              - Run linting"
@@ -37,12 +41,62 @@ setup-spacy:
 
 # Build dependency wheels for offline installation
 build-wheels:
-	@echo "Building wheels into ./wheels..."
+	@echo "Building wheels for current Python version..."
 	./scripts/build_wheels.sh
+
+build-wheels-all:
+	@echo "Building wheels for all supported Python versions..."
+	@if command -v python3.10 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.10..."; \
+		./scripts/build_wheels.sh python3.10; \
+	else \
+		echo "Python 3.10 not found, skipping"; \
+	fi
+	@if command -v python3.11 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.11..."; \
+		./scripts/build_wheels.sh python3.11; \
+	else \
+		echo "Python 3.11 not found, skipping"; \
+	fi
+	@if command -v python3.12 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.12..."; \
+		./scripts/build_wheels.sh python3.12; \
+	else \
+		echo "Python 3.12 not found, skipping"; \
+	fi
+	@if command -v python3.13 >/dev/null 2>&1; then \
+		echo "Building wheels for Python 3.13..."; \
+		./scripts/build_wheels.sh python3.13; \
+	else \
+		echo "Python 3.13 not found, skipping"; \
+	fi
+	@echo "Wheel building complete for all available Python versions"
+	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+
+build-linux-wheels:
+	@echo "Building wheels for Linux platforms using Docker..."
+	@echo "Building for Python 3.12..."
+	./scripts/build_linux_wheels.sh 3.12
+	@echo "Linux wheel building complete"
+	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+
+build-linux-wheels-py312:
+	@echo "Building wheels for Python 3.12 on Linux platforms using Docker..."
+	./scripts/build_linux_wheels.sh 3.12
+	@echo "Python 3.12 Linux wheel building complete"
+	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+
+organize-wheels:
+	@echo "Organizing existing wheels into version-specific and platform-specific directories..."
+	./scripts/organize_wheels.sh
+
+test-wheels:
+	@echo "Testing offline installation with current Python version..."
+	./scripts/test_offline_install.sh
 
 # Testing
 test:
-	poetry run pytest
+	poetry run pytest -n auto
 
 # Run tests serially (non-parallel) if needed for debugging
 test-serial:
