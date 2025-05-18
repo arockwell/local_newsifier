@@ -8,21 +8,17 @@ This directory contains Python wheels for offline installation. Wheels are organ
 
 ```
 wheels/
-├── py310/                  # Cross-platform wheels for Python 3.10
-├── py311/                  # Cross-platform wheels for Python 3.11
 ├── py312/                  # Cross-platform wheels for Python 3.12
-├── py313/                  # Cross-platform wheels for Python 3.13
-├── py310-macos-arm64/      # Platform-specific wheels for Python 3.10 on macOS arm64
-├── py311-macos-arm64/      # Platform-specific wheels for Python 3.11 on macOS arm64
-├── py312-macos-arm64/      # Platform-specific wheels for Python 3.12 on macOS arm64
-├── py313-macos-arm64/      # Platform-specific wheels for Python 3.13 on macOS arm64
-├── py310-linux-x64/        # Platform-specific wheels for Python 3.10 on Linux x64
-└── ...                     # Other platform-specific directories
+├── py312-linux-x64/        # Platform-specific wheels for Python 3.12 on Linux x64
+├── py312-linux-arm64/      # Platform-specific wheels for Python 3.12 on Linux arm64
+└── py312-macos-arm64/      # Platform-specific wheels for Python 3.12 on macOS arm64
 ```
 
 The directory structure includes both:
-- Version-specific directories (py310, py311, etc.) with cross-platform wheels
-- Platform-specific directories (py310-macos-arm64, py312-linux-x64, etc.) with platform-specific wheels
+- Version-specific directories (py312) with cross-platform wheels
+- Platform-specific directories (py312-macos-arm64, py312-linux-x64, etc.) with platform-specific wheels
+
+Note: As of May 2024, we only maintain wheels for Python 3.12, as this is the primary version used in development and production.
 
 ## Usage
 
