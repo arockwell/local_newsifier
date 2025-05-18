@@ -1,6 +1,7 @@
-"""
-Celery application configuration for the Local Newsifier project.
-This module sets up the Celery application using PostgreSQL as both the broker and result backend.
+"""Celery application configuration for the Local Newsifier project.
+
+This module sets up the Celery application using Redis as both the broker and
+result backend.
 """
 
 import os
@@ -12,7 +13,7 @@ from local_newsifier.config.settings import settings
 # Create the Celery application
 app = Celery("local_newsifier")
 
-# Configure Celery to use PostgreSQL as both broker and result backend
+# Configure Celery to use Redis as both the broker and result backend
 app.conf.update(
     broker_url=settings.CELERY_BROKER_URL,
     result_backend=settings.CELERY_RESULT_BACKEND,
