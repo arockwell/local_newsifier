@@ -23,7 +23,7 @@ from local_newsifier.di.providers import (
     get_entity_tracking_flow,
     get_news_pipeline_flow,
 )
-from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
+from local_newsifier.errors.cli import handle_rss_cli
 
 
 @click.group(name="feeds")
@@ -291,7 +291,7 @@ def update_feed(id, name, description, active):
 @feeds_group.command(name="fetch")
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
 @click.option("--active-only", is_flag=True, default=True, help="Process only active feeds (default: True)")
-@handle_rss_cli_errors
+@handle_rss_cli
 def fetch_feeds(no_process, active_only):
     """Fetch articles from all active feeds.
     

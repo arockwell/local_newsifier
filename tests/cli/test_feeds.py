@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
+from local_newsifier.errors.cli import handle_rss_cli  # noqa: F401
 
 
 @pytest.fixture
