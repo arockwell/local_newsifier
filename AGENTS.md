@@ -33,10 +33,17 @@ If a `CLAUDE.md` file is added or removed, update this list.
 
 ### Faster Testing
 
-You can run tests in parallel with pytest-xdist:
+Use `make test` for the quickest test run. This command invokes pytest-xdist and
+utilizes all available CPU cores:
 
 ```bash
-poetry run pytest -n auto -q
+make test
+```
+
+You can also run specific tests with pytest directly:
+
+```bash
+poetry run pytest -n auto tests/path -k expression -q
 ```
 
 If parallel runs cause issues, run tests serially for debugging with `make test-serial`.
