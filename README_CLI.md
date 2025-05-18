@@ -14,6 +14,15 @@ cd /path/to/local_newsifier
 poetry install
 ```
 
+Before running `nf`, initialize your Cursor database and load the environment:
+
+```bash
+poetry run python scripts/init_cursor_db.py
+source .env.cursor
+```
+
+See [docs/db_initialization.md](docs/db_initialization.md) for details.
+
 After installation, you can run the CLI using Poetry:
 
 ```bash
