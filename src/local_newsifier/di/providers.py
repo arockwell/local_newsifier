@@ -40,6 +40,10 @@ if TYPE_CHECKING:
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
     from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+    from local_newsifier.tools.preprocessing.content_cleaner import ContentCleaner
+    from local_newsifier.tools.preprocessing.content_extractor import ContentExtractor
+    from local_newsifier.tools.preprocessing.metadata_enhancer import MetadataEnhancer
+    from local_newsifier.tools.preprocessing.article_preprocessor import ArticlePreprocessor
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.apify_service import ApifyService
@@ -549,6 +553,163 @@ def get_file_writer_tool(
     return FileWriterTool(output_dir=config["output_dir"])
 
 
+@injectable(use_cache=False)
+def get_content_cleaner_config():
+    """Provide the configuration for the content cleaner tool.
+    
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+    
+    Returns:
+        Configuration dictionary with processing options
+    """
+    return {
+        "remove_boilerplate": True,
+        "normalize_whitespace": True,
+        "handle_special_chars": True,
+        "remove_duplicates": True
+    }
+
+
+@injectable(use_cache=False)
+def get_content_cleaner(
+    config: Annotated[Dict, Depends(get_content_cleaner_config)]
+):
+    """Provide the content cleaner tool.
+    
+    Uses use_cache=False to create new instances for each injection,
+    as it processes content and should have a fresh state each time.
+    
+    Args:
+        config: Configuration dictionary with processing options
+        
+    Returns:
+        ContentCleaner instance
+    """
+    from local_newsifier.tools.preprocessing.content_cleaner import ContentCleaner
+    return ContentCleaner(
+        remove_boilerplate=config["remove_boilerplate"],
+        normalize_whitespace=config["normalize_whitespace"],
+        handle_special_chars=config["handle_special_chars"],
+        remove_duplicates=config["remove_duplicates"]
+    )
+
+
+@injectable(use_cache=False)
+def get_content_extractor_config():
+    """Provide the configuration for the content extractor tool.
+    
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+    
+    Returns:
+        Configuration dictionary with extraction options
+    """
+    return {
+        "extract_images": True,
+        "extract_links": True,
+        "preserve_formatting": True,
+        "extract_lists": True,
+        "extract_quotes": True
+    }
+
+
+@injectable(use_cache=False)
+def get_content_extractor(
+    config: Annotated[Dict, Depends(get_content_extractor_config)]
+):
+    """Provide the content extractor tool.
+    
+    Uses use_cache=False to create new instances for each injection,
+    as it processes HTML content and should have a fresh state each time.
+    
+    Args:
+        config: Configuration dictionary with extraction options
+        
+    Returns:
+        ContentExtractor instance
+    """
+    from local_newsifier.tools.preprocessing.content_extractor import ContentExtractor
+    return ContentExtractor(
+        extract_images=config["extract_images"],
+        extract_links=config["extract_links"],
+        preserve_formatting=config["preserve_formatting"],
+        extract_lists=config["extract_lists"],
+        extract_quotes=config["extract_quotes"]
+    )
+
+
+@injectable(use_cache=False)
+def get_metadata_enhancer_config():
+    """Provide the configuration for the metadata enhancer tool.
+    
+    This separates configuration from the tool instance, allowing for
+    different configuration settings to be injected.
+    
+    Returns:
+        Configuration dictionary with enhancement options
+    """
+    return {
+        "extract_date": True,
+        "extract_categories": True,
+        "extract_locations": True,
+        "detect_language": True,
+        "spacy_model": "en_core_web_sm"
+    }
+
+
+@injectable(use_cache=False)
+def get_metadata_enhancer(
+    config: Annotated[Dict, Depends(get_metadata_enhancer_config)]
+):
+    """Provide the metadata enhancer tool.
+    
+    Uses use_cache=False to create new instances for each injection,
+    as it processes content and should have a fresh state each time.
+    
+    Args:
+        config: Configuration dictionary with enhancement options
+        
+    Returns:
+        MetadataEnhancer instance
+    """
+    from local_newsifier.tools.preprocessing.metadata_enhancer import MetadataEnhancer
+    return MetadataEnhancer(
+        extract_date=config["extract_date"],
+        extract_categories=config["extract_categories"],
+        extract_locations=config["extract_locations"],
+        detect_language=config["detect_language"],
+        spacy_model=config["spacy_model"]
+    )
+
+
+@injectable(use_cache=False)
+def get_article_preprocessor(
+    content_cleaner: Annotated["ContentCleaner", Depends(get_content_cleaner)],
+    content_extractor: Annotated["ContentExtractor", Depends(get_content_extractor)],
+    metadata_enhancer: Annotated["MetadataEnhancer", Depends(get_metadata_enhancer)]
+):
+    """Provide the article preprocessor service.
+    
+    Uses use_cache=False to create new instances for each injection,
+    as it processes content and should have a fresh state each time.
+    
+    Args:
+        content_cleaner: Content cleaner tool
+        content_extractor: Content extractor tool
+        metadata_enhancer: Metadata enhancer tool
+        
+    Returns:
+        ArticlePreprocessor instance
+    """
+    from local_newsifier.tools.preprocessing.article_preprocessor import ArticlePreprocessor
+    return ArticlePreprocessor(
+        content_cleaner=content_cleaner,
+        content_extractor=content_extractor,
+        metadata_enhancer=metadata_enhancer
+    )
+
+
 # Service providers
 @injectable(use_cache=False)
 def get_entity_service(
@@ -726,6 +887,7 @@ def get_article_service(
     article_crud: Annotated["CRUDArticle", Depends(get_article_crud)],
     analysis_result_crud: Annotated["CRUDAnalysisResult", Depends(get_analysis_result_crud)],
     entity_service: Annotated["EntityService", Depends(get_entity_service)],
+    article_preprocessor: Annotated["ArticlePreprocessor", Depends(get_article_preprocessor)],
     session: Annotated[Session, Depends(get_session)]
 ):
     """Provide the article service.
@@ -737,6 +899,7 @@ def get_article_service(
         article_crud: Article CRUD component
         analysis_result_crud: Analysis result CRUD component
         entity_service: Entity service
+        article_preprocessor: Article preprocessor service
         session: Database session
         
     Returns:
@@ -748,6 +911,7 @@ def get_article_service(
         article_crud=article_crud,
         analysis_result_crud=analysis_result_crud,
         entity_service=entity_service,
+        article_preprocessor=article_preprocessor,
         session_factory=lambda: session
     )
 
