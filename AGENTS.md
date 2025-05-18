@@ -20,14 +20,18 @@ If a `CLAUDE.md` file is added or removed, update this list.
 
 ## Quick Setup
 
-1. **Install dependencies offline first**:
+1. **Install dependencies using Poetry offline**:
+   After building or copying wheels, run:
    ```bash
-   python -m pip install --no-index --find-links=wheels -r requirements.txt
+   make setup-poetry -- --no-index --find-links=wheels
+   # or
+   poetry install --with dev --no-index --find-links=wheels
    ```
-   The development environment normally has no internet access. Use
-   `make setup-poetry` only if you have network connectivity.
-2. Install spaCy models (needed for NLP features): `make setup-spacy`
-3. Run the test suite: `make test`
+   `make test` relies on these dev dependencies.
+2. If spaCy models are already available locally: `make setup-spacy`
+3. Run the test suite from the Poetry environment: `make test`
+
+For detailed offline commands, see [`docs/python_setup.md`](docs/python_setup.md).
 
 ## Dependency Management with Wheels
 
