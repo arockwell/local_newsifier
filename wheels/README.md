@@ -2,6 +2,8 @@
 
 This directory contains Python wheels for offline installation. Wheels are organized by Python version to ensure compatibility.
 
+**IMPORTANT:** All wheel files (*.whl) in this directory and its subdirectories should be committed to the repository to enable true offline installation.
+
 ## Directory Structure
 
 ```
@@ -47,6 +49,23 @@ If you need to update the wheel files (e.g., when project dependencies change):
 ```
 
 This will download all required wheels for the specified Python version with their dependencies to the appropriate subdirectory.
+
+## Version Control
+
+After building wheels, make sure to commit them to the repository:
+
+```bash
+# Organize any wheels at the root level into version directories
+make organize-wheels
+
+# Add all wheels to git
+git add wheels/py*/
+
+# Commit the wheels
+git commit -m "Update wheels for offline installation"
+```
+
+This ensures that other users can install dependencies without internet access.
 
 ## Troubleshooting
 

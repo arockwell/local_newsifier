@@ -25,8 +25,7 @@ make setup-spacy
 
 ### Offline Installation
 
-If your deployment environment cannot reach PyPI, build dependency wheels on a
-machine with internet access:
+If your deployment environment cannot reach PyPI, the repository includes pre-built wheels for offline installation. If you need to build new wheels on a machine with internet access:
 
 ```bash
 # Build wheels for the current Python version
@@ -47,8 +46,20 @@ wheels/
 └── py313/     # Wheels for Python 3.13
 ```
 
-Copy the generated `wheels/` directory to the target machine and install
-packages locally using the appropriate Python version subdirectory:
+After building wheels, commit them to the repository to ensure true offline installation:
+
+```bash
+# Organize any wheels at the root level
+make organize-wheels
+
+# Add and commit wheels
+git add wheels/py*/
+git commit -m "Update wheels for offline installation"
+```
+
+#### Offline Installation on Target Machine
+
+On the target machine without internet access, install packages using the appropriate Python version subdirectory:
 
 ```bash
 # For Python 3.13
@@ -58,10 +69,16 @@ python3.13 -m pip install --no-index --find-links=wheels/py313 -r requirements.t
 python3.12 -m pip install --no-index --find-links=wheels/py312 -r requirements.txt
 ```
 
-You can test the offline installation process with:
+#### Testing Offline Installation
+
+You can test the offline installation process before deploying:
 
 ```bash
-./scripts/test_offline_install.sh [python_command]
+# Test with current Python version
+./scripts/test_offline_install.sh
+
+# Test with specific Python version
+./scripts/test_offline_install.sh python3.12
 ```
 
 If you need to manually select a specific Python version for Poetry to use:
