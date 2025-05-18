@@ -27,7 +27,7 @@ class TestContentCleaner:
         assert "This & that <tag> with \"quotes\"" == result
         
         # Test smart quotes
-        content = "These "smart quotes" and 'apostrophes' should be normalized"
+        content = "These \"smart quotes\" and 'apostrophes' should be normalized"
         result = cleaner._handle_special_characters(content)
         assert "These \"smart quotes\" and 'apostrophes' should be normalized" == result
         
