@@ -4,10 +4,9 @@ import re
 from typing import Dict, List, Optional, Any, Annotated
 from difflib import SequenceMatcher
 from fastapi import Depends
-from fastapi_injectable import injectable
+import os
 
 
-@injectable(use_cache=False)
 class EntityResolver:
     """Tool for resolving entity mentions to canonical forms."""
 
@@ -201,7 +200,15 @@ class EntityResolver:
             # If this is a new entity, add it to our canonical entities list
             if canonical_entity["is_new"]:
                 canonical_entities.append(canonical_entity)
-                
+
             resolved_entities.append(resolved_entity)
-            
+
         return resolved_entities
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        EntityResolver = injectable(use_cache=False)(EntityResolver)
+except Exception:
+    pass

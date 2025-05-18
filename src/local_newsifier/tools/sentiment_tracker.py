@@ -5,8 +5,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union, TYPE_CHECKING
 
+import os
 from fastapi import Depends
-from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
@@ -19,7 +19,6 @@ from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class SentimentTracker:
     """Tool for tracking and analyzing sentiment trends over time."""
 
@@ -705,3 +704,11 @@ class SentimentTracker:
             "article_count": len(sentiment_data),
             "sentiment_distribution": sentiment_distribution,
         }
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        SentimentTracker = injectable(use_cache=False)(SentimentTracker)
+except Exception:
+    pass

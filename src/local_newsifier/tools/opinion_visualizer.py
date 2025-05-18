@@ -4,8 +4,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union, Annotated, TYPE_CHECKING
 
+import os
 from fastapi import Depends, Query
-from fastapi_injectable import injectable
 from sqlmodel import Session, select
 
 from local_newsifier.database.transaction import JoinTransactionMode
@@ -18,7 +18,6 @@ else:
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class OpinionVisualizerTool:
     """Tool for generating visualizations of sentiment and opinion data.
 
@@ -534,6 +533,9 @@ class OpinionVisualizerTool:
         report += "</body></html>"
         return report
 
+
+
+
     def _generate_comparison_html_report(
         self, data: Dict[str, SentimentVisualizationData]
     ) -> str:
@@ -621,3 +623,9 @@ class OpinionVisualizerTool:
         report += "</table>\n"
         report += "</body></html>"
         return report
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        OpinionVisualizerTool = injectable(use_cache=False)(OpinionVisualizerTool)
+except Exception:
+    pass

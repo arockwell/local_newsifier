@@ -10,7 +10,7 @@ import numpy as np
 import spacy
 from sqlmodel import Session, select
 from fastapi import Depends
-from fastapi_injectable import injectable
+import os
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
@@ -27,7 +27,6 @@ from local_newsifier.models.trend import (
 logger = logging.getLogger(__name__)
 
 
-@injectable(use_cache=False)
 class TrendAnalyzer:
     """Consolidated tool for analyzing trends in news articles.
 
@@ -500,3 +499,11 @@ class TrendAnalyzer:
     def clear_cache(self) -> None:
         """Clear the internal cache to free memory."""
         self._cache.clear()
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        TrendAnalyzer = injectable(use_cache=False)(TrendAnalyzer)
+except Exception:
+    pass

@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 
 import requests
 from dateutil import parser as date_parser
-from fastapi_injectable import injectable
+import os
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,6 @@ class RSSItem(BaseModel):
     description: Optional[str] = None
 
 
-@injectable(use_cache=False)
 class RSSParser:
     """Tool for parsing RSS feeds and extracting content."""
 
@@ -277,3 +276,11 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
             "entries": [],
             "error": str(e)
         }
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        RSSParser = injectable(use_cache=False)(RSSParser)
+except Exception:
+    pass

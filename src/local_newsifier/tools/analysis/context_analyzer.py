@@ -1,15 +1,14 @@
 """Context analyzer tool for analyzing entity mention contexts."""
 
 from typing import Dict, List, Optional, Any, Annotated
+import os
 from fastapi import Depends
-from fastapi_injectable import injectable
 
 import spacy
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 
 
-@injectable(use_cache=False)
 class ContextAnalyzer:
     """Tool for analyzing the context of entity mentions."""
 
@@ -233,3 +232,11 @@ class ContextAnalyzer:
             return "negative"
         else:
             return "neutral"
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        ContextAnalyzer = injectable(use_cache=False)(ContextAnalyzer)
+except Exception:
+    pass

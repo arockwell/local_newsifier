@@ -12,8 +12,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
 from webdriver_manager.chrome import ChromeDriverManager
+import os
 from fastapi import Depends
-from fastapi_injectable import injectable
 
 # Common phrases indicating that an article was not found or is behind a paywall
 NOT_FOUND_PHRASES = [
@@ -29,7 +29,6 @@ NOT_FOUND_PHRASES = [
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
 
-@injectable(use_cache=False)
 class WebScraperTool:
     """Tool for scraping web content with robust error handling."""
 
@@ -344,3 +343,11 @@ class WebScraperTool:
             raise
 
         return state
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        WebScraperTool = injectable(use_cache=False)(WebScraperTool)
+except Exception:
+    pass

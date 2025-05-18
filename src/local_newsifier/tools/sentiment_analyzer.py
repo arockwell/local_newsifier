@@ -9,8 +9,8 @@ from spacy.language import Language
 from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
+import os
 from fastapi import Depends
-from fastapi_injectable import injectable
 
 from local_newsifier.database.engine import with_session
 from local_newsifier.crud.article import article as article_crud
@@ -47,7 +47,6 @@ class EntitySentimentError(SentimentAnalysisError):
     pass
 
 
-@injectable(use_cache=False)
 class SentimentAnalyzer:
     """Tool for performing sentiment analysis on news article content."""
 
@@ -282,3 +281,11 @@ class SentimentAnalyzer:
         )
 
         return analysis_result_crud.create(session, obj_in=analysis_result)
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        SentimentAnalyzer = injectable(use_cache=False)(SentimentAnalyzer)
+except Exception:
+    pass

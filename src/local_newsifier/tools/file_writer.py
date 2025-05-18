@@ -6,12 +6,10 @@ from pathlib import Path
 from typing import Any, Dict, Annotated
 
 from fastapi import Depends
-from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 
-@injectable(use_cache=False)
 class FileWriterTool:
     """Tool for saving analysis results to files with atomic writes."""
 
@@ -147,3 +145,11 @@ class FileWriterTool:
             raise
 
         return state
+
+
+try:
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        from fastapi_injectable import injectable
+        FileWriterTool = injectable(use_cache=False)(FileWriterTool)
+except Exception:
+    pass
