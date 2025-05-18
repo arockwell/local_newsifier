@@ -14,7 +14,7 @@ We use Poetry for dependency management:
 
 ```bash
 # Install dependencies using Poetry
-make setup-poetry
+make setup-poetry -- --no-index --find-links=wheels
 
 # Activate the Poetry environment
 poetry shell
@@ -23,9 +23,19 @@ poetry shell
 make setup-spacy
 ```
 
+Running `make setup-poetry -- --no-index --find-links=wheels` installs all
+packages from the `wheels/` directory and is required before executing
+`make test` in an offline environment.
+
 ### Offline Installation
 
-If your deployment environment cannot reach PyPI, the repository includes pre-built wheels for offline installation. If you need to build new wheels on a machine with internet access:
+If your deployment environment cannot reach PyPI, the repository includes pre-built wheels for offline installation.
+
+#### Wheels directory
+
+All wheels live under the `wheels/` directory, organized by Python version and platform. This directory allows Poetry and pip to install packages without internet access.
+
+If you need to build new wheels on a machine with internet access:
 
 ```bash
 # Build wheels for the current Python version on the current platform

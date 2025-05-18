@@ -41,10 +41,11 @@ For details on the architecture and testing strategies see:
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Install dependencies:
+2. Install dependencies from the local wheels directory (required before running tests):
 ```bash
-poetry install
+make setup-poetry -- --no-index --find-links=wheels
 ```
+If you have internet access you can simply run `poetry install` instead.
 
 If your environment lacks internet access, generate the wheels directory on a
 connected machine first:
@@ -58,6 +59,10 @@ Copy the resulting `wheels/` directory and install from it locally:
 ```bash
 pip install --no-index --find-links=wheels -r requirements.txt
 ```
+
+### Offline wheels directory
+
+The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry -- --no-index --find-links=wheels` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
 
 3. Download spaCy model:
 ```bash
