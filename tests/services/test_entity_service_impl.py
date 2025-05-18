@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
 
 import pytest
 from sqlmodel import Session, select
@@ -80,9 +81,18 @@ class TestEntityServiceImplementation:
             "framing": {"category": "informational"}
         }
         return analyzer
-    
+
     @pytest.fixture
-    def entity_service(self, db_session, mock_extractor, mock_resolver, mock_context_analyzer):
+    def session_factory(self, db_session):
+        """Provide a context manager that yields the shared db_session without closing it."""
+        @contextmanager
+        def _factory():
+            yield db_session
+
+        return _factory
+
+    @pytest.fixture
+    def entity_service(self, session_factory, mock_extractor, mock_resolver, mock_context_analyzer):
         """Create an entity service with real session and mocked components."""
         # Create CRUD instances
         entity_crud = CRUDEntity(Entity)
@@ -101,7 +111,7 @@ class TestEntityServiceImplementation:
             entity_extractor=mock_extractor,
             context_analyzer=mock_context_analyzer,
             entity_resolver=mock_resolver,
-            session_factory=lambda: db_session
+            session_factory=session_factory
         )
 
     @pytest.fixture
@@ -121,7 +131,6 @@ class TestEntityServiceImplementation:
         db_session.refresh(article)
         return article
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_article_entities_implementation(self, entity_service, sample_article):
         """Test the actual implementation of process_article_entities."""
         # Process the article with all required parameters
@@ -133,8 +142,8 @@ class TestEntityServiceImplementation:
         )
         
         # Verify that entities were actually created in the database
-        session = entity_service.session_factory()
-        entities = session.exec(select(Entity).where(Entity.article_id == sample_article.id)).all()
+        with entity_service.session_factory() as session:
+            entities = session.exec(select(Entity).where(Entity.article_id == sample_article.id)).all()
         
         # Check the results
         assert len(entities) > 0
@@ -144,8 +153,9 @@ class TestEntityServiceImplementation:
         assert len(entities) == 3  # Based on our mock extractor
         
         # Verify that canonical entities were created
-        canonical_entities = session.exec(select(CanonicalEntity)).all()
-        assert len(canonical_entities) > 0
+        with entity_service.session_factory() as session:
+            canonical_entities = session.exec(select(CanonicalEntity)).all()
+            assert len(canonical_entities) > 0
         
         # Verify result structure
         assert isinstance(result, list)
@@ -155,7 +165,6 @@ class TestEntityServiceImplementation:
         assert "canonical_name" in result[0]
         assert "canonical_id" in result[0]
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_article_with_state_implementation(self, entity_service, sample_article):
         """Test the implementation of process_article_with_state."""
         # Create a tracking state object for the article
@@ -175,15 +184,14 @@ class TestEntityServiceImplementation:
         assert len(result.entities) > 0
         
         # Verify entities were created in database
-        session = entity_service.session_factory()
-        entities = session.exec(select(Entity).where(Entity.article_id == sample_article.id)).all()
-        assert len(entities) > 0
+        with entity_service.session_factory() as session:
+            entities = session.exec(select(Entity).where(Entity.article_id == sample_article.id)).all()
+            assert len(entities) > 0
         
         # Verify result structure
         assert isinstance(result, EntityTrackingState)
         assert len(result.entities) == 3  # Based on our mock extractor
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_process_articles_batch_implementation(self, entity_service, db_session):
         """Test the implementation of process_articles_batch."""
         # Create multiple articles
@@ -219,7 +227,6 @@ class TestEntityServiceImplementation:
         # Even if the process fails, we should have initiated the batch processing
         assert result.total_articles > 0
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_find_entity_relationships_implementation(self, entity_service, db_session):
         """Test the implementation of find_entity_relationships."""
         # Create canonical entities
@@ -287,7 +294,6 @@ class TestEntityServiceImplementation:
         # We just want to make sure the function runs without errors
         assert result.status in [TrackingStatus.SUCCESS, TrackingStatus.FAILED]
 
-    @pytest.mark.skip(reason="Database connection issues need to be fixed in a separate PR")
     def test_generate_entity_dashboard_implementation(self, entity_service, db_session):
         """Test the implementation of generate_entity_dashboard."""
         # Create a canonical entity
