@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch
 
-from fastapi_injectable import Injected, clear_cache
+from fastapi_injectable import clear_cache
 
 from local_newsifier.tools.preprocessing.content_cleaner import ContentCleaner
 from local_newsifier.tools.preprocessing.content_extractor import ContentExtractor
@@ -54,7 +54,7 @@ class TestPreprocessorProviders:
                 "remove_duplicates": False
             }
             
-            cleaner = Injected(get_content_cleaner)
+            cleaner = get_content_cleaner()
             
             assert isinstance(cleaner, ContentCleaner)
             assert cleaner.remove_boilerplate is False
@@ -91,7 +91,7 @@ class TestPreprocessorProviders:
                 "extract_quotes": True
             }
             
-            extractor = Injected(get_content_extractor)
+            extractor = get_content_extractor()
             
             assert isinstance(extractor, ContentExtractor)
             assert extractor.extract_images is False
@@ -129,7 +129,7 @@ class TestPreprocessorProviders:
                 "spacy_model": "en_core_web_sm"
             }
             
-            enhancer = Injected(get_metadata_enhancer)
+            enhancer = get_metadata_enhancer()
             
             assert isinstance(enhancer, MetadataEnhancer)
             assert enhancer.extract_date is True
@@ -150,7 +150,7 @@ class TestPreprocessorProviders:
             mock_enhancer.return_value = MetadataEnhancer()
             
             # Get the preprocessor
-            preprocessor = Injected(get_article_preprocessor)
+            preprocessor = get_article_preprocessor()
             
             # Check that the preprocessor was created correctly
             assert isinstance(preprocessor, ArticlePreprocessor)
