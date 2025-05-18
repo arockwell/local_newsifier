@@ -2,6 +2,20 @@
 
 This guide provides instructions for setting up the Python environment for Local Newsifier using Poetry.
 
+## Quick Setup
+
+If you already have the `wheels/` directory from a machine with internet access,
+you can install dependencies and run the tests with just a few commands:
+
+```bash
+make setup-poetry -- --no-index --find-links=wheels
+make setup-spacy  # optional if spaCy models are available
+make test
+```
+
+For more details on building wheels and troubleshooting offline installation,
+read the remainder of this guide.
+
 ## Python Version
 
 The project requires Python 3.10-3.13, with Python 3.12 recommended to match our CI environment.

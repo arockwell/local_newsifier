@@ -21,6 +21,28 @@ This system automatically fetches local news articles, performs Named Entity Rec
 - Comprehensive logging and monitoring
 - Dependency injection for modular and testable code
 
+## Quick Setup
+
+If you just need to install the dependencies and run the tests, follow these
+steps. They assume you already have a `wheels/` directory created on a machine
+with internet access. See [docs/python_setup.md](docs/python_setup.md) for the
+full details.
+
+```bash
+# Install all packages from the wheels directory
+make setup-poetry -- --no-index --find-links=wheels
+
+# (Optional) Install spaCy models if they are available locally
+make setup-spacy
+
+# Run the full test suite
+make test
+```
+
+If you don't have the wheels directory yet, run `make build-wheels` on a
+connected machine and copy the resulting `wheels/` directory here before running
+these commands.
+
 ## Architecture
 
 ### Dependency Injection
