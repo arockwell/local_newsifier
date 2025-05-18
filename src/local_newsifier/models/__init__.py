@@ -31,6 +31,11 @@ from local_newsifier.models.apify import (
     ApifyCredentials,
     ApifyWebhook,
 )
+from local_newsifier.models.webhook import (
+    ApifyWebhookPayload,
+    ApifyWebhookResponse,
+    ApifyDatasetTransformationConfig,
+)
 
 # Export only the class names, not the actual classes
 __all__ = [
@@ -57,4 +62,8 @@ __all__ = [
     "ApifyDatasetItem",
     "ApifyCredentials",
     "ApifyWebhook",
+    # Webhook models
+    "ApifyWebhookPayload",
+    "ApifyWebhookResponse",
+    "ApifyDatasetTransformationConfig",
 ]

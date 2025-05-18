@@ -17,7 +17,7 @@ interact with the database or maintain state between operations.
 import logging
 from typing import Annotated, Any, Dict, Generator, Optional, TYPE_CHECKING
 
-from fastapi import Depends
+from fastapi import Depends, BackgroundTasks
 from fastapi_injectable import injectable
 
 # Using injectable directly - no scope parameter in version 0.7.0
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from local_newsifier.services.entity_service import EntityService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.apify_service import ApifyService
+    from local_newsifier.services.webhook_service import ApifyWebhookHandler
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
@@ -1039,6 +1040,51 @@ def get_injectable_entity_tracker(
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
     return EntityTracker(entity_service=entity_service, session=session)
+
+
+@injectable(use_cache=False)
+def get_webhook_transformation_config():
+    """Provide the configuration for Apify dataset transformation.
+    
+    This separates configuration from the webhook handler instance, allowing for
+    different configuration settings to be injected.
+    
+    Returns:
+        ApifyDatasetTransformationConfig instance
+    """
+    from local_newsifier.models.webhook import ApifyDatasetTransformationConfig
+    return ApifyDatasetTransformationConfig()
+
+
+@injectable(use_cache=False)
+def get_apify_webhook_handler(
+    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
+    article_service: Annotated["ArticleService", Depends(get_article_service)],
+    transformation_config: Annotated[Any, Depends(get_webhook_transformation_config)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the Apify webhook handler.
+    
+    Uses use_cache=False to create new instances for each injection, as this component
+    maintains state during webhook processing and handles external API calls.
+    
+    Args:
+        apify_service: Service for Apify API interactions
+        article_service: Article service for creating and processing articles
+        transformation_config: Configuration for dataset transformation
+        session: Database session
+        
+    Returns:
+        ApifyWebhookHandler instance
+    """
+    from local_newsifier.services.webhook_service import ApifyWebhookHandler
+    
+    return ApifyWebhookHandler(
+        apify_service=apify_service,
+        article_service=article_service,
+        transformation_config=transformation_config,
+        session_factory=lambda: session
+    )
 
 
 @injectable(use_cache=False)

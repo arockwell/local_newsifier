@@ -114,6 +114,10 @@ class Settings(BaseSettings):
 
     # Apify settings
     APIFY_TOKEN: Optional[str] = Field(default=None, description="Token for Apify API")
+    APIFY_WEBHOOK_SECRET: Optional[str] = Field(
+        default=None, 
+        description="Secret for validating Apify webhook requests"
+    )
     
     def validate_apify_token(self, skip_validation_in_test=False) -> str:
         """Validate that APIFY_TOKEN is set and return it.
