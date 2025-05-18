@@ -348,14 +348,6 @@ The system implements comprehensive error handling:
 - Processing errors
 - State management issues
 
-## State Management
-
-Uses crew.ai's SQLite checkpointer for:
-- Workflow state persistence
-- Progress tracking
-- Error recovery
-- Flow resumption
-
 ## Monitoring
 
 - Comprehensive logging
