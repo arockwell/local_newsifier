@@ -1,4 +1,4 @@
-# Project Chronicle Persistence
+# Local Newsifier
 
 [![Tests](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml/badge.svg)](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml)
 
