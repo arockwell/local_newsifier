@@ -28,10 +28,39 @@ mkdir -p "$WHEEL_OUTPUT_DIR"
 
 # Run a simple container to just build the SQLAlchemy wheel
 echo "Running container to build SQLAlchemy wheel..."
-docker run --rm \
-    -v "$(pwd)/$WHEEL_OUTPUT_DIR:/wheels" \
-    python:${PYTHON_VERSION} \
-    /bin/bash -c "pip install --upgrade pip && pip wheel sqlalchemy==2.0.41 -w /wheels"
+
+# Force x86_64 architecture for Linux builds by using a specific platform tag
+if [[ "$ARCH" == "arm64" ]]; then
+    echo "Building for both arm64 and x64 architectures..."
+    
+    # First build for arm64
+    docker run --rm \
+        -v "$(pwd)/$WHEEL_OUTPUT_DIR:/wheels" \
+        python:${PYTHON_VERSION} \
+        /bin/bash -c "pip install --upgrade pip && pip wheel sqlalchemy==2.0.41 -w /wheels"
+    
+    # Then build for x86_64 (x64)
+    echo "Now building for x86_64 architecture..."
+    X64_WHEEL_DIR="wheels/py${PYTHON_VERSION_DOTLESS}-linux-x64"
+    mkdir -p "$X64_WHEEL_DIR"
+    
+    # Use --platform to specify x86_64 architecture
+    docker run --rm --platform linux/amd64 \
+        -v "$(pwd)/$X64_WHEEL_DIR:/wheels" \
+        python:${PYTHON_VERSION} \
+        /bin/bash -c "pip install --upgrade pip && pip wheel sqlalchemy==2.0.41 -w /wheels"
+    
+    # Create a platform identifier file for x64
+    echo "linux-x64" > "$X64_WHEEL_DIR/.platform"
+    
+    echo "SQLAlchemy wheel for Python $PYTHON_VERSION has been built in $X64_WHEEL_DIR (x86_64)"
+else
+    # Regular build for x64
+    docker run --rm \
+        -v "$(pwd)/$WHEEL_OUTPUT_DIR:/wheels" \
+        python:${PYTHON_VERSION} \
+        /bin/bash -c "pip install --upgrade pip && pip wheel sqlalchemy==2.0.41 -w /wheels"
+fi
 
 # Create a platform identifier file
 echo "linux-${ARCH}" > "$WHEEL_OUTPUT_DIR/.platform"
