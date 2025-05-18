@@ -1,6 +1,6 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make setup-spacy       - Install spaCy models"
 	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
 	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
+	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
 	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
 	@echo "  make test-wheels       - Test offline installation with current Python version on current platform"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
@@ -70,6 +71,15 @@ build-wheels-all:
 		echo "Python 3.13 not found, skipping"; \
 	fi
 	@echo "Wheel building complete for all available Python versions"
+	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+
+build-linux-wheels:
+	@echo "Building wheels for Linux platforms using Docker..."
+	@echo "Building for Python 3.12..."
+	./scripts/build_linux_wheels.sh 3.12
+	@echo "Building for Python 3.13..."
+	./scripts/build_linux_wheels.sh 3.13
+	@echo "Linux wheel building complete"
 	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
 
 organize-wheels:

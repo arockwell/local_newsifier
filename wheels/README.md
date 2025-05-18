@@ -72,8 +72,8 @@ To fully support offline installation across multiple platforms:
    # On macOS with arm64 (M1/M2)
    ./scripts/build_wheels.sh python3.12
    
-   # On Linux with x86_64
-   ./scripts/build_wheels.sh python3.12
+   # On Linux with x86_64 (using Docker)
+   ./scripts/build_linux_wheels.sh 3.12
    
    # On Windows
    ./scripts/build_wheels.sh python3.12
@@ -127,7 +127,11 @@ It could mean either:
 
 3. If still missing, generate wheels for your specific Python version and platform:
    ```bash
+   # For local platform
    ./scripts/build_wheels.sh python3.12
+   
+   # For Linux using Docker
+   ./scripts/build_linux_wheels.sh 3.12
    ```
 
 4. Organize the wheels and commit them for other users:
