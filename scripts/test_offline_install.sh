@@ -46,16 +46,16 @@ WHEELS_DIR="wheels/${PYTHON_DIR}"
 echo "Testing offline installation for Python $PYTHON_VERSION on $OS_TYPE-$ARCH"
 
 # Check if the wheels directory exists
-if [ ! -d "$WHEELS_DIR" ]; then
-    echo "Warning: Platform-specific wheels directory not found: $WHEELS_DIR"
+if [ ! -d "$WHEELS_DIR" ] || [ ! -f "$WHEELS_DIR/sqlalchemy"*".whl" ]; then
+    echo "Warning: Platform-specific wheels directory not found or missing SQLAlchemy wheel: $WHEELS_DIR"
     echo "Checking for Python version-specific directory..."
     
     # Fall back to version-specific directory without platform
     PYTHON_DIR="py${PYTHON_VERSION//./}"
     WHEELS_DIR="wheels/${PYTHON_DIR}"
     
-    if [ ! -d "$WHEELS_DIR" ]; then
-        echo "Error: No wheels directory found for Python $PYTHON_VERSION"
+    if [ ! -d "$WHEELS_DIR" ] || [ ! -f "$WHEELS_DIR/sqlalchemy"*".whl" ]; then
+        echo "Error: No wheels directory or SQLAlchemy wheel found for Python $PYTHON_VERSION"
         echo "Please build wheels first with: ./scripts/build_wheels.sh $PYTHON_CMD"
         echo "For cross-platform support, wheels need to be built on each target platform."
         exit 1
