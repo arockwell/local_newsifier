@@ -12,13 +12,15 @@ This module provides commands for managing Apify source configurations, includin
 import json
 import click
 import logging
+import asyncio
 from datetime import datetime
 from tabulate import tabulate
 from contextlib import contextmanager
 from typing import Optional, Dict, Any
 
 from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
-from local_newsifier.di.providers import get_apify_source_config_crud, get_apify_service
+from local_newsifier.crud.apify_source_config import apify_source_config
+from local_newsifier.services.apify_service import ApifyService
 
 logger = logging.getLogger(__name__)
 
@@ -35,29 +37,51 @@ def get_apify_source_config_service_direct(token: Optional[str] = None):
     Yields:
         ApifySourceConfigService: Service for managing Apify source configurations
     """
-    from local_newsifier.database.engine import get_session as get_db_session
+    from local_newsifier.database.engine import SessionManager
+    from local_newsifier.config.settings import get_settings
     
-    # Create components directly
-    session = next(get_db_session())
-    apify_source_config_crud = get_apify_source_config_crud()
-    apify_service = get_apify_service()
+    # Set up event loop if needed 
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # If there is no event loop, create a new one and set it
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     
-    # Configure token if provided
-    if token:
-        apify_service.token = token
+    # Use SessionManager directly to avoid yield generator issues
+    session_manager = SessionManager()
+    session = session_manager.__enter__()
     
-    # Create service
-    service = ApifySourceConfigService(
-        apify_source_config_crud=apify_source_config_crud,
-        apify_service=apify_service,
-        session_factory=lambda: session
-    )
+    if session is None:
+        logger.error("Failed to create database session")
+        raise RuntimeError("Failed to create database session")
     
     try:
+        # Create components directly (not using DI providers)
+        apify_source_config_crud = apify_source_config
+        
+        # Create Apify service with token from settings or parameter
+        settings = get_settings()
+        apify_service = ApifyService(token=token or settings.APIFY_TOKEN)
+        
+        # Create service with session instance
+        service = ApifySourceConfigService(
+            apify_source_config_crud=apify_source_config_crud,
+            apify_service=apify_service,
+            session_factory=lambda: session
+        )
+        
         yield service
+    except Exception as e:
+        logger.error(f"Error in get_apify_source_config_service_direct: {str(e)}")
+        raise
     finally:
-        # Ensure session is closed
-        session.close()
+        # Ensure session is properly closed
+        try:
+            session_manager.__exit__(None, None, None)
+        except Exception as e:
+            logger.error(f"Error closing session: {str(e)}")
 
 
 @click.group(name="apify-config")
@@ -74,54 +98,57 @@ def apify_config_group():
 @click.option("--source-type", help="Filter by source type (e.g., news, blog)")
 def list_configs(active_only, json_output, limit, skip, source_type):
     """List all Apify source configurations with optional filtering."""
-    with get_apify_source_config_service_direct() as apify_source_config_service:
-        # Get configs based on filters
-        configs_dict = apify_source_config_service.list_configs(
-            skip=skip, 
-            limit=limit, 
-            active_only=active_only, 
-            source_type=source_type
-        )
-    
-    if json_output:
-        click.echo(json.dumps(configs_dict, indent=2, default=str))
-        return
-    
-    if not configs_dict:
-        click.echo("No Apify source configurations found.")
-        return
-    
-    # Format data for table
-    table_data = []
-    for config in configs_dict:
-        last_run = config.get("last_run_at")
-        if last_run:
-            # Handle both datetime and string representations
-            if isinstance(last_run, str):
-                try:
-                    last_run = datetime.fromisoformat(last_run).strftime("%Y-%m-%d %H:%M")
-                except:
-                    # Handle potential format issues
-                    pass
+    try:
+        with get_apify_source_config_service_direct() as apify_source_config_service:
+            # Get configs based on filters
+            configs_dict = apify_source_config_service.list_configs(
+                skip=skip, 
+                limit=limit, 
+                active_only=active_only, 
+                source_type=source_type
+            )
         
-        # Truncate input_configuration if it's too long
-        input_config = str(config.get("input_configuration", {}))
-        if len(input_config) > 30:
-            input_config = input_config[:27] + "..."
-        
-        table_data.append([
-            config["id"],
-            config["name"],
-            config["actor_id"],
-            config["source_type"],
-            "✓" if config["is_active"] else "✗",
-            last_run or "Never",
-            input_config
-        ])
-    
-    # Display table
-    headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
-    click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+            if json_output:
+                click.echo(json.dumps(configs_dict, indent=2, default=str))
+                return
+            
+            if not configs_dict:
+                click.echo("No Apify source configurations found.")
+                return
+            
+            # Format data for table
+            table_data = []
+            for config in configs_dict:
+                last_run = config.get("last_run_at")
+                if last_run:
+                    # Handle both datetime and string representations
+                    if isinstance(last_run, str):
+                        try:
+                            last_run = datetime.fromisoformat(last_run).strftime("%Y-%m-%d %H:%M")
+                        except:
+                            # Handle potential format issues
+                            pass
+                
+                # Truncate input_configuration if it's too long
+                input_config = str(config.get("input_configuration", {}))
+                if len(input_config) > 30:
+                    input_config = input_config[:27] + "..."
+                
+                table_data.append([
+                    config["id"],
+                    config["name"],
+                    config["actor_id"],
+                    config["source_type"],
+                    "✓" if config["is_active"] else "✗",
+                    last_run or "Never",
+                    input_config
+                ])
+            
+            # Display table
+            headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+    except Exception as e:
+        click.echo(click.style(f"Error listing configurations: {str(e)}", fg="red"), err=True)
 
 
 @apify_config_group.command(name="add")

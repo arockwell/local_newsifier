@@ -8,7 +8,13 @@ operations from the command line.
 
 import sys
 import click
+import asyncio
+import logging
 from tabulate import tabulate
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -58,9 +64,32 @@ else:
     cli.add_command(apify_config_group)
 
 
+def setup_event_loop():
+    """Set up an event loop for CLI commands if one doesn't exist.
+    
+    This is needed because some components (like fastapi-injectable dependencies)
+    expect an event loop to be present, even in a CLI context.
+    """
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+        logger.debug("Using existing event loop")
+        return loop
+    except RuntimeError:
+        # If there is no event loop, create a new one and set it
+        logger.debug("Creating new event loop for CLI")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
+
+
 def main():
     """Run the CLI application."""
     try:
+        # Set up event loop before running CLI commands
+        setup_event_loop()
+        
+        # Run the CLI application
         cli()
     except Exception as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
