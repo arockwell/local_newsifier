@@ -75,7 +75,8 @@ class ApifySourceConfigService:
                 )
             
             # Convert to dictionaries
-            return [config.model_dump() for config in configs]
+            # Use explicit parameters for model_dump to avoid any environment variable reference
+            return [config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False) for config in configs]
     
     @handle_service_error(service="apify")
     def get_config(self, config_id: int) -> Optional[Dict[str, Any]]:
@@ -91,7 +92,7 @@ class ApifySourceConfigService:
             config = self.apify_source_config_crud.get(session, id=config_id)
             if not config:
                 return None
-            return config.model_dump()
+            return config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
     
     @handle_service_error(service="apify")
     def create_config(
@@ -142,7 +143,7 @@ class ApifySourceConfigService:
                 config = self.apify_source_config_crud.create(
                     session, obj_in=config_data
                 )
-                return config.model_dump()
+                return config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
             except ServiceError as e:
                 # Re-raise ServiceError
                 raise e
@@ -213,7 +214,7 @@ class ApifySourceConfigService:
                 updated_config = self.apify_source_config_crud.update(
                     session, db_obj=db_config, obj_in=update_data
                 )
-                return updated_config.model_dump()
+                return updated_config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
             except ServiceError as e:
                 # Re-raise ServiceError
                 raise e
@@ -275,7 +276,7 @@ class ApifySourceConfigService:
             )
             if not updated_config:
                 return None
-            return updated_config.model_dump()
+            return updated_config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False)
     
     @handle_service_error(service="apify")
     def run_configuration(self, config_id: int) -> Dict[str, Any]:
@@ -363,4 +364,4 @@ class ApifySourceConfigService:
             configs = self.apify_source_config_crud.get_scheduled_configs(
                 session, enabled_only=enabled_only
             )
-            return [config.model_dump() for config in configs]
+            return [config.model_dump(exclude_none=False, exclude_unset=False, exclude_defaults=False) for config in configs]
