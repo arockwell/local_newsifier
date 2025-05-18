@@ -2,7 +2,7 @@
 
 import os
 import logging
-from unittest.mock import patch, Mock, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from contextlib import asynccontextmanager
 
 import pytest
@@ -38,14 +38,28 @@ def client(event_loop_fixture):
         mock_article.status = "processed"
         mock_articles.append(mock_article)
     
-    # Setup any required mocks for database operations to avoid actual DB connections
-    with patch("local_newsifier.database.engine.create_db_and_tables"), \
-         patch("local_newsifier.database.engine.get_engine"), \
-         patch("local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles):
-        
-        # Create a TestClient with proper event loop handling
+    # Setup mocks for database operations to avoid actual DB connections
+    from sqlmodel import Session
+    from local_newsifier.di.providers import get_session, get_article_crud
+
+    mock_session = MagicMock(spec=Session)
+    mock_article_crud = MagicMock()
+    mock_article_crud.get_by_date_range.return_value = mock_articles
+
+    def override_get_session():
+        yield mock_session
+
+    def override_get_article_crud():
+        return mock_article_crud
+
+    with patch("local_newsifier.database.engine.create_db_and_tables"):
+        app.dependency_overrides[get_session] = override_get_session
+        app.dependency_overrides[get_article_crud] = override_get_article_crud
+
         client = TestClient(app)
         yield client
+
+        app.dependency_overrides = {}
 
 
 @pytest.fixture
