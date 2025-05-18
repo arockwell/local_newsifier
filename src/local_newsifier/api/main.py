@@ -18,7 +18,6 @@ from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
-# Importing only what we need - no container migration
 
 # Configure logging
 logging.basicConfig(
