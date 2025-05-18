@@ -77,9 +77,13 @@ build-linux-wheels:
 	@echo "Building wheels for Linux platforms using Docker..."
 	@echo "Building for Python 3.12..."
 	./scripts/build_linux_wheels.sh 3.12
-	@echo "Building for Python 3.13..."
-	./scripts/build_linux_wheels.sh 3.13
 	@echo "Linux wheel building complete"
+	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+
+build-linux-wheels-py312:
+	@echo "Building wheels for Python 3.12 on Linux platforms using Docker..."
+	./scripts/build_linux_wheels.sh 3.12
+	@echo "Python 3.12 Linux wheel building complete"
 	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
 
 organize-wheels:
