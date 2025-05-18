@@ -205,7 +205,6 @@ class TestAppConfiguration:
         
         # Check for tasks routes
         assert "/tasks/" in routes
-        assert "/tasks/status/{task_id}" in routes
         
         # Check for main routes
         assert "/" in routes

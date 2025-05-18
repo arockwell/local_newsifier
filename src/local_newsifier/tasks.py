@@ -1,16 +1,12 @@
 """
-Celery task definitions for the Local Newsifier project.
-This module defines asynchronous tasks for processing articles and fetching RSS feeds.
+Task utilities for the Local Newsifier project.
+Celery has been removed, so these functions now execute synchronously.
 """
 
 import logging
 from typing import Dict, List, Optional, Iterator
 
-from celery import Task, current_task
-from celery.signals import worker_ready
 from sqlmodel import Session
-
-from local_newsifier.celery_app import app
 from local_newsifier.config.settings import settings
 from local_newsifier.di.providers import get_session
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
@@ -26,7 +22,7 @@ def get_db() -> Iterator[Session]:
     with next(get_session()) as session:
         yield session
 
-class BaseTask(Task):
+class BaseTask:
     """Base Task class with common functionality for all tasks."""
     
     def __init__(self):
@@ -110,8 +106,9 @@ class BaseTask(Task):
                 logger.error(f"Error cleaning up session: {e}")
 
 
-@app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.process_article")
-def process_article(self, article_id: int) -> Dict:
+def process_article(article_id: int) -> Dict:
+    """Process an article synchronously."""
+    task = BaseTask()
     """
     Process an article asynchronously.
 
@@ -126,9 +123,9 @@ def process_article(self, article_id: int) -> Dict:
     # Always return a response, even when exceptions occur
     try:
         # Use proper session management with context manager
-        with self.session_factory() as session:
+        with task.session_factory() as session:
             # Get the article from the database
-            article = self.article_crud.get(session, id=article_id)
+            article = task.article_crud.get(session, id=article_id)
             if not article:
                 logger.error(f"Article with ID {article_id} not found")
                 return {"article_id": article_id, "status": "error", "message": "Article not found"}
@@ -171,8 +168,9 @@ def process_article(self, article_id: int) -> Dict:
         return result
 
 
-@app.task(bind=True, base=BaseTask, name="local_newsifier.tasks.fetch_rss_feeds")
-def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
+def fetch_rss_feeds(feed_urls: Optional[List[str]] = None) -> Dict:
+    """Fetch and process articles from RSS feeds synchronously."""
+    task = BaseTask()
     """
     Fetch and process articles from RSS feeds.
 
@@ -197,7 +195,7 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
     
     try:
         # Use proper session management with context manager
-        with self.session_factory() as session:
+        with task.session_factory() as session:
             # Get RSSParser from providers
             from local_newsifier.di.providers import get_rss_parser
             rss_parser = get_rss_parser()
@@ -218,14 +216,14 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
                     # Process each article in the feed
                     for entry in feed_data.get("entries", []):
                         # Check if article already exists
-                        existing = self.article_crud.get_by_url(session, url=entry.get("link", ""))
+                        existing = task.article_crud.get_by_url(session, url=entry.get("link", ""))
                         
                         if not existing:
                             # Create and save new article
-                            article_id = self.article_service.create_article_from_rss_entry(entry)
+                            article_id = task.article_service.create_article_from_rss_entry(entry)
                             if article_id:
                                 # Queue article processing task
-                                process_article.delay(article_id)
+                                process_article(article_id)
                                 feed_result["articles_processed"] += 1
                                 results["articles_added"] += 1
                     
@@ -248,16 +246,10 @@ def fetch_rss_feeds(self, feed_urls: Optional[List[str]] = None) -> Dict:
         logger.exception(f"Error fetching RSS feeds: {error_msg}")
         # Make sure we always return a valid dictionary response
         return {
-            "status": "error", 
+            "status": "error",
             "message": error_msg,
             "feeds_processed": 0,
             "articles_found": 0,
             "articles_added": 0,
             "feeds": []
         }
-
-
-@worker_ready.connect
-def on_worker_ready(sender, **kwargs):
-    """Signal handler for worker_ready event."""
-    logger.info("Celery worker is ready")
