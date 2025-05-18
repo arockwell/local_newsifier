@@ -41,7 +41,7 @@ class ApifyService:
         if self._client is None:
             # For test mode, use a dummy token if not provided
             if self._test_mode and not self._token and not settings.APIFY_TOKEN:
-                logging.warning("Running in test mode with dummy APIFY_TOKEN")
+                logging.debug("Running in test mode with dummy APIFY_TOKEN")
                 token = "test_dummy_token"
             else:
                 # Get token from settings if not provided

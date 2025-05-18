@@ -135,7 +135,7 @@ class Settings(BaseSettings):
         if skip_validation_in_test and in_test_env:
             if not self.APIFY_TOKEN:
                 import logging
-                logging.warning("Using dummy Apify token for testing")
+                logging.debug("Using dummy Apify token for testing")
                 return "test_dummy_token"
         
         # Standard validation
