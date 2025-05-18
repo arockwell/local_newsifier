@@ -75,6 +75,30 @@ Verify that the wheels installation works correctly:
 ./scripts/test_offline_install.sh python3.12
 ```
 
+### Dev Dependency Wheels
+
+Development tools are defined in `[tool.poetry.group.dev.dependencies]` inside
+`pyproject.toml`. Generate wheels for these packages (either extend
+`scripts/build_wheels.sh` or create a dedicated `scripts/build_dev_wheels.sh`)
+so they live in the same `wheels/py<version>-<platform>/` directory as the
+runtime wheels.
+
+Before running the test suite, install these dev wheels. You can list the
+packages explicitly:
+
+```bash
+pip install --no-index --find-links=wheels/py312-linux-x64 \
+    pytest pytest-mock pytest-asyncio pre-commit black isort \
+    flake8 flake8-docstrings pytest-profiling pytest-xdist
+```
+
+Alternatively, maintain a `requirements-dev.txt` file with the dev packages and
+install it in the same way:
+
+```bash
+pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements-dev.txt
+```
+
 ### Directory Structure
 
 The wheels are organized by Python version and platform:
