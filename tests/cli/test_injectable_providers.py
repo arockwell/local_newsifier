@@ -8,7 +8,6 @@ from local_newsifier.di.providers import get_apify_service_cli
 from local_newsifier.services.apify_service import ApifyService
 
 
-@pytest.mark.skip(reason="Event loop issues in CI environment")
 @patch("local_newsifier.config.settings.settings")
 @patch("os.environ.get", return_value=None)  # Disable test detection
 def test_get_apify_service_cli_with_provided_token(mock_environ_get, mock_settings):
@@ -28,11 +27,9 @@ def test_get_apify_service_cli_with_provided_token(mock_environ_get, mock_settin
     assert service._token == token
 
 
-# Skip the other tests since they depend on the internal implementation details
-# that are hard to mock correctly in pytest, and we've verified the basic functionality works
 
 
-@pytest.mark.skip(reason="Event loop issues in CI environment")
+
 def test_service_creation_basic():
     """Basic test that service is created without errors."""
     # Test basic instantiation works
