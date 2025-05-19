@@ -166,6 +166,30 @@ def test_db_purge_duplicates_no_duplicates(mock_get_injected_obj):
     runner = CliRunner()
     # Use --yes to skip confirmation prompt
     result = runner.invoke(cli, ["db", "purge-duplicates", "--yes"])
-    
+
     assert result.exit_code == 0
     assert "No duplicate articles found" in result.output
+
+
+@patch('local_newsifier.cli.commands.db.get_injected_obj')
+def test_db_show_schema_error(mock_get_injected_obj):
+    """Test show-schema command handles errors gracefully."""
+    mock_session = MagicMock()
+    mock_session_gen = MagicMock()
+    mock_session_gen.__next__.return_value = mock_session
+
+    def side_effect(provider):
+        if provider == get_session:
+            return mock_session_gen
+        else:
+            return MagicMock()
+
+    mock_get_injected_obj.side_effect = side_effect
+
+    mock_session.exec.side_effect = Exception("table not found")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["db", "show-schema", "--table", "invalid_table"])
+
+    assert result.exit_code == 1
+    assert "Error" in result.output

@@ -535,6 +535,40 @@ def purge_duplicates(dry_run: bool, json_output: bool):
         click.echo(f"  Removed article IDs: {', '.join(map(str, result['removed_ids']))}")
 
 
+@db_group.command(name="show-schema")
+@click.option("--table", "table_name", required=True, help="Table name to inspect")
+def show_schema(table_name: str):
+    """Show the schema for a specific database table."""
+    session_gen = get_injected_obj(get_session)
+    session = next(session_gen)
+
+    try:
+        query = text(
+            """
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_name = :table_name
+            ORDER BY ordinal_position
+            """
+        ).bindparams(table_name=table_name)
+
+        columns = session.exec(query).all()
+
+        if not columns:
+            raise ValueError(f"Table '{table_name}' not found")
+
+        click.echo(
+            tabulate(
+                columns,
+                headers=["Column", "Type", "Nullable", "Default"],
+                tablefmt="simple",
+            )
+        )
+    except Exception as e:
+        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+        raise click.ClickException(str(e))
+
+
 def format_datetime(dt):
     """Format a datetime object for display."""
     if not dt:
