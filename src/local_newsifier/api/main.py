@@ -12,6 +12,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi_injectable import register_app
 from sqlmodel import Session
 
+from local_newsifier.di.providers import get_session, get_article_crud
+
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
 from local_newsifier.api.dependencies import get_templates
@@ -76,7 +78,9 @@ app.include_router(tasks.router)
 @app.get("/", response_class=HTMLResponse)
 async def root(
     request: Request,
-    templates: Jinja2Templates = Depends(get_templates)
+    templates: Jinja2Templates = Depends(get_templates),
+    session: Session = Depends(get_session),
+    article_crud = Depends(get_article_crud),
 ):
     """Root endpoint serving home page with recent headlines."""
     # Get recent articles from the last 30 days
@@ -85,35 +89,30 @@ async def root(
     
     recent_articles_data = []
     try:
-        # Use a synchronous session to avoid event loop issues
-        from local_newsifier.database.engine import SessionManager
-        from local_newsifier.crud.article import article as article_crud_instance
-        
-        with SessionManager() as session:
-            articles = article_crud_instance.get_by_date_range(
-                session, 
-                start_date=start_date, 
-                end_date=end_date
-            )
-            
-            # Order by published date (newest first) and limit to 20 articles
-            articles = sorted(
-                articles, 
-                key=lambda x: x.published_at, 
-                reverse=True
-            )[:20]
-            
-            # Convert SQLModel objects to dictionaries to avoid detached instance errors
-            for article in articles:
-                article_dict = {
-                    "id": article.id,
-                    "title": article.title,
-                    "url": article.url,
-                    "source": article.source,
-                    "published_at": article.published_at,
-                    "status": article.status
-                }
-                recent_articles_data.append(article_dict)
+        articles = article_crud.get_by_date_range(
+            session,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Order by published date (newest first) and limit to 20 articles
+        articles = sorted(
+            articles,
+            key=lambda x: x.published_at,
+            reverse=True,
+        )[:20]
+
+        # Convert SQLModel objects to dictionaries to avoid detached instance errors
+        for article in articles:
+            article_dict = {
+                "id": article.id,
+                "title": article.title,
+                "url": article.url,
+                "source": article.source,
+                "published_at": article.published_at,
+                "status": article.status,
+            }
+            recent_articles_data.append(article_dict)
     except Exception as e:
         logger.error(f"Error fetching recent articles: {str(e)}")
     

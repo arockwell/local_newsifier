@@ -39,8 +39,14 @@ def client(event_loop_fixture):
         mock_articles.append(mock_article)
     
     # Setup any required mocks for database operations to avoid actual DB connections
+    mock_session = MagicMock()
+
+    def override_get_session():
+        yield mock_session
+
     with patch("local_newsifier.database.engine.create_db_and_tables"), \
          patch("local_newsifier.database.engine.get_engine"), \
+         patch("local_newsifier.api.main.get_session", override_get_session), \
          patch("local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles):
         
         # Create a TestClient with proper event loop handling
