@@ -80,6 +80,7 @@ On the target machine without internet access, install packages using the approp
 ```bash
 # For Python 3.12 on Linux x64
 python3.12 -m pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements.txt
+python3.12 -m pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements-dev.txt
 
 # If platform-specific directory isn't available, fall back to version directory
 python3.12 -m pip install --no-index --find-links=wheels/py312 -r requirements.txt
