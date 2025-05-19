@@ -1,11 +1,21 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable
+from typing import Annotated, Callable, Dict, List, Optional
 
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
+
+from local_newsifier.crud.analysis_result import CRUDAnalysisResult
+from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.di.providers import (
+    get_analysis_result_crud,
+    get_article_crud,
+    get_entity_service,
+    get_session,
+)
+from local_newsifier.services.entity_service import EntityService
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
@@ -18,10 +28,10 @@ class ArticleService:
     
     def __init__(
         self,
-        article_crud,
-        analysis_result_crud,
-        entity_service,
-        session_factory: Callable,
+        article_crud: Annotated[CRUDArticle, Depends(get_article_crud)],
+        analysis_result_crud: Annotated[CRUDAnalysisResult, Depends(get_analysis_result_crud)],
+        entity_service: Annotated[EntityService, Depends(get_entity_service)],
+        session_factory: Callable[[], Session],
     ):
         """Initialize with dependencies.
         

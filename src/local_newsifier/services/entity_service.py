@@ -1,11 +1,32 @@
 """Entity service for coordinating entity-related operations."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Callable
+from typing import Callable, Dict, List, Optional, Any, Annotated
 
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
+
+from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
+from local_newsifier.crud.entity import CRUDEntity
+from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
+from local_newsifier.crud.entity_profile import CRUDEntityProfile
+from local_newsifier.di.providers import (
+    get_article_crud,
+    get_canonical_entity_crud,
+    get_entity_crud,
+    get_entity_mention_context_crud,
+    get_entity_profile_crud,
+    get_entity_extractor,
+    get_context_analyzer_tool,
+    get_entity_resolver,
+    get_session,
+)
+from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
 
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
@@ -18,15 +39,15 @@ class EntityService:
     
     def __init__(
         self,
-        entity_crud,
-        canonical_entity_crud,
-        entity_mention_context_crud,
-        entity_profile_crud,
-        article_crud,
-        entity_extractor,
-        context_analyzer,
-        entity_resolver,
-        session_factory: Callable
+        entity_crud: Annotated[CRUDEntity, Depends(get_entity_crud)],
+        canonical_entity_crud: Annotated[CRUDCanonicalEntity, Depends(get_canonical_entity_crud)],
+        entity_mention_context_crud: Annotated[CRUDEntityMentionContext, Depends(get_entity_mention_context_crud)],
+        entity_profile_crud: Annotated[CRUDEntityProfile, Depends(get_entity_profile_crud)],
+        article_crud: Annotated[CRUDArticle, Depends(get_article_crud)],
+        entity_extractor: Annotated[EntityExtractor, Depends(get_entity_extractor)],
+        context_analyzer: Annotated[ContextAnalyzer, Depends(get_context_analyzer_tool)],
+        entity_resolver: Annotated[EntityResolver, Depends(get_entity_resolver)],
+        session_factory: Callable[[], Session]
     ):
         """Initialize with dependencies.
         
