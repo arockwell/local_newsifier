@@ -11,7 +11,8 @@ from celery.result import AsyncResult
 from local_newsifier.tasks import (
     fetch_rss_feeds,
     process_article,
-    BaseTask
+    BaseTask,
+    run_injectable_provider
 )
 
 
@@ -33,7 +34,7 @@ class TestBaseTask:
     
     @patch("local_newsifier.database.engine.get_session")
     def test_session_factory_property(self, mock_get_session):
-        """Test that the session_factory property returns a lambda using get_session."""
+        """Test that the session_factory property returns get_session directly."""
         # Set up mock
         mock_get_session.return_value = Mock()
         
@@ -46,19 +47,17 @@ class TestBaseTask:
         # Access the session_factory property
         factory = task.session_factory
         
-        # Should be a lambda function that calls get_session
-        assert callable(factory)
-        
-        # Call the factory to make sure it uses get_session
-        factory()
-        mock_get_session.assert_called_once()
+        # Should be the get_session function itself
+        assert factory is mock_get_session
     
+    @patch("local_newsifier.tasks.run_injectable_provider")
     @patch("local_newsifier.database.engine.get_session")
-    def test_db_property(self, mock_get_session):
+    def test_db_property(self, mock_get_session, mock_run_injectable_provider):
         """Test that the db property returns a database session from session factory."""
         # Set up mock
         mock_session = Mock()
-        mock_get_session.return_value = iter([mock_session])  # Return a generator with one item
+        mock_session_generator = iter([mock_session])
+        mock_get_session.return_value = mock_session_generator
         
         # Need to get a task instance to test
         task = process_article
@@ -72,11 +71,11 @@ class TestBaseTask:
         assert db is mock_session
         mock_get_session.assert_called_once()
         
-    @patch("local_newsifier.di.providers.get_article_service")
-    def test_article_service_property(self, mock_get_article_service):
-        """Test that the article_service property returns service from provider."""
+    @patch("local_newsifier.tasks.run_injectable_provider")
+    def test_article_service_property(self, mock_run_injectable_provider):
+        """Test that the article_service property returns service using run_injectable_provider."""
         mock_service = Mock()
-        mock_get_article_service.return_value = mock_service
+        mock_run_injectable_provider.return_value = mock_service
         
         # Need to get a task instance to test
         task = process_article
@@ -84,15 +83,15 @@ class TestBaseTask:
         # Access the article_service property
         service = task.article_service
         
-        # Verify the provider function was used
+        # Verify the run_injectable_provider was used
         assert service is mock_service
-        mock_get_article_service.assert_called_once()
+        mock_run_injectable_provider.assert_called_once()
         
-    @patch("local_newsifier.di.providers.get_article_crud")
-    def test_article_crud_property(self, mock_get_article_crud):
-        """Test that the article_crud property returns crud from provider."""
+    @patch("local_newsifier.tasks.run_injectable_provider")
+    def test_article_crud_property(self, mock_run_injectable_provider):
+        """Test that the article_crud property returns crud using run_injectable_provider."""
         mock_crud = Mock()
-        mock_get_article_crud.return_value = mock_crud
+        mock_run_injectable_provider.return_value = mock_crud
         
         # Need to get a task instance to test
         task = process_article
@@ -100,15 +99,15 @@ class TestBaseTask:
         # Access the article_crud property
         crud = task.article_crud
         
-        # Verify the provider function was used
+        # Verify the run_injectable_provider was used
         assert crud is mock_crud
-        mock_get_article_crud.assert_called_once()
+        mock_run_injectable_provider.assert_called_once()
         
-    @patch("local_newsifier.di.providers.get_entity_crud")
-    def test_entity_crud_property(self, mock_get_entity_crud):
-        """Test that the entity_crud property returns crud from provider."""
+    @patch("local_newsifier.tasks.run_injectable_provider")
+    def test_entity_crud_property(self, mock_run_injectable_provider):
+        """Test that the entity_crud property returns crud using run_injectable_provider."""
         mock_crud = Mock()
-        mock_get_entity_crud.return_value = mock_crud
+        mock_run_injectable_provider.return_value = mock_crud
         
         # Need to get a task instance to test
         task = process_article
@@ -116,20 +115,17 @@ class TestBaseTask:
         # Access the entity_crud property
         crud = task.entity_crud
         
-        # Verify the provider function was used
+        # Verify the run_injectable_provider was used
         assert crud is mock_crud
-        mock_get_entity_crud.assert_called_once()
+        mock_run_injectable_provider.assert_called_once()
 
 
 class TestProcessArticle:
     """Tests for the process_article task."""
     
-    @patch("local_newsifier.di.providers.get_entity_tracking_flow")
-    @patch("local_newsifier.di.providers.get_news_pipeline_flow")
-    @patch("local_newsifier.di.providers.get_article_crud")
+    @patch("local_newsifier.tasks.run_injectable_provider")
     def test_process_article_success(
-        self, mock_get_article_crud, mock_get_news_pipeline_flow,
-        mock_get_entity_tracking_flow, mock_article
+        self, mock_run_injectable_provider, mock_article
     ):
         """Test that the process_article task processes an article successfully."""
         # Setup mocks for provider functions
@@ -137,9 +133,17 @@ class TestProcessArticle:
         mock_pipeline = Mock()
         mock_entity_flow = Mock()
         
-        mock_get_article_crud.return_value = mock_article_crud
-        mock_get_news_pipeline_flow.return_value = mock_pipeline
-        mock_get_entity_tracking_flow.return_value = mock_entity_flow
+        # Configure run_injectable_provider to return different values based on the argument
+        def get_mock_provider(provider_func):
+            if provider_func.__name__ == 'get_article_crud':
+                return mock_article_crud
+            elif provider_func.__name__ == 'get_news_pipeline_flow':
+                return mock_pipeline
+            elif provider_func.__name__ == 'get_entity_tracking_flow':
+                return mock_entity_flow
+            return None
+            
+        mock_run_injectable_provider.side_effect = get_mock_provider
         
         # Setup return values
         mock_article_crud.get.return_value = mock_article
@@ -148,23 +152,14 @@ class TestProcessArticle:
         # Create a mock task instance with a mock session factory
         task = process_article
         mock_session = Mock()
-        mock_session_generator = iter([mock_session])
         
         # Setup get_session to return our mock session
         with patch("local_newsifier.database.engine.get_session") as mock_get_session:
-            mock_get_session.return_value = mock_session_generator
-            
-            # Create a context manager for session
-            mock_session_ctx = MagicMock()
-            mock_session_ctx.__enter__.return_value = mock_session
-            task._session_factory = lambda **kwargs: mock_session_ctx
+            mock_get_session.return_value = MagicMock(__enter__=MagicMock(return_value=mock_session),
+                                                     __exit__=MagicMock(return_value=None))
             
             # Call the task
             result = process_article(mock_article.id)
-            
-            # Verify session was used properly
-            mock_session_ctx.__enter__.assert_called_once()
-            mock_session_ctx.__exit__.assert_called_once_with(None, None, None)
             
             # Verify task called methods with session
             mock_article_crud.get.assert_called_once_with(mock_session, id=mock_article.id)
@@ -178,12 +173,12 @@ class TestProcessArticle:
             assert result["entities_found"] == 1
             assert result["article_title"] == mock_article.title
         
-    @patch("local_newsifier.di.providers.get_article_crud")
-    def test_process_article_not_found(self, mock_get_article_crud):
+    @patch("local_newsifier.tasks.run_injectable_provider")
+    def test_process_article_not_found(self, mock_run_injectable_provider):
         """Test that the process_article task handles a missing article properly."""
         # Setup mocks for provider functions
         mock_article_crud = Mock()
-        mock_get_article_crud.return_value = mock_article_crud
+        mock_run_injectable_provider.return_value = mock_article_crud
         
         # Setup return values
         mock_article_crud.get.return_value = None
@@ -191,23 +186,14 @@ class TestProcessArticle:
         # Create a mock task instance with a mock session factory
         task = process_article
         mock_session = Mock()
-        mock_session_generator = iter([mock_session])
         
         # Setup get_session to return our mock session
         with patch("local_newsifier.database.engine.get_session") as mock_get_session:
-            mock_get_session.return_value = mock_session_generator
-            
-            # Create a context manager for session
-            mock_session_ctx = MagicMock()
-            mock_session_ctx.__enter__.return_value = mock_session
-            task._session_factory = lambda **kwargs: mock_session_ctx
+            mock_get_session.return_value = MagicMock(__enter__=MagicMock(return_value=mock_session),
+                                                     __exit__=MagicMock(return_value=None))
             
             # Call the task
             result = process_article(999)
-            
-            # Verify session was used properly
-            mock_session_ctx.__enter__.assert_called_once()
-            mock_session_ctx.__exit__.assert_called_once_with(None, None, None)
             
             # Verify task called methods with session
             mock_article_crud.get.assert_called_once_with(mock_session, id=999)
@@ -254,12 +240,9 @@ class TestFetchRssFeeds:
     """Tests for the fetch_rss_feeds task."""
     
     @patch("local_newsifier.tasks.parse_rss_feed")
-    @patch("local_newsifier.di.providers.get_article_service")
-    @patch("local_newsifier.di.providers.get_article_crud")
-    @patch("local_newsifier.di.providers.get_rss_parser")
+    @patch("local_newsifier.tasks.run_injectable_provider")
     def test_fetch_rss_feeds_success(
-        self, mock_get_rss_parser, mock_get_article_crud,
-        mock_get_article_service, mock_parse_rss
+        self, mock_run_injectable_provider, mock_parse_rss
     ):
         """Test that the fetch_rss_feeds task fetches feeds successfully."""
         # Setup mocks for provider functions
@@ -267,14 +250,21 @@ class TestFetchRssFeeds:
         mock_article_crud = Mock()
         mock_article_service = Mock()
         
-        mock_get_rss_parser.return_value = mock_rss_parser
-        mock_get_article_crud.return_value = mock_article_crud
-        mock_get_article_service.return_value = mock_article_service
+        # Configure run_injectable_provider to return different values based on the argument
+        def get_mock_provider(provider_func):
+            if provider_func.__name__ == 'get_rss_parser':
+                return mock_rss_parser
+            elif provider_func.__name__ == 'get_article_crud':
+                return mock_article_crud
+            elif provider_func.__name__ == 'get_article_service':
+                return mock_article_service
+            return None
+            
+        mock_run_injectable_provider.side_effect = get_mock_provider
         
         # Create a mock task instance with a mock session factory
         task = fetch_rss_feeds
         mock_session = Mock()
-        mock_session_generator = iter([mock_session])
         
         # Setup mocks
         feed_urls = ["https://example.com/feed1", "https://example.com/feed2"]
@@ -304,12 +294,8 @@ class TestFetchRssFeeds:
         
         # Setup get_session to return our mock session
         with patch("local_newsifier.database.engine.get_session") as mock_get_session:
-            mock_get_session.return_value = mock_session_generator
-            
-            # Create a context manager for session
-            mock_session_ctx = MagicMock()
-            mock_session_ctx.__enter__.return_value = mock_session
-            task._session_factory = lambda **kwargs: mock_session_ctx
+            mock_get_session.return_value = MagicMock(__enter__=MagicMock(return_value=mock_session),
+                                                     __exit__=MagicMock(return_value=None))
             
             # Mock process_article task
             with patch("local_newsifier.tasks.process_article") as mock_process:
@@ -318,10 +304,6 @@ class TestFetchRssFeeds:
                 
                 # Call the task
                 result = fetch_rss_feeds(feed_urls)
-                
-                # Verify session was used properly
-                mock_session_ctx.__enter__.assert_called_once()
-                mock_session_ctx.__exit__.assert_called_once_with(None, None, None)
                 
                 # Verify methods were called with session
                 assert mock_article_crud.get_by_url.call_count == 3
@@ -341,12 +323,9 @@ class TestFetchRssFeeds:
                 assert result["articles_added"] == 3
         
     @patch("local_newsifier.tasks.parse_rss_feed")
-    @patch("local_newsifier.di.providers.get_article_service")
-    @patch("local_newsifier.di.providers.get_article_crud")
-    @patch("local_newsifier.di.providers.get_rss_parser")
+    @patch("local_newsifier.tasks.run_injectable_provider")
     def test_fetch_rss_feeds_with_existing_articles(
-        self, mock_get_rss_parser, mock_get_article_crud,
-        mock_get_article_service, mock_parse_rss
+        self, mock_run_injectable_provider, mock_parse_rss
     ):
         """Test that the fetch_rss_feeds task handles existing articles properly."""
         # Setup mocks for provider functions
@@ -354,14 +333,21 @@ class TestFetchRssFeeds:
         mock_article_crud = Mock()
         mock_article_service = Mock()
         
-        mock_get_rss_parser.return_value = mock_rss_parser
-        mock_get_article_crud.return_value = mock_article_crud
-        mock_get_article_service.return_value = mock_article_service
+        # Configure run_injectable_provider to return different values based on the argument
+        def get_mock_provider(provider_func):
+            if provider_func.__name__ == 'get_rss_parser':
+                return mock_rss_parser
+            elif provider_func.__name__ == 'get_article_crud':
+                return mock_article_crud
+            elif provider_func.__name__ == 'get_article_service':
+                return mock_article_service
+            return None
+            
+        mock_run_injectable_provider.side_effect = get_mock_provider
         
         # Create a mock task instance with a mock session factory
         task = fetch_rss_feeds
         mock_session = Mock()
-        mock_session_generator = iter([mock_session])
         
         # Setup mocks
         feed_urls = ["https://example.com/feed1"]
@@ -384,12 +370,8 @@ class TestFetchRssFeeds:
         
         # Setup get_session to return our mock session
         with patch("local_newsifier.database.engine.get_session") as mock_get_session:
-            mock_get_session.return_value = mock_session_generator
-            
-            # Create a context manager for session
-            mock_session_ctx = MagicMock()
-            mock_session_ctx.__enter__.return_value = mock_session
-            task._session_factory = lambda **kwargs: mock_session_ctx
+            mock_get_session.return_value = MagicMock(__enter__=MagicMock(return_value=mock_session),
+                                                     __exit__=MagicMock(return_value=None))
             
             # Mock process_article task
             with patch("local_newsifier.tasks.process_article") as mock_process:
@@ -398,10 +380,6 @@ class TestFetchRssFeeds:
                 
                 # Call the task
                 result = fetch_rss_feeds(feed_urls)
-                
-                # Verify session was used properly
-                mock_session_ctx.__enter__.assert_called_once()
-                mock_session_ctx.__exit__.assert_called_once_with(None, None, None)
                 
                 # Verify methods were called with session
                 assert mock_article_crud.get_by_url.call_count == 2
