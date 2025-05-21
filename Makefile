@@ -1,6 +1,6 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy build-wheels build-dev-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
@@ -8,6 +8,7 @@ help:
 	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
 	@echo "  make setup-spacy       - Install spaCy models"
 	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
+	@echo "  make build-dev-wheels  - Build wheels for development dependencies"
 	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
 	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
 	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
@@ -43,6 +44,10 @@ setup-spacy:
 build-wheels:
 	@echo "Building wheels for current Python version..."
 	./scripts/build_wheels.sh
+
+build-dev-wheels:
+	@echo "Building development dependency wheels..."
+	./scripts/build_dev_wheels.sh
 
 build-wheels-all:
 	@echo "Building wheels for all supported Python versions..."
