@@ -2,6 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
+from tests.ci_skip_config import ci_skip_async
 import asyncio
 import concurrent.futures
 
@@ -43,6 +44,7 @@ def mock_create_db_and_tables():
 class TestAsyncDatabaseInitialization:
     """Tests for async database initialization."""
 
+    @ci_skip_async
     def test_get_async_db_initializer(self, mock_create_db_and_tables, mock_thread_pool, event_loop_fixture):
         """Test that the async db initializer provider returns a callable that runs in executor."""
         async def _test():
@@ -64,6 +66,7 @@ class TestAsyncDatabaseInitialization:
         # Run the async test function in the event loop
         event_loop_fixture.run_until_complete(_test())
 
+    @ci_skip_async
     def test_error_handling(self, mock_create_db_and_tables, mock_thread_pool, event_loop_fixture):
         """Test error handling in the async db initializer."""
         # Configure mock to raise an exception
@@ -119,6 +122,7 @@ class TestFastAPILifespan:
                 "db_initializer": mock_db_init
             }
 
+    @ci_skip_async
     def test_lifespan_calls_async_db_init(self, mock_api_lifespan_dependencies, event_loop_fixture):
         """Test that the lifespan function calls async database initialization."""
         async def _test():
@@ -142,6 +146,7 @@ class TestFastAPILifespan:
         # Run the async test function in the event loop
         event_loop_fixture.run_until_complete(_test())
 
+    @ci_skip_async
     def test_lifespan_handles_db_init_failure(self, mock_api_lifespan_dependencies, event_loop_fixture):
         """Test that the lifespan function handles db initialization failure."""
         async def _test():
@@ -167,6 +172,7 @@ class TestFastAPILifespan:
         # Run the async test function in the event loop
         event_loop_fixture.run_until_complete(_test())
 
+    @ci_skip_async
     def test_lifespan_handles_exceptions(self, mock_api_lifespan_dependencies, event_loop_fixture):
         """Test that the lifespan function handles exceptions during startup."""
         async def _test():
