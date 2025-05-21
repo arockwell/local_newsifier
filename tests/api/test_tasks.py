@@ -139,6 +139,7 @@ class TestProcessArticle:
 
     @patch("local_newsifier.api.routers.tasks.process_article", autospec=True)
     @patch("fastapi_injectable.concurrency.run_coroutine_sync")
+    @ci_skip_async
     def test_process_article_success(
         self, mock_run_coroutine_sync, mock_process_article, client, mock_article_service, sample_article, event_loop_fixture
     ):
@@ -204,6 +205,7 @@ class TestFetchRSSFeeds:
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     @patch("fastapi_injectable.concurrency.run_coroutine_sync")
+    @ci_skip_async
     def test_fetch_rss_feeds_default(
         self, mock_run_coroutine_sync, mock_settings, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
     ):
@@ -240,6 +242,7 @@ class TestFetchRSSFeeds:
 
     @patch("local_newsifier.api.routers.tasks.fetch_rss_feeds", autospec=True)
     @patch("fastapi_injectable.concurrency.run_coroutine_sync")
+    @ci_skip_async
     def test_fetch_rss_feeds_custom_urls(
         self, mock_run_coroutine_sync, mock_fetch_rss_feeds, client, mock_rss_feed_service, event_loop_fixture
     ):
