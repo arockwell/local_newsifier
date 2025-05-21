@@ -79,6 +79,8 @@ echo "APIFY_TOKEN=your_token_here" > .env
 
 Note: While an Apify token is required for production use, the test suite can run without it. See [docs/testing_apify.md](docs/testing_apify.md) for more details.
 
+- For a complete offline setup guide, see [docs/python_setup.md](docs/python_setup.md).
+
 ## Usage
 
 ### Command Line Interface (CLI)
