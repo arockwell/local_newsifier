@@ -6,15 +6,21 @@ adding, updating, and processing feeds.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Callable
+from typing import Annotated, Callable, Dict, List, Optional
 
-from sqlmodel import Session
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
-from local_newsifier.crud.rss_feed import rss_feed
-from local_newsifier.crud.feed_processing_log import feed_processing_log
+from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog
+from local_newsifier.crud.rss_feed import CRUDRSSFeed
+from local_newsifier.di.providers import (
+    get_article_service,
+    get_feed_processing_log_crud,
+    get_rss_feed_crud,
+    get_session,
+)
+from local_newsifier.services.article_service import ArticleService
 from local_newsifier.errors import handle_database, handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
@@ -28,10 +34,10 @@ class RSSFeedService:
 
     def __init__(
         self,
-        rss_feed_crud,
-        feed_processing_log_crud,
-        article_service,
-        session_factory: Callable,
+        rss_feed_crud: Annotated[CRUDRSSFeed, Depends(get_rss_feed_crud)],
+        feed_processing_log_crud: Annotated[CRUDFeedProcessingLog, Depends(get_feed_processing_log_crud)],
+        article_service: Annotated[ArticleService, Depends(get_article_service)],
+        session_factory: Callable[[], Session],
     ):
         """Initialize with dependencies.
 

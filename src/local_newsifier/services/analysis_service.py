@@ -1,17 +1,23 @@
 """Service layer for analysis operations."""
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Annotated, Callable, Dict, List, Optional, Tuple
 
-from sqlmodel import Session
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
-from local_newsifier.crud.analysis_result import analysis_result
-from local_newsifier.crud.article import article
-from local_newsifier.crud.entity import entity
-from local_newsifier.database.engine import get_session
+from local_newsifier.crud.analysis_result import CRUDAnalysisResult
+from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.crud.entity import CRUDEntity
+from local_newsifier.di.providers import (
+    get_analysis_result_crud,
+    get_article_crud,
+    get_entity_crud,
+    get_trend_analyzer_tool,
+    get_session,
+)
+from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
 from local_newsifier.errors.handlers import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame
@@ -23,11 +29,11 @@ class AnalysisService:
 
     def __init__(
         self,
-        analysis_result_crud,
-        article_crud,
-        entity_crud,
-        trend_analyzer,
-        session_factory: Callable
+        analysis_result_crud: Annotated[CRUDAnalysisResult, Depends(get_analysis_result_crud)],
+        article_crud: Annotated[CRUDArticle, Depends(get_article_crud)],
+        entity_crud: Annotated[CRUDEntity, Depends(get_entity_crud)],
+        trend_analyzer: Annotated[TrendAnalyzer, Depends(get_trend_analyzer_tool)],
+        session_factory: Callable[[], Session]
     ):
         """Initialize the analysis service.
 
