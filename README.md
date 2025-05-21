@@ -59,6 +59,7 @@ Copy the resulting `wheels/` directory and install from it locally:
 
 ```bash
 pip install --no-index --find-links=wheels -r requirements.txt
+pip install --no-index --find-links=wheels -r requirements-dev.txt
 ```
 
 ### Offline wheels directory
