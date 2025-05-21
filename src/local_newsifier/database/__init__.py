@@ -13,7 +13,7 @@ from local_newsifier.database.engine import (
     SessionManager,
     with_session,
 )
-from local_newsifier.database.async_engine import AsyncDatabase
+from local_newsifier.database.async_engine import AsyncDatabase, get_async_database
 
 __all__ = [
     # Database engine and session management
@@ -24,4 +24,5 @@ __all__ = [
     "SessionManager",
     "with_session",
     "AsyncDatabase",
+    "get_async_database",
 ]
