@@ -8,8 +8,10 @@ from fastapi import HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
+from local_newsifier.services.article_service import ArticleService
+from local_newsifier.services.rss_feed_service import RSSFeedService
+
 from tests.fixtures.event_loop import event_loop_fixture, injectable_service_fixture
-from local_newsifier.container import container
 
 from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 
@@ -17,7 +19,6 @@ from local_newsifier.api.dependencies import get_session, get_article_service, g
 class TestSessionDependency:
     """Tests for the database session dependency."""
 
-    @pytest.mark.skip(reason="Now using injectable provider directly")
     def test_get_session_from_injectable(self):
         """Test that get_session uses the injectable provider."""
         # Create a mock session
@@ -40,19 +41,53 @@ class TestSessionDependency:
 class TestServiceDependencies:
     """Tests for service dependencies."""
     
-    @pytest.mark.skip(reason="Integration test only - complex mocking needed")
-    def test_get_article_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_article_service returns the service from the container."""
-        # This test is too complex to mock properly due to runtime imports in dependencies.py
-        # The functionality is tested through integration tests
-        pass
+    def test_get_article_service(self, event_loop_fixture):
+        """Test that get_article_service returns the service from the injectable provider."""
+        # Create mock objects
+        mock_session = Mock(spec=Session)
+        mock_session_context = MagicMock()
+        mock_session_context.__enter__.return_value = mock_session
+        mock_service = Mock(spec=ArticleService)
+        
+        # Set up mocks with appropriate patches
+        with patch("local_newsifier.database.engine.get_session") as mock_get_session, \
+             patch("local_newsifier.di.providers.get_article_service") as mock_get_injectable_service:
+             
+            # Configure the mocks
+            mock_get_session.return_value = iter([mock_session_context])
+            mock_get_injectable_service.return_value = mock_service
+            
+            # Call the function under test
+            result = get_article_service()
+            
+            # Verify the result
+            assert result is mock_service
+            assert mock_get_injectable_service.called
+            mock_get_injectable_service.assert_called_with(session=mock_session)
     
-    @pytest.mark.skip(reason="Integration test only - complex mocking needed")
-    def test_get_rss_feed_service(self, event_loop_fixture, injectable_service_fixture):
-        """Test that get_rss_feed_service returns the service from the container."""
-        # This test is too complex to mock properly due to runtime imports in dependencies.py
-        # The functionality is tested through integration tests
-        pass
+    def test_get_rss_feed_service(self, event_loop_fixture):
+        """Test that get_rss_feed_service returns the service from the injectable provider."""
+        # Create mock objects
+        mock_session = Mock(spec=Session)
+        mock_session_context = MagicMock()
+        mock_session_context.__enter__.return_value = mock_session
+        mock_service = Mock(spec=RSSFeedService)
+        
+        # Set up mocks with appropriate patches
+        with patch("local_newsifier.database.engine.get_session") as mock_get_session, \
+             patch("local_newsifier.di.providers.get_rss_feed_service") as mock_get_injectable_service:
+             
+            # Configure the mocks
+            mock_get_session.return_value = iter([mock_session_context])
+            mock_get_injectable_service.return_value = mock_service
+            
+            # Call the function under test
+            result = get_rss_feed_service()
+            
+            # Verify the result
+            assert result is mock_service
+            assert mock_get_injectable_service.called
+            mock_get_injectable_service.assert_called_with(session=mock_session)
 
 
 class TestTemplatesDependency:

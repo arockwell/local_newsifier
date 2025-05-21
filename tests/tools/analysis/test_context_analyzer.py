@@ -11,14 +11,11 @@ This test suite covers:
 import pytest
 import os
 from unittest.mock import Mock, patch, MagicMock
+from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 
-# Skip all tests in CI environment
-IS_CI = os.environ.get("CI", "false").lower() == "true"
-skip_in_ci = pytest.mark.skipif(
-    IS_CI, reason="Skipping ContextAnalyzer tests in CI due to event loop issues"
-)
+pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
 
 class MockSpacyDoc:
@@ -114,7 +111,6 @@ def victim_tokens():
     ]
 
 
-@skip_in_ci
 class TestContextAnalyzer:
     """Test suite for ContextAnalyzer."""
     

@@ -1,6 +1,6 @@
 # Dependency Injection Anti-Patterns
 
-This document identifies common anti-patterns related to dependency injection in the Local Newsifier codebase, particularly as we migrate from the legacy DIContainer to fastapi-injectable.
+This document identifies common anti-patterns related to dependency injection in the Local Newsifier codebase using fastapi-injectable.
 
 ## Identified Anti-Patterns
 
@@ -113,8 +113,7 @@ async def get_async_thing():
 class ServiceWithHiddenDependencies:
     def __init__(self):
         # Hidden dependency fetched internally
-        from local_newsifier.container import container
-        self.dependency = container.get("some_dependency")
+        self.dependency = SomeDependency()
 ```
 
 **Why it's problematic:**
@@ -321,9 +320,10 @@ When reviewing code, look for these warning signs:
 6. Complex code executed at module level
 7. Multiple different ways to access the same dependency
 
-## Converting Legacy Code
+## Converting Legacy Code (completed)
 
-When migrating from the old container to fastapi-injectable:
+The migration to `fastapi-injectable` is finished. The steps below are preserved
+for historical reference only:
 
 1. Create provider functions in `di/providers.py` with appropriate scope
 2. Update code to use these providers instead of direct instantiation

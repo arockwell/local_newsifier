@@ -10,7 +10,6 @@ from fastapi import Depends
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
-from local_newsifier.database.engine import SessionManager
 from local_newsifier.errors import handle_database
 
 @injectable(use_cache=False)

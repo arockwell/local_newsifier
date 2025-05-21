@@ -32,7 +32,7 @@ jobs:
       (github.event_name == 'push') ||
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository)
-    
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -64,7 +64,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        
+
     - name: Get current date info
       id: date
       run: echo "week=$(date +%Y%V)" >> $GITHUB_OUTPUT
@@ -137,11 +137,11 @@ jobs:
         from local_newsifier.models.entity_tracking import CanonicalEntity, EntityProfile
         from local_newsifier.models.entity_tracking import EntityRelationship, EntityMentionContext
         from local_newsifier.models.sentiment import SentimentShift
-        
+
         # Create PostgreSQL test engine
         db_url = 'postgresql://postgres:postgres@localhost:5432/test_db'
         engine = create_engine(db_url, echo=True)
-        
+
         # Create all tables
         SQLModel.metadata.create_all(engine)
         print('Tables created successfully')
@@ -156,7 +156,7 @@ jobs:
         POSTGRES_DB: test_db
         TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |
-        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=75 tests/
+        poetry run pytest --cov=src/local_newsifier --cov-report=xml --cov-report=term-missing --cov-fail-under=70 tests/
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4

@@ -102,16 +102,16 @@ class TestApifyScheduleCommands:
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
     @patch("local_newsifier.cli.commands.apify._ensure_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
-    @patch("local_newsifier.cli.commands.apify.SessionManager")
+    @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules(
-        self, mock_session_manager, mock_get_configs, mock_ensure_token, 
+        self, mock_get_session, mock_get_configs, mock_ensure_token,
         mock_get_schedule_manager, runner, mock_configs
     ):
         """Test the list schedules command."""
         # Setup
         mock_ensure_token.return_value = True
         mock_session = MagicMock(spec=Session)
-        mock_session_manager.return_value.__enter__.return_value = mock_session
+        mock_get_session.return_value = mock_session
         mock_get_configs.return_value = mock_configs
         
         # Run the command
@@ -129,16 +129,16 @@ class TestApifyScheduleCommands:
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
     @patch("local_newsifier.cli.commands.apify._ensure_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
-    @patch("local_newsifier.cli.commands.apify.SessionManager")
+    @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules_with_apify(
-        self, mock_session_manager, mock_get_configs, mock_ensure_token, 
+        self, mock_get_session, mock_get_configs, mock_ensure_token,
         mock_get_schedule_manager, runner, mock_configs, mock_schedule_manager
     ):
         """Test the list schedules command with Apify details."""
         # Setup
         mock_ensure_token.return_value = True
         mock_session = MagicMock(spec=Session)
-        mock_session_manager.return_value.__enter__.return_value = mock_session
+        mock_get_session.return_value = mock_session
         mock_get_configs.return_value = mock_configs
         mock_get_schedule_manager.return_value = mock_schedule_manager
         
@@ -155,16 +155,16 @@ class TestApifyScheduleCommands:
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
     @patch("local_newsifier.cli.commands.apify._ensure_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
-    @patch("local_newsifier.cli.commands.apify.SessionManager")
+    @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules_json_format(
-        self, mock_session_manager, mock_get_configs, mock_ensure_token, 
+        self, mock_get_session, mock_get_configs, mock_ensure_token,
         mock_get_schedule_manager, runner, mock_configs
     ):
         """Test the list schedules command with JSON output."""
         # Setup
         mock_ensure_token.return_value = True
         mock_session = MagicMock(spec=Session)
-        mock_session_manager.return_value.__enter__.return_value = mock_session
+        mock_get_session.return_value = mock_session
         
         # Use our mock configs directly
         mock_get_configs.return_value = mock_configs
@@ -357,8 +357,10 @@ class TestApifyScheduleCommands:
         """Test the _get_schedule_manager helper function."""
         # Use patch instead of calling directly to avoid actual dependencies
         with patch("local_newsifier.cli.commands.apify.ApifyService") as mock_apify_service, \
-             patch("local_newsifier.cli.commands.apify.SessionManager") as mock_session_manager, \
+             patch("local_newsifier.cli.commands.apify.get_session") as mock_get_session, \
              patch("local_newsifier.cli.commands.apify.ApifyScheduleManager") as mock_manager_class:
+
+            mock_get_session.return_value = MagicMock(spec=Session)
             
             # Call the function
             _get_schedule_manager("test_token")

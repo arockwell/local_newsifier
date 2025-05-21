@@ -17,9 +17,35 @@ from local_newsifier.api.main import app, lifespan
 
 
 @pytest.fixture
-def client():
-    """Test client for the FastAPI application."""
-    return TestClient(app)
+def client(event_loop_fixture):
+    """Test client for the FastAPI application.
+    
+    This client fixture is properly configured to work with event loops 
+    and fastapi-injectable.
+    """
+    # Create mock article objects that will be returned by get_by_date_range
+    from datetime import datetime
+    from unittest.mock import MagicMock
+    
+    mock_articles = []
+    for i in range(3):
+        mock_article = MagicMock()
+        mock_article.id = i
+        mock_article.title = f"Test Article {i}"
+        mock_article.url = f"http://example.com/article/{i}"
+        mock_article.source = "Test Source"
+        mock_article.published_at = datetime.now()
+        mock_article.status = "processed"
+        mock_articles.append(mock_article)
+    
+    # Setup any required mocks for database operations to avoid actual DB connections
+    with patch("local_newsifier.database.engine.create_db_and_tables"), \
+         patch("local_newsifier.database.engine.get_engine"), \
+         patch("local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles):
+        
+        # Create a TestClient with proper event loop handling
+        client = TestClient(app)
+        yield client
 
 
 @pytest.fixture
@@ -32,12 +58,25 @@ def mock_logger():
 class TestEndpoints:
     """Tests for API endpoints."""
 
-    def test_root_endpoint(self, client):
+    def test_root_endpoint(self, client, event_loop_fixture):
         """Test the root endpoint returns HTML content."""
         response = client.get("/")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "Local Newsifier" in response.text
+        
+    def test_root_endpoint_recent_headlines_content(self, client, event_loop_fixture):
+        """Test that the root endpoint has the correct structure for recent headlines."""
+        response = client.get("/")
+        assert response.status_code == 200
+        
+        # Check for the headline section structure
+        assert '<h2 class="card-title">Recent Headlines</h2>' in response.text
+        assert '<div class="articles-list">' in response.text
+        assert 'article-item' in response.text
+        
+        # We're checking for the structure rather than mocking the data,
+        # since dealing with fastapi-injectable in tests requires event loop fixtures
 
 
     def test_health_check(self, client):

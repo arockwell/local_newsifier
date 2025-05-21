@@ -4,8 +4,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch, call
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_pipeline_initialization_with_custom_config(mock_session_manager):
+def test_pipeline_initialization_with_custom_config():
     """Test initializing pipeline with custom configuration."""
     # Arrange
     # Create custom mock dependencies
@@ -14,9 +13,6 @@ def test_pipeline_initialization_with_custom_config(mock_session_manager):
     mock_file_writer = MagicMock()
     mock_custom_session_factory = MagicMock()
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with custom configuration
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -35,8 +31,7 @@ def test_pipeline_initialization_with_custom_config(mock_session_manager):
     assert service.session_factory is mock_custom_session_factory
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url_with_stage_error(mock_session_manager):
+def test_process_url_with_stage_error():
     """Test handling errors in specific pipeline stages."""
     # Arrange
     # Mock the web scraper to succeed
@@ -51,9 +46,6 @@ def test_process_url_with_stage_error(mock_session_manager):
     mock_article_service = MagicMock()
     mock_article_service.process_article.side_effect = Exception("Processing error")
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -80,8 +72,7 @@ def test_process_url_with_stage_error(mock_session_manager):
     assert "Processing error" in result["message"]
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_content_with_custom_session(mock_session_manager):
+def test_process_content_with_custom_session():
     """Test processing with a custom database session."""
     # Arrange
     # Mock the article service
@@ -129,8 +120,7 @@ def test_process_content_with_custom_session(mock_session_manager):
     assert result["url"] == "https://example.com"
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_pipeline_with_alternative_scraper(mock_session_manager):
+def test_pipeline_with_alternative_scraper():
     """Test pipeline with a different web scraper implementation."""
     # Arrange
     # Create an alternative scraper with different return format
@@ -152,9 +142,6 @@ def test_pipeline_with_alternative_scraper(mock_session_manager):
         "entities": []
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with the alternative scraper
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -185,8 +172,7 @@ def test_pipeline_with_alternative_scraper(mock_session_manager):
     assert result["url"] == "https://example.com"
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url_with_scraper_returning_none(mock_session_manager):
+def test_process_url_with_scraper_returning_none():
     """Test handling when scraper returns None."""
     # Arrange
     # Mock the web scraper to return None
@@ -196,9 +182,6 @@ def test_process_url_with_scraper_returning_none(mock_session_manager):
     # Mock the article service
     mock_article_service = MagicMock()
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -223,8 +206,7 @@ def test_process_url_with_scraper_returning_none(mock_session_manager):
     assert "Failed to scrape content" in result["message"]
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_content_with_missing_published_date(mock_session_manager):
+def test_process_content_with_missing_published_date():
     """Test processing content without a published date."""
     # Arrange
     # Mock the article service
@@ -236,9 +218,6 @@ def test_process_content_with_missing_published_date(mock_session_manager):
         "entities": []
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -271,8 +250,7 @@ def test_process_content_with_missing_published_date(mock_session_manager):
     assert result["url"] == "https://example.com"
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url_with_partial_scraper_data(mock_session_manager):
+def test_process_url_with_partial_scraper_data():
     """Test processing with partial data from scraper."""
     # Arrange
     # Mock the web scraper to return partial data
@@ -292,9 +270,6 @@ def test_process_url_with_partial_scraper_data(mock_session_manager):
         "entities": []
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -325,8 +300,7 @@ def test_process_url_with_partial_scraper_data(mock_session_manager):
     assert result["url"] == "https://example.com"
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_content_with_file_writer_error(mock_session_manager):
+def test_process_content_with_file_writer_error():
     """Test handling errors from file writer."""
     # Arrange
     # Mock the article service
@@ -342,9 +316,6 @@ def test_process_content_with_file_writer_error(mock_session_manager):
     mock_file_writer = MagicMock()
     mock_file_writer.write_results.side_effect = Exception("File writing error")
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -381,8 +352,7 @@ def test_process_content_with_file_writer_error(mock_session_manager):
     assert "File writing error" in result["error"]
 
 
-@patch('local_newsifier.services.news_pipeline_service.SessionManager')
-def test_process_url_and_content_integration(mock_session_manager):
+def test_process_url_and_content_integration():
     """Test integration between process_url and process_content."""
     # Arrange
     # Mock the web scraper
@@ -402,9 +372,6 @@ def test_process_url_and_content_integration(mock_session_manager):
         "entities": []
     }
     
-    # Mock session manager
-    mock_session = MagicMock()
-    mock_session_manager.return_value.__enter__.return_value = mock_session
     
     # Create the service with mocks
     from local_newsifier.services.news_pipeline_service import NewsPipelineService

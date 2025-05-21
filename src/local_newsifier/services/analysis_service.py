@@ -11,7 +11,7 @@ from fastapi import Depends
 from local_newsifier.crud.analysis_result import analysis_result
 from local_newsifier.crud.article import article
 from local_newsifier.crud.entity import entity
-from local_newsifier.database.engine import SessionManager, get_session
+from local_newsifier.database.engine import get_session
 from local_newsifier.errors.handlers import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.trend import TrendAnalysis, TimeFrame

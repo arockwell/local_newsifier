@@ -24,30 +24,7 @@ The API module provides a web interface for the Local Newsifier system using Fas
 ## Key Patterns
 
 ### Dependency Injection
-The API uses FastAPI's dependency injection system for common dependencies:
-
-> **IMPORTANT**: The project is migrating from a custom DIContainer to fastapi-injectable. During this transition, both dependency injection patterns will be in use. New endpoints should use the fastapi-injectable pattern described in the "Injectable Endpoints" section below.
-
-#### Legacy Pattern
-```python
-def get_session() -> Generator[Session, None, None]:
-    """Get a database session for request.
-    
-    This dependency provides a database session to route handlers.
-    The session is automatically closed when the request is complete.
-    """
-    with SessionManager() as session:
-        yield session
-```
-
-Route handlers use these dependencies:
-
-```python
-@router.get("/tables")
-async def get_tables(request: Request, session: Session = Depends(get_session)):
-    # Use session for database operations
-    return templates.TemplateResponse(...)
-```
+The API uses **fastapi-injectable** for all dependencies. Provider functions expose the required components and are injected using FastAPI's `Depends()` pattern:
 
 #### Injectable Pattern
 ```python
@@ -100,27 +77,6 @@ else:
     templates_dir = str(pathlib.Path(__file__).parent / "templates")
 ```
 
-### Container-Based Services
-Services are retrieved from the central DI container:
-
-```python
-def get_container() -> DIContainer:
-    """Get the central DI container.
-    
-    This dependency provides access to the dependency injection container.
-    """
-    from local_newsifier.container import container
-    return container
-
-@router.get("/tasks")
-async def get_tasks(
-    request: Request, 
-    container: DIContainer = Depends(get_container)
-):
-    task_service = container.get("task_service")
-    tasks = task_service.get_recent_tasks()
-    return templates.TemplateResponse(...)
-```
 
 ## SQLModel Parameter Binding
 When using SQLModel for database queries, remember to bind parameters to the query:
@@ -162,7 +118,7 @@ async def not_found_handler(request: Request, exc: HTTPException):
 - Include API-specific endpoints with `/api` suffix
 
 ### Common Patterns for Endpoint Development
-1. Get dependencies (session, container, services)
+1. Get dependencies (session and services)
 2. Validate inputs
 3. Delegate business logic to services
 4. Transform response data as needed
@@ -229,4 +185,4 @@ def test_get_entity_endpoint(test_client_with_mocks):
     assert response.status_code == 200
 ```
 
-For more information on the migration to fastapi-injectable, see `docs/fastapi_injectable.md`.
+For more information on fastapi-injectable usage, see `docs/fastapi_injectable.md`.

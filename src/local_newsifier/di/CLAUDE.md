@@ -4,7 +4,7 @@ This module contains the fastapi-injectable configuration and provider functions
 
 ## Migration Context
 
-The project is transitioning from a custom DIContainer to fastapi-injectable. During this migration, both systems will coexist to allow for incremental changes.
+Local Newsifier has completed the transition from a custom DIContainer to fastapi-injectable. fastapi-injectable is now the sole dependency injection system.
 
 ## Key Components
 
@@ -108,7 +108,6 @@ def test_entity_service(patch_injectable_dependencies):
 
 ## Migration Notes
 
-- New components should use fastapi-injectable directly
-- Existing components will be gradually migrated
-- Use the adapter layer when interacting with legacy DIContainer components
-- See `docs/fastapi_injectable.md` for the full migration guide
+- All components now use fastapi-injectable directly
+- The legacy adapter layer has been removed
+- See `docs/fastapi_injectable.md` for provider examples

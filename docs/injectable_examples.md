@@ -318,8 +318,7 @@ class TrendAnalyzer:
 def db_stats_command(detailed: bool = False):
     """Show database statistics."""
     from local_newsifier.di.providers import get_session, get_article_crud, get_entity_crud
-    from local_newsifier.container import container
-    
+
     # Get dependencies through injectable providers
     session = get_injected_obj(get_session)
     article_crud = get_injected_obj(get_article_crud)

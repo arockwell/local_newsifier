@@ -140,7 +140,7 @@ class NewsTrendAnalysisFlow(Flow):
                 raise RuntimeError(
                     "Cannot initialize AnalysisService without required dependencies. "
                     "Please provide an analysis_service instance or ensure the required "
-                    "dependencies are available through the DI container."
+                    "dependencies are available via fastapi-injectable providers."
                 )
         
         # For backwards compatibility with tests
@@ -308,13 +308,3 @@ class NewsTrendAnalysisFlow(Flow):
 
         return state
         
-    @classmethod
-    def from_container(cls):
-        """Legacy factory method for container-based instantiation."""
-        from local_newsifier.container import container
-        
-        return cls(
-            analysis_service=container.get("analysis_service"),
-            trend_reporter=container.get("trend_reporter_tool"),
-            session=container.get("session")
-        )

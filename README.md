@@ -1,4 +1,4 @@
-# Project Chronicle Persistence
+# Local Newsifier
 
 [![Tests](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml/badge.svg)](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml)
 
@@ -15,6 +15,7 @@ This system automatically fetches local news articles, performs Named Entity Rec
 - Headline trend analysis with NLP-powered keyword extraction
 - Temporal tracking of trending terms in news coverage
 - Web scraping via Apify integration for websites without RSS feeds
+- Apify configuration management and scheduling via CLI ([README_CLI.md](README_CLI.md), [docs/apify_integration.md](docs/apify_integration.md))
 - Robust error handling and retry mechanisms
 - State persistence and workflow resumption
 - Comprehensive logging and monitoring
@@ -24,16 +25,15 @@ This system automatically fetches local news articles, performs Named Entity Rec
 
 ### Dependency Injection
 
-Local Newsifier uses a hybrid dependency injection (DI) approach as it migrates from a custom DI container to fastapi-injectable:
+Local Newsifier uses **fastapi-injectable** for all dependency injection. Provider
+functions defined in `local_newsifier.di.providers` expose dependencies and are
+injected with FastAPI's `Depends()` pattern.
 
-- **Custom DIContainer**: The original DI system for service management
-- **fastapi-injectable**: The newer DI framework leveraging FastAPI's dependency injection
-- **Adapter Layer**: Bridges both systems during the transition period
-
-For detailed information on our DI architecture, testing strategies, and migration guidelines, see:
+For details on the architecture and testing strategies see:
 - [DI Architecture Guide](docs/di_architecture.md)
-- [Original DIContainer Documentation](docs/dependency_injection.md)
-- [fastapi-injectable Migration Guide](docs/fastapi_injectable.md)
+- [Dependency Injection Guide](docs/dependency_injection.md)
+- [fastapi-injectable Guide](docs/fastapi_injectable.md)
+- [Documentation Index](docs/README.md)
 
 ## Setup
 
@@ -42,10 +42,28 @@ For detailed information on our DI architecture, testing strategies, and migrati
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Install dependencies:
+2. Install dependencies from the local wheels directory (required before running tests):
 ```bash
-poetry install
+make setup-poetry -- --no-index --find-links=wheels
 ```
+If you have internet access you can simply run `poetry install` instead.
+
+If your environment lacks internet access, generate the wheels directory on a
+connected machine first:
+
+```bash
+make build-wheels
+```
+
+Copy the resulting `wheels/` directory and install from it locally:
+
+```bash
+pip install --no-index --find-links=wheels -r requirements.txt
+```
+
+### Offline wheels directory
+
+The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry -- --no-index --find-links=wheels` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
 
 3. Download spaCy model:
 ```bash
@@ -336,14 +354,6 @@ The system implements comprehensive error handling:
 - Processing errors
 - State management issues
 
-## State Management
-
-Uses crew.ai's SQLite checkpointer for:
-- Workflow state persistence
-- Progress tracking
-- Error recovery
-- Flow resumption
-
 ## Monitoring
 
 - Comprehensive logging
@@ -359,7 +369,7 @@ Uses crew.ai's SQLite checkpointer for:
 
 ## License
 
-MIT
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Database Configuration
 

@@ -2,8 +2,7 @@
 
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch, MagicMock
-
-import pytest
+import asyncio
 
 # Mock spaCy and TextBlob before imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
@@ -16,7 +15,6 @@ from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.services.entity_service import EntityService
 from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip, ci_skip_async
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
@@ -95,7 +93,6 @@ def test_entity_tracking_flow_init_with_dependencies(mock_tracker_class, mock_re
     assert flow.session is mock_session
 
 
-@ci_skip("Event loop closure issues in CI")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
@@ -139,8 +136,10 @@ def test_process_method(mock_tracker_class, mock_resolver_class, mock_context_an
     mock_entity_service.process_article_with_state.assert_called_once_with(mock_state)
     assert result is mock_result_state
 
+    # Ensure event loop cleanup
+    event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
-@ci_skip("Batch processing issues in CI")
+
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
@@ -177,9 +176,11 @@ def test_process_new_articles_method(mock_tracker_class, mock_resolver_class, mo
     assert called_state.status_filter == "analyzed"
     assert result is mock_result_state
 
+    # Ensure event loop cleanup
+    event_loop_fixture.run_until_complete(asyncio.sleep(0))
+
 
 @patch("local_newsifier.flows.entity_tracking_flow.article_crud")
-@ci_skip("Database session management issues in CI")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
@@ -234,12 +235,14 @@ def test_process_article_method(mock_tracker_class, mock_resolver_class, mock_co
     called_state = mock_entity_service.process_article_with_state.call_args[0][0]
     assert isinstance(called_state, EntityTrackingState)
     assert called_state.article_id == 123
-    
+
     # Verify result
     assert result == [{"entity": "test"}]
 
+    # Ensure event loop cleanup
+    event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
-@ci_skip("Dashboard generation issues in CI")
+
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
@@ -275,12 +278,14 @@ def test_get_entity_dashboard_method(mock_tracker_class, mock_resolver_class, mo
     assert isinstance(called_state, EntityDashboardState)
     assert called_state.days == 30
     assert called_state.entity_type == "PERSON"
-    
+
     # Verify result
     assert result == {"dashboard": "data"}
 
+    # Ensure event loop cleanup
+    event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
-@ci_skip("Entity relationship analysis issues in CI")
+
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
@@ -316,6 +321,9 @@ def test_find_entity_relationships_method(mock_tracker_class, mock_resolver_clas
     assert isinstance(called_state, EntityRelationshipState)
     assert called_state.entity_id == 456
     assert called_state.days == 15
-    
+
     # Verify result
     assert result == {"relationship": "data"}
+
+    # Ensure event loop cleanup
+    event_loop_fixture.run_until_complete(asyncio.sleep(0))
