@@ -16,8 +16,10 @@ from sqlmodel import Session
 import local_newsifier.models
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks
+from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
+from local_newsifier.fastapi_injectable_adapter import lifespan_with_injectable, migrate_container_services
 
 # Configure logging
 logging.basicConfig(
@@ -36,17 +38,34 @@ async def lifespan(app: FastAPI):
     # Startup logic
     logger.info("Application startup initiated")
     try:
-        # Initialize database tables
-        create_db_and_tables()
-        logger.info("Database initialization completed")
-        
-        # Initialize fastapi-injectable
+        # Initialize fastapi-injectable first to make providers available
         logger.info("Initializing fastapi-injectable")
         await register_app(app)
+        
+        # Get async database initializer from providers
+        from local_newsifier.di.providers import get_async_db_initializer
+        
+        # Get the async initializer function
+        db_initializer = await get_async_db_initializer()
+        
+        # Initialize database tables asynchronously
+        logger.info("Starting asynchronous database initialization")
+        db_init_result = await db_initializer()
+        
+        if not db_init_result:
+            logger.error("Database initialization failed")
+        else:
+            logger.info("Database initialization completed successfully")
+        
+        # Migrate container services to fastapi-injectable
+        logger.info("Migrating container services to fastapi-injectable")
+        await migrate_container_services(app)
         
         logger.info("fastapi-injectable initialization completed")
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
+        # Don't re-raise - allow the application to start even with initialization errors
+        # This follows the existing pattern of continuing despite errors
     
     logger.info("Application startup complete")
     

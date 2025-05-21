@@ -15,6 +15,8 @@ interact with the database or maintain state between operations.
 """
 
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Annotated, Any, Dict, Generator, Optional, TYPE_CHECKING
 
 from fastapi import Depends
@@ -23,6 +25,55 @@ from fastapi_injectable import injectable
 # Using injectable directly - no scope parameter in version 0.7.0
 # We'll control instance reuse with use_cache=True/False
 from sqlmodel import Session
+
+# Thread pool executor for running blocking DB operations
+_thread_pool = ThreadPoolExecutor(max_workers=4)
+
+@injectable(use_cache=False)
+async def get_async_db_initializer():
+    """Provide an async database initialization function.
+    
+    This provider wraps the synchronous database initialization in a way
+    that doesn't block the async event loop. It uses a thread pool executor
+    to run the blocking operation in a separate thread.
+    
+    Returns:
+        Async function that initializes the database
+    """
+    from local_newsifier.database.engine import create_db_and_tables
+    
+    async def initialize_database():
+        """Initialize database tables asynchronously.
+        
+        Runs the synchronous create_db_and_tables function in a thread pool
+        to avoid blocking the event loop.
+        
+        Returns:
+            Success status (True/False)
+        """
+        logger.info("Starting async database initialization")
+        try:
+            # Get or create event loop - handle the case where there's no current event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # No event loop in current thread, create a new one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                logger.info("Created new event loop for async database initialization")
+            
+            # Run the blocking operation in a thread pool
+            result = await loop.run_in_executor(
+                _thread_pool, create_db_and_tables
+            )
+            logger.info(f"Async database initialization completed with result: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error during async database initialization: {str(e)}")
+            # Re-raise to be handled by the calling code
+            raise
+    
+    return initialize_database
 
 if TYPE_CHECKING:
     from local_newsifier.crud.article import CRUDArticle
