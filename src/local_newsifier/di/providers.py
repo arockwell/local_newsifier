@@ -1026,7 +1026,7 @@ def get_db_inspect_command():
         Function to execute db inspect command
     """
     from local_newsifier.cli.commands.db import inspect_record
-    return db_inspect_command
+    return inspect_record
 
 
 @injectable(use_cache=False)
