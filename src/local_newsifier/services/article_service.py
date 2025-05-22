@@ -34,10 +34,52 @@ class ArticleService:
         self.analysis_result_crud = analysis_result_crud
         self.entity_service = entity_service
         self.session_factory = session_factory
-        
+
+    @handle_database
+    def get_recent_articles(
+        self,
+        *,
+        days: int = 30,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve recent articles within the specified timeframe.
+
+        Args:
+            days: Number of days in the past to include.
+            limit: Maximum number of articles to return.
+
+        Returns:
+            A list of article dictionaries sorted by published date.
+        """
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+
+        with self.session_factory() as session:
+            articles = self.article_crud.get_by_date_range(
+                session,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+            articles = sorted(
+                articles, key=lambda a: a.published_at, reverse=True
+            )[:limit]
+
+            return [
+                {
+                    "id": a.id,
+                    "title": a.title,
+                    "url": a.url,
+                    "source": a.source,
+                    "published_at": a.published_at,
+                    "status": a.status,
+                }
+                for a in articles
+            ]
+
     @handle_database
     def process_article(
-        self, 
+        self,
         url: str,
         content: str,
         title: str,

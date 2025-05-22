@@ -3,7 +3,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -22,26 +22,27 @@ def client(event_loop_fixture):
     This client fixture is properly configured to work with event loops 
     and fastapi-injectable.
     """
-    # Create mock article objects that will be returned by get_by_date_range
-    from datetime import datetime
-    from unittest.mock import MagicMock
-    
-    mock_articles = []
-    for i in range(3):
-        mock_article = MagicMock()
-        mock_article.id = i
-        mock_article.title = f"Test Article {i}"
-        mock_article.url = f"http://example.com/article/{i}"
-        mock_article.source = "Test Source"
-        mock_article.published_at = datetime.now()
-        mock_article.status = "processed"
-        mock_articles.append(mock_article)
-    
+    # Mock article data returned by the article service
+    mock_articles = [
+        {
+            "id": i,
+            "title": f"Test Article {i}",
+            "url": f"http://example.com/article/{i}",
+            "source": "Test Source",
+            "published_at": "2025-01-01",
+            "status": "processed",
+        }
+        for i in range(3)
+    ]
+
+    mock_article_service = MagicMock()
+    mock_article_service.get_recent_articles.return_value = mock_articles
+
     # Setup any required mocks for database operations to avoid actual DB connections
     with patch("local_newsifier.database.engine.create_db_and_tables"), \
          patch("local_newsifier.database.engine.get_engine"), \
-         patch("local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles):
-        
+         patch("local_newsifier.api.main.get_article_service", return_value=mock_article_service):
+
         # Create a TestClient with proper event loop handling
         client = TestClient(app)
         yield client
