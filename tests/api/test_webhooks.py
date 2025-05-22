@@ -159,7 +159,28 @@ class TestApifyWebhookInfrastructure:
         )
 
         # Should log webhook details
-        assert any("test_actor_123" in msg and "test_dataset_456" in msg for msg in log_messages)
+        # Debug: Print all log messages to understand what's happening in CI
+        print(f"All log messages: {log_messages}")
+        webhook_detail_messages = [
+            msg for msg in log_messages if "test_actor_123" in msg and "test_dataset_456" in msg
+        ]
+        print(f"Webhook detail messages: {webhook_detail_messages}")
+
+        # More explicit check
+        has_both_details = any(
+            "test_actor_123" in msg and "test_dataset_456" in msg for msg in log_messages
+        )
+        if not has_both_details:
+            # More helpful error message
+            actor_messages = [msg for msg in log_messages if "test_actor_123" in msg]
+            dataset_messages = [msg for msg in log_messages if "test_dataset_456" in msg]
+            raise AssertionError(
+                f"Expected log message with both actor and dataset IDs. "
+                f"Actor messages: {actor_messages}, Dataset messages: {dataset_messages}, "
+                f"All messages: {log_messages}"
+            )
+
+        assert has_both_details
 
     def test_apify_webhook_invalid_payload_structure(self, client):
         """Test that the webhook rejects malformed payloads."""
