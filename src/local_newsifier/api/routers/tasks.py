@@ -88,7 +88,8 @@ async def fetch_rss_feeds_endpoint(
     Submit a task to fetch articles from RSS feeds.
 
     Args:
-        feed_urls: Optional list of RSS feed URLs. If not provided, uses default feeds from settings.
+        feed_urls: Optional list of RSS feed URLs.
+            If not provided, uses default feeds from settings.
         rss_feed_service: RSS feed service provided by dependency injection
 
     Returns:
