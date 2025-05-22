@@ -14,6 +14,7 @@ Most of our components use use_cache=False for safety, since they either directl
 interact with the database or maintain state between operations.
 """
 
+import importlib
 import logging
 from typing import TYPE_CHECKING, Annotated, Any, Dict, Generator, Optional
 
@@ -51,6 +52,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Helper to generate simple providers
+def _make_simple_provider(obj_path: str):
+    """Create a provider that imports and returns an object by dotted path."""
+    module_name, attr = obj_path.rsplit(".", 1)
+
+    def provider():
+        module = importlib.import_module(module_name)
+        return getattr(module, attr)
+
+    return injectable(use_cache=False)(provider)
+
 # Database providers
 
 
@@ -76,154 +88,48 @@ def get_session() -> Generator[Session, None, None]:
 # CRUD providers
 
 
-@injectable(use_cache=False)
-def get_article_crud():
-    """Provide the article CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        ArticleCRUD instance
-    """
-    from local_newsifier.crud.article import article
-
-    return article
+get_article_crud = _make_simple_provider("local_newsifier.crud.article.article")
 
 
-@injectable(use_cache=False)
-def get_entity_crud():
-    """Provide the entity CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        EntityCRUD instance
-    """
-    from local_newsifier.crud.entity import entity
-
-    return entity
+get_entity_crud = _make_simple_provider("local_newsifier.crud.entity.entity")
 
 
-@injectable(use_cache=False)
-def get_entity_relationship_crud():
-    """Provide the entity relationship CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        EntityRelationshipCRUD instance
-    """
-    from local_newsifier.crud.entity_relationship import entity_relationship
-
-    return entity_relationship
+get_entity_relationship_crud = _make_simple_provider(
+    "local_newsifier.crud.entity_relationship.entity_relationship"
+)
 
 
-@injectable(use_cache=False)
-def get_rss_feed_crud():
-    """Provide the RSS feed CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        RSSFeedCRUD instance
-    """
-    from local_newsifier.crud.rss_feed import rss_feed
-
-    return rss_feed
+get_rss_feed_crud = _make_simple_provider("local_newsifier.crud.rss_feed.rss_feed")
 
 
-@injectable(use_cache=False)
-def get_analysis_result_crud():
-    """Provide the analysis result CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        AnalysisResultCRUD instance
-    """
-    from local_newsifier.crud.analysis_result import analysis_result
-
-    return analysis_result
+get_analysis_result_crud = _make_simple_provider(
+    "local_newsifier.crud.analysis_result.analysis_result"
+)
 
 
-@injectable(use_cache=False)
-def get_canonical_entity_crud():
-    """Provide the canonical entity CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        CanonicalEntityCRUD instance
-    """
-    from local_newsifier.crud.canonical_entity import canonical_entity
-
-    return canonical_entity
+get_canonical_entity_crud = _make_simple_provider(
+    "local_newsifier.crud.canonical_entity.canonical_entity"
+)
 
 
-@injectable(use_cache=False)
-def get_entity_mention_context_crud():
-    """Provide the entity mention context CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        EntityMentionContextCRUD instance
-    """
-    from local_newsifier.crud.entity_mention_context import entity_mention_context
-
-    return entity_mention_context
+get_entity_mention_context_crud = _make_simple_provider(
+    "local_newsifier.crud.entity_mention_context.entity_mention_context"
+)
 
 
-@injectable(use_cache=False)
-def get_entity_profile_crud():
-    """Provide the entity profile CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        EntityProfileCRUD instance
-    """
-    from local_newsifier.crud.entity_profile import entity_profile
-
-    return entity_profile
+get_entity_profile_crud = _make_simple_provider(
+    "local_newsifier.crud.entity_profile.entity_profile"
+)
 
 
-@injectable(use_cache=False)
-def get_feed_processing_log_crud():
-    """Provide the feed processing log CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        FeedProcessingLogCRUD instance
-    """
-    from local_newsifier.crud.feed_processing_log import feed_processing_log
-
-    return feed_processing_log
+get_feed_processing_log_crud = _make_simple_provider(
+    "local_newsifier.crud.feed_processing_log.feed_processing_log"
+)
 
 
-@injectable(use_cache=False)
-def get_apify_source_config_crud():
-    """Provide the Apify source config CRUD component.
-
-    Uses use_cache=False to create new instances for each injection, as CRUD
-    components interact with the database and should not share state between operations.
-
-    Returns:
-        CRUDApifySourceConfig instance
-    """
-    from local_newsifier.crud.apify_source_config import apify_source_config
-
-    return apify_source_config
+get_apify_source_config_crud = _make_simple_provider(
+    "local_newsifier.crud.apify_source_config.apify_source_config"
+)
 
 
 # Tool providers
@@ -1137,7 +1043,7 @@ def get_db_inspect_command():
     """
     from local_newsifier.cli.commands.db import inspect_record
 
-    return db_inspect_command
+    return inspect_record
 
 
 @injectable(use_cache=False)

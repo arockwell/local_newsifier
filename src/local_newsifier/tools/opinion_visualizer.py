@@ -259,35 +259,68 @@ class OpinionVisualizerTool:
                 f"Invalid report type: {report_type} or data type mismatch"
             )
 
+    def _timeline_summary(
+        self, data: SentimentVisualizationData
+    ) -> Dict[str, Any]:
+        """Return summary statistics for a timeline visualization."""
+        avg_sentiment = sum(data.sentiment_values) / len(data.sentiment_values)
+        return {
+            "avg_sentiment": avg_sentiment,
+            "min_sentiment": min(data.sentiment_values),
+            "max_sentiment": max(data.sentiment_values),
+            "total_articles": sum(data.article_counts),
+            "viz_metadata": data.viz_metadata or {},
+        }
+
+    def _comparison_summary(
+        self, data: Dict[str, SentimentVisualizationData]
+    ) -> Tuple[Dict[str, Dict[str, float]], Dict[str, Any]]:
+        """Return summary statistics for comparison visualizations."""
+        if not data:
+            return {}, {}
+
+        topic_stats = {}
+        for topic, topic_data in data.items():
+            if not topic_data.sentiment_values:
+                continue
+            topic_stats[topic] = {
+                "avg_sentiment": sum(topic_data.sentiment_values)
+                / len(topic_data.sentiment_values),
+                "total_articles": sum(topic_data.article_counts),
+            }
+
+        first_topic = list(data.keys())[0]
+        viz_metadata = data[first_topic].viz_metadata or {}
+
+        return topic_stats, viz_metadata
+
     def _generate_timeline_text_report(self, data: SentimentVisualizationData) -> str:
         """Generate a text report for timeline visualization."""
         # Calculate summary statistics
         if not data.sentiment_values:
             return f"No sentiment data available for topic: {data.topic}"
 
-        avg_sentiment = sum(data.sentiment_values) / len(data.sentiment_values)
-        min_sentiment = min(data.sentiment_values)
-        max_sentiment = max(data.sentiment_values)
-        total_articles = sum(data.article_counts)
+        summary = self._timeline_summary(data)
 
         # Build report
         report = f"SENTIMENT ANALYSIS REPORT: {data.topic}\n"
         report += "=" * 50 + "\n\n"
 
         # Check if metadata is available
-        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
-            report += f"Time period: {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}\n"
-            report += f"Interval: {data.viz_metadata['interval']}\n\n"
+        metadata = summary["viz_metadata"]
+        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+            report += f"Time period: {metadata['start_date']} to {metadata['end_date']}\n"
+            report += f"Interval: {metadata['interval']}\n\n"
         else:
             # Fallback to basic information
             report += "Time period: Not specified\n"
             report += "Interval: Not specified\n\n"
 
         report += "SUMMARY STATISTICS\n"
-        report += f"Average sentiment: {avg_sentiment:.2f}\n"
-        report += f"Minimum sentiment: {min_sentiment:.2f}\n"
-        report += f"Maximum sentiment: {max_sentiment:.2f}\n"
-        report += f"Total articles: {total_articles}\n\n"
+        report += f"Average sentiment: {summary['avg_sentiment']:.2f}\n"
+        report += f"Minimum sentiment: {summary['min_sentiment']:.2f}\n"
+        report += f"Maximum sentiment: {summary['max_sentiment']:.2f}\n"
+        report += f"Total articles: {summary['total_articles']}\n\n"
 
         report += "SENTIMENT TIMELINE\n"
         for i, period in enumerate(data.time_periods):
@@ -308,34 +341,18 @@ class OpinionVisualizerTool:
         report = "SENTIMENT COMPARISON REPORT\n"
         report += "=" * 50 + "\n\n"
 
-        # Get viz_metadata from first entry if available
-        if data and len(data) > 0:
-            first_topic = list(data.keys())[0]
-            viz_metadata = data[first_topic].viz_metadata
-            
-            # Check if metadata is available
-            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
-                report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
-                report += f"Interval: {viz_metadata['interval']}\n\n"
-            else:
-                # Fallback to basic information
-                report += "Time period: Not specified\n"
-                report += "Interval: Not specified\n\n"
+        topic_stats, viz_metadata = self._comparison_summary(data)
+
+        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+            report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
+            report += f"Interval: {viz_metadata['interval']}\n\n"
         else:
-            # No data, use default values
             report += "Time period: Not specified\n"
             report += "Interval: Not specified\n\n"
 
         report += "SUMMARY STATISTICS\n"
-        for topic, topic_data in data.items():
-            if not topic_data.sentiment_values:
-                continue
-
-            avg_sentiment = sum(topic_data.sentiment_values) / len(
-                topic_data.sentiment_values
-            )
-            total_articles = sum(topic_data.article_counts)
-            report += f"{topic}: {avg_sentiment:.2f} ({total_articles} articles)\n"
+        for topic, stats in topic_stats.items():
+            report += f"{topic}: {stats['avg_sentiment']:.2f} ({stats['total_articles']} articles)\n"
 
         report += "\nDETAILED COMPARISON\n"
 
@@ -369,28 +386,26 @@ class OpinionVisualizerTool:
         if not data.sentiment_values:
             return f"No sentiment data available for topic: {data.topic}"
 
-        avg_sentiment = sum(data.sentiment_values) / len(data.sentiment_values)
-        min_sentiment = min(data.sentiment_values)
-        max_sentiment = max(data.sentiment_values)
-        total_articles = sum(data.article_counts)
+        summary = self._timeline_summary(data)
 
         # Build report
         report = f"# Sentiment Analysis Report: {data.topic}\n\n"
 
         # Check if metadata is available
-        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
-            report += f"**Time period:** {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}  \n"
-            report += f"**Interval:** {data.viz_metadata['interval']}\n\n"
+        metadata = summary["viz_metadata"]
+        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+            report += f"**Time period:** {metadata['start_date']} to {metadata['end_date']}  \n"
+            report += f"**Interval:** {metadata['interval']}\n\n"
         else:
             # Fallback to basic information
             report += "**Time period:** Not specified  \n"
             report += "**Interval:** Not specified\n\n"
 
         report += "## Summary Statistics\n\n"
-        report += f"- **Average sentiment:** {avg_sentiment:.2f}\n"
-        report += f"- **Minimum sentiment:** {min_sentiment:.2f}\n"
-        report += f"- **Maximum sentiment:** {max_sentiment:.2f}\n"
-        report += f"- **Total articles:** {total_articles}\n\n"
+        report += f"- **Average sentiment:** {summary['avg_sentiment']:.2f}\n"
+        report += f"- **Minimum sentiment:** {summary['min_sentiment']:.2f}\n"
+        report += f"- **Maximum sentiment:** {summary['max_sentiment']:.2f}\n"
+        report += f"- **Total articles:** {summary['total_articles']}\n\n"
 
         report += "## Sentiment Timeline\n\n"
         report += "| Period | Sentiment | Articles |\n"
@@ -412,36 +427,20 @@ class OpinionVisualizerTool:
         # Build report
         report = "# Sentiment Comparison Report\n\n"
 
-        # Get viz_metadata from first entry if available
-        if data and len(data) > 0:
-            first_topic = list(data.keys())[0]
-            viz_metadata = data[first_topic].viz_metadata
-            
-            # Check if metadata is available
-            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
-                report += f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
-                report += f"**Interval:** {viz_metadata['interval']}\n\n"
-            else:
-                # Fallback to basic information
-                report += "**Time period:** Not specified  \n"
-                report += "**Interval:** Not specified\n\n"
+        topic_stats, viz_metadata = self._comparison_summary(data)
+
+        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+            report += f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
+            report += f"**Interval:** {viz_metadata['interval']}\n\n"
         else:
-            # No data, use default values
             report += "**Time period:** Not specified  \n"
             report += "**Interval:** Not specified\n\n"
 
         report += "## Summary Statistics\n\n"
         report += "| Topic | Average Sentiment | Total Articles |\n"
         report += "|-------|------------------|----------------|\n"
-        for topic, topic_data in data.items():
-            if not topic_data.sentiment_values:
-                continue
-
-            avg_sentiment = sum(topic_data.sentiment_values) / len(
-                topic_data.sentiment_values
-            )
-            total_articles = sum(topic_data.article_counts)
-            report += f"| {topic} | {avg_sentiment:.2f} | {total_articles} |\n"
+        for topic, stats in topic_stats.items():
+            report += f"| {topic} | {stats['avg_sentiment']:.2f} | {stats['total_articles']} |\n"
 
         report += "\n## Detailed Comparison\n\n"
 
@@ -485,10 +484,7 @@ class OpinionVisualizerTool:
         if not data.sentiment_values:
             return f"<p>No sentiment data available for topic: {data.topic}</p>"
 
-        avg_sentiment = sum(data.sentiment_values) / len(data.sentiment_values)
-        min_sentiment = min(data.sentiment_values)
-        max_sentiment = max(data.sentiment_values)
-        total_articles = sum(data.article_counts)
+        summary = self._timeline_summary(data)
 
         # Build report
         report = "<html><head>\n"
@@ -506,9 +502,10 @@ class OpinionVisualizerTool:
         report += f"<h1>Sentiment Analysis Report: {data.topic}</h1>\n"
 
         # Check if metadata is available
-        if data.viz_metadata and 'start_date' in data.viz_metadata and 'end_date' in data.viz_metadata and 'interval' in data.viz_metadata:
-            report += f"<p><strong>Time period:</strong> {data.viz_metadata['start_date']} to {data.viz_metadata['end_date']}<br>\n"
-            report += f"<strong>Interval:</strong> {data.viz_metadata['interval']}</p>\n"
+        metadata = summary["viz_metadata"]
+        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+            report += f"<p><strong>Time period:</strong> {metadata['start_date']} to {metadata['end_date']}<br>\n"
+            report += f"<strong>Interval:</strong> {metadata['interval']}</p>\n"
         else:
             # Fallback to basic information
             report += "<p><strong>Time period:</strong> Not specified<br>\n"
@@ -516,10 +513,10 @@ class OpinionVisualizerTool:
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<ul>\n"
-        report += f"<li><strong>Average sentiment:</strong> {avg_sentiment:.2f}</li>\n"
-        report += f"<li><strong>Minimum sentiment:</strong> {min_sentiment:.2f}</li>\n"
-        report += f"<li><strong>Maximum sentiment:</strong> {max_sentiment:.2f}</li>\n"
-        report += f"<li><strong>Total articles:</strong> {total_articles}</li>\n"
+        report += f"<li><strong>Average sentiment:</strong> {summary['avg_sentiment']:.2f}</li>\n"
+        report += f"<li><strong>Minimum sentiment:</strong> {summary['min_sentiment']:.2f}</li>\n"
+        report += f"<li><strong>Maximum sentiment:</strong> {summary['max_sentiment']:.2f}</li>\n"
+        report += f"<li><strong>Total articles:</strong> {summary['total_articles']}</li>\n"
         report += "</ul>\n"
 
         report += "<h2>Sentiment Timeline</h2>\n"
@@ -556,21 +553,12 @@ class OpinionVisualizerTool:
 
         report += "<h1>Sentiment Comparison Report</h1>\n"
 
-        # Get viz_metadata from first entry if available
-        if data and len(data) > 0:
-            first_topic = list(data.keys())[0]
-            viz_metadata = data[first_topic].viz_metadata
-            
-            # Check if metadata is available
-            if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
-                report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
-                report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
-            else:
-                # Fallback to basic information
-                report += "<p><strong>Time period:</strong> Not specified<br>\n"
-                report += "<strong>Interval:</strong> Not specified</p>\n"
+        topic_stats, viz_metadata = self._comparison_summary(data)
+
+        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+            report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
+            report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
         else:
-            # No data, use default values
             report += "<p><strong>Time period:</strong> Not specified<br>\n"
             report += "<strong>Interval:</strong> Not specified</p>\n"
 
@@ -579,15 +567,8 @@ class OpinionVisualizerTool:
         report += (
             "<tr><th>Topic</th><th>Average Sentiment</th><th>Total Articles</th></tr>\n"
         )
-        for topic, topic_data in data.items():
-            if not topic_data.sentiment_values:
-                continue
-
-            avg_sentiment = sum(topic_data.sentiment_values) / len(
-                topic_data.sentiment_values
-            )
-            total_articles = sum(topic_data.article_counts)
-            report += f"<tr><td>{topic}</td><td>{avg_sentiment:.2f}</td><td>{total_articles}</td></tr>\n"
+        for topic, stats in topic_stats.items():
+            report += f"<tr><td>{topic}</td><td>{stats['avg_sentiment']:.2f}</td><td>{stats['total_articles']}</td></tr>\n"
         report += "</table>\n"
 
         report += "<h2>Detailed Comparison</h2>\n"
