@@ -11,7 +11,15 @@ if TYPE_CHECKING:
     from local_newsifier.models.analysis_result import AnalysisResult
 
 
-class Article(SQLModel, table=True):
+class ArticleBase(SQLModel):
+    """Base model for Article."""
+    # TODO: move field definitions from Article here
+
+class ArticleRead(ArticleBase):
+    """Read model for Article."""
+    pass
+
+class Article(ArticleBase, table=True):
     """SQLModel for articles - serves as both ORM model and Pydantic schema."""
 
     __tablename__ = "articles"

@@ -8,7 +8,23 @@ from typing import List, Optional
 from sqlmodel import Field, Relationship, SQLModel
 
 
-class RSSFeed(SQLModel, table=True):
+class RSSFeedBase(SQLModel):
+    """Base model for RSSFeed."""
+    # TODO: move field definitions from RSSFeed here
+
+class RSSFeedRead(RSSFeedBase):
+    """Read model for RSSFeed."""
+    pass
+
+class RSSFeedProcessingLogBase(SQLModel):
+    """Base model for RSSFeedProcessingLog."""
+    # TODO: move field definitions from RSSFeedProcessingLog here
+
+class RSSFeedProcessingLogRead(RSSFeedProcessingLogBase):
+    """Read model for RSSFeedProcessingLog."""
+    pass
+
+class RSSFeed(RSSFeedBase, table=True):
     """Model for storing RSS feed information."""
     
     __tablename__ = "rss_feeds"
@@ -29,7 +45,7 @@ class RSSFeed(SQLModel, table=True):
     )
 
 
-class RSSFeedProcessingLog(SQLModel, table=True):
+class RSSFeedProcessingLog(RSSFeedProcessingLogBase, table=True):
     """Model for tracking RSS feed processing history."""
     
     __tablename__ = "rss_feed_processing_logs"

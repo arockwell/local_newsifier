@@ -6,7 +6,31 @@ from typing import Dict, List, Optional, Any
 from sqlmodel import SQLModel, Field, JSON, UniqueConstraint
 
 
-class SentimentAnalysis(SQLModel, table=True):
+class SentimentAnalysisBase(SQLModel):
+    """Base model for SentimentAnalysis."""
+    # TODO: move field definitions from SentimentAnalysis here
+
+class SentimentAnalysisRead(SentimentAnalysisBase):
+    """Read model for SentimentAnalysis."""
+    pass
+
+class OpinionTrendBase(SQLModel):
+    """Base model for OpinionTrend."""
+    # TODO: move field definitions from OpinionTrend here
+
+class OpinionTrendRead(OpinionTrendBase):
+    """Read model for OpinionTrend."""
+    pass
+
+class SentimentShiftBase(SQLModel):
+    """Base model for SentimentShift."""
+    # TODO: move field definitions from SentimentShift here
+
+class SentimentShiftRead(SentimentShiftBase):
+    """Read model for SentimentShift."""
+    pass
+
+class SentimentAnalysis(SentimentAnalysisBase, table=True):
     """SQLModel for article sentiment analysis."""
     
     __tablename__ = "sentiment_analyses"
@@ -34,7 +58,7 @@ class SentimentAnalysis(SQLModel, table=True):
     )
 
 
-class OpinionTrend(SQLModel, table=True):
+class OpinionTrend(OpinionTrendBase, table=True):
     """SQLModel for tracking sentiment trends over time."""
     
     __tablename__ = "opinion_trends"
@@ -63,7 +87,7 @@ class OpinionTrend(SQLModel, table=True):
     )
 
 
-class SentimentShift(SQLModel, table=True):
+class SentimentShift(SentimentShiftBase, table=True):
     """SQLModel for tracking significant sentiment shifts."""
     
     __tablename__ = "sentiment_shifts"

@@ -11,7 +11,15 @@ if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class AnalysisResult(TableBase, table=True):
+class AnalysisResultBase(TableBase):
+    """Base model for AnalysisResult."""
+    # TODO: move field definitions from AnalysisResult here
+
+class AnalysisResultRead(AnalysisResultBase):
+    """Read model for AnalysisResult."""
+    pass
+
+class AnalysisResult(AnalysisResultBase, table=True):
     """SQLModel for analysis results."""
 
     __tablename__ = "analysis_results"

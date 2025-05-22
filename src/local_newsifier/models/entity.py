@@ -10,7 +10,15 @@ if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class Entity(SQLModel, table=True):
+class EntityBase(SQLModel):
+    """Base model for Entity."""
+    # TODO: move field definitions from Entity here
+
+class EntityRead(EntityBase):
+    """Read model for Entity."""
+    pass
+
+class Entity(EntityBase, table=True):
     """SQLModel for entities extracted from articles."""
 
     __tablename__ = "entities"

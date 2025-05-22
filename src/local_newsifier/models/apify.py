@@ -12,7 +12,47 @@ if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class ApifySourceConfig(TableBase, table=True):
+class ApifySourceConfigBase(TableBase):
+    """Base model for ApifySourceConfig."""
+    # TODO: move field definitions from ApifySourceConfig here
+
+class ApifySourceConfigRead(ApifySourceConfigBase):
+    """Read model for ApifySourceConfig."""
+    pass
+
+class ApifyJobBase(TableBase):
+    """Base model for ApifyJob."""
+    # TODO: move field definitions from ApifyJob here
+
+class ApifyJobRead(ApifyJobBase):
+    """Read model for ApifyJob."""
+    pass
+
+class ApifyDatasetItemBase(TableBase):
+    """Base model for ApifyDatasetItem."""
+    # TODO: move field definitions from ApifyDatasetItem here
+
+class ApifyDatasetItemRead(ApifyDatasetItemBase):
+    """Read model for ApifyDatasetItem."""
+    pass
+
+class ApifyCredentialsBase(TableBase):
+    """Base model for ApifyCredentials."""
+    # TODO: move field definitions from ApifyCredentials here
+
+class ApifyCredentialsRead(ApifyCredentialsBase):
+    """Read model for ApifyCredentials."""
+    pass
+
+class ApifyWebhookBase(TableBase):
+    """Base model for ApifyWebhook."""
+    # TODO: move field definitions from ApifyWebhook here
+
+class ApifyWebhookRead(ApifyWebhookBase):
+    """Read model for ApifyWebhook."""
+    pass
+
+class ApifySourceConfig(ApifySourceConfigBase, table=True):
     """SQLModel for storing Apify scraper configurations."""
 
     __tablename__ = "apify_source_configs"
@@ -38,7 +78,7 @@ class ApifySourceConfig(TableBase, table=True):
     jobs: List["ApifyJob"] = Relationship(back_populates="source_config")
 
 
-class ApifyJob(TableBase, table=True):
+class ApifyJob(ApifyJobBase, table=True):
     """SQLModel for tracking Apify job runs."""
 
     __tablename__ = "apify_jobs"
@@ -73,7 +113,7 @@ class ApifyJob(TableBase, table=True):
     dataset_items: List["ApifyDatasetItem"] = Relationship(back_populates="job")
 
 
-class ApifyDatasetItem(TableBase, table=True):
+class ApifyDatasetItem(ApifyDatasetItemBase, table=True):
     """SQLModel for storing raw Apify dataset items before transformation."""
 
     __tablename__ = "apify_dataset_items"
@@ -95,7 +135,7 @@ class ApifyDatasetItem(TableBase, table=True):
     article: Optional["local_newsifier.models.article.Article"] = Relationship()
 
 
-class ApifyCredentials(TableBase, table=True):
+class ApifyCredentials(ApifyCredentialsBase, table=True):
     """SQLModel for storing Apify API credentials."""
 
     __tablename__ = "apify_credentials"
@@ -109,7 +149,7 @@ class ApifyCredentials(TableBase, table=True):
     rate_limit_remaining: Optional[int] = None  # For tracking API usage
 
 
-class ApifyWebhook(TableBase, table=True):
+class ApifyWebhook(ApifyWebhookBase, table=True):
     """SQLModel for managing Apify webhooks."""
 
     __tablename__ = "apify_webhooks"

@@ -13,7 +13,47 @@ if TYPE_CHECKING:
     from local_newsifier.models.article import Article
 
 
-class EntityMention(SQLModel, table=True):
+class EntityMentionBase(SQLModel):
+    """Base model for EntityMention."""
+    # TODO: move field definitions from EntityMention here
+
+class EntityMentionRead(EntityMentionBase):
+    """Read model for EntityMention."""
+    pass
+
+class EntityRelationshipBase(SQLModel):
+    """Base model for EntityRelationship."""
+    # TODO: move field definitions from EntityRelationship here
+
+class EntityRelationshipRead(EntityRelationshipBase):
+    """Read model for EntityRelationship."""
+    pass
+
+class CanonicalEntityBase(TableBase):
+    """Base model for CanonicalEntity."""
+    # TODO: move field definitions from CanonicalEntity here
+
+class CanonicalEntityRead(CanonicalEntityBase):
+    """Read model for CanonicalEntity."""
+    pass
+
+class EntityMentionContextBase(TableBase):
+    """Base model for EntityMentionContext."""
+    # TODO: move field definitions from EntityMentionContext here
+
+class EntityMentionContextRead(EntityMentionContextBase):
+    """Read model for EntityMentionContext."""
+    pass
+
+class EntityProfileBase(TableBase):
+    """Base model for EntityProfile."""
+    # TODO: move field definitions from EntityProfile here
+
+class EntityProfileRead(EntityProfileBase):
+    """Read model for EntityProfile."""
+    pass
+
+class EntityMention(EntityMentionBase, table=True):
     """SQLModel for entity mentions. Maps entities to canonical entities."""
     
     __tablename__ = "entity_mentions"
@@ -33,7 +73,7 @@ class EntityMention(SQLModel, table=True):
     )
 
 
-class EntityRelationship(SQLModel, table=True):
+class EntityRelationship(EntityRelationshipBase, table=True):
     """SQLModel for entity relationships. Defines connections between entities."""
     
     __tablename__ = "entity_relationships"
@@ -61,7 +101,7 @@ class EntityRelationship(SQLModel, table=True):
     )
 
 
-class CanonicalEntity(TableBase, table=True):
+class CanonicalEntity(CanonicalEntityBase, table=True):
     """SQLModel for canonical entities. Represents the canonical version of entities."""
     
     __tablename__ = "canonical_entities"
@@ -81,7 +121,7 @@ class CanonicalEntity(TableBase, table=True):
     )
 
 
-class EntityMentionContext(TableBase, table=True):
+class EntityMentionContext(EntityMentionContextBase, table=True):
     """SQLModel for entity mention contexts. Captures the context in which an entity is mentioned."""
     
     __tablename__ = "entity_mention_contexts"
@@ -100,7 +140,7 @@ class EntityMentionContext(TableBase, table=True):
     )
 
 
-class EntityProfile(TableBase, table=True):
+class EntityProfile(EntityProfileBase, table=True):
     """SQLModel for entity profiles. Stores generated profiles about entities."""
     
     __tablename__ = "entity_profiles"
