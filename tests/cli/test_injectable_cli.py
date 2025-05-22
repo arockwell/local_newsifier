@@ -1,12 +1,13 @@
 """Tests for the CLI commands with injectable dependencies."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from click.testing import CliRunner
 
-from local_newsifier.cli.main import cli
-from local_newsifier.cli.commands.db import db_group
 from local_newsifier.cli.commands.apify import apify_group, test_connection
+from local_newsifier.cli.commands.db import db_group
+from local_newsifier.cli.main import cli
 from local_newsifier.di.providers import get_apify_service_cli
 from local_newsifier.services.apify_service import ApifyService
 
@@ -84,7 +85,7 @@ def test_db_articles_integration(mock_get_injected_obj):
     
     # Configure side effect to return appropriate objects based on the provider
     def side_effect(provider):
-        from local_newsifier.di.providers import get_session, get_article_crud
+        from local_newsifier.di.providers import get_article_crud, get_session
         if provider == get_session:
             return mock_session
         elif "article_crud" in str(provider):

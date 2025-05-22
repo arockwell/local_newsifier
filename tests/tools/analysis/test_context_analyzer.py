@@ -8,12 +8,13 @@ This test suite covers:
 4. Analysis with minimal or empty context
 """
 
-import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
-from tests.fixtures.event_loop import event_loop_fixture
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+from tests.fixtures.event_loop import event_loop_fixture
 
 pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 

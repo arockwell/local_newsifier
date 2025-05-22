@@ -8,11 +8,11 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from local_newsifier.models.sentiment import SentimentVisualizationData
+from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from tests.ci_skip_config import ci_skip_injectable
 from tests.fixtures.event_loop import event_loop_fixture
-
-from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-from local_newsifier.models.sentiment import SentimentVisualizationData
 
 
 @pytest.mark.skip(reason="Database integrity error with entity_mention_contexts.context_text, to be fixed in a separate PR")

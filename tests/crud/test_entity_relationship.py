@@ -7,9 +7,7 @@ import pytest
 from sqlmodel import Session, select
 
 from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
-from local_newsifier.crud.entity_relationship import (
-    entity_relationship as entity_relationship_crud,
-)
+from local_newsifier.crud.entity_relationship import entity_relationship as entity_relationship_crud
 from local_newsifier.models.entity_tracking import EntityRelationship
 
 

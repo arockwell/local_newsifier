@@ -7,6 +7,7 @@ operations from the command line.
 """
 
 import sys
+
 import click
 from tabulate import tabulate
 
@@ -47,10 +48,10 @@ if is_apify_command():
         cli.add_command(apify_config_group)
 else:
     # Load all other command groups
-    from local_newsifier.cli.commands.feeds import feeds_group
-    from local_newsifier.cli.commands.db import db_group
     from local_newsifier.cli.commands.apify import apify_group
     from local_newsifier.cli.commands.apify_config import apify_config_group
+    from local_newsifier.cli.commands.db import db_group
+    from local_newsifier.cli.commands.feeds import feeds_group
 
     cli.add_command(feeds_group)
     cli.add_command(db_group)

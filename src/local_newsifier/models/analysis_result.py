@@ -1,8 +1,8 @@
 """Analysis result models for the news analysis system."""
 
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from sqlmodel import Field, Relationship, JSON
+from sqlmodel import JSON, Field, Relationship
 
 from local_newsifier.models.base import TableBase
 

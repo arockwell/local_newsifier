@@ -1,19 +1,18 @@
 """Tests for the main FastAPI application."""
 
-import os
 import logging
-from unittest.mock import patch, Mock, MagicMock, AsyncMock
+import os
 from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.middleware.sessions import SessionMiddleware
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_async
-
 from local_newsifier.api.main import app, lifespan
+from tests.ci_skip_config import ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
@@ -133,7 +132,7 @@ class TestLifespan:
         """Test that create_db_and_tables is called during lifespan startup."""
         with patch("local_newsifier.database.engine.create_db_and_tables") as mock_create_db:
             import inspect
-            
+
             # Get the source code of the lifespan function
             source = inspect.getsource(lifespan)
             

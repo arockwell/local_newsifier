@@ -4,12 +4,8 @@ import pytest
 from sqlmodel import select
 
 from local_newsifier.crud.entity_profile import CRUDEntityProfile
-from local_newsifier.crud.entity_profile import (
-    entity_profile as entity_profile_crud,
-)
-from local_newsifier.models.entity_tracking import (
-    EntityProfile,
-)
+from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
+from local_newsifier.models.entity_tracking import EntityProfile
 
 
 class TestEntityProfileCRUD:

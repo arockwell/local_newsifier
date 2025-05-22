@@ -1,14 +1,14 @@
 """Tests for the entity CRUD module."""
 
 # We need pytest for fixtures but don't explicitly use it
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import select
 
 from local_newsifier.crud.entity import CRUDEntity
 from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.models.entity import Entity
 from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 
 
 class TestEntityCRUD:

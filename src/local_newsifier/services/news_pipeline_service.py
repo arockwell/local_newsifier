@@ -1,10 +1,10 @@
 """News pipeline service for coordinating the entire news processing pipeline."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from local_newsifier.services.article_service import ArticleService
 from local_newsifier.errors import handle_database, handle_web_scraper
+from local_newsifier.services.article_service import ArticleService
 
 
 class NewsPipelineService:

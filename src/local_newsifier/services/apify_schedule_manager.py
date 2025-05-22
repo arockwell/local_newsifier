@@ -2,15 +2,15 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional, Tuple, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from sqlmodel import Session
 from sqlalchemy.sql import text
+from sqlmodel import Session
 
-from local_newsifier.models.apify import ApifySourceConfig
-from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.errors.error import ServiceError
+from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.services.apify_service import ApifyService
 
 
 class ApifyScheduleManager:
@@ -237,6 +237,7 @@ class ApifyScheduleManager:
                 # Update name to ensure consistency (following Apify's strict requirements)
                 # Name can only contain lowercase letters, numbers, and hyphens in the middle
                 import re
+
                 # First create a non-sanitized display name
                 display_name = f"Local Newsifier: {config.name}"
                 # Then create a sanitized version for the API

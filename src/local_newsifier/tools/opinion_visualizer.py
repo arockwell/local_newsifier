@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union, Annotated, TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Any, Dict, List, Optional, Tuple, Union
 
 from fastapi import Depends, Query
 from fastapi_injectable import injectable
@@ -69,7 +69,7 @@ class OpinionVisualizerTool:
         # Import necessary classes here to avoid circular imports
         from ..models.database.analysis_result import AnalysisResult
         from ..models.database.article import Article
-        
+
         # Get analysis results for the topic using SQLModel syntax
         statement = select(AnalysisResult).where(
             AnalysisResult.analysis_type == "SENTIMENT",

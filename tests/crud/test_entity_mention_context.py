@@ -5,18 +5,12 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import select
 
-from local_newsifier.crud.entity_mention_context import (
-    CRUDEntityMentionContext,
-)
-from local_newsifier.crud.entity_mention_context import (
-    entity_mention_context as entity_mention_context_crud,
-)
+from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
+from local_newsifier.crud.entity_mention_context import \
+    entity_mention_context as entity_mention_context_crud
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.entity_tracking import (
-    EntityMentionContext,
-    EntityMention,
-)
+from local_newsifier.models.entity_tracking import EntityMention, EntityMentionContext
 
 
 class TestEntityMentionContextCRUD:

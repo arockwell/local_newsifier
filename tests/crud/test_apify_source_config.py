@@ -1,12 +1,13 @@
 """Tests for ApifySourceConfig CRUD operations."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from sqlmodel import Session
 
 from local_newsifier.crud.apify_source_config import apify_source_config
-from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.errors.error import ServiceError
+from local_newsifier.models.apify import ApifySourceConfig
 
 
 class TestApifySourceConfigCRUD:

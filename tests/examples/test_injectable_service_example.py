@@ -1,11 +1,11 @@
 """Example test for an injectable service using the simplified testing approach."""
 
-import pytest
-from unittest.mock import MagicMock
 from typing import Annotated, Dict, List, Optional
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import Depends
+
 # Create a mock injectable decorator for testing
 mock_injectable = MagicMock()
 def mock_decorator(use_cache=True):
@@ -18,13 +18,12 @@ mock_injectable.side_effect = mock_decorator
 # Patch the real injectable with our mock
 with patch('fastapi_injectable.injectable', mock_injectable):
     from fastapi_injectable import injectable
+
 from sqlmodel import Session
 
 # Import testing utilities
-from tests.conftest_injectable import (
-    mock_injectable_dependencies,
-    create_mock_service,
-)
+from tests.conftest_injectable import create_mock_service, mock_injectable_dependencies
+
 
 # Define a simple injectable service for demonstration purposes
 @injectable(use_cache=False)

@@ -4,16 +4,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from local_newsifier.cli.commands.apify_config import (
-    add_config,
-    get_apify_source_config_crud,
-    get_apify_source_config_service,
-    get_session,
-    list_configs,
-    remove_config,
-    show_config,
-    update_config,
-)
+from local_newsifier.cli.commands.apify_config import (add_config, get_apify_source_config_crud,
+                                                       get_apify_source_config_service, get_session,
+                                                       list_configs, remove_config, show_config,
+                                                       update_config)
 
 
 @pytest.fixture

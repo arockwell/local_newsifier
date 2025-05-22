@@ -1,17 +1,18 @@
 """Tests for the trend_analyzer module."""
 
-import pytest
-import os
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, Mock
-import numpy as np
 import importlib
+import os
 import sys
-from tests.fixtures.event_loop import event_loop_fixture
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pytest
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.trend import TrendType, TimeFrame
+from local_newsifier.models.trend import TimeFrame, TrendType
+from tests.fixtures.event_loop import event_loop_fixture
 
 pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 

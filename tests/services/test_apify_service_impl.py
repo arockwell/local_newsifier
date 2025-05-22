@@ -7,22 +7,17 @@ to improve code coverage.
 import json
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from sqlmodel import Session, select
 
-from local_newsifier.services.apify_service import ApifyService
-from local_newsifier.models.apify import (
-    ApifySourceConfig,
-    ApifyJob,
-    ApifyDatasetItem,
-    ApifyCredentials,
-    ApifyWebhook
-)
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
+from local_newsifier.models.apify import (ApifyCredentials, ApifyDatasetItem, ApifyJob,
+                                          ApifySourceConfig, ApifyWebhook)
 from local_newsifier.models.article import Article
+from local_newsifier.services.apify_service import ApifyService
 
 
 class TestApifyServiceImplementation:

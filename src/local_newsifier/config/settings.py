@@ -8,22 +8,14 @@ from typing import List, Optional
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from local_newsifier.config.common import (
-    get_cursor_db_name,
-    get_database_url as build_database_url,
-    DEFAULT_POSTGRES_USER,
-    DEFAULT_POSTGRES_PASSWORD,
-    DEFAULT_POSTGRES_HOST,
-    DEFAULT_POSTGRES_PORT,
-    DEFAULT_DB_POOL_SIZE,
-    DEFAULT_DB_MAX_OVERFLOW,
-    DEFAULT_DB_ECHO,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_CACHE_DIR,
-    DEFAULT_TEMP_DIR,
-    DEFAULT_LOG_LEVEL,
-    DEFAULT_LOG_FORMAT,
-)
+from local_newsifier.config.common import (DEFAULT_CACHE_DIR, DEFAULT_DB_ECHO,
+                                           DEFAULT_DB_MAX_OVERFLOW, DEFAULT_DB_POOL_SIZE,
+                                           DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL,
+                                           DEFAULT_OUTPUT_DIR, DEFAULT_POSTGRES_HOST,
+                                           DEFAULT_POSTGRES_PASSWORD, DEFAULT_POSTGRES_PORT,
+                                           DEFAULT_POSTGRES_USER, DEFAULT_TEMP_DIR,
+                                           get_cursor_db_name)
+from local_newsifier.config.common import get_database_url as build_database_url
 
 
 class Settings(BaseSettings):

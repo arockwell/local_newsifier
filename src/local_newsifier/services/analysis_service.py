@@ -1,12 +1,11 @@
 """Service layer for analysis operations."""
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple
 
-from sqlmodel import Session
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
 from local_newsifier.crud.analysis_result import analysis_result
 from local_newsifier.crud.article import article
@@ -14,7 +13,7 @@ from local_newsifier.crud.entity import entity
 from local_newsifier.database.engine import get_session
 from local_newsifier.errors.handlers import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.models.trend import TrendAnalysis, TimeFrame
+from local_newsifier.models.trend import TimeFrame, TrendAnalysis
 
 
 @injectable(use_cache=False)

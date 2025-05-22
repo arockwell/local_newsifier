@@ -12,18 +12,14 @@ This module provides commands for managing RSS feeds, including:
 """
 
 import json
-import click
 from datetime import datetime
+
+import click
 from tabulate import tabulate
 
-from local_newsifier.di.providers import (
-    get_rss_feed_service,
-    get_article_crud,
-    get_session,
-    get_entity_tracking_flow,
-    get_news_pipeline_flow,
-)
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
+from local_newsifier.di.providers import (get_article_crud, get_entity_tracking_flow,
+                                          get_news_pipeline_flow, get_rss_feed_service, get_session)
 
 
 @click.group(name="feeds")

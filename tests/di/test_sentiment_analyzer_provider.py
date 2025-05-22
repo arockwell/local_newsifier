@@ -1,11 +1,13 @@
 """Tests for SentimentAnalyzer provider functions."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Import event loop fixture
 pytest.importorskip("tests.fixtures.event_loop")
 from tests.fixtures.event_loop import event_loop_fixture  # noqa
+
 
 @pytest.fixture
 def mock_nlp():
@@ -27,7 +29,7 @@ def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
     
     # Import here to avoid circular imports
     from local_newsifier.di.providers import get_sentiment_analyzer_config
-    
+
     # Get configuration from the provider
     config = get_sentiment_analyzer_config()
     

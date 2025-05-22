@@ -1,9 +1,10 @@
 """Tests for the RSS feeds CLI commands."""
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli

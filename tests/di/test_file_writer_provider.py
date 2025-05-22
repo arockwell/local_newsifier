@@ -1,8 +1,11 @@
 """Tests for file writer provider."""
 
 import inspect
+
 import pytest
+
 from tests.fixtures.event_loop import event_loop_fixture
+
 
 def test_get_file_writer_config(event_loop_fixture):
     """Test that the get_file_writer_config function returns the expected config."""
@@ -20,7 +23,7 @@ def test_get_file_writer_tool_provider_signature(event_loop_fixture):
     """Test the signature of the file writer tool provider function."""
     # Import provider function
     from local_newsifier.di.providers import get_file_writer_tool
-    
+
     # Get the signature of the function
     sig = inspect.signature(get_file_writer_tool)
     

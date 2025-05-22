@@ -1,10 +1,10 @@
 """Context analyzer tool for analyzing entity mention contexts."""
 
-from typing import Dict, List, Optional, Any, Annotated
-from fastapi import Depends
-from fastapi_injectable import injectable
+from typing import Annotated, Any, Dict, List, Optional
 
 import spacy
+from fastapi import Depends
+from fastapi_injectable import injectable
 from spacy.language import Language
 from spacy.tokens import Doc, Span
 

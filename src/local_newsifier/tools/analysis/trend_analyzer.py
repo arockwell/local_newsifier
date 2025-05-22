@@ -4,25 +4,18 @@ import logging
 import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple, Set, Any, Union, Annotated
+from typing import Annotated, Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import spacy
-from sqlmodel import Session, select
 from fastapi import Depends
 from fastapi_injectable import injectable
+from sqlmodel import Session, select
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.trend import (
-    TrendAnalysis,
-    TrendEntity,
-    TrendEvidenceItem,
-    TrendStatus,
-    TrendType,
-    TimeFrame,
-    TopicFrequency
-)
+from local_newsifier.models.trend import (TimeFrame, TopicFrequency, TrendAnalysis, TrendEntity,
+                                          TrendEvidenceItem, TrendStatus, TrendType)
 
 logger = logging.getLogger(__name__)
 

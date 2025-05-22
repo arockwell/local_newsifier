@@ -15,11 +15,10 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from crewai import Flow
 from sqlmodel import Session
-
 
 from local_newsifier.services.analysis_service import AnalysisService
 

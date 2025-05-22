@@ -1,8 +1,9 @@
 """Tests for analysis_result model."""
 
+from datetime import datetime, timezone
+
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
-from datetime import datetime, timezone
 
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article

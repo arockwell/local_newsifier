@@ -1,16 +1,14 @@
 """Extended tests for the EntityService."""
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import ANY, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch, ANY
 
+from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
+                                          EntityRelationshipState, EntityTrackingState,
+                                          TrackingStatus)
 from tests.fixtures.event_loop import event_loop_fixture
-
-from local_newsifier.models.state import (
-    EntityTrackingState, EntityBatchTrackingState, 
-    EntityDashboardState, EntityRelationshipState, 
-    TrackingStatus
-)
 
 
 def test_process_article_entities_with_multiple_entity_types(event_loop_fixture):
