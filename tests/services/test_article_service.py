@@ -2,10 +2,11 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from tests.fixtures.event_loop import event_loop_fixture
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_process_article():
+
+def test_process_article(event_loop_fixture):
     """Test the complete article processing flow using the service."""
     # Arrange
     # Mock the entity service
@@ -72,8 +73,8 @@ def test_process_article():
     assert result["entities"][0]["original_text"] == "John Doe"
     assert result["analysis_result"]["statistics"]["total_entities"] == 1
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_get_article():
+
+def test_get_article(event_loop_fixture):
     """Test retrieving an article with its analysis results."""
     # Arrange
     # Mock CRUD operations
@@ -138,8 +139,8 @@ def test_get_article():
     assert len(result["analysis_results"]) == 1
     assert result["analysis_results"][0]["statistics"]["total_entities"] == 1
 
-@pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
-def test_get_article_not_found():
+
+def test_get_article_not_found(event_loop_fixture):
     """Test retrieving a non-existent article."""
     # Arrange
     # Mock CRUD operations
