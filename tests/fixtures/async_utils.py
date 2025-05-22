@@ -25,7 +25,7 @@ async def async_test_db():
     from local_newsifier.database.async_engine import AsyncDatabase
     from sqlmodel import SQLModel
 
-    db = AsyncDatabase("sqlite+aiosqlite:///:memory:")
+    db = AsyncDatabase("sqlite:///:memory:")
     await db.initialize()
     await db.run_sync(lambda engine: SQLModel.metadata.create_all(engine))
     yield db
