@@ -1,4 +1,5 @@
 """Tests for API tasks router."""
+
 import json
 from unittest.mock import MagicMock, Mock, patch
 
@@ -10,7 +11,12 @@ from sqlmodel import Session
 from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip_async
 
-from local_newsifier.api.dependencies import get_templates, get_session, get_article_service, get_rss_feed_service
+from local_newsifier.api.dependencies import (
+    get_templates,
+    get_session,
+    get_article_service,
+    get_rss_feed_service,
+)
 from local_newsifier.api.routers.tasks import router
 from local_newsifier.models.article import Article
 
@@ -107,7 +113,9 @@ class TestTasksDashboard:
 
     @patch("local_newsifier.api.routers.tasks.settings", autospec=True)
     @patch("local_newsifier.api.routers.tasks.get_templates", return_value=None)
-    def test_tasks_dashboard(self, mock_get_templates, mock_settings_module, client, mock_templates):
+    def test_tasks_dashboard(
+        self, mock_get_templates, mock_settings_module, client, mock_templates
+    ):
         """Test tasks dashboard returns template response."""
         # Set up the mock
         mock_settings_module.RSS_FEED_URLS = ["https://example.com/feed"]
@@ -145,7 +153,7 @@ class TestProcessArticle:
         """Test successful article processing."""
         # Set up mocks
         mock_article_service.get_article.return_value = sample_article
-        
+
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
         mock_process_article.delay.return_value = mock_task
@@ -177,7 +185,7 @@ class TestProcessArticle:
         """Test article not found error."""
         # Set up mocks
         mock_article_service.get_article.return_value = None
-        
+
         # Register the dependency override
         client.app.dependency_overrides[get_article_service] = lambda: mock_article_service
 
@@ -207,16 +215,20 @@ class TestFetchRSSFeeds:
         """Test fetching RSS feeds with default URLs from settings."""
         # Set up mocks
         mock_settings.RSS_FEED_URLS = ["https://example.com/rss1", "https://example.com/rss2"]
-        
+
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
         mock_fetch_rss_feeds.delay.return_value = mock_task
 
         # Patch all async operations to avoid event loop issues
-        with patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service), \
-             patch("fastapi_injectable.main.solve_dependencies", return_value=mock_rss_feed_service), \
-             patch("asyncio.get_event_loop", return_value=event_loop_fixture):
-        
+        with patch(
+            "fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service
+        ), patch(
+            "fastapi_injectable.main.solve_dependencies", return_value=mock_rss_feed_service
+        ), patch(
+            "asyncio.get_event_loop", return_value=event_loop_fixture
+        ):
+
             # Register the dependency override
             client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
 
@@ -244,17 +256,25 @@ class TestFetchRSSFeeds:
     ):
         """Test fetching RSS feeds with custom URLs."""
         # Set up mocks
-        custom_feeds = ["https://custom.com/feed1", "https://custom.com/feed2", "https://custom.com/feed3"]
-        
+        custom_feeds = [
+            "https://custom.com/feed1",
+            "https://custom.com/feed2",
+            "https://custom.com/feed3",
+        ]
+
         mock_task = MagicMock()
         mock_task.id = "test-task-id"
         mock_fetch_rss_feeds.delay.return_value = mock_task
 
         # Patch all async operations to avoid event loop issues
-        with patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service), \
-             patch("fastapi_injectable.main.solve_dependencies", return_value=mock_rss_feed_service), \
-             patch("asyncio.get_event_loop", return_value=event_loop_fixture):
-        
+        with patch(
+            "fastapi_injectable.concurrency.run_coroutine_sync", return_value=mock_rss_feed_service
+        ), patch(
+            "fastapi_injectable.main.solve_dependencies", return_value=mock_rss_feed_service
+        ), patch(
+            "asyncio.get_event_loop", return_value=event_loop_fixture
+        ):
+
             # Register the dependency override
             client.app.dependency_overrides[get_rss_feed_service] = lambda: mock_rss_feed_service
 

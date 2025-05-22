@@ -15,7 +15,7 @@ def test_article_creation():
     """Test creating an Article instance."""
     # Create a mock session
     mock_session = MagicMock(spec=Session)
-    
+
     # Create article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
     article = Article(
@@ -29,7 +29,7 @@ def test_article_creation():
         scraped_at=now,
     )
     mock_session.add(article)
-    
+
     # Verify attributes using direct attribute access
     assert str(article.url) == "https://example.com/news/1"
     assert str(article.title) == "Test Article"
@@ -48,7 +48,7 @@ def test_article_entity_relationship():
     """Test the relationship between Article and Entity."""
     # Create mock session
     mock_session = MagicMock(spec=Session)
-    
+
     # Create an article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
     article = Article(
@@ -62,7 +62,7 @@ def test_article_entity_relationship():
         scraped_at=now,
     )
     mock_session.add(article)
-    
+
     # Create an entity and associate it with the article
     entity = Entity(
         text="Gainesville",
@@ -73,7 +73,7 @@ def test_article_entity_relationship():
     )
     article.entities.append(entity)
     mock_session.add(entity)
-    
+
     # Verify relationship using list operations
     assert len(article.entities) == 1
     assert article.entities[0] is entity
@@ -85,7 +85,7 @@ def test_article_unique_url_constraint():
     # Create mock session that raises IntegrityError
     mock_session = MagicMock(spec=Session)
     mock_session.commit.side_effect = Exception("Unique constraint violation")
-    
+
     # Create first article with timestamps
     now = datetime.datetime.now(datetime.timezone.utc)
     article1 = Article(
@@ -97,7 +97,7 @@ def test_article_unique_url_constraint():
         scraped_at=now,
     )
     mock_session.add(article1)
-    
+
     # Create second article with same URL
     article2 = Article(
         url="https://example.com/news/1",  # Same URL as article1
@@ -108,7 +108,7 @@ def test_article_unique_url_constraint():
         scraped_at=now,
     )
     mock_session.add(article2)
-    
+
     # Verify that commit raises an exception
     with pytest.raises(Exception):
         mock_session.commit()

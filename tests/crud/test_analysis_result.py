@@ -12,9 +12,7 @@ from local_newsifier.models.analysis_result import AnalysisResult
 class TestAnalysisResultCRUD:
     """Tests for AnalysisResultCRUD class."""
 
-    def test_create(
-        self, db_session, create_article, sample_analysis_result_data
-    ):
+    def test_create(self, db_session, create_article, sample_analysis_result_data):
         """Test creating a new analysis result."""
         result = analysis_result_crud.create(db_session, obj_in=sample_analysis_result_data)
 
@@ -30,9 +28,7 @@ class TestAnalysisResultCRUD:
         assert db_result is not None
         assert db_result.analysis_type == sample_analysis_result_data["analysis_type"]
 
-    def test_get(
-        self, db_session, create_article, sample_analysis_result_data
-    ):
+    def test_get(self, db_session, create_article, sample_analysis_result_data):
         """Test getting an analysis result by ID."""
         # Create an analysis result
         db_result = AnalysisResult(**sample_analysis_result_data)
@@ -75,9 +71,7 @@ class TestAnalysisResultCRUD:
         db_session.commit()
 
         # Test getting all analysis results for the article
-        results = analysis_result_crud.get_by_article(
-            db_session, article_id=create_article.id
-        )
+        results = analysis_result_crud.get_by_article(db_session, article_id=create_article.id)
 
         assert len(results) == 3
         analysis_types = [result.analysis_type for result in results]
@@ -87,9 +81,7 @@ class TestAnalysisResultCRUD:
 
     def test_get_by_article_empty(self, db_session, create_article):
         """Test getting analysis results for an article with no results."""
-        results = analysis_result_crud.get_by_article(
-            db_session, article_id=create_article.id
-        )
+        results = analysis_result_crud.get_by_article(db_session, article_id=create_article.id)
 
         assert len(results) == 0
 
@@ -129,9 +121,7 @@ class TestAnalysisResultCRUD:
         assert result.analysis_type == "sentiment"
         assert result.results == {"sentiment": "positive", "score": 0.8}
 
-    def test_get_by_article_and_type_not_found(
-        self, db_session, create_article
-    ):
+    def test_get_by_article_and_type_not_found(self, db_session, create_article):
         """Test getting non-existent analysis result."""
         result = analysis_result_crud.get_by_article_and_type(
             db_session,

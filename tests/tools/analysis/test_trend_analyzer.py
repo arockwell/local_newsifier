@@ -15,6 +15,7 @@ from local_newsifier.models.trend import TrendType, TimeFrame
 
 pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
+
 # Create a mock TrendAnalyzer class that works without dependency injection
 class MockTrendAnalyzer:
     """A mock version of TrendAnalyzer that doesn't use dependency injection."""
@@ -26,6 +27,7 @@ class MockTrendAnalyzer:
 
         # We don't actually load spaCy model in tests
 
+
 def create_test_analyzer(session=None, nlp_model=None):
     """Helper function to create a test analyzer instance with all methods copied."""
     # Import the real TrendAnalyzer for method copying
@@ -36,10 +38,11 @@ def create_test_analyzer(session=None, nlp_model=None):
 
     # Copy all methods from TrendAnalyzer to our mock
     for name, method in TrendAnalyzer.__dict__.items():
-        if callable(method) and not name.startswith('__'):
+        if callable(method) and not name.startswith("__"):
             setattr(analyzer, name, method.__get__(analyzer, MockTrendAnalyzer))
 
     return analyzer
+
 
 @pytest.fixture
 def trend_analyzer():
@@ -99,7 +102,7 @@ class TestTrendAnalyzer:
         headlines = [
             "Gainesville City Commission approves new development",
             "UF researchers make breakthrough in cancer treatment",
-            "Local school wins state championship"
+            "Local school wins state championship",
         ]
 
         keywords = trend_analyzer.extract_keywords(headlines, top_n=5)
@@ -125,7 +128,7 @@ class TestTrendAnalyzer:
         trend_data = {
             "2023-01-01": [("city", 2), ("school", 1)],
             "2023-01-02": [("city", 3), ("school", 2)],
-            "2023-01-03": [("city", 5), ("school", 1)]
+            "2023-01-03": [("city", 5), ("school", 1)],
         }
 
         results = trend_analyzer.detect_keyword_trends(trend_data)
@@ -266,12 +269,7 @@ class TestTrendAnalyzer:
     def test_find_related_entities(self, trend_analyzer):
         """Test finding related entities."""
         # Create test entities
-        main_entity = Entity(
-            id=1,
-            article_id=1,
-            text="Mayor",
-            entity_type="PERSON"
-        )
+        main_entity = Entity(id=1, article_id=1, text="Mayor", entity_type="PERSON")
 
         all_entities = [
             main_entity,
@@ -315,29 +313,53 @@ class TestTrendAnalyzer:
                 url="http://example.com/1",
                 title="Gainesville mayor announces new initiative",
                 content="The mayor of Gainesville announced a new initiative today.",
-                published_at=datetime.now(timezone.utc) - timedelta(days=1)
+                published_at=datetime.now(timezone.utc) - timedelta(days=1),
             ),
             Article(
                 id=2,
                 url="http://example.com/2",
                 title="Mayor discusses budget plans",
                 content="Mayor discusses new budget plans for the city.",
-                published_at=datetime.now(timezone.utc) - timedelta(days=2)
+                published_at=datetime.now(timezone.utc) - timedelta(days=2),
             ),
             Article(
                 id=3,
                 url="http://example.com/3",
                 title="UF receives funding for research",
                 content="The University of Florida received new funding.",
-                published_at=datetime.now(timezone.utc) - timedelta(days=3)
-            )
+                published_at=datetime.now(timezone.utc) - timedelta(days=3),
+            ),
         ]
 
         entities = [
-            Entity(id=1, article_id=1, text="Mayor", entity_type="PERSON", sentence_context="The mayor of Gainesville announced a new initiative today."),
-            Entity(id=2, article_id=2, text="Mayor", entity_type="PERSON", sentence_context="Mayor discusses new budget plans for the city."),
-            Entity(id=3, article_id=1, text="Gainesville", entity_type="GPE", sentence_context="The mayor of Gainesville announced a new initiative today."),
-            Entity(id=4, article_id=3, text="University of Florida", entity_type="ORG", sentence_context="The University of Florida received new funding.")
+            Entity(
+                id=1,
+                article_id=1,
+                text="Mayor",
+                entity_type="PERSON",
+                sentence_context="The mayor of Gainesville announced a new initiative today.",
+            ),
+            Entity(
+                id=2,
+                article_id=2,
+                text="Mayor",
+                entity_type="PERSON",
+                sentence_context="Mayor discusses new budget plans for the city.",
+            ),
+            Entity(
+                id=3,
+                article_id=1,
+                text="Gainesville",
+                entity_type="GPE",
+                sentence_context="The mayor of Gainesville announced a new initiative today.",
+            ),
+            Entity(
+                id=4,
+                article_id=3,
+                text="University of Florida",
+                entity_type="ORG",
+                sentence_context="The University of Florida received new funding.",
+            ),
         ]
 
         trends = trend_analyzer.detect_entity_trends(
@@ -345,7 +367,7 @@ class TestTrendAnalyzer:
             articles=articles,
             entity_types=["PERSON", "ORG", "GPE"],
             min_significance=1.0,
-            min_mentions=2
+            min_mentions=2,
         )
 
         # Should detect Mayor as a trending entity (mentioned twice)
@@ -354,7 +376,11 @@ class TestTrendAnalyzer:
         # Verify the properties of the trend
         mayor_trend = next((t for t in trends if "Mayor" in t.name), None)
         assert mayor_trend is not None
-        assert mayor_trend.trend_type in [TrendType.FREQUENCY_SPIKE, TrendType.EMERGING_TOPIC, TrendType.NOVEL_ENTITY]
+        assert mayor_trend.trend_type in [
+            TrendType.FREQUENCY_SPIKE,
+            TrendType.EMERGING_TOPIC,
+            TrendType.NOVEL_ENTITY,
+        ]
         assert mayor_trend.confidence_score >= 0.6
         assert len(mayor_trend.entities) >= 1
 

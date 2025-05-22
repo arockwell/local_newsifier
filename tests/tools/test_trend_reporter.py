@@ -7,11 +7,14 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 from tests.fixtures.event_loop import event_loop_fixture
-from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
-                                            TrendEvidenceItem, TrendStatus,
-                                            TrendType)
-from local_newsifier.tools.trend_reporter import (ReportFormat,
-                                                     TrendReporter)
+from local_newsifier.models.trend import (
+    TrendAnalysis,
+    TrendEntity,
+    TrendEvidenceItem,
+    TrendStatus,
+    TrendType,
+)
+from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
 
 
 @pytest.fixture

@@ -74,9 +74,7 @@ class TestEntityCRUD:
         db_session.commit()
 
         # Test getting all entities for the article
-        entities = entity_crud.get_by_article(
-            db_session, article_id=create_article.id
-        )
+        entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
 
         assert len(entities) == 3
         entity_texts = [entity.text for entity in entities]
@@ -86,9 +84,7 @@ class TestEntityCRUD:
 
     def test_get_by_article_empty(self, db_session, create_article):
         """Test getting entities for an article with no entities."""
-        entities = entity_crud.get_by_article(
-            db_session, article_id=create_article.id
-        )
+        entities = entity_crud.get_by_article(db_session, article_id=create_article.id)
 
         assert len(entities) == 0
 
@@ -115,20 +111,18 @@ class TestEntityCRUD:
         assert entity.text == "Specific Entity"
         assert entity.article_id == create_article.id
 
-    def test_get_by_text_and_article_not_found(
-        self, db_session, create_article
-    ):
+    def test_get_by_text_and_article_not_found(self, db_session, create_article):
         """Test getting a non-existent entity by text and article ID."""
         entity = entity_crud.get_by_text_and_article(
             db_session, text="Nonexistent Entity", article_id=create_article.id
         )
 
         assert entity is None
-        
+
     def test_get_by_date_range_and_types(self, db_session):
         """Test getting entities by date range and entity types."""
         now = datetime.now(timezone.utc)
-        
+
         # Create articles with different publication dates
         article_dates = [
             now - timedelta(days=5),  # 5 days ago
@@ -137,7 +131,7 @@ class TestEntityCRUD:
             now - timedelta(days=2),  # 2 days ago
             now - timedelta(days=1),  # 1 day ago
         ]
-        
+
         articles = []
         for i, date in enumerate(article_dates):
             article = Article(
@@ -153,10 +147,10 @@ class TestEntityCRUD:
             db_session.commit()
             db_session.refresh(article)
             articles.append(article)
-        
+
         # Create entities with different types for each article
         entity_types = ["PERSON", "LOCATION", "ORGANIZATION", "PERSON", "MISC"]
-        
+
         for article, entity_type in zip(articles, entity_types):
             entity = Entity(
                 article_id=article.id,
@@ -167,49 +161,42 @@ class TestEntityCRUD:
             )
             db_session.add(entity)
         db_session.commit()
-        
+
         # Test getting entities within a date range (last 3 days)
         start_date = now - timedelta(days=3)
         end_date = now
         entities = entity_crud.get_by_date_range_and_types(
-            db_session,
-            start_date=start_date,
-            end_date=end_date
+            db_session, start_date=start_date, end_date=end_date
         )
-        
+
         # Should return 3 entities (from 3 days ago until now)
         assert len(entities) == 3
-        
+
         # Test with entity type filter
         person_entities = entity_crud.get_by_date_range_and_types(
-            db_session,
-            start_date=start_date,
-            end_date=end_date,
-            entity_types=["PERSON"]
+            db_session, start_date=start_date, end_date=end_date, entity_types=["PERSON"]
         )
-        
+
         # Should return 1 entity of type PERSON in the date range
         assert len(person_entities) == 1
         assert person_entities[0].entity_type == "PERSON"
-        
+
         # Test with multiple entity types
         filtered_entities = entity_crud.get_by_date_range_and_types(
             db_session,
             start_date=start_date,
             end_date=end_date,
-            entity_types=["PERSON", "LOCATION"]
+            entity_types=["PERSON", "LOCATION"],
         )
-        
+
         # Should return 1 entity (based on our test data, there's only 1 matching entity in range)
         assert len(filtered_entities) == 1
-        
+
         # Test with a longer date range
         full_date_range = entity_crud.get_by_date_range_and_types(
-            db_session,
-            start_date=now - timedelta(days=10),
-            end_date=now
+            db_session, start_date=now - timedelta(days=10), end_date=now
         )
-        
+
         # Should return all 5 entities
         assert len(full_date_range) == 5
 

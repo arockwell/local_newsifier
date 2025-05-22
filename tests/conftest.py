@@ -16,13 +16,17 @@ from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, EntityMention, EntityMentionContext,
-    EntityProfile, EntityRelationship
+    CanonicalEntity,
+    EntityMention,
+    EntityMentionContext,
+    EntityProfile,
+    EntityRelationship,
 )
 
 # Note: We don't need to register models here as it's done in root conftest.py
 
 # ==================== Sample Data Fixtures ====================
+
 
 @pytest.fixture(scope="function")
 def sample_article_data() -> Dict:
@@ -106,8 +110,8 @@ def sample_apify_source_config_data() -> Dict:
         "source_url": "https://example.com/news",
         "input_configuration": {
             "startUrls": [{"url": "https://example.com/news"}],
-            "maxPagesPerCrawl": 10
-        }
+            "maxPagesPerCrawl": 10,
+        },
     }
 
 
@@ -122,7 +126,9 @@ def sample_entity_relationship_data() -> Dict:
         "evidence": "This is evidence for the relationship.",
     }
 
+
 # ==================== Database Entity Creation Fixtures ====================
+
 
 @pytest.fixture(scope="function")
 def create_article(db_session) -> Article:

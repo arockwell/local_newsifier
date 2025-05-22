@@ -22,9 +22,7 @@ from local_newsifier.models.entity_tracking import (
 class TestEntityMentionContextCRUD:
     """Tests for EntityMentionContextCRUD class."""
 
-    def test_create(
-        self, db_session, create_entity, sample_entity_mention_context_data
-    ):
+    def test_create(self, db_session, create_entity, sample_entity_mention_context_data):
         """Test creating a new entity mention context."""
         obj_in = sample_entity_mention_context_data
         context = entity_mention_context_crud.create(db_session, obj_in=obj_in)
@@ -45,14 +43,10 @@ class TestEntityMentionContextCRUD:
         assert db_context.entity_id == obj_in["entity_id"]
         assert db_context.article_id == obj_in["article_id"]
 
-    def test_get(
-        self, db_session, create_entity, sample_entity_mention_context_data
-    ):
+    def test_get(self, db_session, create_entity, sample_entity_mention_context_data):
         """Test getting an entity mention context by ID."""
         # Create an entity mention context
-        db_context = EntityMentionContext(
-            **sample_entity_mention_context_data
-        )
+        db_context = EntityMentionContext(**sample_entity_mention_context_data)
         db_session.add(db_context)
         db_session.commit()
 
@@ -72,9 +66,7 @@ class TestEntityMentionContextCRUD:
     ):
         """Test getting context by entity and article ID."""
         # Create an entity mention context
-        db_context = EntityMentionContext(
-            **sample_entity_mention_context_data
-        )
+        db_context = EntityMentionContext(**sample_entity_mention_context_data)
         db_session.add(db_context)
         db_session.commit()
 
@@ -90,9 +82,7 @@ class TestEntityMentionContextCRUD:
         assert context.article_id == create_entity.article_id
         assert context.context_text == db_context.context_text
 
-    def test_get_by_entity_and_article_not_found(
-        self, db_session, create_entity
-    ):
+    def test_get_by_entity_and_article_not_found(self, db_session, create_entity):
         """Test getting a non-existent entity mention context."""
         context = entity_mention_context_crud.get_by_entity_and_article(
             db_session,
@@ -120,32 +110,21 @@ class TestEntityMentionContextCRUD:
         db_session.commit()
 
         # Test getting all contexts for the entity
-        contexts = entity_mention_context_crud.get_by_entity(
-            db_session, entity_id=create_entity.id
-        )
+        contexts = entity_mention_context_crud.get_by_entity(db_session, entity_id=create_entity.id)
 
         assert len(contexts) == 3
-        for i, context in enumerate(
-            sorted(contexts, key=lambda c: c.article_id)
-        ):
+        for i, context in enumerate(sorted(contexts, key=lambda c: c.article_id)):
             assert context.entity_id == create_entity.id
             assert context.article_id == i + 100
-            assert (
-                context.context_text
-                == f"Context {i} for entity {create_entity.id}"
-            )
+            assert context.context_text == f"Context {i} for entity {create_entity.id}"
 
     def test_get_by_entity_empty(self, db_session, create_entity):
         """Test getting contexts for an entity with no contexts."""
-        contexts = entity_mention_context_crud.get_by_entity(
-            db_session, entity_id=create_entity.id
-        )
+        contexts = entity_mention_context_crud.get_by_entity(db_session, entity_id=create_entity.id)
 
         assert len(contexts) == 0
 
-    def test_get_sentiment_trend(
-        self, db_session, create_canonical_entity, create_entity
-    ):
+    def test_get_sentiment_trend(self, db_session, create_canonical_entity, create_entity):
         """Test getting the sentiment trend for an entity."""
         # Create articles with different published dates
         articles = []
@@ -214,15 +193,11 @@ class TestEntityMentionContextCRUD:
         )
 
         assert len(trend) == 5
-        for i, entry in enumerate(
-            sorted(trend, key=lambda e: e["date"], reverse=True)
-        ):
+        for i, entry in enumerate(sorted(trend, key=lambda e: e["date"], reverse=True)):
             assert entry["date"] == articles[i].published_at
             assert entry["avg_sentiment"] == pytest.approx(0.5 + (i * 0.1))
 
     def test_singleton_instance(self):
         """Test singleton instance behavior."""
-        assert isinstance(
-            entity_mention_context_crud, CRUDEntityMentionContext
-        )
+        assert isinstance(entity_mention_context_crud, CRUDEntityMentionContext)
         assert entity_mention_context_crud.model == EntityMentionContext
