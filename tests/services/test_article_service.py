@@ -1,8 +1,10 @@
 """Tests for the ArticleService."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 
 @pytest.mark.skip(reason="Async event loop issue in fastapi-injectable, to be fixed in a separate PR")
 def test_process_article():

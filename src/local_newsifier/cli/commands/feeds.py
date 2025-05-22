@@ -12,18 +12,14 @@ This module provides commands for managing RSS feeds, including:
 """
 
 import json
-import click
 from datetime import datetime
+
+import click
 from tabulate import tabulate
 
-from local_newsifier.di.providers import (
-    get_rss_feed_service,
-    get_article_crud,
-    get_session,
-    get_entity_tracking_flow,
-    get_news_pipeline_flow,
-)
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
+from local_newsifier.di.providers import (get_article_crud, get_entity_tracking_flow,
+                                          get_news_pipeline_flow, get_rss_feed_service, get_session)
 
 
 @click.group(name="feeds")
@@ -41,22 +37,22 @@ def list_feeds(active_only, json_output, limit, skip):
     """List all feeds with optional filtering."""
     rss_feed_service = get_rss_feed_service()
     feeds = rss_feed_service.list_feeds(skip=skip, limit=limit, active_only=active_only)
-    
+
     if json_output:
         click.echo(json.dumps(feeds, indent=2))
         return
-    
+
     if not feeds:
         click.echo("No feeds found.")
         return
-    
+
     # Format data for table
     table_data = []
     for feed in feeds:
         last_fetched = feed["last_fetched_at"]
         if last_fetched:
             last_fetched = datetime.fromisoformat(last_fetched).strftime("%Y-%m-%d %H:%M")
-        
+
         table_data.append([
             feed["id"],
             feed["name"],
@@ -64,7 +60,7 @@ def list_feeds(active_only, json_output, limit, skip):
             "✓" if feed["is_active"] else "✗",
             last_fetched or "Never"
         ])
-    
+
     # Display table
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
@@ -77,7 +73,7 @@ def list_feeds(active_only, json_output, limit, skip):
 def add_feed(url, name, description):
     """Add a new feed."""
     feed_name = name or url
-    
+
     try:
         rss_feed_service = get_rss_feed_service()
         feed = rss_feed_service.create_feed(url=url, name=feed_name, description=description)
@@ -97,12 +93,12 @@ def show_feed(id, json_output, show_logs):
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
         return
-    
+
     # Get logs if requested
     logs = []
     if show_logs:
         logs = rss_feed_service.get_feed_processing_logs(id, limit=5)
-    
+
     if json_output:
         result = {
             "feed": feed,
@@ -111,24 +107,24 @@ def show_feed(id, json_output, show_logs):
             result["logs"] = logs
         click.echo(json.dumps(result, indent=2))
         return
-    
+
     # Display feed details
     click.echo(click.style(f"Feed #{feed['id']}: {feed['name']}", fg="green", bold=True))
     click.echo(f"URL: {feed['url']}")
     if feed['description']:
         click.echo(f"Description: {feed['description']}")
     click.echo(f"Active: {'Yes' if feed['is_active'] else 'No'}")
-    
+
     last_fetched = feed["last_fetched_at"]
     if last_fetched:
         last_fetched = datetime.fromisoformat(last_fetched).strftime("%Y-%m-%d %H:%M:%S")
         click.echo(f"Last Fetched: {last_fetched}")
     else:
         click.echo("Last Fetched: Never")
-    
+
     created_at = datetime.fromisoformat(feed["created_at"]).strftime("%Y-%m-%d %H:%M:%S")
     click.echo(f"Created At: {created_at}")
-    
+
     # Display logs if requested
     if show_logs and logs:
         click.echo("\nRecent Processing Logs:")
@@ -140,10 +136,9 @@ def show_feed(id, json_output, show_logs):
                 completed_at = datetime.fromisoformat(log["completed_at"]).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
-            
             status_color = "green" if log["status"] == "success" else "red"
             status = click.style(log["status"], fg=status_color)
-            
+
             log_data.append([
                 log["id"],
                 started_at,
@@ -153,7 +148,7 @@ def show_feed(id, json_output, show_logs):
                 log["articles_added"],
                 log["error_message"] or ""
             ])
-        
+
         log_headers = ["ID", "Started At", "Completed At", "Status", "Found", "Added", "Error"]
         click.echo(tabulate(log_data, headers=log_headers, tablefmt="simple"))
 
@@ -168,12 +163,12 @@ def remove_feed(id, force):
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
         return
-    
+
     if not force:
         if not click.confirm(f"Are you sure you want to remove feed '{feed['name']}' (ID: {id})?"):
             click.echo("Operation canceled.")
             return
-    
+
     result = rss_feed_service.remove_feed(id)
     if result:
         click.echo(f"Feed '{feed['name']}' (ID: {id}) removed successfully.")
@@ -183,44 +178,44 @@ def remove_feed(id, force):
 
 def direct_process_article(article_id):
     """Process an article directly without Celery.
-    
+
     This function provides a synchronous processing path for CLI operations,
     bypassing the need for Celery task infrastructure.
-    
+
     Args:
         article_id: The ID of the article to process
-        
+
     Returns:
         bool: True if processing was successful, False otherwise
     """
     # Get all required dependencies from providers
     article_crud = get_article_crud()
     session = get_session()
-    
+
     # Get flow services from providers
     news_pipeline_flow = get_news_pipeline_flow()
     entity_tracking_flow = get_entity_tracking_flow()
-    
+
     try:
         # Get the article from the database
         article = article_crud.get(session, id=article_id)
         if not article:
             click.echo(f"Article with ID {article_id} not found")
             return False
-        
+
         # Process the article through the news pipeline
         if article.url and news_pipeline_flow:
             news_pipeline_flow.process_url_directly(article.url)
-        
+
         # Process entities in the article
         entities = None
         if entity_tracking_flow:
             entities = entity_tracking_flow.process_article(article.id)
-        
+
         click.echo(f"Processed article {article_id}: {article.title}")
         if entities:
             click.echo(f"  Found {len(entities)} entities")
-        
+
         return True
     except Exception as e:
         click.echo(
@@ -240,14 +235,14 @@ def process_feed(id, no_process):
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
         return
-    
+
     click.echo(f"Processing feed '{feed['name']}' (ID: {id})...")
-    
+
     # Use direct processing function if not skipping processing
     task_func = None if no_process else direct_process_article
-    
+
     result = rss_feed_service.process_feed(id, task_queue_func=task_func)
-    
+
     if result["status"] == "success":
         click.echo(click.style("Processing completed successfully!", fg="green"))
         click.echo(f"Articles found: {result['articles_found']}")
@@ -269,7 +264,7 @@ def update_feed(id, name, description, active):
     if not feed:
         click.echo(click.style(f"Error: Feed with ID {id} not found", fg="red"), err=True)
         return
-    
+
     # Check if at least one property to update was provided
     if name is None and description is None and active is None:
         click.echo(
@@ -277,7 +272,7 @@ def update_feed(id, name, description, active):
             "Use --name, --description, or --active/--inactive."
         )
         return
-    
+
     # Prepare update parameters
     update_params = {}
     if name is not None:
@@ -286,10 +281,10 @@ def update_feed(id, name, description, active):
         update_params["description"] = description
     if active is not None:
         update_params["is_active"] = active
-    
+
     # Update feed
     updated_feed = rss_feed_service.update_feed(id, **update_params)
-    
+
     if updated_feed:
         click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
     else:
@@ -307,30 +302,30 @@ def update_feed(id, name, description, active):
 @handle_rss_cli_errors
 def fetch_feeds(no_process, active_only):
     """Fetch articles from all active feeds.
-    
+
     This command fetches articles from all active RSS feeds.
     It's useful for bulk processing multiple feeds at once.
     """
     rss_feed_service = get_rss_feed_service()
-    
+
     # Show what we're about to do
     click.echo(f"Fetching {'active ' if active_only else 'all '}feeds...")
-    
+
     # Get all the feeds we need to process
     feeds = rss_feed_service.list_feeds(active_only=active_only)
     if not feeds:
         click.echo("No feeds found to process.")
         return
-    
+
     # Set up processing function if needed
     task_func = None if no_process else direct_process_article
-    
+
     # Track success and failure
     successful = 0
     failed = 0
-    
+
     # Process each feed
-    with click.progressbar(feeds, label="Processing feeds", 
+    with click.progressbar(feeds, label="Processing feeds",
                           item_show_func=lambda f: f["name"] if f else "") as feed_list:
         for feed in feed_list:
             try:
@@ -342,11 +337,11 @@ def fetch_feeds(no_process, active_only):
             except Exception as e:
                 click.echo(f"\nError processing feed '{feed['name']}': {str(e)}", err=True)
                 failed += 1
-    
+
     # Show summary
     total = len(feeds)
     click.echo(f"\nProcessed {total} feeds: {successful} successful, {failed} failed")
-    
+
     if successful == total:
         click.echo(click.style("All feeds processed successfully!", fg="green"))
     elif successful > 0:

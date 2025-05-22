@@ -1,22 +1,17 @@
 """Tests for FastAPI endpoints using fastapi-injectable."""
 
-import pytest
+from typing import Annotated, Any, Generator
 from unittest.mock import MagicMock, patch
-from typing import Annotated, Generator, Any
 
-from fastapi import FastAPI, Depends, Request
+import pytest
+from fastapi import Depends, FastAPI, Request
 from fastapi.testclient import TestClient
 from fastapi_injectable import injectable
 
-# Import our new testing utilities
-from tests.conftest_injectable import (
-    mock_injectable_dependencies,
-    injectable_test_app,
-    event_loop,
-)
-
-from tests.fixtures.event_loop import event_loop_fixture, injectable_app, injectable_service_fixture
 from tests.ci_skip_config import ci_skip_async
+# Import our new testing utilities
+from tests.conftest_injectable import event_loop, injectable_test_app, mock_injectable_dependencies
+from tests.fixtures.event_loop import event_loop_fixture, injectable_app, injectable_service_fixture
 
 
 class MockInjectableEntityService:

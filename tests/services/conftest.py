@@ -4,8 +4,10 @@ This file sets up mocks to avoid the SQLite dependency chain.
 """
 
 import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 
 # Create a patch context to prevent SQLite-dependent imports when running tests
 @pytest.fixture(autouse=True, scope="session")

@@ -1,20 +1,18 @@
 """Tests for the Apify schedule CLI commands."""
 
 import json
-from unittest.mock import MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 from sqlmodel import Session
 
-from local_newsifier.cli.commands.apify import (
-    list_schedules, sync_schedules, create_schedule, 
-    update_schedule, delete_schedule, schedule_status,
-    _get_schedule_manager
-)
-from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
+from local_newsifier.cli.commands.apify import (_get_schedule_manager, create_schedule,
+                                                delete_schedule, list_schedules, schedule_status,
+                                                sync_schedules, update_schedule)
 from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 
 
 @pytest.fixture

@@ -1,19 +1,19 @@
 """Tests for API dependencies."""
 
-import os
 import importlib
+import os
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
 from fastapi import HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
+from local_newsifier.api.dependencies import (get_article_service, get_rss_feed_service,
+                                              get_session, get_templates, require_admin)
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
-
 from tests.fixtures.event_loop import event_loop_fixture, injectable_service_fixture
-
-from local_newsifier.api.dependencies import get_session, get_article_service, get_rss_feed_service, get_templates, require_admin
 
 
 class TestSessionDependency:
@@ -97,7 +97,7 @@ class TestTemplatesDependency:
         """Test get_templates returns templates instance."""
         # Import the actual templates instance
         from local_newsifier.api.dependencies import templates
-        
+
         # Call the function
         result = get_templates()
         

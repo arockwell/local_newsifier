@@ -1,14 +1,15 @@
 """Tests for the ApifyScheduleManager service."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlmodel import Session
 
-from local_newsifier.services.apify_service import ApifyService
-from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
+from local_newsifier.services.apify_service import ApifyService
 
 
 @pytest.fixture

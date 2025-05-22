@@ -2,19 +2,13 @@
 Unit tests for Celery tasks in the Local Newsifier project.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import MagicMock, Mock, call, patch
 
+import pytest
 from celery import Task
 from celery.result import AsyncResult
 
-from local_newsifier.tasks import (
-    fetch_rss_feeds,
-    process_article,
-    BaseTask
-)
-
-
+from local_newsifier.tasks import BaseTask, fetch_rss_feeds, process_article
 
 
 @pytest.fixture

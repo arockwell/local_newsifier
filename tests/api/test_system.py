@@ -8,11 +8,12 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 sys.path.insert(0, os.path.abspath('.'))
 
 import pytest
-from fastapi.testclient import TestClient
 from fastapi.responses import JSONResponse
+from fastapi.testclient import TestClient
 from sqlmodel import Session
-from local_newsifier.api.main import app
+
 from local_newsifier.api.dependencies import require_admin
+from local_newsifier.api.main import app
 from local_newsifier.api.routers.system import format_size, get_tables_info
 
 
@@ -44,6 +45,7 @@ def override_get_templates():
 # Apply the overrides to the app
 app.dependency_overrides[require_admin] = override_require_admin
 from local_newsifier.api.dependencies import get_session, get_templates
+
 app.dependency_overrides[get_session] = override_get_session
 app.dependency_overrides[get_templates] = override_get_templates
 

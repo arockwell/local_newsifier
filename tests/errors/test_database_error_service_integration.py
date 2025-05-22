@@ -1,8 +1,9 @@
 """Tests for database error handling integrated with services."""
 
-import pytest
 from unittest.mock import MagicMock, patch
-from sqlalchemy.exc import OperationalError, IntegrityError
+
+import pytest
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.local_newsifier.errors.error import ServiceError

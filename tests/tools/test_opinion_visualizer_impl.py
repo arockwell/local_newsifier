@@ -7,29 +7,23 @@ This test file follows the patterns established in test_file_writer.py for testi
 injectable components, with proper event loop handling and CI environment skipping.
 """
 
-import os
 import json
-from datetime import datetime, timezone, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlmodel import Session, select
+
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMention,
+                                                    EntityMentionContext)
+from local_newsifier.models.sentiment import (OpinionTrend, SentimentAnalysis,
+                                              SentimentVisualizationData)
+from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from tests.ci_skip_config import ci_skip_injectable
 from tests.fixtures.event_loop import event_loop_fixture
-
-from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-from local_newsifier.models.sentiment import (
-    SentimentVisualizationData, 
-    SentimentAnalysis,
-    OpinionTrend
-)
-from local_newsifier.models.entity_tracking import (
-    EntityMention, 
-    CanonicalEntity,
-    EntityMentionContext
-)
-from local_newsifier.models.article import Article
 
 
 @ci_skip_injectable

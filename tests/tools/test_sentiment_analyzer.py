@@ -1,6 +1,7 @@
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Import event loop fixture
 pytest.importorskip("tests.fixtures.event_loop")
@@ -13,8 +14,9 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
+
 
 @pytest.fixture
 def mock_session():

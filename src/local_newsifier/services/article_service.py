@@ -1,15 +1,14 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable
+from typing import Annotated, Any, Callable, Dict, List, Optional
 
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
 
-from local_newsifier.models.article import Article
-from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.errors import handle_database
+from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
 
 
 @injectable(use_cache=False)
@@ -170,7 +169,7 @@ class ArticleService:
             ServiceError: On database errors with appropriate classification
         """
         from datetime import datetime
-        
+
         # Extract data from the RSS entry
         title = entry.get("title", "Untitled")
         url = entry.get("link", "")

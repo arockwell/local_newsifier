@@ -1,20 +1,14 @@
 """Tests for the database engine module."""
 
 import logging
+from unittest.mock import MagicMock, call, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, call
-
-from sqlmodel import SQLModel, Session
 from sqlalchemy.exc import OperationalError
+from sqlmodel import Session, SQLModel
 
-from local_newsifier.database.engine import (
-    get_engine,
-    get_session,
-    create_db_and_tables,
-    transaction,
-    SessionManager,
-    with_session
-)
+from local_newsifier.database.engine import (SessionManager, create_db_and_tables, get_engine,
+                                             get_session, transaction, with_session)
 
 
 @patch('local_newsifier.database.engine.create_engine')

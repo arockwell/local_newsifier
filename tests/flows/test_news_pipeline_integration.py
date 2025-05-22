@@ -1,8 +1,9 @@
 """Integration tests for the NewsPipelineFlow with the service layer."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mock spaCy and TextBlob before imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
@@ -11,8 +12,9 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
+from tests.fixtures.event_loop import event_loop_fixture
+
 
 @patch('local_newsifier.flows.news_pipeline.EntityService')
 @patch("local_newsifier.flows.news_pipeline.EntityExtractor")
@@ -25,14 +27,14 @@ def test_news_pipeline_with_entity_service(
     """Test that the news pipeline works with the entity service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
-    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
     from local_newsifier.services.article_service import ArticleService
-    from local_newsifier.tools.web_scraper import WebScraperTool
-    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-    
+    from local_newsifier.tools.web_scraper import WebScraperTool
+
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
     mock_entity_service_class.return_value = mock_entity_service
@@ -182,13 +184,13 @@ def test_process_url_directly(
     """Test processing a URL directly using the pipeline service."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.services.news_pipeline_service import NewsPipelineService
     from local_newsifier.services.article_service import ArticleService
-    from local_newsifier.tools.web_scraper import WebScraperTool
-    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-    
+    from local_newsifier.tools.web_scraper import WebScraperTool
+
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
     mock_entity_service_class.return_value = mock_entity_service
@@ -279,14 +281,14 @@ def test_integration_with_entity_tracking(
     """Test integration with entity tracking components."""
     # Arrange
     from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-    from local_newsifier.models.state import NewsAnalysisState, AnalysisStatus
-    from local_newsifier.services.news_pipeline_service import NewsPipelineService
+    from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
     from local_newsifier.services.article_service import ArticleService
-    from local_newsifier.tools.web_scraper import WebScraperTool
-    from local_newsifier.tools.file_writer import FileWriterTool
+    from local_newsifier.services.news_pipeline_service import NewsPipelineService
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.file_writer import FileWriterTool
     from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
-    
+    from local_newsifier.tools.web_scraper import WebScraperTool
+
     # Create a mock for EntityService that will be returned by the class
     mock_entity_service = MagicMock()
     mock_entity_service_class.return_value = mock_entity_service

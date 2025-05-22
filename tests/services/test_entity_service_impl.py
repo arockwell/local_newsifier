@@ -6,34 +6,26 @@ methods rather than using mocks, to improve code coverage.
 
 import os
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlmodel import Session, select
 
-from local_newsifier.services.entity_service import EntityService
-from local_newsifier.models.article import Article
-from local_newsifier.models.entity import Entity
-from local_newsifier.models.entity_tracking import (
-    CanonicalEntity,
-    EntityMention,
-    EntityMentionContext,
-    EntityRelationship,
-    EntityProfile
-)
-from local_newsifier.models.state import (
-    EntityTrackingState, 
-    EntityBatchTrackingState, 
-    EntityDashboardState,
-    EntityRelationshipState,
-    TrackingStatus
-)
-from local_newsifier.crud.entity import CRUDEntity
+from local_newsifier.crud.article import CRUDArticle
 from local_newsifier.crud.canonical_entity import CRUDCanonicalEntity
+from local_newsifier.crud.entity import CRUDEntity
 from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
 from local_newsifier.crud.entity_profile import CRUDEntityProfile
-from local_newsifier.crud.article import CRUDArticle
+from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMention,
+                                                    EntityMentionContext, EntityProfile,
+                                                    EntityRelationship)
+from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
+                                          EntityRelationshipState, EntityTrackingState,
+                                          TrackingStatus)
+from local_newsifier.services.entity_service import EntityService
 
 
 class TestEntityServiceImplementation:

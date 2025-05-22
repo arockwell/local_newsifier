@@ -6,15 +6,14 @@ adding, updating, and processing feeds.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Callable
+from typing import Annotated, Any, Callable, Dict, List, Optional
 
-from sqlmodel import Session
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
+from sqlmodel import Session
 
-from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.crud.feed_processing_log import feed_processing_log
+from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.errors import handle_database, handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed

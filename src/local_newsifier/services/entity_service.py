@@ -1,16 +1,19 @@
 """Entity service for coordinating entity-related operations."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Callable
+from typing import Annotated, Any, Callable, Dict, List, Optional
 
-from fastapi_injectable import injectable
-from typing import Annotated
 from fastapi import Depends
+from fastapi_injectable import injectable
 
-from local_newsifier.models.entity import Entity
-from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext, EntityProfile
-from local_newsifier.models.state import EntityTrackingState, EntityBatchTrackingState, EntityDashboardState, EntityRelationshipState, TrackingStatus
 from local_newsifier.errors import handle_database
+from local_newsifier.models.entity import Entity
+from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMentionContext,
+                                                    EntityProfile)
+from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
+                                          EntityRelationshipState, EntityTrackingState,
+                                          TrackingStatus)
+
 
 @injectable(use_cache=False)
 class EntityService:

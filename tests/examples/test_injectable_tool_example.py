@@ -1,11 +1,11 @@
 """Example test for an injectable tool component using the simplified testing approach."""
 
-import pytest
+from typing import Annotated, Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
-from typing import Annotated, Dict, List, Optional, Any
-from unittest.mock import patch, MagicMock
 
+import pytest
 from fastapi import Depends
+
 # Create a mock injectable decorator for testing
 mock_injectable = MagicMock()
 def mock_decorator(use_cache=True):
@@ -20,10 +20,8 @@ with patch('fastapi_injectable.injectable', mock_injectable):
     from fastapi_injectable import injectable
 
 # Import testing utilities
-from tests.conftest_injectable import (
-    mock_injectable_dependencies,
-    create_mock_service,
-)
+from tests.conftest_injectable import create_mock_service, mock_injectable_dependencies
+
 
 # Define a simple injectable tool for demonstration purposes
 @injectable(use_cache=False)

@@ -6,8 +6,9 @@ problems that don't affect local test runs.
 """
 
 import os
+from typing import Any, Callable
+
 import pytest
-from typing import Callable, Any
 
 
 # Simple decorator to skip tests in CI environment

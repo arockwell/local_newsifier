@@ -9,15 +9,15 @@ event loop policies are not enforced.
 """
 
 import asyncio
-import threading
-import pytest
 import sys
+import threading
 import warnings
 from contextlib import contextmanager
 from typing import Generator, Optional
-from fastapi import FastAPI
-from fastapi_injectable import register_app, get_injected_obj, injectable
 
+import pytest
+from fastapi import FastAPI
+from fastapi_injectable import get_injected_obj, injectable, register_app
 
 # Thread local storage for tracking event loops per thread
 _thread_local = threading.local()

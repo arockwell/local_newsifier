@@ -6,15 +6,15 @@ creating, updating, listing, and running configurations.
 """
 
 import json
-from typing import List, Dict, Any, Optional, Union
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
 from sqlmodel import Session
 
-from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig 
-from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.errors.error import ServiceError, handle_service_error
+from local_newsifier.models.apify import ApifySourceConfig
 
 logger = logging.getLogger(__name__)
 

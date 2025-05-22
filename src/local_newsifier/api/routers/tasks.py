@@ -10,20 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from local_newsifier.api.dependencies import (
-    get_templates,
-    get_session,
-    get_article_service,
-    get_rss_feed_service,
-)
+from local_newsifier.api.dependencies import (get_article_service, get_rss_feed_service,
+                                              get_session, get_templates)
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import settings
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
-from local_newsifier.tasks import (
-    fetch_rss_feeds,
-    process_article,
-)
+from local_newsifier.tasks import fetch_rss_feeds, process_article
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 

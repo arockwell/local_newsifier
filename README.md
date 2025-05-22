@@ -309,6 +309,27 @@ def test_component_success(mock_component):
     mock_component.process.assert_called_once_with(input_data)
 ```
 
+## Code Formatting
+
+This repository enforces a consistent style using **Black** for formatting,
+**isort** for import ordering, and **flake8** (including `flake8-docstrings`)
+for linting. These tools run automatically via `pre-commit`.
+
+Run all checks locally:
+
+```bash
+poetry run pre-commit install  # install git hook once
+poetry run pre-commit run --all-files
+```
+
+To format the code without running the full hook set, use the Makefile target:
+
+```bash
+make format
+```
+
+This executes Black on the `src` and `tests` directories.
+
 ## Project Structure
 
 ```

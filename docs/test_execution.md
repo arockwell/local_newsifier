@@ -2,6 +2,15 @@
 
 This document provides information on how to effectively run tests for the Local Newsifier project, with special focus on parallel test execution.
 
+Before running tests, install all dependencies from the `wheels/` directory and
+download the required spaCy models:
+
+```bash
+make setup-poetry -- --no-index --find-links=wheels
+make setup-spacy
+```
+
+
 ## Test Configuration
 
 The Local Newsifier project uses pytest with the following components:

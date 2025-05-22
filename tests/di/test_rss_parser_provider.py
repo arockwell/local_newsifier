@@ -1,8 +1,11 @@
 """Tests for RSS parser provider."""
 
 import inspect
+
 import pytest
+
 from tests.fixtures.event_loop import event_loop_fixture
+
 
 def test_get_rss_parser_config(event_loop_fixture):
     """Test that the get_rss_parser_config function returns the expected config."""
@@ -24,7 +27,7 @@ def test_get_rss_parser_provider_signature(event_loop_fixture):
     """Test the signature of the RSS parser provider function."""
     # Import provider function
     from local_newsifier.di.providers import get_rss_parser
-    
+
     # Get the signature of the function
     sig = inspect.signature(get_rss_parser)
     

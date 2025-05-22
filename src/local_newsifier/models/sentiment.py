@@ -1,9 +1,9 @@
 """Sentiment analysis models for the news analysis system using SQLModel."""
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from sqlmodel import SQLModel, Field, JSON, UniqueConstraint
+from sqlmodel import JSON, Field, SQLModel, UniqueConstraint
 
 
 class SentimentAnalysis(SQLModel, table=True):

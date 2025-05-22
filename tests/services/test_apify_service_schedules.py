@@ -1,8 +1,9 @@
 """Tests for the schedule-related methods in ApifyService."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from local_newsifier.services.apify_service import ApifyService
 from tests.fixtures.event_loop import event_loop_fixture
