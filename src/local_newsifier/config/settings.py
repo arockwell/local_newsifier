@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = DEFAULT_LOG_LEVEL
     LOG_FORMAT: str = DEFAULT_LOG_FORMAT
     LOG_FILE: Optional[Path] = None
-    
+
     # Celery settings
     CELERY_TASK_SERIALIZER: str = "json"
     CELERY_RESULT_SERIALIZER: str = "json"
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     CELERY_WORKER_MAX_TASKS_PER_CHILD: int = 100  # Restart worker after 100 tasks
     CELERY_WORKER_HIJACK_ROOT_LOGGER: bool = False
     CELERY_WORKER_PREFETCH_MULTIPLIER: int = 1  # Prefetch one task at a time
-    
+
     # Celery Beat settings
     CELERY_BEAT_SCHEDULE: dict = {
         "fetch_rss_feeds_hourly": {
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
             "options": {"expires": 86000},
         },
     }
-    
+
     # Task-specific settings
     ARTICLE_PROCESSING_TIMEOUT: int = 600  # 10 minutes timeout for article processing
     RSS_FEED_URLS: List[str] = Field(
@@ -114,30 +114,30 @@ class Settings(BaseSettings):
 
     # Apify settings
     APIFY_TOKEN: Optional[str] = Field(default=None, description="Token for Apify API")
-    
+
     def validate_apify_token(self, skip_validation_in_test=False) -> str:
         """Validate that APIFY_TOKEN is set and return it.
-        
+
         Args:
             skip_validation_in_test: If True and in test mode, skip validation
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set (and not in test mode when skipping)
-            
+
         Returns:
             str: The validated APIFY_TOKEN or a dummy token in test mode
         """
         # Check if we're in a test environment
         import os
         in_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
-        
+
         # Skip validation if requested and in test mode
         if skip_validation_in_test and in_test_env:
             if not self.APIFY_TOKEN:
                 import logging
                 logging.warning("Using dummy Apify token for testing")
                 return "test_dummy_token"
-        
+
         # Standard validation
         if not self.APIFY_TOKEN:
             raise ValueError(
@@ -167,7 +167,7 @@ class Settings(BaseSettings):
             self.POSTGRES_PORT,
             self.POSTGRES_DB
         )
-    
+
     @computed_field
     def CELERY_BROKER_URL(self) -> str:
         """Get the Celery broker URL based on environment.
@@ -177,10 +177,10 @@ class Settings(BaseSettings):
         broker_url = os.environ.get("CELERY_BROKER_URL")
         if broker_url:
             return broker_url
-            
+
         # Use Redis with default settings
         return "redis://localhost:6379/0"
-    
+
     @computed_field
     def CELERY_RESULT_BACKEND(self) -> str:
         """Get the Celery result backend URL based on environment.
@@ -190,7 +190,7 @@ class Settings(BaseSettings):
         result_backend = os.environ.get("CELERY_RESULT_BACKEND")
         if result_backend:
             return result_backend
-            
+
         # Use Redis with default settings
         return "redis://localhost:6379/0"
 
