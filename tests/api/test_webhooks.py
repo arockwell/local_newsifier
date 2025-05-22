@@ -7,6 +7,7 @@ and logging. Data processing functionality will be tested separately.
 """
 
 import datetime
+import logging
 import uuid
 
 import pytest
@@ -129,6 +130,11 @@ class TestApifyWebhookInfrastructure:
         # Clear the webhook secret to simplify test
         monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
 
+        # Set caplog to capture INFO level logs from webhook router
+        caplog.set_level(logging.INFO)
+        # Also ensure the webhook logger is set to INFO level
+        logging.getLogger("local_newsifier.api.routers.webhooks").setLevel(logging.INFO)
+
         # Create a sample webhook payload
         payload = {
             "createdAt": datetime.datetime.now().isoformat(),
@@ -159,28 +165,7 @@ class TestApifyWebhookInfrastructure:
         )
 
         # Should log webhook details
-        # Debug: Print all log messages to understand what's happening in CI
-        print(f"All log messages: {log_messages}")
-        webhook_detail_messages = [
-            msg for msg in log_messages if "test_actor_123" in msg and "test_dataset_456" in msg
-        ]
-        print(f"Webhook detail messages: {webhook_detail_messages}")
-
-        # More explicit check
-        has_both_details = any(
-            "test_actor_123" in msg and "test_dataset_456" in msg for msg in log_messages
-        )
-        if not has_both_details:
-            # More helpful error message
-            actor_messages = [msg for msg in log_messages if "test_actor_123" in msg]
-            dataset_messages = [msg for msg in log_messages if "test_dataset_456" in msg]
-            raise AssertionError(
-                f"Expected log message with both actor and dataset IDs. "
-                f"Actor messages: {actor_messages}, Dataset messages: {dataset_messages}, "
-                f"All messages: {log_messages}"
-            )
-
-        assert has_both_details
+        assert any("test_actor_123" in msg and "test_dataset_456" in msg for msg in log_messages)
 
     def test_apify_webhook_invalid_payload_structure(self, client):
         """Test that the webhook rejects malformed payloads."""
