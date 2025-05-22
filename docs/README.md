@@ -40,6 +40,7 @@ This directory collects guides and references for Local Newsifier.
 - [fastapi_injectable.md](fastapi_injectable.md) - working with fastapi-injectable.
 - [injectable_examples.md](injectable_examples.md) - injectable pattern examples.
 - [injectable_patterns.md](injectable_patterns.md) - recommended injectable patterns.
+- [services_guide.md](services_guide.md) - service return standards and patterns.
 - [python_setup.md](python_setup.md) - offline Python setup instructions.
 - [test_execution.md](test_execution.md) - running tests.
 - [testing_apify.md](testing_apify.md) - tests involving Apify.
