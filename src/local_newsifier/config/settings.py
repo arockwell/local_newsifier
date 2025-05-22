@@ -106,6 +106,9 @@ class Settings(BaseSettings):
 
     # Apify settings
     APIFY_TOKEN: Optional[str] = Field(default=None, description="Token for Apify API")
+    APIFY_WEBHOOK_SECRET: Optional[str] = Field(
+        default=None, description="Secret for validating Apify webhook requests"
+    )
 
     def validate_apify_token(self, skip_validation_in_test=False) -> str:
         """Validate that APIFY_TOKEN is set and return it.
@@ -121,12 +124,14 @@ class Settings(BaseSettings):
         """
         # Check if we're in a test environment
         import os
+
         in_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
         # Skip validation if requested and in test mode
         if skip_validation_in_test and in_test_env:
             if not self.APIFY_TOKEN:
                 import logging
+
                 logging.warning("Using dummy Apify token for testing")
                 return "test_dummy_token"
 
@@ -143,8 +148,9 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment.
 
-        Checks for DATABASE_URL environment variable first (commonly used by Railway and other platforms)
-        and falls back to constructing one from individual components if not present.
+        Checks for DATABASE_URL environment variable first (commonly used by Railway
+        and other platforms) and falls back to constructing one from individual
+        components if not present.
         """
         # Check if DATABASE_URL is provided directly (common in Railway and other cloud platforms)
         env_db_url = os.environ.get("DATABASE_URL")
@@ -157,12 +163,13 @@ class Settings(BaseSettings):
             self.POSTGRES_PASSWORD,
             self.POSTGRES_HOST,
             self.POSTGRES_PORT,
-            self.POSTGRES_DB
+            self.POSTGRES_DB,
         )
 
     @computed_field
     def CELERY_BROKER_URL(self) -> str:
         """Get the Celery broker URL based on environment.
+
         Uses Redis as the message broker.
         """
         # Use dedicated environment variable if available
@@ -176,6 +183,7 @@ class Settings(BaseSettings):
     @computed_field
     def CELERY_RESULT_BACKEND(self) -> str:
         """Get the Celery result backend URL based on environment.
+
         Uses Redis as the result backend.
         """
         # Use dedicated environment variable if available
