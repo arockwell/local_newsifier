@@ -272,9 +272,8 @@ def test_get_tables_info(mock_session):
         if "information_schema.tables" in str(query):
             return mock_tables
         else:
-            # For COUNT queries, alternately return our two count mocks
             call_count += 1
-            if "table1" in str(query):
+            if call_count == 1:
                 return mock_count1
             else:
                 return mock_count2
@@ -308,3 +307,32 @@ def test_format_size():
     assert format_size(1500000) == "1.43 MB"
     assert format_size(1500000000) == "1.40 GB"
     assert format_size(1500000000000) == "1.36 TB"
+
+
+def test_invalid_table_name_returns_400():
+    """Ensure invalid table name is rejected with 400 status."""
+    mock_session = MagicMock(spec=Session)
+
+    # First exec call for table validation returns object with one_or_none() -> None
+    mock_result = MagicMock()
+    mock_result.one_or_none.return_value = None
+    mock_session.exec.return_value = mock_result
+
+    def override_get_session_invalid():
+        yield mock_session
+
+    from local_newsifier.api.dependencies import get_session as gs
+    app.dependency_overrides[gs] = override_get_session_invalid
+
+    client = TestClient(app)
+    client.cookies.update({"session": "mockSessionValue"})
+    with patch("starlette.requests.Request.session", new_callable=PropertyMock) as req_session:
+        req_session.return_value = {"authenticated": True}
+        response = client.get("/system/tables/bad_table/api")
+
+    assert response.status_code == 400
+    # Only validation query should run
+    assert mock_session.exec.call_count == 1
+
+    # Restore default override
+    app.dependency_overrides[gs] = override_get_session

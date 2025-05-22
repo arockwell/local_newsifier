@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Annotated, Dict, List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
@@ -22,6 +22,22 @@ router = APIRouter(
 
 # Flag to indicate if we're in minimal mode (no database)
 MINIMAL_MODE = False  # Permanently disabled
+
+
+def valid_table_name(session: Session, table_name: str) -> bool:
+    """Return True if the table exists in the public schema."""
+    check_query = text(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_type = 'BASE TABLE'
+          AND table_name = :table_name
+        LIMIT 1
+        """
+    ).bindparams(table_name=table_name)
+    result = session.exec(check_query).one_or_none()
+    return result is not None
 
 
 @router.get("/tables", response_class=HTMLResponse)
@@ -148,6 +164,9 @@ async def get_table_details(
             },
         )
 
+    if not valid_table_name(session, table_name):
+        raise HTTPException(status_code=400, detail="Invalid table name")
+
     try:
         # Get table columns
         column_query = text(
@@ -170,12 +189,14 @@ async def get_table_details(
         columns = session.exec(column_query).all()
 
         # Get row count
-        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        count_query = text("SELECT COUNT(*) FROM :table_name")
+        count_query = count_query.bindparams(table_name=table_name)
         row_count = session.exec(count_query).one()
 
         # Try to get sample data (first 5 rows)
         try:
-            sample_query = text(f"SELECT * FROM {table_name} LIMIT 5")
+            sample_query = text("SELECT * FROM :table_name LIMIT 5")
+            sample_query = sample_query.bindparams(table_name=table_name)
             sample_data = session.exec(sample_query).all()
         except Exception:
             sample_data = []
@@ -232,6 +253,9 @@ async def get_table_details_api(
             }
         )
 
+    if not valid_table_name(session, table_name):
+        raise HTTPException(status_code=400, detail="Invalid table name")
+
     try:
         # Get table columns
         column_query = text(
@@ -254,7 +278,8 @@ async def get_table_details_api(
         columns = session.exec(column_query).all()
 
         # Get row count
-        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        count_query = text("SELECT COUNT(*) FROM :table_name")
+        count_query = count_query.bindparams(table_name=table_name)
         row_count = session.exec(count_query).one()
 
         return JSONResponse(
@@ -313,7 +338,8 @@ def get_tables_info(session: Session) -> List[Dict]:
         table_size = table[2]
 
         # Get row count
-        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        count_query = text("SELECT COUNT(*) FROM :table_name")
+        count_query = count_query.bindparams(table_name=table_name)
         row_count = session.exec(count_query).one()
         
         # Convert row_count to int if it's a SQLAlchemy Row object
