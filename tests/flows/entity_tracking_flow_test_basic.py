@@ -1,16 +1,25 @@
 """Basic tests for the Entity Tracking flow."""
 
-from unittest.mock import Mock, patch, MagicMock, call
-from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime, timezone
 
 import pytest
 
-# Mock spaCy and TextBlob before imports
-patch('spacy.load', MagicMock(return_value=MagicMock())).start()
-patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
-    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
-))).start()
-patch('spacy.language.Language', MagicMock()).start()
+
+@pytest.fixture(autouse=True)
+def _patch_nlp_libs():
+    """Patch spaCy and TextBlob to avoid heavy imports."""
+    with patch("spacy.load", MagicMock(return_value=MagicMock())), \
+         patch(
+            "textblob.TextBlob",
+            MagicMock(
+                return_value=MagicMock(
+                    sentiment=MagicMock(polarity=0.5, subjectivity=0.7)
+                )
+            ),
+        ), \
+         patch("spacy.language.Language", MagicMock()):
+        yield
 
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 
