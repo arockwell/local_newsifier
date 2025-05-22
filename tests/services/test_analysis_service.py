@@ -120,43 +120,47 @@ class TestAnalysisService:
         self, service, mock_session, mock_article_crud, mock_trend_analyzer, sample_articles
     ):
         """Test analysis of headline trends."""
-        # Setup mocks
-        mock_article_crud.get_by_date_range.return_value = sample_articles
-        mock_trend_analyzer.extract_keywords.return_value = [("mayor", 2), ("city", 1)]
-        mock_trend_analyzer.detect_keyword_trends.return_value = [
-            {
-                "term": "mayor",
-                "growth_rate": 1.0,
-                "first_count": 1,
-                "last_count": 2,
-                "total_mentions": 3,
+        # Setup mocks - mock the private method that processes articles
+        with patch.object(service, '_get_headlines_by_period') as mock_get_headlines:
+            mock_get_headlines.return_value = {
+                "2023-01-01": ["Mayor announces new policy", "City council meeting"],
+                "2023-01-02": ["Mayor visits school", "City budget approved"]
             }
-        ]
-        
-        # Patch any async methods if they exist
-        if hasattr(service, 'analyze_headline_trends_async'):
-            service.analyze_headline_trends_async = AsyncMock()
+            mock_trend_analyzer.extract_keywords.return_value = [("mayor", 2), ("city", 1)]
+            mock_trend_analyzer.detect_keyword_trends.return_value = [
+                {
+                    "term": "mayor",
+                    "growth_rate": 1.0,
+                    "first_count": 1,
+                    "last_count": 2,
+                    "total_mentions": 3,
+                }
+            ]
             
-        # Call the method
-        start_date = datetime.now(timezone.utc) - timedelta(days=7)
-        end_date = datetime.now(timezone.utc)
-        result = service.analyze_headline_trends(start_date, end_date)
-        
-        # Verify the result is the correct DTO type
-        assert isinstance(result, HeadlineTrendResponseDTO)
-        assert result.success is True
-        assert result.trending_terms is not None
-        assert result.overall_top_terms is not None
-        assert result.period_counts is not None
-        assert result.analysis_metadata is not None
-        assert result.analysis_metadata.processing_duration_ms is not None
-        
-        # Verify the mocks were called
-        mock_article_crud.get_by_date_range.assert_called_once_with(
-            mock_session, start_date=start_date, end_date=end_date
-        )
-        mock_trend_analyzer.extract_keywords.assert_called()
-        mock_trend_analyzer.detect_keyword_trends.assert_called_once()
+            # Patch any async methods if they exist
+            if hasattr(service, 'analyze_headline_trends_async'):
+                service.analyze_headline_trends_async = AsyncMock()
+                
+            # Call the method
+            start_date = datetime.now(timezone.utc) - timedelta(days=7)
+            end_date = datetime.now(timezone.utc)
+            result = service.analyze_headline_trends(start_date, end_date)
+            
+            # Verify the result is the correct DTO type
+            assert isinstance(result, HeadlineTrendResponseDTO)
+            assert result.success is True
+            assert result.trending_terms is not None
+            assert result.overall_top_terms is not None
+            assert result.period_counts is not None
+            assert result.analysis_metadata is not None
+            assert result.analysis_metadata.processing_duration_ms is not None
+            
+            # Verify the mocks were called
+            mock_get_headlines.assert_called_once_with(
+                mock_session, start_date, end_date, "day"
+            )
+            mock_trend_analyzer.extract_keywords.assert_called()
+            mock_trend_analyzer.detect_keyword_trends.assert_called_once()
 
     def test_analyze_headline_trends_empty(
         self, service, mock_session, mock_article_crud, mock_trend_analyzer

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, ClassVar, Dict, Generic, List, Optional, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -94,11 +94,11 @@ class ErrorResponseDTO(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Common error codes
-    VALIDATION_ERROR = "VALIDATION_ERROR"
-    NOT_FOUND = "NOT_FOUND"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-    EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR"
-    PROCESSING_ERROR = "PROCESSING_ERROR"
+    VALIDATION_ERROR: ClassVar[str] = "VALIDATION_ERROR"
+    NOT_FOUND: ClassVar[str] = "NOT_FOUND"
+    INTERNAL_ERROR: ClassVar[str] = "INTERNAL_ERROR"
+    EXTERNAL_API_ERROR: ClassVar[str] = "EXTERNAL_API_ERROR"
+    PROCESSING_ERROR: ClassVar[str] = "PROCESSING_ERROR"
     
     model_config = {
         "json_schema_extra": {
