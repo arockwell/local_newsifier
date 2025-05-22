@@ -38,32 +38,16 @@ All components rely on provider functions and the adapter has been removed.
 
 ### 1. Core DI Configuration
 
-The `config/di.py` module establishes configuration for fastapi-injectable:
+All provider functions live in
+`src/local_newsifier/di/providers.py`. Dependency injection is
+initialized when creating the FastAPI application:
 
 ```python
-from fastapi_injectable import configure_logging, setup_graceful_shutdown
+from fastapi import FastAPI
+from fastapi_injectable import init_injection_dependency
 
-# Configure logging
-configure_logging(level=logging.INFO)
-
-# Enable graceful shutdown
-setup_graceful_shutdown()
-
-# Note: fastapi-injectable v0.7.0 doesn't have a Scope enum
-# It only has use_cache parameter to control instance reuse
-
-# Caching strategy helper function
-def should_cache(scope: str) -> bool:
-    """Convert a legacy scope string to a `use_cache` value.
-
-    Args:
-        scope: Scope string ("singleton", "transient", "scoped")
-
-    Returns:
-        Boolean indicating whether to cache the dependency
-    """
-    # Only singleton services should be cached (reused between injections)
-    return scope.lower() == "singleton"
+app = FastAPI()
+init_injection_dependency(app)
 ```
 
 ### 2. Provider Functions

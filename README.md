@@ -1,4 +1,4 @@
-# Project Chronicle Persistence
+# Local Newsifier
 
 [![Tests](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml/badge.svg)](https://github.com/alexrockwell/local_newsifier/actions/workflows/test.yml)
 
@@ -33,6 +33,7 @@ For details on the architecture and testing strategies see:
 - [DI Architecture Guide](docs/di_architecture.md)
 - [Dependency Injection Guide](docs/dependency_injection.md)
 - [fastapi-injectable Guide](docs/fastapi_injectable.md)
+- [Documentation Index](docs/README.md)
 
 ## Setup
 
@@ -41,10 +42,11 @@ For details on the architecture and testing strategies see:
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Install dependencies:
+2. Install dependencies from the local wheels directory (required before running tests):
 ```bash
-poetry install
+make setup-poetry -- --no-index --find-links=wheels
 ```
+If you have internet access you can simply run `poetry install` instead.
 
 If your environment lacks internet access, generate the wheels directory on a
 connected machine first:
@@ -57,7 +59,12 @@ Copy the resulting `wheels/` directory and install from it locally:
 
 ```bash
 pip install --no-index --find-links=wheels -r requirements.txt
+pip install --no-index --find-links=wheels -r requirements-dev.txt
 ```
+
+### Offline wheels directory
+
+The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry -- --no-index --find-links=wheels` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
 
 3. Download spaCy model:
 ```bash
@@ -71,6 +78,8 @@ echo "APIFY_TOKEN=your_token_here" > .env
 ```
 
 Note: While an Apify token is required for production use, the test suite can run without it. See [docs/testing_apify.md](docs/testing_apify.md) for more details.
+
+- For a complete offline setup guide, see [docs/python_setup.md](docs/python_setup.md).
 
 ## Usage
 
@@ -300,6 +309,27 @@ def test_component_success(mock_component):
     mock_component.process.assert_called_once_with(input_data)
 ```
 
+## Code Formatting
+
+This repository enforces a consistent style using **Black** for formatting,
+**isort** for import ordering, and **flake8** (including `flake8-docstrings`)
+for linting. These tools run automatically via `pre-commit`.
+
+Run all checks locally:
+
+```bash
+poetry run pre-commit install  # install git hook once
+poetry run pre-commit run --all-files
+```
+
+To format the code without running the full hook set, use the Makefile target:
+
+```bash
+make format
+```
+
+This executes Black on the `src` and `tests` directories.
+
 ## Project Structure
 
 ```
@@ -348,14 +378,6 @@ The system implements comprehensive error handling:
 - Processing errors
 - State management issues
 
-## State Management
-
-Uses crew.ai's SQLite checkpointer for:
-- Workflow state persistence
-- Progress tracking
-- Error recovery
-- Flow resumption
-
 ## Monitoring
 
 - Comprehensive logging
@@ -371,7 +393,7 @@ Uses crew.ai's SQLite checkpointer for:
 
 ## License
 
-MIT
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Database Configuration
 

@@ -1,22 +1,19 @@
 """Comprehensive tests for database diagnostics CLI commands."""
 
-import pytest
 import json
-from unittest.mock import patch, MagicMock, call
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, call, patch
+
+import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
+from local_newsifier.di.providers import (get_article_crud, get_entity_crud,
+                                          get_feed_processing_log_crud, get_rss_feed_crud,
+                                          get_session)
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
-from local_newsifier.di.providers import (
-    get_session, 
-    get_article_crud, 
-    get_rss_feed_crud,
-    get_entity_crud,
-    get_feed_processing_log_crud
-)
 
 
 @pytest.fixture

@@ -9,22 +9,19 @@ This module provides commands for inspecting and managing database state, includ
 """
 
 import json
-import click
 from datetime import datetime
-from tabulate import tabulate
-from typing import Dict, List, Any, Optional, Annotated
-from sqlalchemy import text, func
-from sqlmodel import Session, select
+from typing import Annotated, Any, Dict, List, Optional
+
+import click
 from fastapi import Depends
 from fastapi_injectable import get_injected_obj
+from sqlalchemy import func, text
+from sqlmodel import Session, select
+from tabulate import tabulate
 
-from local_newsifier.di.providers import (
-    get_session, 
-    get_article_crud, 
-    get_rss_feed_crud,
-    get_entity_crud,
-    get_feed_processing_log_crud
-)
+from local_newsifier.di.providers import (get_article_crud, get_entity_crud,
+                                          get_feed_processing_log_crud, get_rss_feed_crud,
+                                          get_session)
 
 
 @click.group(name="db")
@@ -43,9 +40,9 @@ def db_stats(json_output: bool):
     
     # Import models only when needed
     from local_newsifier.models.article import Article
-    from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
     from local_newsifier.models.entity import Entity
-    
+    from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
+
     # Collect table statistics
     stats = {}
     
@@ -134,7 +131,7 @@ def check_duplicates(limit: int, json_output: bool):
     
     # Import the Article model directly
     from local_newsifier.models.article import Article
-    
+
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
         select(Article.url, func.count(Article.id).label("count"))
@@ -217,7 +214,7 @@ def list_articles(source: Optional[str], status: Optional[str],
     
     # Import the Article model directly
     from local_newsifier.models.article import Article
-    
+
     # Build the query with filters
     query = select(Article)
     
@@ -313,8 +310,8 @@ def inspect_record(table: str, id: int, json_output: bool):
     feed_processing_log_crud = get_injected_obj(get_feed_processing_log_crud)
     
     # Import model only when needed for feed_log
-    from local_newsifier.models.rss_feed import RSSFeedProcessingLog
     from local_newsifier.models.entity import Entity
+    from local_newsifier.models.rss_feed import RSSFeedProcessingLog
     
     result = None
     
@@ -462,7 +459,7 @@ def purge_duplicates(dry_run: bool, json_output: bool):
     
     # Import the Article model directly
     from local_newsifier.models.article import Article
-    
+
     # Query to find duplicate URLs
     duplicate_urls = session.exec(
         select(Article.url, func.count(Article.id).label("count"))

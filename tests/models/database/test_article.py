@@ -7,8 +7,8 @@ import pytest
 from sqlmodel import Session
 
 from local_newsifier.models.article import Article
-from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.entity import Entity
+from local_newsifier.models.state import AnalysisStatus
 
 
 def test_article_creation():

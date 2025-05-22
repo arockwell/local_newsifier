@@ -3,7 +3,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -11,9 +11,9 @@ from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
 from local_newsifier.database.engine import with_session
-from local_newsifier.models.sentiment import SentimentAnalysis, OpinionTrend, SentimentShift
-from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.sentiment import OpinionTrend, SentimentAnalysis, SentimentShift
 from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 
 logger = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ class SentimentTracker:
         """
         # Use session priority logic
         session = self._get_session(session)
-        
+
         # Get all articles in date range
         articles = self._get_articles_in_range(start_date, end_date, session=session)
 
@@ -192,7 +192,7 @@ class SentimentTracker:
         """
         # Use session priority logic
         session = self._get_session(session)
-        
+
         # Get sentiment by period for all specified topics
         sentiment_by_period = self.get_sentiment_by_period(
             start_date, end_date, time_interval, topics, session=session
@@ -235,7 +235,7 @@ class SentimentTracker:
         """
         # Use session priority logic
         session = self._get_session(session)
-        
+
         # Get sentiment by period for both topics
         sentiment_by_period = self.get_sentiment_by_period(
             start_date, end_date, time_interval, [topic1, topic2], session=session
@@ -314,7 +314,7 @@ class SentimentTracker:
             Article.published_at <= end_date,
             Article.status.in_(["analyzed", "entity_tracked"])
         ).order_by(Article.published_at)
-        
+
         results = session.execute(statement)
         articles = results.all()
         return articles
@@ -362,7 +362,7 @@ class SentimentTracker:
         """
         # Use session priority logic
         session = self._get_session(session)
-        
+
         sentiment_data = []
 
         for article_id in article_ids:
@@ -372,7 +372,7 @@ class SentimentTracker:
                 AnalysisResult.analysis_type == "sentiment"
             )
             results = session.exec(statement).all()
-            
+
             for result in results:
                 if result.analysis_type == "sentiment":
                     data = {

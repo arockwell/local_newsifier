@@ -5,12 +5,12 @@ Tests for CLI error handling.
 import sys
 from unittest.mock import Mock, patch
 
-import pytest
 import click
+import pytest
 from click.testing import CliRunner
 
-from src.local_newsifier.errors.error import ServiceError
 from src.local_newsifier.errors.cli import handle_cli_errors
+from src.local_newsifier.errors.error import ServiceError
 
 
 @pytest.fixture

@@ -3,11 +3,11 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.article import Article
-from local_newsifier.models.entity_tracking import EntityMentionContext, EntityMention
+from local_newsifier.models.entity_tracking import EntityMention, EntityMentionContext
 
 
 class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):

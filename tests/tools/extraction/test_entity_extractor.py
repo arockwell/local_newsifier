@@ -9,12 +9,13 @@ This test suite covers:
 5. Error handling
 """
 
-import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
-from tests.fixtures.event_loop import event_loop_fixture
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+from tests.fixtures.event_loop import event_loop_fixture
 
 pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 

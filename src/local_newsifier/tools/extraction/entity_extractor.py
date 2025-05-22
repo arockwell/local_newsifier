@@ -1,12 +1,12 @@
 """Entity extraction tool for extracting entities from text content."""
 
-from typing import Dict, List, Optional, Set, Any
+from typing import Any, Dict, List, Optional, Set
 
 import spacy
-from spacy.language import Language
-from spacy.tokens import Doc, Span
 from fastapi import Depends
 from fastapi_injectable import injectable
+from spacy.language import Language
+from spacy.tokens import Doc, Span
 
 
 @injectable(use_cache=False)

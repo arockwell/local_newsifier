@@ -7,9 +7,9 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlmodel import Session
 
-from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
-from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.errors.error import ServiceError
+from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.services.apify_source_config_service import ApifySourceConfigService
 
 
 class TestApifySourceConfigService:

@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from tests.fixtures.event_loop import event_loop_fixture
 
-from local_newsifier.models.trend import TrendAnalysis, TrendType, TrendStatus
-from local_newsifier.tools.trend_reporter import TrendReporter, ReportFormat
+from local_newsifier.models.trend import TrendAnalysis, TrendStatus, TrendType
+from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.mark.skip(reason="Known issue with event loop in CI - Fixed in parallel PR")

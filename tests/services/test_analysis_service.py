@@ -1,16 +1,17 @@
 """Tests for the analysis_service module."""
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from local_newsifier.services.analysis_service import AnalysisService
+import pytest
+
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TrendAnalysis, TrendType
-from tests.fixtures.event_loop import event_loop_fixture
+from local_newsifier.services.analysis_service import AnalysisService
 from tests.ci_skip_config import ci_skip, ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 class TestAnalysisService:

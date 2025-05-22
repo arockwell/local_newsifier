@@ -1,15 +1,15 @@
 """Tests for HeadlineTrendFlow."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip
-
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
 from local_newsifier.models.article import Article
+from tests.ci_skip_config import ci_skip
+from tests.fixtures.event_loop import event_loop_fixture
+
 
 @pytest.fixture
 def mock_session():
@@ -51,36 +51,13 @@ def test_init_with_session(mock_session, mock_analysis_service):
     
     assert flow.session is mock_session
     assert flow.analysis_service is mock_analysis_service
-    assert flow._owns_session is False
 
 
-def test_init_without_session():
-    """Test initialization without session."""
-    # Set up necessary patches to prevent database access
-    with patch('local_newsifier.flows.analysis.headline_trend_flow.get_session') as mock_get_session, \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.services.analysis_service.AnalysisService') as mock_analysis_service, \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
-        # Create a proper mock session that the flow can use
-        mock_session = MagicMock()
-        # Make the get_session mock return a generator that yields our mock session
-        mock_session_generator = MagicMock()
-        mock_session_generator.__next__ = MagicMock(return_value=mock_session)
-        mock_get_session.return_value = mock_session_generator
-        
-        # Create a mock analysis service
-        mock_service = MagicMock()
-        mock_analysis_service.return_value = mock_service
-        
-        # Now create the flow without providing a session
-        flow = HeadlineTrendFlow(analysis_service=mock_service)
-        
-        # Patch any async methods if they exist
-        if hasattr(flow, 'process_async'):
-            flow.process_async = AsyncMock()
-        
-        # Verify the flow owns the session
-        assert flow._owns_session
+def test_init_without_session(mock_session):
+    """Test initialization with an injected session only."""
+    with patch('local_newsifier.services.analysis_service.AnalysisService') as mock_analysis_service:
+        flow = HeadlineTrendFlow(session=mock_session, analysis_service=mock_analysis_service.return_value)
+
         assert flow.session is mock_session
 
 
@@ -221,35 +198,15 @@ def test_generate_report_with_error(flow_with_mocks):
 
 def test_cleanup_on_delete(mock_session):
     """Test that the session is closed when the flow is deleted."""
-    # Set up necessary patches to prevent database access
-    with patch('local_newsifier.flows.analysis.headline_trend_flow.get_session') as mock_get_session, \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.services.analysis_service.AnalysisService') as mock_analysis_service, \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
-            
-        # Create a mock session with close method for __del__ to call
+    with patch('local_newsifier.services.analysis_service.AnalysisService') as mock_analysis_service:
+
         session = MagicMock()
-        session.close = MagicMock()
-        
-        # Make the get_session mock return a generator that yields our mock session
-        mock_session_generator = MagicMock()
-        mock_session_generator.__next__ = MagicMock(return_value=session)
-        mock_get_session.return_value = mock_session_generator
-        
-        # Create a mock analysis service
-        mock_service = MagicMock()
-        mock_analysis_service.return_value = mock_service
-        
-        # Now create the flow without providing a session
-        flow = HeadlineTrendFlow(analysis_service=mock_service)
-        
-        # Set owned session flag manually
-        flow._owns_session = True
-        
+
+        flow = HeadlineTrendFlow(session=session, analysis_service=mock_analysis_service.return_value)
+
         # Explicitly trigger __del__
         # Note: This approach won't actually call the real __del__ but we can simulate it
         if hasattr(flow, '__del__'):
             flow.__del__()
-            
-            # Verify session was closed
+
             session.close.assert_called_once()

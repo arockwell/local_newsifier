@@ -31,6 +31,7 @@ var/
 venv/
 env/
 ENV/
+env*/
 
 # IDE
 .idea/
@@ -60,6 +61,7 @@ venv.bak/
 # Environment files
 .env
 .env.test
+.env.cursor
 
 **/.claude/settings.local.json
 

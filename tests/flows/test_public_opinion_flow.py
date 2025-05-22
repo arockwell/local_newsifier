@@ -2,16 +2,15 @@
 
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip
-
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
 from local_newsifier.models.sentiment import SentimentVisualizationData
+from tests.ci_skip_config import ci_skip
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 class TestPublicOpinionFlow:
@@ -45,34 +44,16 @@ class TestPublicOpinionFlow:
             return flow
 
     def test_init_without_session(self):
-        """Test initialization without a database session."""
+        """Test initialization with an injected session."""
         mock_session = MagicMock()
-        
-        # Create a mock context manager for the session
-        mock_context_manager = MagicMock()
-        mock_context_manager.__enter__.return_value = mock_session
-        mock_context_manager.__exit__.return_value = None
-        
-        # Patch all the dependencies including any async code
-        with patch('local_newsifier.database.engine.get_session', return_value=mock_context_manager), \
-             patch('local_newsifier.flows.public_opinion_flow.SentimentAnalyzer'), \
+
+        with patch('local_newsifier.flows.public_opinion_flow.SentimentAnalyzer'), \
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
-             patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'), \
-             patch('local_newsifier.tools.sentiment_analyzer.spacy.load', return_value=MagicMock()), \
-             patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
-            
-            # Initialize flow without session
-            flow = PublicOpinionFlow()
-            
-            # Since we've mocked get_session to return our mock session
-            # directly set the session to simulate what would happen if PublicOpinionFlow
-            # had successfully called get_session
-            flow.session = mock_session
-            flow._owns_session = True
-            
-            # Verify session was created
-            assert flow.session is not None
-            assert flow._owns_session is True
+             patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'):
+
+            flow = PublicOpinionFlow(session=mock_session)
+
+            assert flow.session is mock_session
 
     def test_analyze_articles_with_ids(self, flow):
         """Test analyzing sentiment for specific articles."""
@@ -113,7 +94,7 @@ class TestPublicOpinionFlow:
         """Test analyzing sentiment for all unanalyzed articles."""
         # Create proper mock articles with required attributes
         from datetime import datetime
-        
+
         # Create proper article objects that match the expected structure
         mock_article1 = MagicMock()
         mock_article1.id = 1

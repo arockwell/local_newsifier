@@ -1,21 +1,17 @@
 """Database engine and session management using SQLModel."""
 
 import logging
-import traceback
 import time
+import traceback
 from contextlib import contextmanager
-from typing import Generator, Optional, Callable, TypeVar, Any
+from typing import Any, Callable, Generator, Optional, TypeVar
 
-from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy import text
+from sqlmodel import Session, SQLModel, create_engine
 
 # Import common settings to avoid circular imports
-from local_newsifier.config.common import (
-    DEFAULT_DB_POOL_SIZE,
-    DEFAULT_DB_MAX_OVERFLOW,
-    DEFAULT_DB_ECHO,
-)
-
+from local_newsifier.config.common import (DEFAULT_DB_ECHO, DEFAULT_DB_MAX_OVERFLOW,
+                                           DEFAULT_DB_POOL_SIZE)
 # Re-export get_settings for backward compatibility
 from local_newsifier.config.settings import get_settings
 
@@ -51,9 +47,9 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
                 try:
                     # For pytest-xdist parallel execution, we can figure out the worker ID
                     # from sys.argv or environment variable if available
-                    import sys
                     import os
-                    
+                    import sys
+
                     # Check for xdist worker ID patterns
                     worker_id = None
                     # Look for gw0, gw1, etc. in sys.argv for xdist workers

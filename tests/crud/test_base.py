@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 # We need pytest for fixtures but don't explicitly use it
 from pydantic import BaseModel
-from sqlmodel import select, SQLModel
+from sqlmodel import SQLModel, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.article import Article

@@ -1,7 +1,7 @@
 """Flow for analyzing and detecting trends in local news articles."""
 
-from datetime import datetime, timezone, timedelta
 import logging
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock
@@ -11,13 +11,8 @@ from crewai import Flow
 from sqlmodel import Session
 
 from local_newsifier.models.state import AnalysisStatus
-from local_newsifier.models.trend import (
-    TimeFrame,
-    TrendAnalysis,
-    TrendAnalysisConfig,
-    TrendStatus,
-    TrendType,
-)
+from local_newsifier.models.trend import (TimeFrame, TrendAnalysis, TrendAnalysisConfig,
+                                          TrendStatus, TrendType)
 from local_newsifier.services.analysis_service import AnalysisService
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
 
@@ -110,14 +105,10 @@ class NewsTrendAnalysisFlow(Flow):
         else:
             try:
                 # Try to get dependencies from the injectable providers
-                from local_newsifier.di.providers import (
-                    get_analysis_result_crud, 
-                    get_article_crud, 
-                    get_entity_crud,
-                    get_trend_analyzer_tool,
-                    get_session
-                )
-                
+                from local_newsifier.di.providers import (get_analysis_result_crud,
+                                                          get_article_crud, get_entity_crud,
+                                                          get_session, get_trend_analyzer_tool)
+
                 # Get the dependencies 
                 analysis_result_crud = get_analysis_result_crud()
                 article_crud = get_article_crud() 

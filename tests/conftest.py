@@ -4,21 +4,20 @@ This module provides common test fixtures like sample data.
 Database configuration is handled in the root conftest.py.
 """
 
-from datetime import datetime, timezone
 import os
-from typing import Dict, List, Generator
+from datetime import datetime, timezone
+from typing import Dict, Generator, List
 
 import pytest
 from sqlmodel import Session
 
+from local_newsifier.models.analysis_result import AnalysisResult
 # Import model classes only for type hints
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.models.entity_tracking import (
-    CanonicalEntity, EntityMention, EntityMentionContext,
-    EntityProfile, EntityRelationship
-)
+from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMention,
+                                                    EntityMentionContext, EntityProfile,
+                                                    EntityRelationship)
 
 # Note: We don't need to register models here as it's done in root conftest.py
 

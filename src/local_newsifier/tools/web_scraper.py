@@ -1,9 +1,13 @@
+"""Utility for scraping articles with optional Selenium."""
+
 import time
 from datetime import UTC, datetime
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 import requests
 from bs4 import BeautifulSoup
+from fastapi import Depends
+from fastapi_injectable import injectable
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -12,8 +16,17 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
 from webdriver_manager.chrome import ChromeDriverManager
-from fastapi import Depends
-from fastapi_injectable import injectable
+
+# Common phrases indicating that an article was not found or is behind a paywall
+NOT_FOUND_PHRASES = [
+    "404 not found",
+    "page not found",
+    "article not found",
+    "content no longer available",
+    "article has expired",
+    "subscription required",
+    "please subscribe",
+]
 
 from ..models.state import AnalysisStatus, NewsAnalysisState
 
@@ -91,18 +104,7 @@ class WebScraperTool:
             response.raise_for_status()
 
             # Check if we got a 404-like page
-            if any(
-                term in response.text.lower()
-                for term in [
-                    "404 not found",
-                    "page not found",
-                    "article not found",
-                    "content no longer available",
-                    "article has expired",
-                    "subscription required",
-                    "please subscribe",
-                ]
-            ):
+            if any(term in response.text.lower() for term in NOT_FOUND_PHRASES):
                 print("Found 404-like content in response")
                 raise requests.exceptions.HTTPError(
                     "Page appears to be a 404 or requires subscription"
@@ -140,18 +142,7 @@ class WebScraperTool:
 
                 # Check for 404-like content
                 page_text = driver.page_source.lower()
-                if any(
-                    term in page_text
-                    for term in [
-                        "404 not found",
-                        "page not found",
-                        "article not found",
-                        "content no longer available",
-                        "article has expired",
-                        "subscription required",
-                        "please subscribe",
-                    ]
-                ):
+                if any(term in page_text for term in NOT_FOUND_PHRASES):
                     print("Found 404-like content in Selenium response")
                     raise ValueError(
                         "Page appears to be a 404 or requires subscription"
