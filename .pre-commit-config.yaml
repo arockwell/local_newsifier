@@ -34,3 +34,11 @@ repos:
     hooks:
     -   id: flake8
         additional_dependencies: [flake8-docstrings]
+
+-   repo: local
+    hooks:
+    -   id: ruff
+        name: ruff (E501 and W291)
+        entry: ruff
+        language: system
+        args: [check, --select, "E501,W291"]
