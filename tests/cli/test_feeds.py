@@ -39,37 +39,34 @@ def sample_feed():
     }
 
 
-def test_feeds_list(mock_rss_feed_service, sample_feed):
-    """Test the feeds list command."""
-    # Setup mock
+@pytest.mark.parametrize(
+    "args, expect_json",
+    [
+        (["feeds", "list"], False),
+        (["feeds", "list", "--json"], True),
+    ],
+    ids=["table_output", "json_output"],
+)
+def test_feeds_list(mock_rss_feed_service, sample_feed, args, expect_json):
+    """Test the feeds list command with optional JSON output."""
+    # Arrange
     mock_rss_feed_service.list_feeds.return_value = [sample_feed]
-    
-    # Run command
     runner = CliRunner()
-    result = runner.invoke(cli, ["feeds", "list"])
-    
-    # Verify
+
+    # Act
+    result = runner.invoke(cli, args)
+
+    # Assert
     assert result.exit_code == 0
-    assert "Test Feed" in result.output
-    assert "https://example.com/feed.xml" in result.output
     mock_rss_feed_service.list_feeds.assert_called_once()
-
-
-def test_feeds_list_json(mock_rss_feed_service, sample_feed):
-    """Test the feeds list command with JSON output."""
-    # Setup mock
-    mock_rss_feed_service.list_feeds.return_value = [sample_feed]
-    
-    # Run command
-    runner = CliRunner()
-    result = runner.invoke(cli, ["feeds", "list", "--json"])
-    
-    # Verify
-    assert result.exit_code == 0
-    output = json.loads(result.output)
-    assert len(output) == 1
-    assert output[0]["name"] == "Test Feed"
-    assert output[0]["url"] == "https://example.com/feed.xml"
+    if expect_json:
+        output = json.loads(result.output)
+        assert len(output) == 1
+        assert output[0]["name"] == sample_feed["name"]
+        assert output[0]["url"] == sample_feed["url"]
+    else:
+        assert sample_feed["name"] in result.output
+        assert sample_feed["url"] in result.output
 
 
 def test_feeds_add(mock_rss_feed_service, sample_feed):
@@ -106,51 +103,45 @@ def test_feeds_add_error(mock_rss_feed_service):
     assert "Feed already exists" in result.output
 
 
-def test_feeds_show(mock_rss_feed_service, sample_feed):
-    """Test the feeds show command."""
-    # Setup mock
+@pytest.mark.parametrize("show_logs", [False, True], ids=["no_logs", "with_logs"])
+def test_feeds_show(mock_rss_feed_service, sample_feed, show_logs):
+    """Test the feeds show command with and without logs."""
+    # Arrange
     mock_rss_feed_service.get_feed.return_value = sample_feed
-    mock_rss_feed_service.get_feed_processing_logs.return_value = []
-    
-    # Run command
+    if show_logs:
+        mock_rss_feed_service.get_feed_processing_logs.return_value = [
+            {
+                "id": 1,
+                "feed_id": 1,
+                "status": "success",
+                "articles_found": 10,
+                "articles_added": 5,
+                "error_message": None,
+                "started_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ]
+        args = ["feeds", "show", "1", "--show-logs"]
+    else:
+        mock_rss_feed_service.get_feed_processing_logs.return_value = []
+        args = ["feeds", "show", "1"]
+
     runner = CliRunner()
-    result = runner.invoke(cli, ["feeds", "show", "1"])
-    
-    # Verify
+
+    # Act
+    result = runner.invoke(cli, args)
+
+    # Assert
     assert result.exit_code == 0
     assert "Test Feed" in result.output
     assert "https://example.com/feed.xml" in result.output
     mock_rss_feed_service.get_feed.assert_called_once_with(1)
-
-
-def test_feeds_show_with_logs(mock_rss_feed_service, sample_feed):
-    """Test the feeds show command with logs."""
-    # Setup mock
-    mock_rss_feed_service.get_feed.return_value = sample_feed
-    mock_rss_feed_service.get_feed_processing_logs.return_value = [
-        {
-            "id": 1,
-            "feed_id": 1,
-            "status": "success",
-            "articles_found": 10,
-            "articles_added": 5,
-            "error_message": None,
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        }
-    ]
-    
-    # Run command
-    runner = CliRunner()
-    result = runner.invoke(cli, ["feeds", "show", "1", "--show-logs"])
-    
-    # Verify
-    assert result.exit_code == 0
-    assert "Test Feed" in result.output
-    assert "Recent Processing Logs" in result.output
-    assert "success" in result.output
-    mock_rss_feed_service.get_feed.assert_called_once_with(1)
-    mock_rss_feed_service.get_feed_processing_logs.assert_called_once_with(1, limit=5)
+    if show_logs:
+        assert "Recent Processing Logs" in result.output
+        assert "success" in result.output
+        mock_rss_feed_service.get_feed_processing_logs.assert_called_once_with(1, limit=5)
+    else:
+        mock_rss_feed_service.get_feed_processing_logs.assert_not_called()
 
 
 def test_feeds_show_not_found(mock_rss_feed_service):
