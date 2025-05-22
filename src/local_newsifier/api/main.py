@@ -15,7 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
 from local_newsifier.api.dependencies import get_templates
-from local_newsifier.api.routers import auth, system, tasks
+from local_newsifier.api.routers import auth, system, tasks, webhooks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI application.
-    
+
     Handles startup and shutdown events.
     """
     # Startup logic
@@ -39,19 +39,19 @@ async def lifespan(app: FastAPI):
         # Initialize database tables
         create_db_and_tables()
         logger.info("Database initialization completed")
-        
+
         # Initialize fastapi-injectable
         logger.info("Initializing fastapi-injectable")
         await register_app(app)
-        
+
         logger.info("fastapi-injectable initialization completed")
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
-    
+
     logger.info("Application startup complete")
-    
+
     yield  # This is where FastAPI serves requests
-    
+
     # Shutdown logic
     logger.info("Application shutdown initiated")
     logger.info("Application shutdown complete")
@@ -72,37 +72,30 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.include_router(auth.router)
 app.include_router(system.router)
 app.include_router(tasks.router)
+app.include_router(webhooks.router)
+
 
 @app.get("/", response_class=HTMLResponse)
-async def root(
-    request: Request,
-    templates: Jinja2Templates = Depends(get_templates)
-):
+async def root(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Root endpoint serving home page with recent headlines."""
     # Get recent articles from the last 30 days
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
-    
+
     recent_articles_data = []
     try:
         # Use a synchronous session to avoid event loop issues
         from local_newsifier.crud.article import article as article_crud_instance
         from local_newsifier.database.engine import SessionManager
-        
+
         with SessionManager() as session:
             articles = article_crud_instance.get_by_date_range(
-                session, 
-                start_date=start_date, 
-                end_date=end_date
+                session, start_date=start_date, end_date=end_date
             )
-            
+
             # Order by published date (newest first) and limit to 20 articles
-            articles = sorted(
-                articles, 
-                key=lambda x: x.published_at, 
-                reverse=True
-            )[:20]
-            
+            articles = sorted(articles, key=lambda x: x.published_at, reverse=True)[:20]
+
             # Convert SQLModel objects to dictionaries to avoid detached instance errors
             for article in articles:
                 article_dict = {
@@ -111,19 +104,15 @@ async def root(
                     "url": article.url,
                     "source": article.source,
                     "published_at": article.published_at,
-                    "status": article.status
+                    "status": article.status,
                 }
                 recent_articles_data.append(article_dict)
     except Exception as e:
         logger.error(f"Error fetching recent articles: {str(e)}")
-    
+
     return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "title": "Local Newsifier",
-            "recent_articles": recent_articles_data
-        },
+        {"request": request, "title": "Local Newsifier", "recent_articles": recent_articles_data},
     )
 
 
@@ -148,10 +137,7 @@ async def get_config():
 
 
 @app.exception_handler(404)
-async def not_found_handler(
-    request: Request, 
-    exc: Exception
-) -> JSONResponse:
+async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
     templates = get_templates()
     if request.url.path.startswith("/api"):
