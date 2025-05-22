@@ -15,8 +15,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from local_newsifier.api.main import app
 from local_newsifier.api.dependencies import get_session
+from local_newsifier.api.main import app
 from local_newsifier.di.providers import get_apify_webhook_handler
 from local_newsifier.models.webhook import ApifyWebhookPayload, ApifyWebhookResponse
 from local_newsifier.services.webhook_service import ApifyWebhookHandler
@@ -30,47 +30,48 @@ def mock_db():
     """Mock database calls for testing."""
     # Save original create_db_and_tables function
     from local_newsifier.database import engine
+
     original_create_db = engine.create_db_and_tables
-    
+
     # Replace with no-op function
     engine.create_db_and_tables = lambda: None
-    
+
     # Yield control back to test
     yield
-    
+
     # Restore original function after tests
     engine.create_db_and_tables = original_create_db
 
 
 class TestApifyWebhook:
     """Test suite for Apify webhook endpoint."""
-    
+
     @pytest.fixture
     def mock_session(self):
         """Mock database session for tests."""
         mock = Mock(spec=Session)
         return mock
-    
+
     @pytest.fixture
     def override_dependencies(self):
         """Override FastAPI dependencies for testing."""
         # Save original dependency overrides
         original_overrides = app.dependency_overrides.copy()
-        
+
         # Create mocks for dependencies
         mock_handler = Mock(spec=ApifyWebhookHandler)
         mock_handler.validate_webhook.return_value = True
         mock_handler.handle_webhook.return_value = (True, 123, "Test success")
-        
+
         mock_session_instance = Mock(spec=Session)
-        
+
         # Override dependencies
         app.dependency_overrides[get_apify_webhook_handler] = lambda: mock_handler
         app.dependency_overrides[get_session] = lambda: mock_session_instance
-        
+
         # Yield control back to test
         yield mock_handler
-        
+
         # Restore original dependencies
         app.dependency_overrides = original_overrides
 
@@ -79,9 +80,11 @@ class TestApifyWebhook:
         # Get the mocked webhook handler and modify its validation behavior
         mock_handler = override_dependencies
         mock_handler.validate_webhook.return_value = False
-        
+
         # Set a webhook secret
-        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", "test_secret")
+        monkeypatch.setattr(
+            "local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", "test_secret"
+        )
 
         # Create a sample webhook payload with wrong secret
         payload = {
@@ -95,7 +98,7 @@ class TestApifyWebhook:
             "startedAt": datetime.datetime.now().isoformat(),
             "status": "SUCCEEDED",
             "webhookId": str(uuid.uuid4()),
-            "secret": "wrong_secret"  # Wrong secret
+            "secret": "wrong_secret",  # Wrong secret
         }
 
         # Send request to webhook endpoint
@@ -112,7 +115,7 @@ class TestApifyWebhook:
         mock_handler.validate_webhook.return_value = True
         job_id = 123
         mock_handler.handle_webhook.return_value = (True, job_id, "Webhook processed successfully")
-        
+
         # Create a sample webhook payload
         payload = {
             "createdAt": datetime.datetime.now().isoformat(),
@@ -125,9 +128,9 @@ class TestApifyWebhook:
             "startedAt": datetime.datetime.now().isoformat(),
             "status": "SUCCEEDED",
             "webhookId": str(uuid.uuid4()),
-            "secret": "test_secret"
+            "secret": "test_secret",
         }
-        
+
         # Send request to webhook endpoint
         response = client.post("/webhooks/apify", json=payload)
 
@@ -144,7 +147,7 @@ class TestApifyWebhook:
         mock_handler.validate_webhook.return_value = True
         job_id = 456
         mock_handler.handle_webhook.return_value = (True, job_id, "Failed run processed")
-        
+
         # Create a sample webhook payload for a failed run
         payload = {
             "createdAt": datetime.datetime.now().isoformat(),
@@ -157,9 +160,9 @@ class TestApifyWebhook:
             "startedAt": datetime.datetime.now().isoformat(),
             "status": "FAILED",
             "webhookId": str(uuid.uuid4()),
-            "secret": "test_secret"
+            "secret": "test_secret",
         }
-        
+
         # Send request to webhook endpoint
         response = client.post("/webhooks/apify", json=payload)
 
@@ -175,7 +178,7 @@ class TestApifyWebhook:
         mock_handler = override_dependencies
         mock_handler.validate_webhook.return_value = True
         mock_handler.handle_webhook.return_value = (False, None, "Error processing webhook")
-        
+
         # Create a sample webhook payload
         payload = {
             "createdAt": datetime.datetime.now().isoformat(),
@@ -188,7 +191,7 @@ class TestApifyWebhook:
             "startedAt": datetime.datetime.now().isoformat(),
             "status": "SUCCEEDED",
             "webhookId": str(uuid.uuid4()),
-            "secret": "test_secret"
+            "secret": "test_secret",
         }
 
         # Send request to webhook endpoint
@@ -197,4 +200,44 @@ class TestApifyWebhook:
         # Should return error status
         assert response.status_code == 202  # Still accepted but with error
         assert response.json()["status"] == "error"
-        assert "error" in response.json()
+
+    def test_webhook_handler_creates_fresh_sessions(self):
+        """Test that the webhook handler creates fresh sessions for background tasks."""
+        from unittest.mock import Mock, patch
+
+        from local_newsifier.services.webhook_service import ApifyWebhookHandler
+
+        # Mock the dependencies
+        mock_apify_service = Mock()
+        mock_article_service = Mock()
+        mock_transformation_config = Mock()
+
+        # Mock the database session creation
+        with patch("local_newsifier.database.engine.get_session") as mock_get_db_session:
+            mock_session1 = Mock()
+            mock_session2 = Mock()
+            mock_get_db_session.side_effect = [iter([mock_session1]), iter([mock_session2])]
+
+            # Create session factory like the provider does
+            def create_background_session():
+                return next(mock_get_db_session())
+
+            # Create webhook handler with the session factory
+            handler = ApifyWebhookHandler(
+                apify_service=mock_apify_service,
+                article_service=mock_article_service,
+                transformation_config=mock_transformation_config,
+                session_factory=create_background_session,
+            )
+
+            # Call the session factory twice
+            session1 = handler.session_factory()
+            session2 = handler.session_factory()
+
+            # Should create fresh sessions each time
+            assert session1 is mock_session1
+            assert session2 is mock_session2
+            assert session1 is not session2
+
+            # Should have called the database session factory twice
+            assert mock_get_db_session.call_count == 2

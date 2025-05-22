@@ -1083,29 +1083,39 @@ def get_apify_webhook_handler(
     apify_service: Annotated["ApifyService", Depends(get_apify_service)],
     article_service: Annotated["ArticleService", Depends(get_article_service)],
     transformation_config: Annotated[Any, Depends(get_webhook_transformation_config)],
-    session: Annotated[Session, Depends(get_session)],
 ):
     """Provide the Apify webhook handler.
 
     Uses use_cache=False to create new instances for each injection, as this component
     maintains state during webhook processing and handles external API calls.
 
+    Note: This handler creates its own session factory for background tasks to avoid
+    issues with request-scoped sessions being closed before background tasks complete.
+
     Args:
         apify_service: Service for Apify API interactions
         article_service: Article service for creating and processing articles
         transformation_config: Configuration for dataset transformation
-        session: Database session
 
     Returns:
         ApifyWebhookHandler instance
     """
+    from local_newsifier.database.engine import get_session as get_db_session
     from local_newsifier.services.webhook_service import ApifyWebhookHandler
+
+    def create_background_session():
+        """Create a fresh database session for background tasks.
+
+        This is separate from request-scoped sessions to ensure
+        background tasks have valid database connections.
+        """
+        return next(get_db_session())
 
     return ApifyWebhookHandler(
         apify_service=apify_service,
         article_service=article_service,
         transformation_config=transformation_config,
-        session_factory=lambda: session,
+        session_factory=create_background_session,
     )
 
 
