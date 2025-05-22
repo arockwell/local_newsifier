@@ -418,3 +418,10 @@ class TestFetchRssFeeds:
                 assert result["feeds_processed"] == 1
                 assert result["articles_found"] == 2
                 assert result["articles_added"] == 1
+
+
+def test_on_worker_ready_logs_info():
+    """Verify that on_worker_ready logs an informational message."""
+    with patch("local_newsifier.tasks.logger") as mock_logger:
+        on_worker_ready(sender=None)
+        mock_logger.info.assert_called_once_with("Celery worker is ready")
