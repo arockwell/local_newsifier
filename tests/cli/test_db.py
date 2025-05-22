@@ -1,17 +1,14 @@
 """Tests for the database diagnostics CLI commands."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
-from local_newsifier.di.providers import (
-    get_session, 
-    get_article_crud, 
-    get_rss_feed_crud,
-    get_entity_crud,
-    get_feed_processing_log_crud
-)
+from local_newsifier.di.providers import (get_article_crud, get_entity_crud,
+                                          get_feed_processing_log_crud, get_rss_feed_crud,
+                                          get_session)
 
 
 def test_db_group():

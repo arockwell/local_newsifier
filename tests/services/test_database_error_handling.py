@@ -1,14 +1,9 @@
 """Tests for SQLAlchemy exception handling in service layer."""
 
 import pytest
-from sqlalchemy.exc import (
-    OperationalError, 
-    IntegrityError,
-    TimeoutError, 
-    StatementError,
-    InvalidRequestError
-)
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import (IntegrityError, InvalidRequestError, OperationalError, StatementError,
+                            TimeoutError)
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 
 def test_sqlalchemy_error_types_importable():

@@ -5,11 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlmodel import Session
 
-from local_newsifier.config.database import (
-    get_database,
-    get_database_settings,
-    get_db_session,
-)
+from local_newsifier.config.database import get_database, get_database_settings, get_db_session
 from local_newsifier.database.engine import get_engine, get_session, transaction
 
 

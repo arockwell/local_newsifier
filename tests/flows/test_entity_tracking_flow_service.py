@@ -1,8 +1,9 @@
 """Tests for the EntityTrackingFlow state-based implementation."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mock spaCy and TextBlob before imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
@@ -11,11 +12,11 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.services.entity_service import EntityService
-from tests.fixtures.event_loop import event_loop_fixture
 from tests.ci_skip_config import ci_skip
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityService")

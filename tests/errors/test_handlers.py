@@ -7,12 +7,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.local_newsifier.errors.error import ServiceError
-from src.local_newsifier.errors.handlers import (
-    create_service_handler,
-    handle_apify, 
-    handle_rss,
-    get_error_message
-)
+from src.local_newsifier.errors.handlers import (create_service_handler, get_error_message,
+                                                 handle_apify, handle_rss)
 
 
 class TestServiceHandler:

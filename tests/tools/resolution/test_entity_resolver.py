@@ -1,9 +1,11 @@
 """Tests for the EntityResolver tool."""
 
-import pytest
 import os
-from tests.fixtures.event_loop import event_loop_fixture
+
+import pytest
+
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+from tests.fixtures.event_loop import event_loop_fixture
 
 pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 

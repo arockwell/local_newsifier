@@ -7,11 +7,11 @@ providing straightforward patterns that can be used in various test scenarios.
 
 import asyncio
 import inspect
-import pytest
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 from unittest.mock import MagicMock, patch
-from typing import Dict, Any, Callable, Optional, Type, TypeVar, List
 
-from fastapi import FastAPI, Depends
+import pytest
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from fastapi_injectable import injectable, register_app
 

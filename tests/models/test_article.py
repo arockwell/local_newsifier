@@ -1,12 +1,13 @@
 """Tests for article model."""
 
-import pytest
-from sqlmodel import Session, SQLModel, create_engine, select
 from datetime import datetime, timezone
 
+import pytest
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.analysis_result import AnalysisResult
 
 
 def test_article_model():

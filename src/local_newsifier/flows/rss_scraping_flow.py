@@ -5,15 +5,15 @@ Flow for orchestrating RSS feed parsing and web scraping.
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Callable
+from typing import Callable, Dict, List, Optional
 
 from crewai import Flow
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
-from local_newsifier.tools.rss_parser import RSSItem, RSSParser
-from local_newsifier.tools.web_scraper import WebScraperTool
 from local_newsifier.services.article_service import ArticleService
 from local_newsifier.services.rss_feed_service import RSSFeedService
+from local_newsifier.tools.rss_parser import RSSItem, RSSParser
+from local_newsifier.tools.web_scraper import WebScraperTool
 
 logger = logging.getLogger(__name__)
 

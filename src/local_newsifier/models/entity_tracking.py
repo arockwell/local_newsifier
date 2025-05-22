@@ -1,16 +1,16 @@
 """Entity tracking models for the news analysis system using SQLModel."""
 
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlmodel import SQLModel, Field, Relationship, JSON, UniqueConstraint
+from sqlmodel import JSON, Field, Relationship, SQLModel, UniqueConstraint
 
 from local_newsifier.models.base import TableBase
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.entity import Entity
     from local_newsifier.models.article import Article
+    from local_newsifier.models.entity import Entity
 
 
 class EntityMention(SQLModel, table=True):

@@ -15,17 +15,16 @@ and report generation in various formats (text, markdown, HTML).
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from crewai import Flow
 from sqlmodel import Session
 
-
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.models.sentiment import SentimentVisualizationData
+from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
 from local_newsifier.tools.sentiment_tracker import SentimentTracker
-from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 
 logger = logging.getLogger(__name__)
 

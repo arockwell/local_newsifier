@@ -1,11 +1,12 @@
 """Integration test for the complete entity processing flow."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-from sqlmodel import Session, SQLModel, create_engine
+import pytest
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, SQLModel, create_engine
+
 
 @pytest.mark.skip(reason="Integration test requires full environment and NLP models")
 def test_entity_processing_integration():
@@ -34,17 +35,18 @@ def test_entity_processing_integration():
     
     # Create real components
     from local_newsifier.crud.article import article as article_crud
-    from local_newsifier.crud.entity import entity as entity_crud
     from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
-    from local_newsifier.crud.entity_mention_context import entity_mention_context as entity_mention_context_crud
+    from local_newsifier.crud.entity import entity as entity_crud
+    from local_newsifier.crud.entity_mention_context import \
+        entity_mention_context as entity_mention_context_crud
     from local_newsifier.crud.entity_profile import entity_profile as entity_profile_crud
-    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
-    from local_newsifier.tools.resolution.entity_resolver import EntityResolver
-    from local_newsifier.services.entity_service import EntityService
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
     from local_newsifier.models.state import EntityTrackingState
-    
+    from local_newsifier.services.entity_service import EntityService
+    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
     # Create service with real components
     service = EntityService(
         entity_crud=entity_crud,

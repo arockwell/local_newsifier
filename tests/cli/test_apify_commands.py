@@ -8,10 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from local_newsifier.cli.commands.apify import (_ensure_token,
-                                                get_actor, get_dataset, run_actor,
-                                                scrape_content, test_connection, 
-                                                web_scraper)
+from local_newsifier.cli.commands.apify import (_ensure_token, get_actor, get_dataset, run_actor,
+                                                scrape_content, test_connection, web_scraper)
 from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
 

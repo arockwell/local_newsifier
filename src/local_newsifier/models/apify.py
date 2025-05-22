@@ -1,9 +1,9 @@
 """Apify integration models for the Local Newsifier system."""
 
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlmodel import Field, Relationship, JSON, SQLModel
+from sqlmodel import JSON, Field, Relationship, SQLModel
 
 from local_newsifier.models.base import TableBase
 

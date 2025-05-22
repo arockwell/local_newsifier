@@ -1,7 +1,7 @@
 """CRUD operations for entity profiles."""
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional, Union
 
 from sqlmodel import Session, select
 

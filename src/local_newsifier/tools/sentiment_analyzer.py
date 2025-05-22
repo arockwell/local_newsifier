@@ -2,24 +2,22 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Union, NamedTuple, TypedDict, TypeVar, cast
+from typing import Any, Dict, List, NamedTuple, Optional, TypedDict, TypeVar, Union, cast
 
 import spacy
+from fastapi import Depends
+from fastapi_injectable import injectable
 from spacy.language import Language
 from sqlmodel import Session
 from textblob import TextBlob
 from textblob.blob import BaseBlob, Blobber
-from fastapi import Depends
-from fastapi_injectable import injectable
 
-from local_newsifier.database.engine import with_session
-from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-from local_newsifier.models.article import Article
+from local_newsifier.crud.article import article as article_crud
+from local_newsifier.database.engine import with_session
 from local_newsifier.models.analysis_result import AnalysisResult
-from local_newsifier.models.sentiment import (
-    SentimentAnalysis
-)
+from local_newsifier.models.article import Article
+from local_newsifier.models.sentiment import SentimentAnalysis
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 logger = logging.getLogger(__name__)

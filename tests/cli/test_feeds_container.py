@@ -1,12 +1,14 @@
 """Tests for RSS feeds CLI commands using injectable provider functions."""
 
 import json
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
+
 
 # Create a sample feed for testing
 @pytest.fixture

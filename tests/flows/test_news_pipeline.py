@@ -96,7 +96,7 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
     with patch('fastapi_injectable.decorator.run_coroutine_sync'):
         # Import locally to avoid top-level import issues
         from local_newsifier.flows.news_pipeline import NewsPipelineFlow
-        
+
         # Create pipeline instance
         pipeline = NewsPipelineFlow(
             web_scraper=mock_scraper,

@@ -2,10 +2,12 @@
 
 import time
 from datetime import UTC, datetime
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 import requests
 from bs4 import BeautifulSoup
+from fastapi import Depends
+from fastapi_injectable import injectable
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -14,8 +16,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt, wait_exponential
 from webdriver_manager.chrome import ChromeDriverManager
-from fastapi import Depends
-from fastapi_injectable import injectable
 
 # Common phrases indicating that an article was not found or is behind a paywall
 NOT_FOUND_PHRASES = [

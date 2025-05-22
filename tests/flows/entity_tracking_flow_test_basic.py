@@ -1,7 +1,7 @@
 """Basic tests for the Entity Tracking flow."""
 
-from unittest.mock import Mock, patch, MagicMock, call
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 

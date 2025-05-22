@@ -3,11 +3,11 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Session, select, join
+from sqlmodel import Session, join, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.entity import Entity
 from local_newsifier.models.article import Article
+from local_newsifier.models.entity import Entity
 
 
 class CRUDEntity(CRUDBase[Entity]):

@@ -5,12 +5,12 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
 from fastapi_injectable import register_app
 from sqlmodel import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
@@ -86,8 +86,8 @@ async def root(
     recent_articles_data = []
     try:
         # Use a synchronous session to avoid event loop issues
-        from local_newsifier.database.engine import SessionManager
         from local_newsifier.crud.article import article as article_crud_instance
+        from local_newsifier.database.engine import SessionManager
         
         with SessionManager() as session:
             articles = article_crud_instance.get_by_date_range(

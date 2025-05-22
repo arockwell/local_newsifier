@@ -1,14 +1,14 @@
 """Article model for the news analysis system."""
 
 from datetime import datetime, timezone
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from local_newsifier.models.entity import Entity
     from local_newsifier.models.analysis_result import AnalysisResult
+    from local_newsifier.models.entity import Entity
 
 
 class Article(SQLModel, table=True):

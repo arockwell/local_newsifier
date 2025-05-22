@@ -1,6 +1,6 @@
 """Tests for the RSS feed CRUD module."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest

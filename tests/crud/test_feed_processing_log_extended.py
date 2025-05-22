@@ -1,6 +1,6 @@
 """Extended tests for the feed processing log CRUD module."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlmodel import Session, select

@@ -1,12 +1,13 @@
 """Tests for injectable SentimentTracker pattern."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from tests.ci_skip_config import ci_skip_async, ci_skip_injectable
 # Import event loop fixture to handle fastapi-injectable async operations
 from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_async, ci_skip_injectable
 
 # Mock imports
 patch('spacy.load', MagicMock(return_value=MagicMock())).start()
@@ -81,7 +82,7 @@ class TestInjectableSentimentTracker:
     def test_session_priority(self, mock_session):
         """Test that the session priority logic works correctly."""
         from local_newsifier.tools.sentiment_tracker import SentimentTracker
-        
+
         # Create different sessions for testing priority
         session1 = MagicMock(name="session1")
         session2 = MagicMock(name="session2")

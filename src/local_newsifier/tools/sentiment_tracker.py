@@ -3,7 +3,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional, Any, Callable, Annotated, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from fastapi import Depends
 from fastapi_injectable import injectable
@@ -11,9 +11,9 @@ from sqlmodel import Session, select
 
 # Use direct imports from the original model locations
 from local_newsifier.database.engine import with_session
-from local_newsifier.models.sentiment import SentimentAnalysis, OpinionTrend, SentimentShift
-from local_newsifier.models.article import Article
 from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.article import Article
+from local_newsifier.models.sentiment import OpinionTrend, SentimentAnalysis, SentimentShift
 from local_newsifier.models.trend import TrendAnalysis, TrendEntity
 
 logger = logging.getLogger(__name__)

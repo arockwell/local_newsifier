@@ -1,17 +1,16 @@
 """Tests for the NewsTrendAnalysisFlow."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from tests.fixtures.event_loop import event_loop_fixture
-from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow,
-                                                      ReportFormat,
-                                                      TrendAnalysisState)
+
+from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow, ReportFormat,
+                                                       TrendAnalysisState)
 from local_newsifier.models.state import AnalysisStatus
-from local_newsifier.models.trend import (TimeFrame, TrendAnalysis,
-                                          TrendAnalysisConfig, TrendStatus,
-                                          TrendType)
+from local_newsifier.models.trend import (TimeFrame, TrendAnalysis, TrendAnalysisConfig,
+                                          TrendStatus, TrendType)
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture

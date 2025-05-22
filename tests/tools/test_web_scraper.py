@@ -17,21 +17,19 @@ import pytest
 import requests
 from bs4 import BeautifulSoup
 from requests.exceptions import HTTPError, RequestException
+from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium import webdriver
 
-# Import event_loop_fixture for handling async code
-from tests.fixtures.event_loop import event_loop_fixture
-
-from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.di.providers import get_web_scraper_tool
-
+from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 # Import the class for tests
 from local_newsifier.tools.web_scraper import WebScraperTool as WebScraperToolClass
+# Import event_loop_fixture for handling async code
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture(scope="session")

@@ -64,7 +64,7 @@ def get_session() -> Generator[Session, None, None]:
         Session: SQLModel session
     """
     from local_newsifier.di.providers import get_session as get_injectable_session
-    
+
     # Use injectable provider directly
     yield from get_injectable_session()
 
@@ -75,9 +75,9 @@ def get_article_service() -> ArticleService:
     Returns:
         ArticleService: The article service instance
     """
-    from local_newsifier.di.providers import get_article_service as get_injectable_article_service
     from local_newsifier.database.engine import get_session
-    
+    from local_newsifier.di.providers import get_article_service as get_injectable_article_service
+
     # Use injectable provider with session
     with next(get_session()) as session:
         return get_injectable_article_service(session=session)
@@ -89,9 +89,9 @@ def get_rss_feed_service() -> RSSFeedService:
     Returns:
         RSSFeedService: The RSS feed service instance
     """
-    from local_newsifier.di.providers import get_rss_feed_service as get_injectable_rss_feed_service
     from local_newsifier.database.engine import get_session
-    
+    from local_newsifier.di.providers import get_rss_feed_service as get_injectable_rss_feed_service
+
     # Use injectable provider with session
     with next(get_session()) as session:
         return get_injectable_rss_feed_service(session=session)
