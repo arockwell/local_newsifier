@@ -9,3 +9,5 @@ flake8
 flake8-docstrings
 pytest-profiling
 pytest-xdist
+aiosqlite
+greenlet
