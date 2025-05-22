@@ -8,7 +8,7 @@ from local_newsifier.models.base import TableBase
 
 # Import all models from their original locations but don't re-export
 # This prevents duplicate class registrations
-from local_newsifier.models.article import Article
+from local_newsifier.models.article import Article, ArticleBase, ArticleRead
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
@@ -37,6 +37,8 @@ __all__ = [
     "SQLModel",
     "TableBase",
     "Article",
+    "ArticleBase",
+    "ArticleRead",
     "Entity",
     "AnalysisResult",
     "RSSFeed",

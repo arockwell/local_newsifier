@@ -58,3 +58,22 @@ class Article(SQLModel, table=True):
             ]
         }
     }
+
+
+class ArticleBase(SQLModel):
+    """Shared fields for Article."""
+    title: str
+    content: str
+    url: str = Field(unique=True)
+    source: str
+    published_at: datetime
+    status: str
+    scraped_at: datetime
+
+
+from ._mixins import FromModel
+
+
+class ArticleRead(FromModel, ArticleBase):
+    """Read-only DTO detached from session"""
+    id: int

@@ -7,7 +7,7 @@ from fastapi_injectable import injectable
 from typing import Annotated
 from fastapi import Depends
 
-from local_newsifier.models.article import Article
+from local_newsifier.models.article import Article, ArticleRead
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.errors import handle_database
 
@@ -122,7 +122,7 @@ class ArticleService:
             }
     
     @handle_database
-    def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:
+    def get_article(self, article_id: int) -> Optional[ArticleRead]:
         """Get article data by ID.
         
         Args:
@@ -140,21 +140,7 @@ class ArticleService:
             if not article:
                 return None
                 
-            # Get analysis results
-            analysis_results = self.analysis_result_crud.get_by_article(
-                session, 
-                article_id=article_id
-            )
-            
-            return {
-                "article_id": article.id,
-                "title": article.title,
-                "url": article.url,
-                "content": article.content,
-                "published_at": article.published_at,
-                "status": article.status,
-                "analysis_results": [result.results for result in analysis_results]
-            }
+            return ArticleRead.from_model(article)
     
     @handle_database
     def create_article_from_rss_entry(self, entry: Dict[str, Any]) -> Optional[int]:
