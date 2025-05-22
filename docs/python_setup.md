@@ -13,8 +13,8 @@ A `.python-version` file is included in the project root that specifies Python 3
 We use Poetry for dependency management:
 
 ```bash
-# Install dependencies using Poetry
-make setup-poetry -- --no-index --find-links=wheels
+# Install dependencies using Poetry (offline)
+make setup-poetry-offline
 
 # Activate the Poetry environment
 poetry shell
@@ -23,7 +23,7 @@ poetry shell
 make setup-spacy
 ```
 
-Running `make setup-poetry -- --no-index --find-links=wheels` installs all
+Running `make setup-poetry-offline` installs all
 packages from the `wheels/` directory and is required before executing
 `make test` in an offline environment.
 
