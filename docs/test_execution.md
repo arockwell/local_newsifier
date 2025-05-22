@@ -6,7 +6,7 @@ Before running tests, install all dependencies from the `wheels/` directory and
 download the required spaCy models:
 
 ```bash
-make setup-poetry -- --no-index --find-links=wheels
+make setup-poetry-offline
 make setup-spacy
 ```
 

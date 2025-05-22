@@ -23,9 +23,9 @@ If a `CLAUDE.md` file is added or removed, update this list.
 1. **Install dependencies using Poetry offline**:
    After building or copying wheels, run:
    ```bash
-   make setup-poetry -- --no-index --find-links=wheels
-   # or
-   poetry install --with dev --no-index --find-links=wheels
+   make setup-poetry-offline
+   # or alternatively
+   OFFLINE=1 make setup-poetry
    ```
    `make test` relies on these dev dependencies.
 2. If spaCy models are already available locally: `make setup-spacy`
