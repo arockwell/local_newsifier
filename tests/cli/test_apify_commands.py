@@ -8,10 +8,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from local_newsifier.cli.commands.apify import (_ensure_token,
-                                                get_actor, get_dataset, run_actor,
-                                                scrape_content, test_connection, 
-                                                web_scraper)
+from local_newsifier.cli.commands.apify import (
+    get_actor,
+    get_dataset,
+    run_actor,
+    scrape_content,
+    test_connection,
+    web_scraper,
+)
+from local_newsifier.cli.helpers import ensure_apify_token
 from local_newsifier.config.settings import settings
 from local_newsifier.services.apify_service import ApifyService
 
@@ -86,7 +91,7 @@ class TestApifyCommands:
     """Test the Apify CLI commands."""
 
     @patch('os.environ.get')
-    def test_ensure_token_with_env_var(self, mock_environ_get, original_token):
+    def test_ensure_apify_token_with_env_var(self, mock_environ_get, original_token):
         """Test ensuring the token with the env var."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
@@ -96,11 +101,11 @@ class TestApifyCommands:
         
         # Ensure token is set for the test
         os.environ["APIFY_TOKEN"] = "test_token"
-        assert _ensure_token() is True
+        assert ensure_apify_token() is True
         assert settings.APIFY_TOKEN == "test_token"
 
     @patch('os.environ.get')
-    def test_ensure_token_with_settings(self, mock_environ_get, original_token):
+    def test_ensure_apify_token_with_settings(self, mock_environ_get, original_token):
         """Test ensuring the token with settings."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
@@ -111,10 +116,10 @@ class TestApifyCommands:
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = "settings_token"
-        assert _ensure_token() is True
+        assert ensure_apify_token() is True
 
     @patch('os.environ.get')
-    def test_ensure_token_missing(self, mock_environ_get, runner, original_token):
+    def test_ensure_apify_token_missing(self, mock_environ_get, runner, original_token):
         """Test ensuring the token when it's missing."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
@@ -125,7 +130,7 @@ class TestApifyCommands:
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = None
-        assert _ensure_token() is False
+        assert ensure_apify_token() is False
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
     def test_test_connection(

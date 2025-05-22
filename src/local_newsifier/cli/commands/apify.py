@@ -19,6 +19,7 @@ from sqlmodel import Session
 from fastapi_injectable import get_injected_obj
 
 from local_newsifier.config.settings import settings
+from local_newsifier.cli.helpers import ensure_apify_token, write_output
 from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import apify_source_config as config_crud
@@ -31,45 +32,12 @@ def apify_group():
     pass
 
 
-def _ensure_token():
-    """Ensure the Apify token is set in environment or settings.
-
-    Returns:
-        bool: True if token is available, False otherwise
-    """
-    # Check if running in test mode
-    if os.environ.get("PYTEST_CURRENT_TEST") is not None:
-        # In test mode, provide a default token if not set
-        if not settings.APIFY_TOKEN:
-            logging.warning("Running CLI in test mode with dummy APIFY_TOKEN")
-            settings.APIFY_TOKEN = "test_dummy_token"
-        return True
-
-    # Check environment first
-    token = os.environ.get("APIFY_TOKEN")
-    if token:
-        settings.APIFY_TOKEN = token
-        return True
-
-    # Check if already set in settings
-    if settings.APIFY_TOKEN:
-        return True
-
-    click.echo(click.style("Error: APIFY_TOKEN is not set.", fg="red"), err=True)
-    click.echo("Please set it using one of these methods:")
-    click.echo("  1. Export as environment variable: export APIFY_TOKEN=your_token")
-    click.echo("  2. Add to .env file: APIFY_TOKEN=your_token")
-    click.echo("  3. Use --token option with this command")
-    return False
-
 
 @apify_group.command(name="test")
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def test_connection(token):
     """Test the Apify API connection."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     try:
@@ -113,9 +81,7 @@ def run_actor(actor_id, input, wait, token, output):
             "pageFunction":"async function pageFunction(c) { return {url: c.request.url} }"}'
         nf apify run-actor apify/website-content-crawler --input actor_input.json
     """
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     # Parse input
@@ -161,14 +127,7 @@ def run_actor(actor_id, input, wait, token, output):
         else:
             click.echo(click.style("✓ Actor run started!", fg="green"))
             click.echo("Run details:")
-
-        # Display or save output
-        if output:
-            with open(output, "w") as f:
-                json.dump(run, f, indent=2)
-            click.echo(f"Output saved to {output}")
-        else:
-            click.echo(json.dumps(run, indent=2))
+        write_output(run, output)
 
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
@@ -200,9 +159,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
         nf apify get-dataset bPmJXQ5Ym98KjL9TP --limit 5
         nf apify get-dataset bPmJXQ5Ym98KjL9TP --output dataset_results.json
     """
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     try:
@@ -227,9 +184,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
 
         # Process output
         if output:
-            with open(output, "w") as f:
-                json.dump(result, f, indent=2)
-            click.echo(f"Output saved to {output}")
+            write_output(result, output)
             return
 
         # Display results
@@ -286,9 +241,7 @@ def get_actor(actor_id, token):
     Examples:
         nf apify get-actor apify/web-scraper
     """
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     try:
@@ -341,9 +294,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
         nf apify scrape-content https://example.com --max-pages 10
         nf apify scrape-content https://news.site.com --max-depth 2 --output results.json
     """
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     try:
@@ -384,9 +335,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
 
         # Save or display the results
         if output:
-            with open(output, "w") as f:
-                json.dump(items, f, indent=2)
-            click.echo(f"Output saved to {output}")
+            write_output(items, output)
         else:
             # Display a summary of the results
             click.echo("\nScraping Results Summary:")
@@ -438,9 +387,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         nf apify web-scraper https://example.com
         nf apify web-scraper https://news.site.com --selector "article a" --output results.json
     """
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
 
     try:
@@ -507,9 +454,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
 
         # Save or display the results
         if output:
-            with open(output, "w") as f:
-                json.dump(items, f, indent=2)
-            click.echo(f"Output saved to {output}")
+            write_output(items, output)
         else:
             # Display a summary of the results
             click.echo("\nScraping Results Summary:")
@@ -576,9 +521,7 @@ def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
 )
 def list_schedules(token: str, with_apify: bool, format_type: str):
     """List all schedules and their status."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:
@@ -670,9 +613,7 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def sync_schedules(token: str):
     """Synchronize database configs with Apify schedules."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:
@@ -705,9 +646,7 @@ def sync_schedules(token: str):
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def create_schedule(config_id: int, token: str):
     """Create a schedule for a specific config."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:
@@ -732,9 +671,7 @@ def create_schedule(config_id: int, token: str):
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def update_schedule(config_id: int, token: str):
     """Update a schedule for a specific config."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:
@@ -759,9 +696,7 @@ def update_schedule(config_id: int, token: str):
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def delete_schedule(config_id: int, token: str):
     """Delete a schedule for a specific config."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:
@@ -786,9 +721,7 @@ def delete_schedule(config_id: int, token: str):
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 def schedule_status(config_id: int, token: str):
     """Check the status of a schedule for a specific config."""
-    if token:
-        settings.APIFY_TOKEN = token
-    elif not _ensure_token():
+    if not ensure_apify_token(token):
         return
         
     try:

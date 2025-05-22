@@ -100,7 +100,7 @@ class TestApifyScheduleCommands:
     """Test the Apify schedule CLI commands."""
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
     @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules(
@@ -127,7 +127,7 @@ class TestApifyScheduleCommands:
         assert "Inactive" in result.output
         
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
     @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules_with_apify(
@@ -153,7 +153,7 @@ class TestApifyScheduleCommands:
         assert "Synced" in result.output
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     @patch("local_newsifier.cli.commands.apify.config_crud.get_scheduled_configs")
     @patch("local_newsifier.cli.commands.apify.get_session")
     def test_list_schedules_json_format(
@@ -182,7 +182,7 @@ class TestApifyScheduleCommands:
         assert "0 0 * * 0" in result.output
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_sync_schedules(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -206,7 +206,7 @@ class TestApifyScheduleCommands:
         mock_schedule_manager.sync_schedules.assert_called_once()
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_create_schedule(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -226,7 +226,7 @@ class TestApifyScheduleCommands:
         mock_schedule_manager.create_schedule_for_config.assert_called_once_with(1)
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_update_schedule(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -246,7 +246,7 @@ class TestApifyScheduleCommands:
         mock_schedule_manager.update_schedule_for_config.assert_called_once_with(1)
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_delete_schedule(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -266,7 +266,7 @@ class TestApifyScheduleCommands:
         mock_schedule_manager.delete_schedule_for_config.assert_called_once_with(1)
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_schedule_status(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -291,7 +291,7 @@ class TestApifyScheduleCommands:
         mock_schedule_manager.verify_schedule_status.assert_called_once_with(1)
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_schedule_status_not_synced(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
@@ -322,7 +322,7 @@ class TestApifyScheduleCommands:
         assert "Run 'nf apify schedules update CONFIG_ID' to synchronize" in result.output
 
     @patch("local_newsifier.cli.commands.apify._get_schedule_manager")
-    @patch("local_newsifier.cli.commands.apify._ensure_token")
+    @patch("local_newsifier.cli.helpers.ensure_apify_token")
     def test_schedule_status_not_exists(
         self, mock_ensure_token, mock_get_schedule_manager, 
         runner, mock_schedule_manager
