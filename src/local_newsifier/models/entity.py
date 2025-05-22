@@ -52,3 +52,34 @@ class Entity(SQLModel, table=True):
             ]
         }
     }
+
+
+class EntityRead(SQLModel):
+    """Read DTO for Entity model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    article_id: int
+    text: str
+    entity_type: str
+    confidence: float
+    sentence_context: Optional[str] = None
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "article_id": 1,
+                    "text": "John Smith",
+                    "entity_type": "PERSON",
+                    "confidence": 0.95,
+                    "sentence_context": "John Smith announced the new policy today.",
+                    "created_at": "2023-01-01T00:00:00Z",
+                    "updated_at": "2023-01-01T00:00:00Z"
+                }
+            ]
+        }
+    }

@@ -45,3 +45,69 @@ class RSSFeedProcessingLog(SQLModel, table=True):
     
     # Relationships
     feed: RSSFeed = Relationship(back_populates="processing_logs")
+
+
+class RSSFeedRead(SQLModel):
+    """Read DTO for RSSFeed model - used for API responses."""
+    
+    id: int
+    url: str
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+    last_fetched_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    # Related processing log IDs instead of full objects
+    processing_log_ids: List[int] = Field(default_factory=list)
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "url": "https://example.com/rss",
+                    "name": "Example News RSS",
+                    "description": "RSS feed for Example News",
+                    "is_active": True,
+                    "last_fetched_at": "2023-01-01T12:00:00Z",
+                    "created_at": "2023-01-01T00:00:00Z",
+                    "updated_at": "2023-01-01T00:00:00Z",
+                    "processing_log_ids": [1, 2, 3]
+                }
+            ]
+        }
+    }
+
+
+class RSSFeedProcessingLogRead(SQLModel):
+    """Read DTO for RSSFeedProcessingLog model - used for API responses."""
+    
+    id: int
+    feed_id: int
+    status: str
+    articles_found: int
+    articles_added: int
+    error_message: Optional[str] = None
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "feed_id": 1,
+                    "status": "success",
+                    "articles_found": 10,
+                    "articles_added": 5,
+                    "error_message": None,
+                    "started_at": "2023-01-01T12:00:00Z",
+                    "completed_at": "2023-01-01T12:05:00Z"
+                }
+            ]
+        }
+    }
