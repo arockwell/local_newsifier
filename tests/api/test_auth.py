@@ -82,3 +82,46 @@ class TestRequireAdmin:
         # Verify exception details
         assert excinfo.value.status_code == 302
         assert excinfo.value.headers["Location"] == "/login?next=/protected/path"
+
+
+class TestLoginPage:
+    """Tests for the login page rendering."""
+
+    def test_login_page_uses_next_query(self, client):
+        """GET /login should render with provided next URL."""
+        response = client.get("/login?next=/desired")
+        assert response.status_code == 200
+        assert "/desired" in response.text
+
+
+class TestLogout:
+    """Tests for the logout endpoint."""
+
+    @patch("local_newsifier.api.routers.auth.settings")
+    def test_logout_clears_session_and_redirects(self, mock_settings, client):
+        """Logging out clears the session and redirects to home."""
+        mock_settings.ADMIN_USERNAME = "admin"
+        mock_settings.ADMIN_PASSWORD = "password"
+
+        # Authenticate first to set session cookie
+        client.post(
+            "/login",
+            data={"username": "admin", "password": "password"},
+            follow_redirects=False,
+        )
+
+        assert client.cookies.get("session")
+
+        # Perform logout
+        response = client.get("/logout", follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.headers["location"] == "/"
+
+        # Subsequent request should not be authenticated
+        response2 = client.post(
+            "/login",
+            data={"username": "wrong", "password": "wrong"},
+            follow_redirects=False,
+        )
+        assert response2.status_code == 200
