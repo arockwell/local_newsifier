@@ -4,6 +4,7 @@ This module sets up the Celery application using PostgreSQL as both the broker a
 """
 
 import os
+
 from celery import Celery
 
 # Load environment variables for configuration

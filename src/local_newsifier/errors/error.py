@@ -299,7 +299,7 @@ def _classify_error(error: Exception, service: str) -> tuple:
     """
     # Import here to avoid circular imports
     from .handlers import get_error_message
-    
+
     # Handle database-specific errors when service is "database"
     if service == "database":
         error_type, technical_message = _classify_database_error(error)

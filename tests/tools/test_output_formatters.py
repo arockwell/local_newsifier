@@ -1,20 +1,19 @@
 """Tests for output formatting utilities."""
 
+import inspect
 import json
 import os
-import inspect
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-from tests.fixtures.event_loop import event_loop_fixture
 
 from local_newsifier.models.sentiment import SentimentVisualizationData
-from local_newsifier.models.trend import (TrendAnalysis, TrendEntity,
-                                         TrendEvidenceItem, TrendStatus,
-                                         TrendType)
+from local_newsifier.models.trend import (TrendAnalysis, TrendEntity, TrendEvidenceItem,
+                                          TrendStatus, TrendType)
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 class TestOpinionVisualizerOutputFormatting:
@@ -31,7 +30,7 @@ class TestOpinionVisualizerOutputFormatting:
         # Create a direct instance bypassing the decorator
         # Import the real class methods
         from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
-        
+
         # Create a mock
         visualizer = MagicMock()
         visualizer.session = mock_session

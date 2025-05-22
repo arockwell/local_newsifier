@@ -5,7 +5,7 @@ This module provides pre-configured handlers for specific services.
 """
 
 import functools
-from typing import Callable, Dict, Optional, Any
+from typing import Any, Callable, Dict, Optional
 
 from .error import handle_service_error, with_retry, with_timing
 

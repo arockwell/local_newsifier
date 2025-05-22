@@ -1,7 +1,8 @@
 """Common fixtures for tests using provider patching."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

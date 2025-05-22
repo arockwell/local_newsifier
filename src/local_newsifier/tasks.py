@@ -4,7 +4,7 @@ This module defines asynchronous tasks for processing articles and fetching RSS 
 """
 
 import logging
-from typing import Dict, List, Optional, Iterator
+from typing import Dict, Iterator, List, Optional
 
 from celery import Task, current_task
 from celery.signals import worker_ready

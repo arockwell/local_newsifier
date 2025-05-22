@@ -1,7 +1,8 @@
 """Tests for celery application configuration."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from celery import Celery
 
 from local_newsifier.celery_app import app

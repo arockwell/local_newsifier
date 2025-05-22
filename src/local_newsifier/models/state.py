@@ -1,3 +1,5 @@
+"""State models for article analysis and entity tracking."""
+
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional

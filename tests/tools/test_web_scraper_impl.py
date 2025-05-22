@@ -6,11 +6,11 @@ to improve code coverage.
 
 import os
 import tempfile
-from unittest.mock import MagicMock, patch, mock_open
-import requests
+from unittest.mock import MagicMock, mock_open, patch
 from urllib.error import URLError
 
 import pytest
+import requests
 from bs4 import BeautifulSoup
 
 from local_newsifier.tools.web_scraper import WebScraperTool

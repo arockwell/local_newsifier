@@ -1,13 +1,13 @@
 """CRUD operations for Apify source configurations."""
 
-from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Union
 
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
-from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.errors.error import ServiceError, handle_service_error
+from local_newsifier.models.apify import ApifySourceConfig
 
 
 class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):

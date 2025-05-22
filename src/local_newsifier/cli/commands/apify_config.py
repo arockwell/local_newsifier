@@ -10,21 +10,17 @@ This module provides commands for managing Apify source configurations, includin
 """
 
 import json
-import click
 from datetime import datetime
+from typing import Annotated, Optional
+
+import click
+from fastapi import Depends
+from fastapi_injectable import get_injected_obj
+from sqlmodel import Session
 from tabulate import tabulate
 
-from typing import Annotated, Optional
-from fastapi import Depends
-from sqlmodel import Session
-
-from fastapi_injectable import get_injected_obj
-
-from local_newsifier.di.providers import (
-    get_apify_source_config_crud,
-    get_apify_source_config_service,
-    get_session,
-)
+from local_newsifier.di.providers import (get_apify_source_config_crud,
+                                          get_apify_source_config_service, get_session)
 
 
 @click.group(name="apify-config")

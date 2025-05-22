@@ -1,0 +1,11 @@
+pytest
+pytest-mock
+pytest-cov
+pytest-asyncio
+pre-commit
+black
+isort
+flake8
+flake8-docstrings
+pytest-profiling
+pytest-xdist

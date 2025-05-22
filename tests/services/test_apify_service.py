@@ -1,14 +1,14 @@
 """Tests for the Apify service."""
 
-import os
 import json
-import pytest
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
+import os
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
+import pytest
 from apify_client import ApifyClient
 
-from local_newsifier.services.apify_service import ApifyService
 from local_newsifier.config.settings import settings
+from local_newsifier.services.apify_service import ApifyService
 
 
 @pytest.fixture

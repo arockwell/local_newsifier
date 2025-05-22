@@ -5,11 +5,8 @@ from typing import Any, Optional
 from sqlmodel import Session
 
 # Import common settings to avoid circular imports
-from local_newsifier.config.common import (
-    get_database_url as build_database_url,
-    get_cursor_db_name,
-)
-
+from local_newsifier.config.common import get_cursor_db_name
+from local_newsifier.config.common import get_database_url as build_database_url
 # Re-export get_settings for backward compatibility
 from local_newsifier.config.settings import get_settings
 
@@ -69,7 +66,7 @@ def get_database() -> Any:
     """
     # Import here to avoid circular imports
     from local_newsifier.database.engine import get_engine
-    
+
     # Use the imported get_settings for backward compatibility with tests
     settings = get_settings()
     return get_engine(str(settings.DATABASE_URL))

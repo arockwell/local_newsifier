@@ -7,7 +7,7 @@ to provide consistent error handling.
 
 import functools
 import logging
-from typing import Callable, Dict, Any
+from typing import Any, Callable, Dict
 
 logger = logging.getLogger(__name__)
 

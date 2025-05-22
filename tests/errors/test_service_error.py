@@ -9,13 +9,8 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.local_newsifier.errors.error import (
-    ServiceError, 
-    handle_service_error,
-    with_retry,
-    with_timing,
-    _classify_error
-)
+from src.local_newsifier.errors.error import (ServiceError, _classify_error, handle_service_error,
+                                              with_retry, with_timing)
 
 
 class TestServiceError:

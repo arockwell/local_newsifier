@@ -1,20 +1,13 @@
 """Tests for database error classification in the error handling system."""
 
-import pytest
 from unittest.mock import MagicMock, patch
-from sqlalchemy.exc import (
-    OperationalError, 
-    IntegrityError,
-    SQLAlchemyError,
-    TimeoutError, 
-    StatementError,
-    InvalidRequestError,
-    DisconnectionError,
-    DBAPIError
-)
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
-from src.local_newsifier.errors.error import _classify_database_error, ServiceError
+import pytest
+from sqlalchemy.exc import (DBAPIError, DisconnectionError, IntegrityError, InvalidRequestError,
+                            OperationalError, SQLAlchemyError, StatementError, TimeoutError)
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+
+from src.local_newsifier.errors.error import ServiceError, _classify_database_error
 from src.local_newsifier.errors.handlers import handle_database
 
 

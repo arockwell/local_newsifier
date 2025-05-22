@@ -44,9 +44,9 @@ curl -sSL https://install.python-poetry.org | python3 -
 
 2. Install dependencies from the local wheels directory (required before running tests):
 ```bash
-make setup-poetry -- --no-index --find-links=wheels
+make setup-poetry-offline
 ```
-If you have internet access you can simply run `poetry install` instead.
+If you have internet access you can simply run `make setup-poetry` instead.
 
 If your environment lacks internet access, generate the wheels directory on a
 connected machine first:
@@ -58,12 +58,12 @@ make build-wheels
 Copy the resulting `wheels/` directory and install from it locally:
 
 ```bash
-pip install --no-index --find-links=wheels -r requirements.txt
+make setup-poetry-offline
 ```
 
 ### Offline wheels directory
 
-The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry -- --no-index --find-links=wheels` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
+The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry-offline` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
 
 If you are missing wheels for the development tools, generate them with:
 
@@ -83,6 +83,8 @@ echo "APIFY_TOKEN=your_token_here" > .env
 ```
 
 Note: While an Apify token is required for production use, the test suite can run without it. See [docs/testing_apify.md](docs/testing_apify.md) for more details.
+
+- For a complete offline setup guide, see [docs/python_setup.md](docs/python_setup.md).
 
 ## Usage
 
@@ -311,6 +313,27 @@ def test_component_success(mock_component):
     assert result == "result"
     mock_component.process.assert_called_once_with(input_data)
 ```
+
+## Code Formatting
+
+This repository enforces a consistent style using **Black** for formatting,
+**isort** for import ordering, and **flake8** (including `flake8-docstrings`)
+for linting. These tools run automatically via `pre-commit`.
+
+Run all checks locally:
+
+```bash
+poetry run pre-commit install  # install git hook once
+poetry run pre-commit run --all-files
+```
+
+To format the code without running the full hook set, use the Makefile target:
+
+```bash
+make format
+```
+
+This executes Black on the `src` and `tests` directories.
 
 ## Project Structure
 

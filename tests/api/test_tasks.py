@@ -7,12 +7,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_async
-
-from local_newsifier.api.dependencies import get_templates, get_session, get_article_service, get_rss_feed_service
+from local_newsifier.api.dependencies import (get_article_service, get_rss_feed_service,
+                                              get_session, get_templates)
 from local_newsifier.api.routers.tasks import router
 from local_newsifier.models.article import Article
+from tests.ci_skip_config import ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture

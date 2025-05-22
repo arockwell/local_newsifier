@@ -1,9 +1,11 @@
+"""Helper for writing analysis results to disk."""
+
 import json
 import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Annotated
+from typing import Annotated, Any, Dict
 
 from fastapi import Depends
 from fastapi_injectable import injectable

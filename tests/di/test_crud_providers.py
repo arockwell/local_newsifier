@@ -1,19 +1,14 @@
 """Tests for CRUD provider functions."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from local_newsifier.di.providers import (
-    get_article_crud,
-    get_entity_crud,
-    get_entity_relationship_crud,
-    get_rss_feed_crud,
-    get_analysis_result_crud,
-    get_canonical_entity_crud,
-    get_entity_mention_context_crud,
-    get_entity_profile_crud,
-    get_feed_processing_log_crud
-)
+import pytest
+
+from local_newsifier.di.providers import (get_analysis_result_crud, get_article_crud,
+                                          get_canonical_entity_crud, get_entity_crud,
+                                          get_entity_mention_context_crud, get_entity_profile_crud,
+                                          get_entity_relationship_crud,
+                                          get_feed_processing_log_crud, get_rss_feed_crud)
 
 
 def test_crud_provider_imports():
@@ -48,7 +43,7 @@ def test_provider_naming_convention(provider_name):
     
     # Import the function from the providers module
     from local_newsifier.di import providers
-    
+
     # Verify the function exists in the module
     assert hasattr(providers, function_name)
     

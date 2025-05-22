@@ -5,10 +5,8 @@ from uuid import UUID
 
 import pytest
 
-from src.local_newsifier.models.trend import (TimeFrame, TopicFrequency,
-                                            TrendAnalysis, TrendEntity,
-                                            TrendEvidenceItem, TrendStatus,
-                                            TrendType)
+from src.local_newsifier.models.trend import (TimeFrame, TopicFrequency, TrendAnalysis, TrendEntity,
+                                              TrendEvidenceItem, TrendStatus, TrendType)
 
 
 def test_topic_frequency_model():

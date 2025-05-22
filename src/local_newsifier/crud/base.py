@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import Session, SQLModel, select
 
 # Type for the model class - doesn't need to be bound to TableBase anymore
 ModelType = TypeVar("ModelType", bound=SQLModel)

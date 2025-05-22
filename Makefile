@@ -1,12 +1,15 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-spacy setup-db build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
-	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
+	@echo "  make setup-poetry      - Setup Poetry and install dependencies (online)"
+	@echo "  make setup-poetry-offline - Install dependencies from wheels (offline)"
+	@echo "  OFFLINE=1 make setup-poetry - Alternative offline installation method"
 	@echo "  make setup-spacy       - Install spaCy models"
+	@echo "  make setup-db          - Initialize cursor-specific database"
 	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
 	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
 	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
@@ -27,10 +30,45 @@ install:
 	pip install -e .
 
 # Setup Poetry and install dependencies
+# Usage: make setup-poetry (for online)
+# Usage: make setup-poetry-offline (for offline - recommended)
+# Usage: OFFLINE=1 make setup-poetry (alternative offline method)
 setup-poetry:
 	@echo "Installing dependencies with Poetry..."
-	poetry install --no-interaction
+	@if [ "$(OFFLINE)" = "1" ] || [ "$$OFFLINE" = "1" ]; then \
+		echo "Installing from wheels directory (offline mode)..."; \
+		if [ ! -d "wheels" ]; then \
+			echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
+			exit 1; \
+		fi; \
+		echo "Creating Poetry environment..."; \
+		poetry env use python3; \
+		echo "Installing dependencies from wheels..."; \
+		poetry run pip install --no-index --find-links=wheels -r requirements.txt; \
+		poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt; \
+		echo "Installing local package in development mode..."; \
+		poetry run pip install -e .; \
+	else \
+		echo "Installing with Poetry (online mode)..."; \
+		poetry install --no-interaction; \
+	fi
 	@echo "Poetry setup complete. Use 'poetry shell' to activate environment."
+
+# Setup Poetry and install dependencies from wheels (offline)
+setup-poetry-offline:
+	@echo "Installing dependencies from wheels directory (offline mode)..."
+	@if [ ! -d "wheels" ]; then \
+		echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
+		exit 1; \
+	fi
+	@echo "Creating Poetry environment..."
+	poetry env use python3
+	@echo "Installing dependencies from wheels..."
+	poetry run pip install --no-index --find-links=wheels -r requirements.txt
+	poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt
+	@echo "Installing local package in development mode..."
+	poetry run pip install -e .
+	@echo "Poetry offline setup complete. Use 'poetry shell' to activate environment."
 
 # Setup spaCy models
 setup-spacy:
@@ -38,6 +76,12 @@ setup-spacy:
 	poetry run python -m spacy download en_core_web_sm
 	poetry run python -m spacy download en_core_web_lg
 	@echo "spaCy models installed successfully"
+
+# Setup database
+setup-db:
+	@echo "Initializing cursor-specific database..."
+	poetry run python scripts/init_cursor_db.py
+	@echo "Database setup complete. Run 'source .env.cursor' to load environment."
 
 # Build dependency wheels for offline installation
 build-wheels:
@@ -112,6 +156,7 @@ lint:
 
 # Formatting
 format:
+	poetry run isort src tests
 	poetry run black src tests
 
 # Cleaning
@@ -123,23 +168,46 @@ clean:
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 
 # Run FastAPI application
-run-api: setup-spacy
-	poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000
+run-api: setup-spacy setup-db
+	@echo "Starting FastAPI server..."
+	@if [ -f .env.cursor ]; then \
+		echo "Loading database environment..."; \
+		export $$(cat .env.cursor | xargs) && poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000; \
+	else \
+		echo "No .env.cursor found, running setup-db should have created it"; \
+		poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000; \
+	fi
 
 # Run Celery worker
-run-worker: setup-spacy
-	poetry run celery -A local_newsifier.celery_app worker --loglevel=info
+run-worker: setup-spacy setup-db
+	@echo "Starting Celery worker..."
+	@if [ -f .env.cursor ]; then \
+		echo "Loading database environment..."; \
+		export $$(cat .env.cursor | xargs) && poetry run celery -A local_newsifier.celery_app worker --loglevel=info; \
+	else \
+		poetry run celery -A local_newsifier.celery_app worker --loglevel=info; \
+	fi
 
 # Run Celery beat scheduler
-run-beat: setup-spacy
-	poetry run celery -A local_newsifier.celery_app beat --loglevel=info
+run-beat: setup-spacy setup-db
+	@echo "Starting Celery beat scheduler..."
+	@if [ -f .env.cursor ]; then \
+		echo "Loading database environment..."; \
+		export $$(cat .env.cursor | xargs) && poetry run celery -A local_newsifier.celery_app beat --loglevel=info; \
+	else \
+		poetry run celery -A local_newsifier.celery_app beat --loglevel=info; \
+	fi
 
 # Run Celery worker and beat (for development)
-run-all-celery: setup-spacy
+run-all-celery: setup-spacy setup-db
 	@echo "Starting Celery worker and beat..."
 	@echo "Worker output: celery-worker.log"
 	@echo "Beat output: celery-beat.log"
-	@trap 'kill %1 %2; echo "Celery processes stopped"; exit 0' SIGINT;
+	@if [ -f .env.cursor ]; then \
+		echo "Loading database environment..."; \
+		export $$(cat .env.cursor | xargs); \
+	fi; \
+	trap 'kill %1 %2; echo "Celery processes stopped"; exit 0' SIGINT; \
 	poetry run celery -A local_newsifier.celery_app worker --loglevel=info > celery-worker.log 2>&1 & \
 	poetry run celery -A local_newsifier.celery_app beat --loglevel=info > celery-beat.log 2>&1 & \
 	echo "Celery worker and beat running. Press Ctrl+C to stop."; \

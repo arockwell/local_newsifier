@@ -1,11 +1,12 @@
 """Tests for the Base database model."""
 
 import datetime
+from typing import Optional
+
 import pytest
-from sqlmodel import Session, Field, SQLModel
+from sqlmodel import Field, Session, SQLModel
 
 from local_newsifier.models.base import TableBase
-from typing import Optional
 
 
 # Note: This is intentionally defined inside a function to avoid polluting the global

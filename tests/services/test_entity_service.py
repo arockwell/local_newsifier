@@ -1,17 +1,16 @@
 """Tests for the EntityService."""
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_async
+import pytest
 
-from local_newsifier.models.state import (
-    EntityTrackingState, EntityBatchTrackingState, 
-    EntityDashboardState, EntityRelationshipState, 
-    TrackingStatus
-)
+from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
+                                          EntityRelationshipState, EntityTrackingState,
+                                          TrackingStatus)
+from tests.ci_skip_config import ci_skip_async
+from tests.fixtures.event_loop import event_loop_fixture
+
 
 def test_process_article_entities(event_loop_fixture):
     """Test the complete article entity processing flow using new tools."""

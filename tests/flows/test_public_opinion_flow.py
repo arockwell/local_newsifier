@@ -2,16 +2,15 @@
 
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_mock import MockFixture
 
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip
-
 from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
 from local_newsifier.models.sentiment import SentimentVisualizationData
+from tests.ci_skip_config import ci_skip
+from tests.fixtures.event_loop import event_loop_fixture
 
 
 class TestPublicOpinionFlow:
@@ -95,7 +94,7 @@ class TestPublicOpinionFlow:
         """Test analyzing sentiment for all unanalyzed articles."""
         # Create proper mock articles with required attributes
         from datetime import datetime
-        
+
         # Create proper article objects that match the expected structure
         mock_article1 = MagicMock()
         mock_article1.id = 1

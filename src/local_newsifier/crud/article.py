@@ -1,7 +1,7 @@
 """CRUD operations for articles."""
 
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Union
+from typing import Any, Dict, List, Optional, Union
 
 from sqlmodel import Session, select
 

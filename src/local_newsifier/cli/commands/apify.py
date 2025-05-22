@@ -14,15 +14,15 @@ import os
 from typing import Optional
 
 import click
-from tabulate import tabulate
-from sqlmodel import Session
 from fastapi_injectable import get_injected_obj
+from sqlmodel import Session
+from tabulate import tabulate
 
 from local_newsifier.config.settings import settings
-from local_newsifier.services.apify_service import ApifyService
-from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
 from local_newsifier.crud.apify_source_config import apify_source_config as config_crud
 from local_newsifier.di.providers import get_apify_service_cli, get_session
+from local_newsifier.services.apify_schedule_manager import ApifyScheduleManager
+from local_newsifier.services.apify_service import ApifyService
 
 
 @click.group(name="apify")

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
 
-from local_newsifier.api.dependencies import get_session, require_admin, get_templates
+from local_newsifier.api.dependencies import get_session, get_templates, require_admin
 
 # Configure logging
 logger = logging.getLogger(__name__)

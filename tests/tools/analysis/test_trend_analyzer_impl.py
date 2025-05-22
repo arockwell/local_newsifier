@@ -4,8 +4,8 @@ This file tests the implementation of TrendAnalyzer methods directly to improve 
 """
 
 import os
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 # Mock spacy before importing TrendAnalyzer
@@ -20,14 +20,10 @@ import pytest
 from sqlmodel import Session, select
 
 from local_newsifier.models.article import Article
-from local_newsifier.models.trend import (
-    TrendAnalysis,
-    TrendType,
-    TrendEntity,
-    TrendEvidenceItem,
-    TrendStatus
-)
+from local_newsifier.models.trend import (TrendAnalysis, TrendEntity, TrendEvidenceItem,
+                                          TrendStatus, TrendType)
 from tests.ci_skip_config import ci_skip_injectable
+
 
 # Create a mock TrendAnalyzer class that works without dependency injection
 class MockTrendAnalyzer:
@@ -194,7 +190,7 @@ class TestTrendAnalyzerImplementation:
     def test_calculate_date_range(self, trend_analyzer):
         """Test date range calculation."""
         from local_newsifier.models.trend import TimeFrame
-        
+
         # Test day time frame
         start_date, end_date = trend_analyzer.calculate_date_range(TimeFrame.DAY, periods=5)
         assert isinstance(start_date, datetime)
