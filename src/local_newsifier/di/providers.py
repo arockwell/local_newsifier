@@ -17,7 +17,7 @@ interact with the database or maintain state between operations.
 import logging
 from typing import TYPE_CHECKING, Annotated, Any, Dict, Generator, Optional
 
-from fastapi import BackgroundTasks, Depends
+from fastapi import Depends
 from fastapi_injectable import injectable
 # Using injectable directly - no scope parameter in version 0.7.0
 # We'll control instance reuse with use_cache=True/False
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from local_newsifier.crud.entity import CRUDEntity
     from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
     from local_newsifier.crud.entity_profile import CRUDEntityProfile
-    from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
     from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog
     from local_newsifier.crud.rss_feed import CRUDRSSFeed
     from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
@@ -40,15 +39,19 @@ if TYPE_CHECKING:
     from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
     from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    from local_newsifier.services.analysis_service import AnalysisService
     from local_newsifier.services.apify_service import ApifyService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.entity_service import EntityService
-    from local_newsifier.services.webhook_service import ApifyWebhookHandler
     from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
     from local_newsifier.tools.entity_tracker_service import EntityTracker
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
+    from local_newsifier.tools.trend_reporter import TrendReporter
 
 logger = logging.getLogger(__name__)
 
@@ -1064,62 +1067,6 @@ def get_injectable_entity_tracker(
 
 
 @injectable(use_cache=False)
-def get_webhook_transformation_config():
-    """Provide the configuration for Apify dataset transformation.
-
-    This separates configuration from the webhook handler instance, allowing for
-    different configuration settings to be injected.
-
-    Returns:
-        ApifyDatasetTransformationConfig instance
-    """
-    from local_newsifier.models.webhook import ApifyDatasetTransformationConfig
-
-    return ApifyDatasetTransformationConfig()
-
-
-@injectable(use_cache=False)
-def get_apify_webhook_handler(
-    apify_service: Annotated["ApifyService", Depends(get_apify_service)],
-    article_service: Annotated["ArticleService", Depends(get_article_service)],
-    transformation_config: Annotated[Any, Depends(get_webhook_transformation_config)],
-):
-    """Provide the Apify webhook handler.
-
-    Uses use_cache=False to create new instances for each injection, as this component
-    maintains state during webhook processing and handles external API calls.
-
-    Note: This handler creates its own session factory for background tasks to avoid
-    issues with request-scoped sessions being closed before background tasks complete.
-
-    Args:
-        apify_service: Service for Apify API interactions
-        article_service: Article service for creating and processing articles
-        transformation_config: Configuration for dataset transformation
-
-    Returns:
-        ApifyWebhookHandler instance
-    """
-    from local_newsifier.database.engine import get_session as get_db_session
-    from local_newsifier.services.webhook_service import ApifyWebhookHandler
-
-    def create_background_session():
-        """Create a fresh database session for background tasks.
-
-        This is separate from request-scoped sessions to ensure
-        background tasks have valid database connections.
-        """
-        return next(get_db_session())
-
-    return ApifyWebhookHandler(
-        apify_service=apify_service,
-        article_service=article_service,
-        transformation_config=transformation_config,
-        session_factory=create_background_session,
-    )
-
-
-@injectable(use_cache=False)
 def get_apify_service_cli(token: Optional[str] = None):
     """Provide the Apify service for CLI commands.
 
@@ -1194,7 +1141,7 @@ def get_db_inspect_command():
     """
     from local_newsifier.cli.commands.db import inspect_record
 
-    return db_inspect_command
+    return inspect_record
 
 
 @injectable(use_cache=False)
