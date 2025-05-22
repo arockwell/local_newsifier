@@ -115,8 +115,19 @@ class ArticleService:
 
 When updating existing services to follow these standards:
 
-1. Create missing `<Model>Read` DTOs first
+1. **Create missing `<Model>Read` DTOs first** - All core models now have Read DTOs:
+   - `ArticleRead`, `EntityRead`, `AnalysisResultRead`
+   - `RSSFeedRead`, `RSSFeedProcessingLogRead`
+   - `ApifySourceConfigRead`, `ApifyJobRead`, `ApifyDatasetItemRead`, `ApifyCredentialsRead`, `ApifyWebhookRead`
 2. Update service return types one method at a time
 3. Update corresponding tests to verify new return types
 4. Update API endpoints to work with new service responses
 5. Remove any raw dict handling from calling code
+
+### Helper Function for Converting SQLModel to Read DTO
+
+```python
+def to_read_dto(instance: SQLModel, read_dto_class: type) -> SQLModel:
+    """Convert a SQLModel instance to its Read DTO equivalent."""
+    return read_dto_class.model_validate(instance)
+```
