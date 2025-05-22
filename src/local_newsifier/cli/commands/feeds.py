@@ -133,8 +133,9 @@ def show_feed(id, json_output, show_logs):
             started_at = datetime.fromisoformat(log["started_at"]).strftime("%Y-%m-%d %H:%M:%S")
             completed_at = ""
             if log["completed_at"]:
-                completed_at = datetime.fromisoformat(log["completed_at"]).strftime("%Y-%m-%d %H:%M:%S")
-
+                completed_at = datetime.fromisoformat(log["completed_at"]).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
             status_color = "green" if log["status"] == "success" else "red"
             status = click.style(log["status"], fg=status_color)
 
@@ -217,7 +218,10 @@ def direct_process_article(article_id):
 
         return True
     except Exception as e:
-        click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
+        click.echo(
+            click.style(f"Error processing article {article_id}: {str(e)}", fg="red"),
+            err=True,
+        )
         return False
 
 
@@ -263,7 +267,10 @@ def update_feed(id, name, description, active):
 
     # Check if at least one property to update was provided
     if name is None and description is None and active is None:
-        click.echo("No properties specified for update. Use --name, --description, or --active/--inactive.")
+        click.echo(
+            "No properties specified for update. "
+            "Use --name, --description, or --active/--inactive."
+        )
         return
 
     # Prepare update parameters
@@ -286,7 +293,12 @@ def update_feed(id, name, description, active):
 
 @feeds_group.command(name="fetch")
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
-@click.option("--active-only", is_flag=True, default=True, help="Process only active feeds (default: True)")
+@click.option(
+    "--active-only",
+    is_flag=True,
+    default=True,
+    help="Process only active feeds (default: True)",
+)
 @handle_rss_cli_errors
 def fetch_feeds(no_process, active_only):
     """Fetch articles from all active feeds.
@@ -333,6 +345,11 @@ def fetch_feeds(no_process, active_only):
     if successful == total:
         click.echo(click.style("All feeds processed successfully!", fg="green"))
     elif successful > 0:
-        click.echo(click.style(f"Partially successful: {successful}/{total} feeds processed", fg="yellow"))
+        click.echo(
+            click.style(
+                f"Partially successful: {successful}/{total} feeds processed",
+                fg="yellow",
+            )
+        )
     else:
         click.echo(click.style("Failed to process any feeds", fg="red"), err=True)
