@@ -96,6 +96,10 @@ jobs:
         poetry run python -m spacy download en_core_web_sm
         poetry run python -m spacy download en_core_web_lg
 
+    - name: Run pre-commit
+      run: |
+        poetry run pre-commit run --all-files --show-diff-on-failure --color always
+
     - name: Create test database
       env:
         POSTGRES_USER: postgres
