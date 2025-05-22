@@ -3,7 +3,7 @@ API router for webhook endpoints.
 
 This module provides endpoints for receiving webhook notifications from
 external services like Apify, processing the payloads, and triggering
-appropriate actions in the system.
+appropriate data processing actions in the system.
 """
 
 import logging
@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from local_newsifier.config.settings import settings
 from local_newsifier.di.providers import get_apify_webhook_handler
 from local_newsifier.models.webhook import ApifyWebhookPayload, ApifyWebhookResponse
 from local_newsifier.services.webhook_service import ApifyWebhookHandler
@@ -51,6 +52,25 @@ async def process_apify_dataset(
         logger.exception(f"Error processing dataset {dataset_id}: {str(e)}")
 
 
+def validate_webhook_secret(payload: ApifyWebhookPayload) -> bool:
+    """Validate webhook secret if configured.
+    
+    Args:
+        payload: The webhook payload from Apify
+        
+    Returns:
+        bool: True if validation passes or no secret configured
+    """
+    if not settings.APIFY_WEBHOOK_SECRET:
+        logger.warning("No webhook secret configured - accepting all webhooks")
+        return True
+        
+    # Check if webhook includes the expected secret
+    # This is a basic validation - in production you might want HMAC validation
+    webhook_secret = getattr(payload, 'secret', None)
+    return webhook_secret == settings.APIFY_WEBHOOK_SECRET
+
+
 @router.post(
     "/apify",
     response_model=ApifyWebhookResponse,
@@ -65,6 +85,9 @@ async def apify_webhook(
 ) -> ApifyWebhookResponse:
     """Handle webhook notifications from Apify.
 
+    This endpoint validates webhook payloads, logs events, and processes
+    the data by fetching datasets and creating articles.
+
     Args:
         payload: The webhook payload from Apify
         background_tasks: FastAPI background tasks
@@ -77,16 +100,23 @@ async def apify_webhook(
         HTTPException: If webhook validation fails or event type is not supported
     """
     logger.info(f"Received Apify webhook: {payload.eventType} for actor {payload.actorId}")
-
-    # Validate webhook
-    if not webhook_handler.validate_webhook(payload):
-        logger.warning(f"Invalid webhook: {payload.webhookId} for actor {payload.actorId}")
+    
+    # Validate webhook secret
+    if not validate_webhook_secret(payload):
+        logger.warning(f"Invalid webhook secret for actor {payload.actorId}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret",
         )
 
-    # Handle webhook
+    # Log webhook details for debugging
+    logger.info(
+        f"Webhook details - Actor: {payload.actorId}, "
+        f"Run: {payload.actorRunId}, Event: {payload.eventType}, "
+        f"Dataset: {getattr(payload, 'defaultDatasetId', 'N/A')}"
+    )
+
+    # Handle webhook using the webhook service
     success, job_id, message = webhook_handler.handle_webhook(payload)
 
     if not success:
