@@ -1,6 +1,6 @@
 # Makefile for Local Newsifier project
 
-.PHONY: help install setup-poetry setup-spacy setup-db build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install setup-poetry setup-poetry-offline setup-spacy setup-db build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
 
 help:
 	@echo "Available commands:"
@@ -13,7 +13,7 @@ help:
 	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
 	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
 	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
-	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
+	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories"
 	@echo "  make test-wheels       - Test offline installation with current Python version on current platform"
 	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
 	@echo "  make test-serial       - Run tests serially (for debugging)"
@@ -42,7 +42,7 @@ setup-poetry:
 			exit 1; \
 		fi; \
 		echo "Creating Poetry environment..."; \
-		poetry env use python3; \
+		poetry env use python3.12; \
 		echo "Installing dependencies from wheels..."; \
 		poetry run pip install --no-index --find-links=wheels -r requirements.txt; \
 		poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt; \
@@ -62,7 +62,7 @@ setup-poetry-offline:
 		exit 1; \
 	fi
 	@echo "Creating Poetry environment..."
-	poetry env use python3
+	poetry env use python3.12
 	@echo "Installing dependencies from wheels..."
 	poetry run pip install --no-index --find-links=wheels -r requirements.txt
 	poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt
@@ -73,6 +73,8 @@ setup-poetry-offline:
 # Setup spaCy models
 setup-spacy:
 	@echo "Installing spaCy models..."
+	@poetry env info > /dev/null 2>&1 || (echo "Poetry environment not found. Run 'make setup-poetry' first." && exit 1)
+	@poetry run python -c "import spacy" > /dev/null 2>&1 || (echo "spaCy not installed. Run 'make setup-poetry' first." && exit 1)
 	poetry run python -m spacy download en_core_web_sm
 	poetry run python -m spacy download en_core_web_lg
 	@echo "spaCy models installed successfully"
@@ -168,7 +170,7 @@ clean:
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 
 # Run FastAPI application
-run-api: setup-spacy setup-db
+run-api: setup-poetry setup-spacy setup-db
 	@echo "Starting FastAPI server..."
 	@if [ -f .env.cursor ]; then \
 		echo "Loading database environment..."; \
@@ -179,7 +181,7 @@ run-api: setup-spacy setup-db
 	fi
 
 # Run Celery worker
-run-worker: setup-spacy setup-db
+run-worker: setup-poetry setup-spacy setup-db
 	@echo "Starting Celery worker..."
 	@if [ -f .env.cursor ]; then \
 		echo "Loading database environment..."; \
@@ -189,7 +191,7 @@ run-worker: setup-spacy setup-db
 	fi
 
 # Run Celery beat scheduler
-run-beat: setup-spacy setup-db
+run-beat: setup-poetry setup-spacy setup-db
 	@echo "Starting Celery beat scheduler..."
 	@if [ -f .env.cursor ]; then \
 		echo "Loading database environment..."; \
@@ -199,7 +201,7 @@ run-beat: setup-spacy setup-db
 	fi
 
 # Run Celery worker and beat (for development)
-run-all-celery: setup-spacy setup-db
+run-all-celery: setup-poetry setup-spacy setup-db
 	@echo "Starting Celery worker and beat..."
 	@echo "Worker output: celery-worker.log"
 	@echo "Beat output: celery-beat.log"
