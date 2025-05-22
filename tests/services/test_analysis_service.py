@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from local_newsifier.models.analysis_dtos import HeadlineTrendResponseDTO
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
@@ -141,11 +142,14 @@ class TestAnalysisService:
         end_date = datetime.now(timezone.utc)
         result = service.analyze_headline_trends(start_date, end_date)
         
-        # Verify the result
-        assert "trending_terms" in result
-        assert "overall_top_terms" in result
-        assert "raw_data" in result
-        assert "period_counts" in result
+        # Verify the result is the correct DTO type
+        assert isinstance(result, HeadlineTrendResponseDTO)
+        assert result.success is True
+        assert result.trending_terms is not None
+        assert result.overall_top_terms is not None
+        assert result.period_counts is not None
+        assert result.analysis_metadata is not None
+        assert result.analysis_metadata.processing_duration_ms is not None
         
         # Verify the mocks were called
         mock_article_crud.get_by_date_range.assert_called_once_with(
@@ -170,9 +174,12 @@ class TestAnalysisService:
         end_date = datetime.now(timezone.utc)
         result = service.analyze_headline_trends(start_date, end_date)
         
-        # Verify the result
-        assert "error" in result
-        assert result["error"] == "No headlines found in the specified period"
+        # Verify the result is the correct DTO type with error
+        assert isinstance(result, HeadlineTrendResponseDTO)
+        assert result.success is False
+        assert result.error_message == "No headlines found in the specified period"
+        assert result.analysis_metadata.articles_analyzed == 0
+        assert result.analysis_metadata.processing_duration_ms is not None
 
     def test_detect_entity_trends(
         self,

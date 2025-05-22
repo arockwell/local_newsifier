@@ -1,5 +1,6 @@
 """Service layer for analysis operations."""
 
+import time
 from datetime import datetime, timedelta
 from typing import Annotated, Any, Callable, Dict, List, Optional, Tuple
 
@@ -12,7 +13,9 @@ from local_newsifier.crud.article import article
 from local_newsifier.crud.entity import entity
 from local_newsifier.database.engine import get_session
 from local_newsifier.errors.handlers import handle_database
+from local_newsifier.models.analysis_dtos import HeadlineTrendResponseDTO
 from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.models.dto_converters import convert_analysis_result_to_dto
 from local_newsifier.models.trend import TimeFrame, TrendAnalysis
 
 
@@ -50,7 +53,7 @@ class AnalysisService:
         end_date: datetime,
         time_interval: str = "day",
         top_n: int = 20
-    ) -> Dict[str, Any]:
+    ) -> HeadlineTrendResponseDTO:
         """Analyze headline trends over the specified time period.
 
         Args:
@@ -60,8 +63,10 @@ class AnalysisService:
             top_n: Number of top keywords to analyze per period
 
         Returns:
-            Dictionary containing trend analysis results
+            HeadlineTrendResponseDTO containing trend analysis results
         """
+        start_time = time.time()
+        
         with self.session_factory() as session:
             # Use the injected trend analyzer
             trend_analyzer = self.trend_analyzer
@@ -72,7 +77,12 @@ class AnalysisService:
             )
             
             if not grouped_headlines:
-                return {"error": "No headlines found in the specified period"}
+                processing_duration = int((time.time() - start_time) * 1000)
+                return convert_analysis_result_to_dto(
+                    {"error": "No headlines found in the specified period"},
+                    processing_duration_ms=processing_duration,
+                    articles_analyzed=0
+                )
                 
             # Extract keywords for each time interval
             trend_data = {}
@@ -89,17 +99,29 @@ class AnalysisService:
                 
             overall_top_terms = trend_analyzer.extract_keywords(all_headlines, top_n=top_n)
             
-            result = {
+            # Build legacy result format for conversion
+            legacy_result = {
                 "trending_terms": trending_terms,
                 "overall_top_terms": overall_top_terms,
                 "raw_data": trend_data,
                 "period_counts": {period: len(headlines) for period, headlines in grouped_headlines.items()}
             }
             
-            # Save analysis result if needed
-            # self._save_analysis_result(session, result)
+            # Calculate processing duration and article count
+            processing_duration = int((time.time() - start_time) * 1000)
+            articles_analyzed = sum(len(headlines) for headlines in grouped_headlines.values())
             
-            return result
+            # Convert to DTO
+            dto_result = convert_analysis_result_to_dto(
+                legacy_result,
+                processing_duration_ms=processing_duration,
+                articles_analyzed=articles_analyzed
+            )
+            
+            # Save analysis result if needed
+            # self._save_analysis_result(session, legacy_result)
+            
+            return dto_result
 
     def _get_headlines_by_period(
         self, 

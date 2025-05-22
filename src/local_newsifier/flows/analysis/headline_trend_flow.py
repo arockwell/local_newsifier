@@ -21,6 +21,7 @@ from crewai import Flow
 from sqlmodel import Session
 
 from local_newsifier.services.analysis_service import AnalysisService
+from local_newsifier.models.analysis_dtos import HeadlineTrendResponseDTO
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class HeadlineTrendFlow(Flow):
 
     def analyze_recent_trends(
         self, days_back: int = 30, interval: str = "day", top_n: int = 20
-    ) -> Dict[str, Any]:
+    ) -> HeadlineTrendResponseDTO:
         """
         Analyze headline trends over the recent past.
 
@@ -67,7 +68,7 @@ class HeadlineTrendFlow(Flow):
             top_n: Number of top keywords to analyze per period
 
         Returns:
-            Dictionary containing trend analysis results
+            HeadlineTrendResponseDTO containing trend analysis results
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
@@ -89,7 +90,7 @@ class HeadlineTrendFlow(Flow):
         end_date: datetime,
         interval: str = "day",
         top_n: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> HeadlineTrendResponseDTO:
         """
         Analyze headline trends for a specific date range.
 
@@ -100,7 +101,7 @@ class HeadlineTrendFlow(Flow):
             top_n: Number of top keywords to analyze per period
 
         Returns:
-            Dictionary containing trend analysis results
+            HeadlineTrendResponseDTO containing trend analysis results
         """
         logger.info(f"Analyzing headline trends from {start_date} to {end_date}")
 
@@ -114,20 +115,20 @@ class HeadlineTrendFlow(Flow):
         return results
 
     def generate_report(
-        self, results: Dict[str, Any], format_type: str = "text"
+        self, results: HeadlineTrendResponseDTO, format_type: str = "text"
     ) -> str:
         """
         Generate a formatted report from trend analysis results.
 
         Args:
-            results: Trend analysis results from analyze_trends method
+            results: HeadlineTrendResponseDTO from analyze_trends method
             format_type: Report format type ('text', 'markdown', 'html')
 
         Returns:
             Formatted report string
         """
-        if "error" in results:
-            return f"Error: {results['error']}"
+        if not results.success:
+            return f"Error: {results.error_message}"
 
         if format_type == "markdown":
             return self._generate_markdown_report(results)
@@ -136,71 +137,86 @@ class HeadlineTrendFlow(Flow):
         else:
             return self._generate_text_report(results)
 
-    def _generate_text_report(self, results: Dict[str, Any]) -> str:
+    def _generate_text_report(self, results: HeadlineTrendResponseDTO) -> str:
         """Generate a plain text report."""
         report = "HEADLINE TREND ANALYSIS REPORT\n"
         report += "==============================\n\n"
+        
+        # Add metadata
+        report += f"Analysis Status: {results.status}\n"
+        report += f"Articles Analyzed: {results.analysis_metadata.articles_analyzed}\n"
+        report += f"Processing Duration: {results.analysis_metadata.processing_duration_ms}ms\n\n"
 
         # Add trending terms
         report += "TOP TRENDING TERMS:\n"
-        for i, term in enumerate(results.get("trending_terms", [])[:10], 1):
-            growth = term["growth_rate"] * 100
-            report += f"{i}. {term['term']} (Growth: {growth:.1f}%, Mentions: {term['total_mentions']})\n"
+        for i, term in enumerate(results.trending_terms[:10], 1):
+            growth = term.growth_rate * 100
+            report += f"{i}. {term.term} (Growth: {growth:.1f}%, Mentions: {term.total_mentions})\n"
 
         report += "\nOVERALL TOP TERMS:\n"
-        for i, (term, count) in enumerate(results.get("overall_top_terms", [])[:10], 1):
-            report += f"{i}. {term} ({count} mentions)\n"
+        for i, term in enumerate(results.overall_top_terms[:10], 1):
+            report += f"{i}. {term.keyword} ({term.count} mentions, {term.percentage:.1f}%)\n"
 
         report += "\nARTICLE COUNTS BY PERIOD:\n"
-        for period, count in sorted(results.get("period_counts", {}).items()):
+        for period, count in sorted(results.period_counts.items()):
             report += f"{period}: {count} articles\n"
 
         return report
 
-    def _generate_markdown_report(self, results: Dict[str, Any]) -> str:
+    def _generate_markdown_report(self, results: HeadlineTrendResponseDTO) -> str:
         """Generate a markdown report."""
         report = "# Headline Trend Analysis Report\n\n"
+        
+        # Add metadata
+        report += f"**Status:** {results.status}  \n"
+        report += f"**Articles Analyzed:** {results.analysis_metadata.articles_analyzed}  \n"
+        report += f"**Processing Duration:** {results.analysis_metadata.processing_duration_ms}ms\n\n"
 
         # Add trending terms
         report += "## Top Trending Terms\n\n"
-        for i, term in enumerate(results.get("trending_terms", [])[:10], 1):
-            growth = term["growth_rate"] * 100
-            report += f"{i}. **{term['term']}** (Growth: {growth:.1f}%, Mentions: {term['total_mentions']})\n"
+        for i, term in enumerate(results.trending_terms[:10], 1):
+            growth = term.growth_rate * 100
+            report += f"{i}. **{term.term}** (Growth: {growth:.1f}%, Mentions: {term.total_mentions})\n"
 
         report += "\n## Overall Top Terms\n\n"
-        for i, (term, count) in enumerate(results.get("overall_top_terms", [])[:10], 1):
-            report += f"{i}. **{term}** ({count} mentions)\n"
+        for i, term in enumerate(results.overall_top_terms[:10], 1):
+            report += f"{i}. **{term.keyword}** ({term.count} mentions, {term.percentage:.1f}%)\n"
 
         report += "\n## Article Counts by Period\n\n"
         report += "| Period | Article Count |\n"
         report += "|--------|---------------|\n"
-        for period, count in sorted(results.get("period_counts", {}).items()):
+        for period, count in sorted(results.period_counts.items()):
             report += f"| {period} | {count} |\n"
 
         return report
 
-    def _generate_html_report(self, results: Dict[str, Any]) -> str:
+    def _generate_html_report(self, results: HeadlineTrendResponseDTO) -> str:
         """Generate an HTML report."""
         report = (
             "<html><head><title>Headline Trend Analysis Report</title></head><body>\n"
         )
         report += "<h1>Headline Trend Analysis Report</h1>\n"
+        
+        # Add metadata
+        report += f"<p><strong>Status:</strong> {results.status}</p>\n"
+        report += f"<p><strong>Articles Analyzed:</strong> {results.analysis_metadata.articles_analyzed}</p>\n"
+        report += f"<p><strong>Processing Duration:</strong> {results.analysis_metadata.processing_duration_ms}ms</p>\n"
 
         # Add trending terms
         report += "<h2>Top Trending Terms</h2>\n<ol>\n"
-        for term in results.get("trending_terms", [])[:10]:
-            growth = term["growth_rate"] * 100
-            report += f"<li><strong>{term['term']}</strong> (Growth: {growth:.1f}%, Mentions: {term['total_mentions']})</li>\n"
+        for term in results.trending_terms[:10]:
+            growth = term.growth_rate * 100
+            report += f"<li><strong>{term.term}</strong> (Growth: {growth:.1f}%, Mentions: {term.total_mentions})</li>\n"
         report += "</ol>\n"
 
         report += "<h2>Overall Top Terms</h2>\n<ol>\n"
-        for term, count in results.get("overall_top_terms", [])[:10]:
-            report += f"<li><strong>{term}</strong> ({count} mentions)</li>\n"
+        for term in results.overall_top_terms[:10]:
+            report += f"<li><strong>{term.keyword}</strong> ({term.count} mentions, {term.percentage:.1f}%)</li>\n"
         report += "</ol>\n"
 
         report += "<h2>Article Counts by Period</h2>\n"
         report += "<table border='1'>\n<tr><th>Period</th><th>Article Count</th></tr>\n"
-        for period, count in sorted(results.get("period_counts", {}).items()):
+        for period, count in sorted(results.period_counts.items()):
             report += f"<tr><td>{period}</td><td>{count}</td></tr>\n"
         report += "</table>\n"
 

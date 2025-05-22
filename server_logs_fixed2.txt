@@ -1,0 +1,180 @@
+INFO:     Started server process [41076]
+INFO:     Waiting for application startup.
+2025-05-17 01:24:33,064 - src.local_newsifier.api.main - INFO - Application startup initiated
+2025-05-17 01:24:33,064 - local_newsifier.database.engine - INFO - Starting database tables creation
+2025-05-17 01:24:33,064 - local_newsifier.database.engine - INFO - Connecting to database: ********ql://********:********@localhost:5432/local_newsifier_2a577328
+2025-05-17 01:24:33,126 - local_newsifier.database.engine - INFO - Database engine created and verified successfully
+2025-05-17 01:24:33,142 - local_newsifier.database.engine - INFO - Successfully created all database tables
+2025-05-17 01:24:33,142 - src.local_newsifier.api.main - INFO - Database initialization completed
+2025-05-17 01:24:33,142 - src.local_newsifier.api.main - INFO - Initializing fastapi-injectable
+2025-05-17 01:24:33,142 - src.local_newsifier.api.main - INFO - Migrating container services to fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for environment with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service environment with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for article_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service article_crud with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for analysis_result_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service analysis_result_crud with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for apify_source_config_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service apify_source_config_crud with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service entity_crud with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for canonical_entity_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service canonical_entity_crud with fastapi-injectable
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_mention_context_crud with use_cache=False
+2025-05-17 01:24:33,142 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service entity_mention_context_crud with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_profile_crud with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service entity_profile_crud with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_relationship_crud with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service entity_relationship_crud with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for rss_feed_crud with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service rss_feed_crud with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for feed_processing_log_crud with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered service feed_processing_log_crud with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for session_factory with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service session_factory with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for get_session with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service get_session with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory web_scraper_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory rss_parser_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory file_writer_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for web_scraper with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service web_scraper with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for rss_parser with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service rss_parser with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for file_writer with use_cache=False
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service file_writer with fastapi-injectable
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory trend_analyzer_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory context_analyzer_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory sentiment_analyzer_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory sentiment_tracker_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory opinion_visualizer_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory trend_reporter_tool: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory analysis_service: this event loop is already running.
+2025-05-17 01:24:33,143 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for trend_analyzer with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service trend_analyzer with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for context_analyzer with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service context_analyzer with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for sentiment_analyzer with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service sentiment_analyzer with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for sentiment_tracker with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service sentiment_tracker with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for opinion_visualizer with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service opinion_visualizer with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for trend_reporter with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service trend_reporter with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory entity_extractor_tool: this event loop is already running.
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory entity_resolver_tool: this event loop is already running.
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory entity_tracker_tool: this event loop is already running.
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_extractor with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service entity_extractor with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_resolver with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service entity_resolver with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for entity_tracker with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service entity_tracker with fastapi-injectable
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory article_service: this event loop is already running.
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory rss_feed_service: this event loop is already running.
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory apify_service: name 'environment' is not defined
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for apify_source_config_service with use_cache=False
+2025-05-17 01:24:33,144 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service apify_source_config_service with fastapi-injectable
+╭─────────────────────────────── Flow Execution ───────────────────────────────╮
+│                                                                              │
+│  Starting Flow Execution                                                     │
+│  Name: EntityTrackingFlow                                                    │
+│  ID: 39a29db2-fba2-40b4-a283-6b9488da2d60                                    │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+2025-05-17 01:24:33,145 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory entity_tracking_flow: this event loop is already running.
+╭─────────────────────────────── Flow Execution ───────────────────────────────╮
+│                                                                              │
+│  Starting Flow Execution                                                     │
+│  Name: NewsPipelineFlow                                                      │
+│  ID: fa696cb1-0097-482a-a73d-31efbbaadf25                                    │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+2025-05-17 01:24:33,145 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory news_pipeline_flow: this event loop is already running.
+╭─────────────────────────────── Flow Execution ───────────────────────────────╮
+│                                                                              │
+│  Starting Flow Execution                                                     │
+│  Name: NewsTrendAnalysisFlow                                                 │
+│  ID: ef51c25d-ea2f-472d-a8f7-8380740d07f7                                    │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+2025-05-17 01:24:33,146 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory trend_analysis_flow: this event loop is already running.
+╭─────────────────────────────── Flow Execution ───────────────────────────────╮
+│                                                                              │
+│  Starting Flow Execution                                                     │
+│  Name: PublicOpinionFlow                                                     │
+│  ID: d5f94d70-6e33-40eb-9c67-8c4808f873a9                                    │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+2025-05-17 01:24:33,146 - local_newsifier.fastapi_injectable_adapter - WARNING - Type error registering factory public_opinion_flow: 'SessionManager' object is not an iterator
+╭─────────────────────────────── Flow Execution ───────────────────────────────╮
+│                                                                              │
+│  Starting Flow Execution                                                     │
+│  Name: RSSScrapingFlow                                                       │
+│  ID: e1ee98e1-2c08-4b89-a585-54659a613244                                    │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - WARNING - Could not register factory rss_scraping_flow: this event loop is already running.
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - WARNING - Type error registering factory headline_trend_flow: HeadlineTrendFlow.__init__() got an unexpected keyword argument 'article_service'
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for article_service_with_params with use_cache=False
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service article_service_with_params with fastapi-injectable
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for analysis_service_with_params with use_cache=False
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service analysis_service_with_params with fastapi-injectable
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Created provider for rss_feed_service_with_params with use_cache=False
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Registered factory service rss_feed_service_with_params with fastapi-injectable
+2025-05-17 01:24:33,147 - local_newsifier.fastapi_injectable_adapter - INFO - Migration complete. Registered services with fastapi-injectable.
+2025-05-17 01:24:33,147 - src.local_newsifier.api.main - INFO - fastapi-injectable initialization completed
+2025-05-17 01:24:33,147 - src.local_newsifier.api.main - INFO - Application startup complete
+2025-05-17 01:24:33,149 - asyncio - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-6' coro=<resolve_dependencies() done, defined at /Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi_injectable/main.py:29> exception=FastAPIError('Invalid args for response field! Hint: check that typing.Optional[sqlmodel.orm.session.Session] is a valid Pydantic field type. If you are using a return type annotation that is not a valid Pydantic field (e.g. Union[Response, dict, None]) you can disable generating the response model from the type annotation with the path operation decorator parameter response_model=None. Read more: https://fastapi.tiangolo.com/tutorial/response-model/')>
+Traceback (most recent call last):
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi_injectable/main.py", line 48, in resolve_dependencies
+    root_dep = get_dependant(path="command", call=func)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 266, in get_dependant
+    param_details = analyze_param(
+                    ^^^^^^^^^^^^^^
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 467, in analyze_param
+    field = create_model_field(
+            ^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi/utils.py", line 98, in create_model_field
+    raise fastapi.exceptions.FastAPIError(
+fastapi.exceptions.FastAPIError: Invalid args for response field! Hint: check that typing.Optional[sqlmodel.orm.session.Session] is a valid Pydantic field type. If you are using a return type annotation that is not a valid Pydantic field (e.g. Union[Response, dict, None]) you can disable generating the response model from the type annotation with the path operation decorator parameter response_model=None. Read more: https://fastapi.tiangolo.com/tutorial/response-model/
+2025-05-17 01:24:33,152 - asyncio - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-10' coro=<resolve_dependencies() done, defined at /Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi_injectable/main.py:29> exception=AssertionError("`Query` default value cannot be set in `Annotated` for 'session'. Set the default value with `=` instead.")>
+Traceback (most recent call last):
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi_injectable/main.py", line 48, in resolve_dependencies
+    root_dep = get_dependant(path="command", call=func)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 266, in get_dependant
+    param_details = analyze_param(
+                    ^^^^^^^^^^^^^^
+  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-LHP1a2f6-py3.12/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 369, in analyze_param
+    assert field_info.default is Undefined or field_info.default is Required, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: `Query` default value cannot be set in `Annotated` for 'session'. Set the default value with `=` instead.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2025-05-17 01:24:39,605 - local_newsifier.database.engine - INFO - Connecting to database: ********ql://********:********@localhost:5432/local_newsifier_2a577328
+2025-05-17 01:24:39,617 - local_newsifier.database.engine - INFO - Database engine created and verified successfully
+INFO:     127.0.0.1:64020 - "GET / HTTP/1.1" 200 OK
+2025-05-18 00:00:36,148 - local_newsifier.database.engine - INFO - Connecting to database: ********ql://********:********@localhost:5432/local_newsifier_2a577328
+2025-05-18 00:00:36,388 - local_newsifier.database.engine - INFO - Database engine created and verified successfully
+INFO:     127.0.0.1:53901 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53904 - "GET /apple-touch-icon-precomposed.png HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53904 - "GET /apple-touch-icon.png HTTP/1.1" 404 Not Found
+2025-05-21 22:50:02,638 - local_newsifier.database.engine - INFO - Connecting to database: ********ql://********:********@localhost:5432/local_newsifier_2a577328
+2025-05-21 22:50:02,706 - local_newsifier.database.engine - INFO - Database engine created and verified successfully
+INFO:     127.0.0.1:51524 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51524 - "GET /favicon.ico HTTP/1.1" 404 Not Found
