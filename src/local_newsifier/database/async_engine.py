@@ -18,7 +18,21 @@ class AsyncDatabase:
 
     def _initialize_engine(self) -> None:
         """Initialize the underlying synchronous engine."""
-        self._engine = get_engine(self.database_url, test_mode=True)
+        if (
+            self.database_url
+            and self.database_url.startswith("sqlite")
+            and ":memory:" in self.database_url
+        ):
+            from sqlalchemy.pool import StaticPool
+            from sqlmodel import create_engine
+
+            self._engine = create_engine(
+                self.database_url,
+                connect_args={"check_same_thread": False},
+                poolclass=StaticPool,
+            )
+        else:
+            self._engine = get_engine(self.database_url, test_mode=True)
 
     async def initialize(self) -> None:
         """Asynchronously initialize the database engine."""
@@ -38,7 +52,7 @@ class AsyncDatabase:
             partial(func, *args, **kwargs)
         )
 
-    async def get_session(self) -> "AsyncSession":
+    def get_session(self) -> "AsyncSession":
         """Return an asynchronous session context manager."""
         return AsyncSession(self)
 
