@@ -5,7 +5,9 @@
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
-	@echo "  make setup-poetry      - Setup Poetry and install dependencies"
+	@echo "  make setup-poetry      - Setup Poetry and install dependencies (online)"
+	@echo "  make setup-poetry-offline - Install dependencies from wheels (offline)"
+	@echo "  OFFLINE=1 make setup-poetry - Alternative offline installation method"
 	@echo "  make setup-spacy       - Install spaCy models"
 	@echo "  make setup-db          - Initialize cursor-specific database"
 	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
@@ -28,10 +30,45 @@ install:
 	pip install -e .
 
 # Setup Poetry and install dependencies
+# Usage: make setup-poetry (for online)
+# Usage: make setup-poetry-offline (for offline - recommended)
+# Usage: OFFLINE=1 make setup-poetry (alternative offline method)
 setup-poetry:
 	@echo "Installing dependencies with Poetry..."
-	poetry install --no-interaction
+	@if [ "$(OFFLINE)" = "1" ] || [ "$$OFFLINE" = "1" ]; then \
+		echo "Installing from wheels directory (offline mode)..."; \
+		if [ ! -d "wheels" ]; then \
+			echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
+			exit 1; \
+		fi; \
+		echo "Creating Poetry environment..."; \
+		poetry env use python3; \
+		echo "Installing dependencies from wheels..."; \
+		poetry run pip install --no-index --find-links=wheels -r requirements.txt; \
+		poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt; \
+		echo "Installing local package in development mode..."; \
+		poetry run pip install -e .; \
+	else \
+		echo "Installing with Poetry (online mode)..."; \
+		poetry install --no-interaction; \
+	fi
 	@echo "Poetry setup complete. Use 'poetry shell' to activate environment."
+
+# Setup Poetry and install dependencies from wheels (offline)
+setup-poetry-offline:
+	@echo "Installing dependencies from wheels directory (offline mode)..."
+	@if [ ! -d "wheels" ]; then \
+		echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
+		exit 1; \
+	fi
+	@echo "Creating Poetry environment..."
+	poetry env use python3
+	@echo "Installing dependencies from wheels..."
+	poetry run pip install --no-index --find-links=wheels -r requirements.txt
+	poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt
+	@echo "Installing local package in development mode..."
+	poetry run pip install -e .
+	@echo "Poetry offline setup complete. Use 'poetry shell' to activate environment."
 
 # Setup spaCy models
 setup-spacy:

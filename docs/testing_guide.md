@@ -5,7 +5,7 @@ This document explains how to effectively run and optimize tests in the Local Ne
 Before running tests, install dependencies and spaCy models using:
 
 ```bash
-make setup-poetry -- --no-index --find-links=wheels
+make setup-poetry-offline
 make setup-spacy
 ```
 

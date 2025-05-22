@@ -23,9 +23,9 @@ If a `CLAUDE.md` file is added or removed, update this list.
 1. **Install dependencies using Poetry offline**:
    After building or copying wheels, run:
    ```bash
-   make setup-poetry -- --no-index --find-links=wheels
-   # or
-   poetry install --with dev --no-index --find-links=wheels
+   make setup-poetry-offline
+   # or alternatively
+   OFFLINE=1 make setup-poetry
    ```
    `make test` relies on these dev dependencies.
 2. If spaCy models are already available locally: `make setup-spacy`
@@ -94,10 +94,10 @@ Verify that the wheels installation works correctly:
 ### Dev Dependency Wheels
 
 Development tools are defined in `[tool.poetry.group.dev.dependencies]` inside
-`pyproject.toml`. Generate wheels for these packages (either extend
-`scripts/build_wheels.sh` or create a dedicated `scripts/build_dev_wheels.sh`)
-so they live in the same `wheels/py<version>-<platform>/` directory as the
-runtime wheels.
+`pyproject.toml`. Generate wheels for these packages so they live in the same
+`wheels/py<version>-<platform>/` directory as the runtime wheels. Use
+`./scripts/build_dev_wheels.sh` (or extend `scripts/build_wheels.sh`) to build
+the dev wheels for Python 3.12 on Linux.
 
 Before running the test suite, install these dev wheels. You can list the
 packages explicitly:

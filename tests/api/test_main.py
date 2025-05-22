@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from fastapi.responses import HTMLResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from local_newsifier.api.main import app, lifespan
@@ -118,6 +119,18 @@ class TestEndpoints:
         assert response.status_code == 404
         assert "text/html" in response.headers["content-type"]
         assert "Not Found" in response.text
+
+    def test_not_found_handler_html_template(self, client):
+        """Test that the 404 handler renders the correct template for HTML requests."""
+        mock_templates = MagicMock()
+        mock_templates.TemplateResponse.return_value = HTMLResponse("not found", status_code=404)
+        with patch("local_newsifier.api.main.get_templates", return_value=mock_templates):
+            response = client.get("/missing-page")
+            assert response.status_code == 404
+            assert "text/html" in response.headers["content-type"]
+        mock_templates.TemplateResponse.assert_called_once()
+        template_name = mock_templates.TemplateResponse.call_args[0][0]
+        assert "404.html" in template_name
 
 
 class TestLifespan:
