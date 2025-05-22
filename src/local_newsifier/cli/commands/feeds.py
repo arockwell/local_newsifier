@@ -31,7 +31,6 @@ def feeds_group():
     """Manage RSS feeds."""
     pass
 
-
 @feeds_group.command(name="list")
 @click.option("--active-only", is_flag=True, help="Show only active feeds")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
@@ -69,7 +68,6 @@ def list_feeds(active_only, json_output, limit, skip):
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
 
-
 @feeds_group.command(name="add")
 @click.argument("url", required=True)
 @click.option("--name", help="Feed name (defaults to URL if not provided)")
@@ -84,7 +82,6 @@ def add_feed(url, name, description):
         click.echo(f"Feed added successfully with ID: {feed['id']}")
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
-
 
 @feeds_group.command(name="show")
 @click.argument("id", type=int, required=True)
@@ -155,7 +152,6 @@ def show_feed(id, json_output, show_logs):
         log_headers = ["ID", "Started At", "Completed At", "Status", "Found", "Added", "Error"]
         click.echo(tabulate(log_data, headers=log_headers, tablefmt="simple"))
 
-
 @feeds_group.command(name="remove")
 @click.argument("id", type=int, required=True)
 @click.option("--force", is_flag=True, help="Skip confirmation")
@@ -177,7 +173,6 @@ def remove_feed(id, force):
         click.echo(f"Feed '{feed['name']}' (ID: {id}) removed successfully.")
     else:
         click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
-
 
 def direct_process_article(article_id):
     """Process an article directly without Celery.
@@ -224,7 +219,6 @@ def direct_process_article(article_id):
         click.echo(click.style(f"Error processing article {article_id}: {str(e)}", fg="red"), err=True)
         return False
 
-
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
@@ -250,7 +244,6 @@ def process_feed(id, no_process):
     else:
         click.echo(click.style("Processing failed.", fg="red"), err=True)
         click.echo(click.style(f"Error: {result['message']}", fg="red"), err=True)
-
 
 @feeds_group.command(name="update")
 @click.argument("id", type=int, required=True)
@@ -286,7 +279,6 @@ def update_feed(id, name, description, active):
         click.echo(f"Feed '{updated_feed['name']}' (ID: {id}) updated successfully.")
     else:
         click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
-
 
 @feeds_group.command(name="fetch")
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
