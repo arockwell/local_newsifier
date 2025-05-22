@@ -81,6 +81,11 @@ def async_test(func):
     def wrapper(*args, **kwargs):
         loop = next((arg for arg in args if isinstance(arg, asyncio.AbstractEventLoop)), None)
         if loop is None:
+            loop = next(
+                (val for val in kwargs.values() if isinstance(val, asyncio.AbstractEventLoop)),
+                None,
+            )
+        if loop is None:
             pytest.fail("async_test requires isolated_event_loop fixture")
         return loop.run_until_complete(func(*args, **kwargs))
 

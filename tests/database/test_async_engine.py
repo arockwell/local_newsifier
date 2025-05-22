@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Field, Session, select
 
 from local_newsifier.database.async_engine import AsyncDatabase
+from tests.fixtures.async_utils import isolated_event_loop
 
 
 class Item(SQLModel, table=True):

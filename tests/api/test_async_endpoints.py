@@ -1,4 +1,9 @@
-from tests.fixtures.async_utils import isolated_event_loop, async_test, async_session
+from tests.fixtures.async_utils import (
+    isolated_event_loop,
+    async_test,
+    async_session,
+    async_test_db,
+)
 
 
 @async_test
