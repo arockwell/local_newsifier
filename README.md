@@ -65,6 +65,12 @@ make setup-poetry-offline
 
 The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry-offline` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
 
+If you are missing wheels for the development tools, generate them with:
+
+```bash
+./scripts/build_dev_wheels.sh
+```
+
 3. Download spaCy model:
 ```bash
 poetry run python -m spacy download en_core_web_lg
