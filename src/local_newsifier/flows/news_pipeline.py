@@ -1,3 +1,5 @@
+"""CrewAI flow orchestrating the news analysis pipeline."""
+
 from datetime import datetime, timezone
 from typing import Optional, Dict, Callable
 

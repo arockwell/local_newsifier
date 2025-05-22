@@ -1,3 +1,5 @@
+"""Utility for scraping articles with optional Selenium."""
+
 import time
 from datetime import UTC, datetime
 from typing import Dict, Optional, Any
