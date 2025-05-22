@@ -6,6 +6,8 @@ from typing import Annotated, Any, Dict, List, Optional
 from crewai import Flow
 from fastapi import Depends
 from fastapi_injectable import injectable
+
+from local_newsifier.di import providers
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article as article_crud
@@ -25,8 +27,8 @@ from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
 
-class EntityTrackingFlow(Flow):
-    """Flow for tracking entities across news articles using state-based pattern."""
+class EntityTrackingFlowBase(Flow):
+    """Base flow for tracking entities across news articles using state-based pattern."""
 
     def __init__(
         self, 
@@ -182,7 +184,32 @@ class EntityTrackingFlow(Flow):
         
         # Find relationships
         result_state = self.entity_service.find_entity_relationships(state)
-        
+
         # Return relationship data
         return result_state.relationship_data
+
+
+@injectable(use_cache=False)
+class EntityTrackingFlow(EntityTrackingFlowBase):
+    """Injectable subclass for dependency-injected entity tracking flow."""
+
+    def __init__(
+        self,
+        entity_service: Annotated[EntityService, Depends(providers.get_entity_service)],
+        entity_tracker: Annotated[EntityTracker, Depends(providers.get_entity_tracker_tool)],
+        entity_extractor: Annotated[EntityExtractor, Depends(providers.get_entity_extractor_tool)],
+        context_analyzer: Annotated[ContextAnalyzer, Depends(providers.get_context_analyzer_tool)],
+        entity_resolver: Annotated[EntityResolver, Depends(providers.get_entity_resolver_tool)],
+        session: Annotated[Session, Depends(providers.get_session)],
+    ) -> None:
+        """Initialize with injected dependencies."""
+        super().__init__(
+            entity_service=entity_service,
+            entity_tracker=entity_tracker,
+            entity_extractor=entity_extractor,
+            context_analyzer=context_analyzer,
+            entity_resolver=entity_resolver,
+            session_factory=lambda: session,
+            session=session,
+        )
         

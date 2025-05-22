@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
+
+from local_newsifier.di import providers
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.services.article_service import ArticleService
@@ -18,8 +22,8 @@ from local_newsifier.tools.web_scraper import WebScraperTool
 logger = logging.getLogger(__name__)
 
 
-class RSSScrapingFlow(Flow):
-    """Flow for processing RSS feeds and scraping their content."""
+class RSSScrapingFlowBase(Flow):
+    """Base flow for processing RSS feeds and scraping their content."""
 
     def __init__(
         self, 
@@ -113,4 +117,26 @@ class RSSScrapingFlow(Flow):
                 results.append(state)
 
         return results
+
+
+@injectable(use_cache=False)
+class RSSScrapingFlow(RSSScrapingFlowBase):
+    """Injectable RSS scraping flow with injected dependencies."""
+
+    def __init__(
+        self,
+        rss_feed_service: Annotated[RSSFeedService, Depends(providers.get_rss_feed_service)],
+        article_service: Annotated[ArticleService, Depends(providers.get_article_service)],
+        rss_parser: Annotated[RSSParser, Depends(providers.get_rss_parser)],
+        web_scraper: Annotated[WebScraperTool, Depends(providers.get_web_scraper_tool)],
+        session: Annotated[Callable, Depends(providers.get_session)],
+    ) -> None:
+        super().__init__(
+            rss_feed_service=rss_feed_service,
+            article_service=article_service,
+            rss_parser=rss_parser,
+            web_scraper=web_scraper,
+            cache_dir="cache",
+            session_factory=lambda: session,
+        )
         

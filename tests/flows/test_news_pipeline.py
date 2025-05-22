@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.web_scraper import WebScraperTool
 
@@ -95,10 +95,10 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
     # Disable the injectable decorator and mock directly
     with patch('fastapi_injectable.decorator.run_coroutine_sync'):
         # Import locally to avoid top-level import issues
-        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+        from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase
 
         # Create pipeline instance
-        pipeline = NewsPipelineFlow(
+        pipeline = NewsPipelineFlowBase(
             web_scraper=mock_scraper,
             file_writer=mock_file_writer,
             article_service=mock_article_service,

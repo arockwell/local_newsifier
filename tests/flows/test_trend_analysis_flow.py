@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow, ReportFormat,
-                                                       TrendAnalysisState)
+from local_newsifier.flows.trend_analysis_flow import (
+    NewsTrendAnalysisFlowBase,
+    ReportFormat,
+    TrendAnalysisState,
+)
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (TimeFrame, TrendAnalysis, TrendAnalysisConfig,
                                           TrendStatus, TrendType)
@@ -143,7 +146,7 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
          patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
 
         # Test with direct analysis_service injection to avoid DI issues
-        flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
+        flow = NewsTrendAnalysisFlowBase(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
         if hasattr(flow, 'process_async'):
@@ -165,7 +168,7 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
          patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service2):
 
         # Use direct injection for the analysis_service
-        flow = NewsTrendAnalysisFlow(
+        flow = NewsTrendAnalysisFlowBase(
             config=custom_config,
             output_dir="custom_output",
             analysis_service=mock_analysis_service2
@@ -190,7 +193,7 @@ def test_aggregate_historical_data(mock_dependencies, event_loop_fixture):
          patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
 
         # Create flow with direct injected services to avoid DI issues
-        flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
+        flow = NewsTrendAnalysisFlowBase(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
         if hasattr(flow, 'aggregate_historical_data_async'):
@@ -246,7 +249,7 @@ def test_detect_trends(mock_dependencies, sample_trends, event_loop_fixture):
          patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
 
         # Create flow with direct injected services to avoid DI issues
-        flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
+        flow = NewsTrendAnalysisFlowBase(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
         if hasattr(flow, 'detect_trends_async'):
@@ -314,7 +317,7 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
          patch('local_newsifier.tools.trend_reporter.TrendReporter', return_value=mock_reporter):
 
         # Create flow with direct injected services to avoid DI issues
-        flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service, trend_reporter=mock_reporter)
+        flow = NewsTrendAnalysisFlowBase(analysis_service=mock_analysis_service, trend_reporter=mock_reporter)
 
         # Mock any async methods if they exist
         if hasattr(flow, 'generate_report_async'):
@@ -412,7 +415,7 @@ def test_run_analysis(mock_dependencies, sample_trends, event_loop_fixture):
         mock_reporter = MagicMock()
 
         # Create flow with direct injected services to avoid DI issues
-        flow = NewsTrendAnalysisFlow(
+        flow = NewsTrendAnalysisFlowBase(
             analysis_service=mock_analysis_service,
             trend_reporter=mock_reporter
         )
