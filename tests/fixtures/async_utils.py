@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Generator, Optional
+from typing import Generator
 
 import pytest
 
@@ -19,7 +19,7 @@ def isolated_event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 async def async_test_db():
     """Create isolated test database with async interface."""
     from local_newsifier.database.async_engine import AsyncDatabase
@@ -27,13 +27,13 @@ async def async_test_db():
 
     db = AsyncDatabase("sqlite+aiosqlite:///:memory:")
     await db.initialize()
-    await db.run_sync(lambda: SQLModel.metadata.create_all(db._engine))
+    await db.run_sync(lambda engine: SQLModel.metadata.create_all(engine))
     yield db
-    await db.run_sync(lambda: SQLModel.metadata.drop_all(db._engine))
+    await db.run_sync(lambda engine: SQLModel.metadata.drop_all(engine))
     await db.dispose()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 async def async_session(async_test_db):
     """Get async session for testing."""
     async with async_test_db.get_session() as session:
