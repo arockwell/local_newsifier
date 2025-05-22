@@ -5,15 +5,17 @@ import sys
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 # Add path to allow importing from local_newsifier
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath("."))
 
 import pytest
 from fastapi.testclient import TestClient
-from fastapi.responses import JSONResponse
 from sqlmodel import Session
-from local_newsifier.api.main import app
+
 from local_newsifier.api.dependencies import require_admin
+from local_newsifier.api.main import app
 from local_newsifier.api.routers.system import format_size, get_tables_info
+
+pytest_plugins = ["tests.fixtures.event_loop"]
 
 
 # Override the require_admin dependency to always return True
@@ -34,22 +36,24 @@ def override_get_session():
     yield mock_session
 
 
-# Override the templates dependency 
+# Override the templates dependency
 def override_get_templates():
     """Override the templates dependency for testing purposes."""
     from local_newsifier.api.dependencies import templates
+
     return templates
 
 
 # Apply the overrides to the app
 app.dependency_overrides[require_admin] = override_require_admin
 from local_newsifier.api.dependencies import get_session, get_templates
+
 app.dependency_overrides[get_session] = override_get_session
 app.dependency_overrides[get_templates] = override_get_templates
 
 
 @pytest.fixture
-def client():
+def client(event_loop_fixture):
     """Create a test client for the FastAPI application."""
     # Create a test client with authentication bypassed
     client = TestClient(app)
@@ -82,10 +86,13 @@ def test_get_tables_html(client):
             "size_readable": "8.00 KB",
         }
     ]
-    
+
     # Use the client's dependency override
-    with patch("local_newsifier.api.routers.system.get_tables_info", return_value=mock_tables_info):
-        # Call the endpoint - all dependencies including get_session 
+    with patch(
+        "local_newsifier.api.routers.system.get_tables_info",
+        return_value=mock_tables_info,
+    ):
+        # Call the endpoint - all dependencies including get_session
         # and get_templates will use our overrides
         response = client.get("/system/tables")
 
@@ -99,8 +106,10 @@ def test_get_tables_html(client):
 def test_get_tables_html_error(client):
     """Test the HTML endpoint for table listing with an error."""
     # Set up mock to raise exception
-    with patch("local_newsifier.api.routers.system.get_tables_info", 
-               side_effect=Exception("Database error")):
+    with patch(
+        "local_newsifier.api.routers.system.get_tables_info",
+        side_effect=Exception("Database error"),
+    ):
         # Call the endpoint
         response = client.get("/system/tables")
 
@@ -123,9 +132,12 @@ def test_get_tables_api(client):
             "size_readable": "8.00 KB",
         }
     ]
-    
+
     # Use the client's dependency override
-    with patch("local_newsifier.api.routers.system.get_tables_info", return_value=mock_tables_info):
+    with patch(
+        "local_newsifier.api.routers.system.get_tables_info",
+        return_value=mock_tables_info,
+    ):
         # Call the endpoint
         response = client.get("/system/tables/api")
 
@@ -148,8 +160,10 @@ def test_get_tables_api(client):
 def test_get_tables_api_error(client):
     """Test the API endpoint for table listing with an error."""
     # Set up mock to raise exception
-    with patch("local_newsifier.api.routers.system.get_tables_info", 
-               side_effect=Exception("Database error")):
+    with patch(
+        "local_newsifier.api.routers.system.get_tables_info",
+        side_effect=Exception("Database error"),
+    ):
         # Call the endpoint
         response = client.get("/system/tables/api")
 
@@ -208,9 +222,9 @@ def test_error_handling_pattern():
 
 def test_get_table_details_api(client):
     """Test the API endpoint for table details."""
-    # Let's simplify the test - check for valid response 
+    # Let's simplify the test - check for valid response
     # but accept the values from minimal mode in the test environment
-    
+
     # Call the endpoint
     response = client.get("/system/tables/test_table/api")
 
@@ -232,18 +246,20 @@ def test_get_table_details_api(client):
 def test_get_table_details_api_error(client):
     """Test the API endpoint for table details with an error."""
     # Create a controlled error by patching the session exec to throw an exception
-    with patch("local_newsifier.api.routers.system.get_table_details_api", 
-               side_effect=Exception("Database error")):
+    with patch(
+        "local_newsifier.api.routers.system.get_table_details_api",
+        side_effect=Exception("Database error"),
+    ):
         # Call the endpoint
         response = client.get("/system/tables/test_table/api")
 
         # Verify we got a valid response (error handlers return 200 with error content)
         assert response.status_code == 200
-        
+
         # Simple check to make sure we get valid JSON back
         try:
             data = response.json()
-            assert True
+            assert isinstance(data, dict), "Response should be a JSON object"
         except Exception:
             assert False, "Response should contain valid JSON"
 
