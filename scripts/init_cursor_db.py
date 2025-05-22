@@ -56,13 +56,16 @@ def init_cursor_db():
         
         try:
             with conn.cursor() as cur:
-                # Drop database if it exists
-                cur.execute(f"DROP DATABASE IF EXISTS {db_name}")
-                logger.info(f"Dropped database {db_name} if it existed")
+                # Check if database exists
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                db_exists = cur.fetchone() is not None
                 
-                # Create new database
-                cur.execute(f"CREATE DATABASE {db_name}")
-                logger.info(f"Created new database {db_name}")
+                if db_exists:
+                    logger.info(f"Database {db_name} already exists, skipping creation")
+                else:
+                    # Create new database
+                    cur.execute(f"CREATE DATABASE {db_name}")
+                    logger.info(f"Created new database {db_name}")
                 
         finally:
             conn.close()
