@@ -51,18 +51,16 @@ class EntityTrackingFlow(Flow):
         """
         super().__init__()
         self.session = session
-        
-        # Use provided dependencies or create defaults for backward compatibility
-        self._entity_tracker = entity_tracker or EntityTracker()
+
+        # Use provided tool dependencies or create defaults
         self._entity_extractor = entity_extractor or EntityExtractor()
         self._context_analyzer = context_analyzer or ContextAnalyzer()
         self._entity_resolver = entity_resolver or EntityResolver()
-        
+
         # Use provided entity service or create one with dependencies
         if entity_service:
             self.entity_service = entity_service
         else:
-            # Create service with injected or default dependencies
             self.entity_service = EntityService(
                 entity_crud=entity_crud,
                 canonical_entity_crud=canonical_entity_crud,
@@ -74,6 +72,11 @@ class EntityTrackingFlow(Flow):
                 entity_resolver=self._entity_resolver,
                 session_factory=session_factory
             )
+
+        # Entity tracker depends on the entity service
+        self._entity_tracker = entity_tracker or EntityTracker(
+            entity_service=self.entity_service
+        )
 
     def process(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process a single article for entity tracking.

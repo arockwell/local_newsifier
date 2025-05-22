@@ -598,8 +598,7 @@ def get_entity_service(
 
 @injectable(use_cache=False)
 def get_entity_tracker_tool(
-    entity_service: Annotated["EntityService", Depends(get_entity_service)],
-    session: Annotated[Session, Depends(get_session)]
+    entity_service: Annotated["EntityService", Depends(get_entity_service)]
 ):
     """Provide the entity tracker tool.
 
@@ -608,13 +607,12 @@ def get_entity_tracker_tool(
     
     Args:
         entity_service: Service for entity operations
-        session: Database session
 
     Returns:
         EntityTracker instance
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service, session=session)
+    return EntityTracker(entity_service=entity_service)
 
 
 @injectable(use_cache=False)
@@ -1022,8 +1020,7 @@ def get_public_opinion_flow(
 
 @injectable(use_cache=False)
 def get_injectable_entity_tracker(
-    entity_service: Annotated["EntityService", Depends(get_entity_service)],
-    session: Annotated[Session, Depends(get_session)]
+    entity_service: Annotated["EntityService", Depends(get_entity_service)]
 ):
     """Provide the injectable entity tracker tool.
     
@@ -1032,13 +1029,12 @@ def get_injectable_entity_tracker(
     
     Args:
         entity_service: Service for entity operations
-        session: Database session
     
     Returns:
         InjectableEntityTracker instance with injected dependencies
     """
     from local_newsifier.tools.entity_tracker_service import EntityTracker
-    return EntityTracker(entity_service=entity_service, session=session)
+    return EntityTracker(entity_service=entity_service)
 
 
 @injectable(use_cache=False)
