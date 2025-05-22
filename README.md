@@ -55,6 +55,13 @@ connected machine first:
 make build-wheels
 ```
 
+After building the wheels, verify that all required packages are present by
+running the offline install test script:
+
+```bash
+./scripts/test_offline_install.sh python3.12
+```
+
 Copy the resulting `wheels/` directory and install from it locally:
 
 ```bash
