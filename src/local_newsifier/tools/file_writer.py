@@ -1,3 +1,5 @@
+"""Helper for writing analysis results to disk."""
+
 import json
 import os
 import tempfile
