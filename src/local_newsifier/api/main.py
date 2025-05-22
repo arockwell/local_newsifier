@@ -55,9 +55,6 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Database initialization completed successfully")
 
-        # fastapi-injectable registration is complete
-        logger.info("fastapi-injectable services registered")
-
         logger.info("fastapi-injectable initialization completed")
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
