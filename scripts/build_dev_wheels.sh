@@ -5,9 +5,13 @@
 
 set -e
 
-WHEELS_DIR="$(pwd)"
+# Resolve repository root based on this script's location
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
 PYTHON_VERSION="3.12"
-OUTPUT_DIR="${WHEELS_DIR}"
+OUTPUT_DIR="${ROOT_DIR}/wheels/py312-linux-x64"
+mkdir -p "$OUTPUT_DIR"
 
 echo "Building development dependency wheels for Python ${PYTHON_VERSION} on Linux x86_64..."
 

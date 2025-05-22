@@ -94,10 +94,10 @@ Verify that the wheels installation works correctly:
 ### Dev Dependency Wheels
 
 Development tools are defined in `[tool.poetry.group.dev.dependencies]` inside
-`pyproject.toml`. Generate wheels for these packages (either extend
-`scripts/build_wheels.sh` or create a dedicated `scripts/build_dev_wheels.sh`)
-so they live in the same `wheels/py<version>-<platform>/` directory as the
-runtime wheels.
+`pyproject.toml`. Generate wheels for these packages so they live in the same
+`wheels/py<version>-<platform>/` directory as the runtime wheels. Use
+`./scripts/build_dev_wheels.sh` (or extend `scripts/build_wheels.sh`) to build
+the dev wheels for Python 3.12 on Linux.
 
 Before running the test suite, install these dev wheels. You can list the
 packages explicitly:
