@@ -35,45 +35,56 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def format_trend_data(trend_data):
+def format_trend_data(trend_result):
     """Format trend data for display.
     
     Args:
-        trend_data: Trend data to format
+        trend_result: HeadlineTrendResponseDTO to format
         
     Returns:
         Formatted string
     """
-    if "error" in trend_data:
-        return f"Error: {trend_data['error']}"
+    # Handle error cases
+    if not trend_result.success:
+        return f"Error: {trend_result.error_message}"
         
     output = []
     
+    # Add metadata header
+    output.append(f"\n{'=' * 60}")
+    output.append(f"ANALYSIS METADATA")
+    output.append(f"{'=' * 60}")
+    output.append(f"Articles Analyzed: {trend_result.analysis_metadata.articles_analyzed}")
+    output.append(f"Processing Duration: {trend_result.analysis_metadata.processing_duration_ms}ms")
+    output.append(f"Operation ID: {trend_result.operation_id}")
+    output.append(f"Status: {trend_result.status}")
+    
     # Add trending terms
     output.append(f"\n{'=' * 40}\nTRENDING TERMS\n{'=' * 40}")
-    if trend_data["trending_terms"]:
-        for i, term in enumerate(trend_data["trending_terms"], 1):
+    if trend_result.trending_terms:
+        for i, term in enumerate(trend_result.trending_terms, 1):
             output.append(
-                f"{i}. {term['term']} (growth: {term['growth_rate']:.1f}x, "
-                f"mentions: {term['total_mentions']})"
+                f"{i}. {term.term} (growth: {term.growth_rate:.1f}x, "
+                f"mentions: {term.total_mentions}, "
+                f"significance: {term.significance_score:.2f})"
             )
     else:
         output.append("No trending terms detected")
         
     # Add overall top terms
     output.append(f"\n{'=' * 40}\nTOP TERMS OVERALL\n{'=' * 40}")
-    if trend_data["overall_top_terms"]:
-        for i, (term, count) in enumerate(trend_data["overall_top_terms"][:10], 1):
-            output.append(f"{i}. {term} ({count} mentions)")
+    if trend_result.overall_top_terms:
+        for i, term in enumerate(trend_result.overall_top_terms[:10], 1):
+            output.append(f"{i}. {term.keyword} ({term.count} mentions, {term.percentage:.1f}%)")
     else:
         output.append("No top terms found")
         
     # Add period counts
     output.append(f"\n{'=' * 40}\nARTICLES BY PERIOD\n{'=' * 40}")
-    if trend_data["period_counts"]:
-        periods = sorted(trend_data["period_counts"].keys())
+    if trend_result.period_counts:
+        periods = sorted(trend_result.period_counts.keys())
         for period in periods:
-            count = trend_data["period_counts"][period]
+            count = trend_result.period_counts[period]
             output.append(f"{period}: {count} articles")
     else:
         output.append("No articles found in this period")
