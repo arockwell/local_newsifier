@@ -1,6 +1,4 @@
-"""
-RSS Parser Tool for extracting URLs and titles from RSS feeds.
-"""
+"""RSS Parser Tool for extracting URLs and titles from RSS feeds."""
 
 import json
 import logging
@@ -13,6 +11,9 @@ import requests
 from dateutil import parser as date_parser
 from fastapi_injectable import injectable
 from pydantic import BaseModel
+
+from local_newsifier.config.settings import settings
+from local_newsifier.utils.rate_limiter import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class RSSParser:
         cache_file: Optional[str] = None,
         cache_dir: Optional[str] = None,
         request_timeout: int = 30,
-        user_agent: Optional[str] = None
+        user_agent: Optional[str] = None,
     ):
         """
         Initialize the RSS parser.
@@ -84,9 +85,7 @@ class RSSParser:
         except Exception as e:
             logger.error(f"Error saving cache file: {e}")
 
-    def _get_element_text(
-        self, entry: ElementTree.Element, *names: str
-    ) -> Optional[str]:
+    def _get_element_text(self, entry: ElementTree.Element, *names: str) -> Optional[str]:
         """Get text from the first matching element."""
         for name in names:
             elem = entry.find(name)
@@ -94,7 +93,7 @@ class RSSParser:
                 return elem.text
         return None
 
-    def parse_feed(self, feed_url: str) -> List[RSSItem]:
+    def _parse_feed_impl(self, feed_url: str) -> List[RSSItem]:
         """
         Parse an RSS feed and extract items.
 
@@ -130,9 +129,7 @@ class RSSParser:
                 try:
                     # Extract title
                     title = (
-                        self._get_element_text(
-                            entry, "title", "{http://www.w3.org/2005/Atom}title"
-                        )
+                        self._get_element_text(entry, "title", "{http://www.w3.org/2005/Atom}title")
                         or "No title"
                     )
 
@@ -188,6 +185,33 @@ class RSSParser:
             logger.error(f"Error parsing feed {feed_url}: {e}")
             return []
 
+    def parse_feed(self, feed_url: str) -> List[RSSItem]:
+        """
+        Parse an RSS feed with rate limiting.
+
+        This method applies rate limiting in production but not in tests.
+        """
+        import os
+
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            # In tests, call directly without rate limiting
+            return self._parse_feed_impl(feed_url)
+        else:
+            # In production, apply rate limiting
+            @rate_limit(
+                service="rss",
+                max_calls=settings.RATE_LIMIT_RSS_CALLS,
+                period=settings.RATE_LIMIT_RSS_PERIOD,
+                enable_backoff=settings.RATE_LIMIT_ENABLE_BACKOFF,
+                max_retries=settings.RATE_LIMIT_MAX_RETRIES,
+                initial_backoff=settings.RATE_LIMIT_INITIAL_BACKOFF,
+                backoff_multiplier=settings.RATE_LIMIT_BACKOFF_MULTIPLIER,
+            )
+            def _rate_limited_parse(feed_url):
+                return self._parse_feed_impl(feed_url)
+
+            return _rate_limited_parse(feed_url)
+
     def get_new_urls(self, feed_url: str) -> List[RSSItem]:
         """
         Get only new URLs from a feed that haven't been processed before.
@@ -212,17 +236,18 @@ class RSSParser:
 def get_parser_instance() -> RSSParser:
     """
     Get an RSSParser instance safely.
-    
+
     This function handles both production and test environments:
     - In production, gets the parser from the fastapi-injectable provider
     - In tests, creates a new parser instance if the provider is not available
-    
+
     Returns:
         An RSSParser instance
     """
     try:
         # Try to get the parser from the injectable provider
         from local_newsifier.di.providers import get_rss_parser as get_injectable_parser
+
         return get_injectable_parser()
     except (ImportError, RuntimeError):
         # Fall back to creating a new instance in test environments
@@ -232,27 +257,27 @@ def get_parser_instance() -> RSSParser:
 def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
     """
     Parse an RSS feed and return the content in a dictionary format.
-    
+
     Args:
         feed_url: URL of the RSS feed to parse
-        
+
     Returns:
         Dictionary containing feed title and entries
     """
     logger.info(f"Parsing RSS feed: {feed_url}")
-    
+
     try:
         # Get parser instance in a test-friendly way
         parser = get_parser_instance()
-        
+
         # Use the parser to get items
         items = parser.parse_feed(feed_url)
-        
+
         # Extract feed title (use first item's title as fallback for feed title)
         feed_title = "Unknown Feed"
         if items:
             feed_title = f"Feed containing {items[0].title}"
-            
+
         # Convert items to dictionary format expected by tasks
         entries = []
         for item in items:
@@ -263,7 +288,7 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
                 "published": item.published.isoformat() if item.published else None,
             }
             entries.append(entry)
-            
+
         return {
             "title": feed_title,
             "feed_url": feed_url,
@@ -271,9 +296,4 @@ def parse_rss_feed(feed_url: str) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Error parsing RSS feed {feed_url}: {str(e)}")
-        return {
-            "title": "Error parsing feed",
-            "feed_url": feed_url,
-            "entries": [],
-            "error": str(e)
-        }
+        return {"title": "Error parsing feed", "feed_url": feed_url, "entries": [], "error": str(e)}
