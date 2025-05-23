@@ -39,7 +39,7 @@ __all__ = [
     "SentimentShift",
     # Apify models
     "ApifySourceConfig",
-    "ApifyJob", 
+    "ApifyJob",
     "ApifyDatasetItem",
     "ApifyCredentials",
     "ApifyWebhook",
