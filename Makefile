@@ -68,9 +68,17 @@ install: check-deps
 	@echo "$(GREEN)✓ Poetry environment created$(NC)"
 
 	@echo "Step 2/4: Installing spaCy language models..."
-	@$(POETRY) run python -m spacy download en_core_web_sm || (echo "$(YELLOW)Warning: Failed to install en_core_web_sm$(NC)")
-	@$(POETRY) run python -m spacy download en_core_web_lg || (echo "$(YELLOW)Warning: Failed to install en_core_web_lg$(NC)")
-	@echo "$(GREEN)✓ spaCy models installed$(NC)"
+	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then \
+		echo "$(GREEN)✓ en_core_web_sm already installed$(NC)"; \
+	else \
+		$(POETRY) run python -m spacy download en_core_web_sm || (echo "$(YELLOW)Warning: Failed to install en_core_web_sm$(NC)"); \
+	fi
+	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_lg')" 2>/dev/null; then \
+		echo "$(GREEN)✓ en_core_web_lg already installed$(NC)"; \
+	else \
+		$(POETRY) run python -m spacy download en_core_web_lg || (echo "$(YELLOW)Warning: Failed to install en_core_web_lg$(NC)"); \
+	fi
+	@echo "$(GREEN)✓ spaCy models ready$(NC)"
 
 	@echo "Step 3/4: Initializing database..."
 	@$(POETRY) run python scripts/init_cursor_db.py || (echo "$(RED)Database initialization failed$(NC)" && exit 1)
@@ -133,10 +141,10 @@ check-deps:
 # ===== DATABASE MANAGEMENT =====
 
 db-init:
-	@echo "$(GREEN)Initializing cursor-specific database...$(NC)"
+	@echo "$(GREEN)Checking database initialization...$(NC)"
 	@$(POETRY) run python scripts/init_cursor_db.py
 	@if [ -f .env.cursor ]; then \
-		echo "$(GREEN)✓ Database initialized. Environment saved to .env.cursor$(NC)"; \
+		echo "$(GREEN)✓ Database ready. Environment saved to .env.cursor$(NC)"; \
 	else \
 		echo "$(YELLOW)Warning: Database initialized but .env.cursor not created$(NC)"; \
 	fi
@@ -250,8 +258,19 @@ clean:
 setup-poetry: install
 setup-poetry-offline: install-offline
 setup-spacy:
-	@$(POETRY) run python -m spacy download en_core_web_sm
-	@$(POETRY) run python -m spacy download en_core_web_lg
+	@echo "$(GREEN)Checking spaCy models...$(NC)"
+	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then \
+		echo "$(GREEN)✓ en_core_web_sm already installed$(NC)"; \
+	else \
+		echo "Installing en_core_web_sm..."; \
+		$(POETRY) run python -m spacy download en_core_web_sm; \
+	fi
+	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_lg')" 2>/dev/null; then \
+		echo "$(GREEN)✓ en_core_web_lg already installed$(NC)"; \
+	else \
+		echo "Installing en_core_web_lg..."; \
+		$(POETRY) run python -m spacy download en_core_web_lg; \
+	fi
 setup-db: db-init
 organize-wheels:
 	@./scripts/organize_wheels.sh
