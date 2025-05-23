@@ -1083,3 +1083,11 @@ def get_feeds_process_command():
     """
     from local_newsifier.cli.commands.feeds import process_feed
     return process_feed
+
+@injectable(use_cache=True)
+def get_background_task_manager():
+    """Provide the background task manager instance."""
+    from local_newsifier.services.background_task_manager import BackgroundTaskManager
+
+    return BackgroundTaskManager()
+
