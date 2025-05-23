@@ -1,6 +1,6 @@
 # Offline Installation - Current State
 
-This document summarizes the current state of offline installation as of the latest fixes.
+This document summarizes the current state of offline installation after the May 2025 fixes and wheel rebuilding.
 
 ## What Works
 
@@ -19,20 +19,13 @@ This document summarizes the current state of offline installation as of the lat
    - Lists available wheel directories on failure
    - Helpful guidance on next steps
 
-## Current Issues
+## Current Status
 
-### 1. Outdated Wheels
-**Problem**: The wheels in the repository are outdated compared to current dependencies.
-
-**Example**:
-- Project needs: `chromadb==1.0.9`, `fastapi==0.115.9`
-- Wheels have: `chromadb==0.6.3`, `fastapi==0.112.4`
-
-**Solution**: Rebuild wheels with current dependencies
-```bash
-poetry shell  # Use Poetry environment to avoid system Python issues
-make build-wheels
-```
+### Wheels Have Been Updated ✅
+As of May 22, 2025, all wheels have been rebuilt with current dependencies:
+- 257 wheel files for Python 3.12 on macOS ARM64
+- Includes: `chromadb==1.0.9`, `fastapi==0.115.9` and all other current dependencies
+- Successfully tested with `make test-wheels`
 
 ### 2. Python Version Mismatch
 **Problem**: System Python (3.13) vs Project Python (3.12)
@@ -42,10 +35,13 @@ make build-wheels
 PYTHON=python3.12 make install-offline
 ```
 
-### 3. Incomplete Platform Coverage
-**Problem**: Some platform directories have very few wheels (e.g., `py313-macos-arm64` only has 1 wheel)
+### 3. Platform Coverage
+**Current State**: Full wheel coverage for Python 3.12 on:
+- macOS ARM64 (257 wheels) ✅
+- Linux x64 (via Docker builds)
+- Linux ARM64 (limited coverage)
 
-**Solution**: Build wheels for each Python version you need to support
+**Note**: Python 3.13 is not currently supported as the project requires Python 3.12
 
 ## How to Test Offline Installation
 
@@ -68,7 +64,7 @@ PYTHON=python3.12 make install-offline
 # Look for "Using platform-specific wheels: ..." in output
 
 # 3. Verify that directory has all needed wheels
-ls -la wheels/py312-macos-arm64/ | wc -l  # Should be 200+ files
+eza -la wheels/py312-macos-arm64/ | wc -l  # Should be 200+ files
 ```
 
 ## Best Practices Going Forward

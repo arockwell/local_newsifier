@@ -51,10 +51,10 @@ The project uses pre-built wheels for offline dependency installation. These whe
 Once you have wheels available for your Python version and platform, you can install dependencies without internet access:
 
 ```bash
-# For automatically detected Python version and platform
-python -m pip install --no-index --find-links=wheels -r requirements.txt
+# Use the Makefile command for automatic platform detection
+make install-offline
 
-# For a specific Python version and platform
+# Or manually for a specific Python version and platform
 python -m pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements.txt
 ```
 
@@ -76,18 +76,11 @@ After building wheels, you can test the offline installation with:
 make test-wheels  # or ./scripts/test_offline_install.sh
 ```
 
-#### Organizing Existing Wheels
-
-If you have wheels in the wrong directories, organize them by Python version and platform:
-```bash
-./scripts/organize_wheels.sh
-```
-
 #### Testing Offline Installation
 
 Verify that the wheels installation works correctly:
 ```bash
-./scripts/test_offline_install.sh python3.12
+make test-wheels
 ```
 
 ### Dev Dependency Wheels
