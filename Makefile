@@ -124,14 +124,18 @@ install-offline: check-deps
 	$(eval FALLBACK_PATH := wheels/$(PY_VERSION))
 
 	@echo "Platform: $(PY_VERSION)-$(OS_TYPE)-$(ARCH)"
-	@if [ -d "$(WHEELS_PATH)" ]; then \
+	@# Check if platform-specific directory has enough wheels (more than 50)
+	@if [ -d "$(WHEELS_PATH)" ] && [ "$$(ls -1 $(WHEELS_PATH)/*.whl 2>/dev/null | wc -l | tr -d ' ')" -gt 50 ]; then \
 		echo "Using platform-specific wheels: $(WHEELS_PATH)"; \
 		WHEELS_DIR="$(WHEELS_PATH)"; \
-	elif [ -d "$(FALLBACK_PATH)" ]; then \
+	elif [ -d "$(FALLBACK_PATH)" ] && [ "$$(ls -1 $(FALLBACK_PATH)/*.whl 2>/dev/null | wc -l | tr -d ' ')" -gt 50 ]; then \
 		echo "Using version-specific wheels: $(FALLBACK_PATH)"; \
 		WHEELS_DIR="$(FALLBACK_PATH)"; \
+	elif [ -d "wheels/py312" ]; then \
+		echo "$(YELLOW)Warning: Using py312 wheels (closest match available)$(NC)"; \
+		WHEELS_DIR="wheels/py312"; \
 	else \
-		echo "$(RED)Error: No wheels found for $(PY_VERSION) on $(OS_TYPE)-$(ARCH)$(NC)"; \
+		echo "$(RED)Error: No suitable wheels directory found$(NC)"; \
 		echo "Available wheel directories:"; \
 		ls -la wheels/; \
 		exit 1; \
@@ -141,8 +145,12 @@ install-offline: check-deps
 	$(POETRY) env use $(PYTHON); \
 	\
 	echo "Step 2/4: Installing dependencies from wheels..."; \
-	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r requirements.txt || exit 1; \
-	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r requirements-dev.txt || exit 1; \
+	echo "Generating offline-compatible requirements..."; \
+	$(POETRY) run python scripts/generate_offline_requirements.py requirements.txt "$$WHEELS_DIR" /tmp/requirements-offline.txt; \
+	$(POETRY) run python scripts/generate_offline_requirements.py requirements-dev.txt "$$WHEELS_DIR" /tmp/requirements-dev-offline.txt; \
+	echo "Installing from adjusted requirements..."; \
+	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r /tmp/requirements-offline.txt || exit 1; \
+	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r /tmp/requirements-dev-offline.txt || exit 1; \
 	\
 	echo "Step 3/4: Installing local package..."; \
 	$(POETRY) run pip install -e . || exit 1; \
