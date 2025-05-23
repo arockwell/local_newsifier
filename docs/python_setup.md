@@ -4,7 +4,7 @@ This guide provides instructions for setting up the Python environment for Local
 
 ## Python Version
 
-The project requires Python 3.10-3.13, with Python 3.12 recommended to match our CI environment.
+The project requires Python 3.12.10 to ensure consistency across development, CI, and deployment environments.
 
 A `.python-version` file is included in the project root that specifies Python 3.12.10.
 

@@ -154,7 +154,7 @@ poetry run python scripts/demo_headline_trends.py --start-date 2023-01-01 --end-
 Tests are automatically run on:
 - Every push to main branch
 - Every pull request
-- Python versions 3.10, 3.11, and 3.12
+- Python version 3.12.10
 
 Test results and coverage reports are available in GitHub Actions:
 - View test execution and logs

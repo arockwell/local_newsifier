@@ -4,7 +4,7 @@ name: Tests
 # ---------------------------
 # This workflow sets up a test environment for the local_newsifier project with:
 #
-# 1. Python 3.12 environment
+# 1. Python 3.12.10 environment
 # 2. Poetry for dependency management
 # 3. PostgreSQL 17 for database testing
 # 4. SpaCy models for NLP functionality
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.12.10"]
 
     services:
       postgres:

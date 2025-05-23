@@ -11,7 +11,7 @@
 ## Environment Setup
 
 ### Python Version
-This project requires Python 3.10-3.12, with Python 3.12 recommended to match CI.
+This project requires Python 3.12.10 to match CI and deployment environments.
 
 ### Setup
 ```bash
@@ -313,4 +313,3 @@ def test_problematic_in_ci(event_loop_fixture):
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.
-
