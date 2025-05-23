@@ -190,23 +190,42 @@ def test_file_writer_status_transitions(tmp_path, sample_state, event_loop_fixtu
     assert len(state.run_logs) >= 2  # Should have at least start and success logs
 
 
-def test_generate_filename(tmp_path, sample_state, event_loop_fixture):
-    """Test filename generation with different URLs using event loop fixture."""
-    # Use the fixture approach (approach iii) through file_writer_tool fixture
+@pytest.mark.parametrize(
+    "url, expected, check_www",
+    [
+        ("https://www.example.com/news/1", "example.com", True),
+        ("https://news.example.com/article/1", "news.example.com", False),
+        ("https://example.com/article", "example.com", False),
+        ("http://192.168.1.1/page", "192.168.1.1", False),
+        ("http://localhost:8000/test", "localhost", False),
+        ("https://example.com/search?q=test&page=1", "example.com", False),
+        ("https://example.com/article#section1", "example.com", False),
+    ],
+    ids=[
+        "www_subdomain",
+        "subdomain",
+        "standard_url",
+        "ip_address",
+        "localhost",
+        "query_params",
+        "fragment",
+    ],
+)
+def test_generate_filename(tmp_path, url, expected, check_www, event_loop_fixture):
+    """Test filename generation for various URL forms."""
+    # Arrange
     writer = FileWriterTool(output_dir=str(tmp_path))
+    state = NewsAnalysisState(target_url=url)
 
-    # Test with www subdomain
-    sample_state.target_url = "https://www.example.com/news/1"
-    state = writer.save(sample_state)
-    filename = Path(state.save_path or "").name
-    assert "www." not in filename
-    assert "example.com" in filename
+    # Act
+    filename = writer._generate_filename(state)
 
-    # Test with subdomain
-    sample_state.target_url = "https://news.example.com/article/1"
-    state = writer.save(sample_state)
-    filename = Path(state.save_path or "").name
-    assert "news.example.com" in filename
+    # Assert
+    assert expected in filename
+    assert str(state.run_id) in filename
+    assert filename.endswith(".json")
+    if check_www:
+        assert "www." not in filename
 
 
 def test_ensure_output_dir(tmp_path, event_loop_fixture):
@@ -457,65 +476,26 @@ def test_special_character_handling_in_paths(tmp_path, event_loop_fixture):
     assert os.path.exists(result_state.save_path)
 
 
-def test_path_normalization(tmp_path, event_loop_fixture):
-    """Test path normalization using event loop fixture."""
-    # Test with relative path
-    rel_path = "./relative/path"
-    abs_path = os.path.abspath(rel_path)
+@pytest.mark.parametrize(
+    "path_factory, expected",
+    [
+        (lambda tp: "./relative/path", Path("./relative/path")),
+        (lambda tp: "../parent/path", Path("../parent/path")),
+        (lambda tp: str(tp), lambda tp: tp),
+    ],
+    ids=["relative", "parent", "absolute"],
+)
+def test_path_normalization(tmp_path, path_factory, expected, event_loop_fixture):
+    """Ensure paths are normalized correctly."""
+    # Arrange
+    path = path_factory(tmp_path)
+    expected_path = expected(tmp_path) if callable(expected) else expected
 
-    with patch("os.makedirs") as mock_makedirs:
-        # Direct instantiation (approach i)
-        writer = FileWriterTool(output_dir=rel_path)
-        # Verify the path was normalized
-        assert writer.output_dir == Path(rel_path)
+    with patch("os.makedirs"):
+        # Act
+        writer = FileWriterTool(output_dir=path)
 
-    # Test with path containing ..
-    parent_path = "../parent/path"
-
-    with patch("os.makedirs") as mock_makedirs:
-        # Direct instantiation (approach i)
-        writer = FileWriterTool(output_dir=parent_path)
-        # Verify the path was normalized
-        assert writer.output_dir == Path(parent_path)
-
-    # Test with absolute path
-    with patch("os.makedirs") as mock_makedirs:
-        # Direct instantiation (approach i)
-        writer = FileWriterTool(output_dir=str(tmp_path))
-        # Verify the path was normalized
-        assert writer.output_dir == tmp_path
+    # Assert
+    assert writer.output_dir == expected_path
 
 
-def test_filename_generation(tmp_path, event_loop_fixture):
-    """Test filename generation with various URLs using event loop fixture."""
-    # Use the fixture approach (approach iii fixture pattern)
-    writer = FileWriterTool(output_dir=str(tmp_path))
-
-    # Test with standard URL
-    state = NewsAnalysisState(
-        target_url="https://example.com/article"
-    )
-    filename = writer._generate_filename(state)
-    assert "example.com" in filename
-    assert str(state.run_id) in filename
-    assert filename.endswith(".json")
-
-    # Test with IP address
-    state.target_url = "http://192.168.1.1/page"
-    filename = writer._generate_filename(state)
-    assert "192.168.1.1" in filename
-
-    # Test with localhost
-    state.target_url = "http://localhost:8000/test"
-    filename = writer._generate_filename(state)
-    assert "localhost" in filename
-
-    # Test with URL having query parameters
-    state.target_url = "https://example.com/search?q=test&page=1"
-    filename = writer._generate_filename(state)
-    assert "example.com" in filename
-
-    # Test with URL having fragments
-    state.target_url = "https://example.com/article#section1"
-    filename = writer._generate_filename(state)
-    assert "example.com" in filename
