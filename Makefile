@@ -1,214 +1,266 @@
 # Makefile for Local Newsifier project
+# Redesigned for clarity and simplicity
 
-.PHONY: help install setup-poetry setup-spacy setup-db build-wheels build-wheels-all build-linux-wheels organize-wheels test-wheels test lint format clean run-api run-worker run-beat run-all-celery
+.PHONY: help install install-offline install-dev clean test lint format \
+        run-api run-worker run-beat run-all \
+        build-wheels build-wheels-linux \
+        db-init db-reset db-stats \
+        check-deps
+
+# Default target shows help
+.DEFAULT_GOAL := help
+
+# Configuration
+PYTHON ?= python3
+POETRY ?= poetry
+PIP ?= pip
+PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH := $(shell uname -m)
+
+# Color codes for output
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
 
 help:
-	@echo "Available commands:"
-	@echo "  make install           - Install dependencies (legacy, use setup-poetry instead)"
-	@echo "  make setup-poetry      - Setup Poetry and install dependencies (online)"
-	@echo "  make setup-poetry-offline - Install dependencies from wheels (offline)"
-	@echo "  OFFLINE=1 make setup-poetry - Alternative offline installation method"
-	@echo "  make setup-spacy       - Install spaCy models"
-	@echo "  make setup-db          - Initialize cursor-specific database"
-	@echo "  make build-wheels      - Build wheels for current Python version on current platform"
-	@echo "  make build-wheels-all  - Build wheels for all supported Python versions on current platform"
-	@echo "  make build-linux-wheels - Build wheels for Linux platforms using Docker"
-	@echo "  make organize-wheels   - Organize existing wheels into version-specific and platform-specific directories" 
-	@echo "  make test-wheels       - Test offline installation with current Python version on current platform"
-	@echo "  make test              - Run tests in parallel (using all available CPU cores)"
-	@echo "  make test-serial       - Run tests serially (for debugging)"
-	@echo "  make lint              - Run linting"
-	@echo "  make format            - Format code"
-	@echo "  make clean             - Clean build artifacts"
-	@echo "  make run-api           - Run FastAPI application"
-	@echo "  make run-worker        - Run Celery worker"
-	@echo "  make run-beat          - Run Celery beat scheduler"
-	@echo "  make run-all-celery    - Run Celery worker and beat in separate processes"
+	@echo "$(GREEN)Local Newsifier - Development Makefile$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Quick Start:$(NC)"
+	@echo "  make install       - Complete setup (Poetry, dependencies, spaCy, database)"
+	@echo "  make run-all       - Run API, worker, and beat scheduler"
+	@echo ""
+	@echo "$(YELLOW)Installation:$(NC)"
+	@echo "  make install       - Complete online installation"
+	@echo "  make install-offline - Install from pre-built wheels (no internet)"
+	@echo "  make install-dev   - Install with development dependencies"
+	@echo ""
+	@echo "$(YELLOW)Development:$(NC)"
+	@echo "  make test          - Run tests in parallel"
+	@echo "  make test-serial   - Run tests serially (for debugging)"
+	@echo "  make test-coverage - Run tests with coverage report"
+	@echo "  make lint          - Run code linting"
+	@echo "  make format        - Auto-format code"
+	@echo "  make clean         - Remove build artifacts"
+	@echo ""
+	@echo "$(YELLOW)Running Services:$(NC)"
+	@echo "  make run-api       - Run FastAPI server"
+	@echo "  make run-worker    - Run Celery worker"
+	@echo "  make run-beat      - Run Celery beat scheduler"
+	@echo "  make run-all       - Run all services (API, worker, beat)"
+	@echo ""
+	@echo "$(YELLOW)Database:$(NC)"
+	@echo "  make db-init       - Initialize cursor-specific database"
+	@echo "  make db-reset      - Reset database (WARNING: deletes data)"
+	@echo "  make db-stats      - Show database statistics"
+	@echo ""
+	@echo "$(YELLOW)Offline Support:$(NC)"
+	@echo "  make build-wheels  - Build wheels for current platform"
+	@echo "  make build-wheels-linux - Build Linux wheels using Docker"
 
-# Legacy installation
-install:
-	pip install -e .
+# ===== INSTALLATION TARGETS =====
 
-# Setup Poetry and install dependencies
-# Usage: make setup-poetry (for online)
-# Usage: make setup-poetry-offline (for offline - recommended)
-# Usage: OFFLINE=1 make setup-poetry (alternative offline method)
-setup-poetry:
-	@echo "Installing dependencies with Poetry..."
-	@if [ "$(OFFLINE)" = "1" ] || [ "$$OFFLINE" = "1" ]; then \
-		echo "Installing from wheels directory (offline mode)..."; \
-		if [ ! -d "wheels" ]; then \
-			echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
-			exit 1; \
-		fi; \
-		echo "Creating Poetry environment..."; \
-		poetry env use python3; \
-		echo "Installing dependencies from wheels..."; \
-		poetry run pip install --no-index --find-links=wheels -r requirements.txt; \
-		poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt; \
-		echo "Installing local package in development mode..."; \
-		poetry run pip install -e .; \
+# Complete installation - this is what the user wants!
+install: check-deps
+	@echo "$(GREEN)Starting complete Local Newsifier installation...$(NC)"
+	@echo "Step 1/4: Setting up Poetry environment..."
+	@$(POETRY) install --no-interaction || (echo "$(RED)Poetry installation failed$(NC)" && exit 1)
+	@echo "$(GREEN)✓ Poetry environment created$(NC)"
+
+	@echo "Step 2/4: Installing spaCy language models..."
+	@$(POETRY) run python -m spacy download en_core_web_sm || (echo "$(YELLOW)Warning: Failed to install en_core_web_sm$(NC)")
+	@$(POETRY) run python -m spacy download en_core_web_lg || (echo "$(YELLOW)Warning: Failed to install en_core_web_lg$(NC)")
+	@echo "$(GREEN)✓ spaCy models installed$(NC)"
+
+	@echo "Step 3/4: Initializing database..."
+	@$(POETRY) run python scripts/init_cursor_db.py || (echo "$(RED)Database initialization failed$(NC)" && exit 1)
+	@echo "$(GREEN)✓ Database initialized$(NC)"
+
+	@echo "Step 4/4: Running database migrations..."
+	@if [ -f .env.cursor ]; then \
+		export $$(cat .env.cursor | xargs) && $(POETRY) run alembic upgrade head || echo "$(YELLOW)Warning: Migration failed$(NC)"; \
 	else \
-		echo "Installing with Poetry (online mode)..."; \
-		poetry install --no-interaction; \
+		$(POETRY) run alembic upgrade head || echo "$(YELLOW)Warning: Migration failed$(NC)"; \
 	fi
-	@echo "Poetry setup complete. Use 'poetry shell' to activate environment."
+	@echo "$(GREEN)✓ Installation complete!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(NC)"
+	@echo "  1. Activate the environment: poetry shell"
+	@echo "  2. Run the application: make run-all"
+	@echo "  3. Visit http://localhost:8000"
 
-# Setup Poetry and install dependencies from wheels (offline)
-setup-poetry-offline:
-	@echo "Installing dependencies from wheels directory (offline mode)..."
+# Offline installation from pre-built wheels
+install-offline: check-deps
+	@echo "$(GREEN)Starting offline installation...$(NC)"
 	@if [ ! -d "wheels" ]; then \
-		echo "Error: wheels directory not found. Run 'make build-wheels' first."; \
+		echo "$(RED)Error: wheels directory not found$(NC)"; \
+		echo "Run 'make build-wheels' first to download dependencies"; \
 		exit 1; \
 	fi
-	@echo "Creating Poetry environment..."
-	poetry env use python3
-	@echo "Installing dependencies from wheels..."
-	poetry run pip install --no-index --find-links=wheels -r requirements.txt
-	poetry run pip install --no-index --find-links=wheels -r requirements-dev.txt
-	@echo "Installing local package in development mode..."
-	poetry run pip install -e .
-	@echo "Poetry offline setup complete. Use 'poetry shell' to activate environment."
 
-# Setup spaCy models
-setup-spacy:
-	@echo "Installing spaCy models..."
-	poetry run python -m spacy download en_core_web_sm
-	poetry run python -m spacy download en_core_web_lg
-	@echo "spaCy models installed successfully"
+	@echo "Step 1/4: Creating Poetry environment..."
+	@$(POETRY) env use $(PYTHON)
 
-# Setup database
-setup-db:
-	@echo "Initializing cursor-specific database..."
-	poetry run python scripts/init_cursor_db.py
-	@echo "Database setup complete. Run 'source .env.cursor' to load environment."
+	@echo "Step 2/4: Installing dependencies from wheels..."
+	@$(POETRY) run pip install --no-index --find-links=wheels -r requirements.txt
+	@$(POETRY) run pip install --no-index --find-links=wheels -r requirements-dev.txt
 
-# Build dependency wheels for offline installation
-build-wheels:
-	@echo "Building wheels for current Python version..."
-	./scripts/build_wheels.sh
+	@echo "Step 3/4: Installing local package..."
+	@$(POETRY) run pip install -e .
 
-build-wheels-all:
-	@echo "Building wheels for all supported Python versions..."
-	@if command -v python3.10 >/dev/null 2>&1; then \
-		echo "Building wheels for Python 3.10..."; \
-		./scripts/build_wheels.sh python3.10; \
+	@echo "Step 4/4: Setting up database and spaCy models..."
+	@$(MAKE) db-init
+	@echo "$(YELLOW)Note: spaCy models must be manually provided for offline installation$(NC)"
+
+	@echo "$(GREEN)✓ Offline installation complete!$(NC)"
+
+# Development installation with extra dependencies
+install-dev: install
+	@echo "$(GREEN)Installing development dependencies...$(NC)"
+	@$(POETRY) install --with dev --no-interaction
+	@echo "$(GREEN)✓ Development setup complete$(NC)"
+
+# ===== DEPENDENCY CHECKING =====
+
+check-deps:
+	@echo "Checking dependencies..."
+	@which $(POETRY) > /dev/null || (echo "$(RED)Error: Poetry not found. Install from https://python-poetry.org$(NC)" && exit 1)
+	@which $(PYTHON) > /dev/null || (echo "$(RED)Error: Python not found$(NC)" && exit 1)
+	@$(PYTHON) -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" || \
+		(echo "$(RED)Error: Python 3.10+ required$(NC)" && exit 1)
+	@echo "$(GREEN)✓ All dependencies satisfied$(NC)"
+
+# ===== DATABASE MANAGEMENT =====
+
+db-init:
+	@echo "$(GREEN)Initializing cursor-specific database...$(NC)"
+	@$(POETRY) run python scripts/init_cursor_db.py
+	@if [ -f .env.cursor ]; then \
+		echo "$(GREEN)✓ Database initialized. Environment saved to .env.cursor$(NC)"; \
 	else \
-		echo "Python 3.10 not found, skipping"; \
+		echo "$(YELLOW)Warning: Database initialized but .env.cursor not created$(NC)"; \
 	fi
-	@if command -v python3.11 >/dev/null 2>&1; then \
-		echo "Building wheels for Python 3.11..."; \
-		./scripts/build_wheels.sh python3.11; \
-	else \
-		echo "Python 3.11 not found, skipping"; \
-	fi
-	@if command -v python3.12 >/dev/null 2>&1; then \
-		echo "Building wheels for Python 3.12..."; \
-		./scripts/build_wheels.sh python3.12; \
-	else \
-		echo "Python 3.12 not found, skipping"; \
-	fi
-	@if command -v python3.13 >/dev/null 2>&1; then \
-		echo "Building wheels for Python 3.13..."; \
-		./scripts/build_wheels.sh python3.13; \
-	else \
-		echo "Python 3.13 not found, skipping"; \
-	fi
-	@echo "Wheel building complete for all available Python versions"
-	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
 
-build-linux-wheels:
-	@echo "Building wheels for Linux platforms using Docker..."
-	@echo "Building for Python 3.12..."
-	./scripts/build_linux_wheels.sh 3.12
-	@echo "Linux wheel building complete"
-	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+db-reset:
+	@echo "$(RED)WARNING: This will delete all data!$(NC)"
+	@echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+	@sleep 5
+	@$(POETRY) run python scripts/reset_db.py
+	@echo "$(GREEN)✓ Database reset complete$(NC)"
 
-build-linux-wheels-py312:
-	@echo "Building wheels for Python 3.12 on Linux platforms using Docker..."
-	./scripts/build_linux_wheels.sh 3.12
-	@echo "Python 3.12 Linux wheel building complete"
-	@echo "Don't forget to commit the wheels directory to the repository for offline installation."
+db-stats:
+	@echo "$(GREEN)Database Statistics:$(NC)"
+	@$(POETRY) run nf db stats
 
-organize-wheels:
-	@echo "Organizing existing wheels into version-specific and platform-specific directories..."
-	./scripts/organize_wheels.sh
+# ===== TESTING =====
 
-test-wheels:
-	@echo "Testing offline installation with current Python version..."
-	./scripts/test_offline_install.sh
-
-# Testing
 test:
-	poetry run pytest -n auto
+	@echo "$(GREEN)Running tests in parallel...$(NC)"
+	@$(POETRY) run pytest -n auto
 
-# Run tests serially (non-parallel) if needed for debugging
 test-serial:
-	poetry run pytest -n 0
+	@echo "$(GREEN)Running tests serially...$(NC)"
+	@$(POETRY) run pytest -n 0
 
-# Run tests with coverage report
 test-coverage:
-	poetry run pytest --cov=src/local_newsifier --cov-report=term-missing
+	@echo "$(GREEN)Running tests with coverage...$(NC)"
+	@$(POETRY) run pytest --cov=src/local_newsifier --cov-report=term-missing --cov-report=html
+	@echo "$(GREEN)✓ Coverage report generated in htmlcov/$(NC)"
 
-# Linting
+# ===== CODE QUALITY =====
+
 lint:
-	poetry run flake8 src tests
+	@echo "$(GREEN)Running linters...$(NC)"
+	@$(POETRY) run flake8 src tests || echo "$(YELLOW)Linting issues found$(NC)"
+	@$(POETRY) run mypy src || echo "$(YELLOW)Type checking issues found$(NC)"
 
-# Formatting
 format:
-	poetry run isort src tests
-	poetry run black src tests
+	@echo "$(GREEN)Formatting code...$(NC)"
+	@$(POETRY) run isort src tests
+	@$(POETRY) run black src tests
+	@echo "$(GREEN)✓ Code formatted$(NC)"
 
-# Cleaning
-clean:
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type d -name .pytest_cache -exec rm -rf {} +
+# ===== RUNNING SERVICES =====
 
-# Run FastAPI application
-run-api: setup-spacy setup-db
-	@echo "Starting FastAPI server..."
+run-api:
+	@echo "$(GREEN)Starting FastAPI server...$(NC)"
 	@if [ -f .env.cursor ]; then \
-		echo "Loading database environment..."; \
-		export $$(cat .env.cursor | xargs) && poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000; \
-	else \
-		echo "No .env.cursor found, running setup-db should have created it"; \
-		poetry run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000; \
-	fi
-
-# Run Celery worker
-run-worker: setup-spacy setup-db
-	@echo "Starting Celery worker..."
-	@if [ -f .env.cursor ]; then \
-		echo "Loading database environment..."; \
-		export $$(cat .env.cursor | xargs) && poetry run celery -A local_newsifier.celery_app worker --loglevel=info; \
-	else \
-		poetry run celery -A local_newsifier.celery_app worker --loglevel=info; \
-	fi
-
-# Run Celery beat scheduler
-run-beat: setup-spacy setup-db
-	@echo "Starting Celery beat scheduler..."
-	@if [ -f .env.cursor ]; then \
-		echo "Loading database environment..."; \
-		export $$(cat .env.cursor | xargs) && poetry run celery -A local_newsifier.celery_app beat --loglevel=info; \
-	else \
-		poetry run celery -A local_newsifier.celery_app beat --loglevel=info; \
-	fi
-
-# Run Celery worker and beat (for development)
-run-all-celery: setup-spacy setup-db
-	@echo "Starting Celery worker and beat..."
-	@echo "Worker output: celery-worker.log"
-	@echo "Beat output: celery-beat.log"
-	@if [ -f .env.cursor ]; then \
-		echo "Loading database environment..."; \
 		export $$(cat .env.cursor | xargs); \
 	fi; \
-	trap 'kill %1 %2; echo "Celery processes stopped"; exit 0' SIGINT; \
-	poetry run celery -A local_newsifier.celery_app worker --loglevel=info > celery-worker.log 2>&1 & \
-	poetry run celery -A local_newsifier.celery_app beat --loglevel=info > celery-beat.log 2>&1 & \
-	echo "Celery worker and beat running. Press Ctrl+C to stop."; \
-	wait
+	$(POETRY) run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000
+
+run-worker:
+	@echo "$(GREEN)Starting Celery worker...$(NC)"
+	@if [ -f .env.cursor ]; then \
+		export $$(cat .env.cursor | xargs); \
+	fi; \
+	$(POETRY) run celery -A local_newsifier.celery_app worker --loglevel=info
+
+run-beat:
+	@echo "$(GREEN)Starting Celery beat scheduler...$(NC)"
+	@if [ -f .env.cursor ]; then \
+		export $$(cat .env.cursor | xargs); \
+	fi; \
+	$(POETRY) run celery -A local_newsifier.celery_app beat --loglevel=info
+
+run-all:
+	@echo "$(GREEN)Starting all services...$(NC)"
+	@echo "API: http://localhost:8000"
+	@echo "Worker logs: celery-worker.log"
+	@echo "Beat logs: celery-beat.log"
+	@echo "Press Ctrl+C to stop all services"
+	@echo ""
+	@if [ -f .env.cursor ]; then \
+		export $$(cat .env.cursor | xargs); \
+	fi; \
+	trap 'kill %1 %2 %3 2>/dev/null; echo "\n$(GREEN)All services stopped$(NC)"; exit 0' SIGINT; \
+	$(POETRY) run uvicorn local_newsifier.api.main:app --reload --host 0.0.0.0 --port 8000 & \
+	$(POETRY) run celery -A local_newsifier.celery_app worker --loglevel=info > celery-worker.log 2>&1 & \
+	$(POETRY) run celery -A local_newsifier.celery_app beat --loglevel=info > celery-beat.log 2>&1 & \
+	tail -f celery-worker.log celery-beat.log
+
+# ===== WHEEL BUILDING =====
+
+build-wheels:
+	@echo "$(GREEN)Building wheels for $(PLATFORM)-$(ARCH)...$(NC)"
+	@./scripts/build_wheels.sh
+	@echo "$(GREEN)✓ Wheels built successfully$(NC)"
+
+build-wheels-linux:
+	@echo "$(GREEN)Building Linux wheels using Docker...$(NC)"
+	@./scripts/build_linux_wheels.sh 3.12
+	@echo "$(GREEN)✓ Linux wheels built successfully$(NC)"
+
+# ===== CLEANUP =====
+
+clean:
+	@echo "$(GREEN)Cleaning build artifacts...$(NC)"
+	@rm -rf build/ dist/ *.egg-info
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete
+	@find . -type f -name ".coverage" -delete
+	@rm -rf htmlcov/
+	@rm -f celery-worker.log celery-beat.log
+	@echo "$(GREEN)✓ Cleanup complete$(NC)"
+
+# ===== ADVANCED TARGETS =====
+
+# These targets are preserved for backward compatibility but not shown in main help
+setup-poetry: install
+setup-poetry-offline: install-offline
+setup-spacy:
+	@$(POETRY) run python -m spacy download en_core_web_sm
+	@$(POETRY) run python -m spacy download en_core_web_lg
+setup-db: db-init
+organize-wheels:
+	@./scripts/organize_wheels.sh
+test-wheels:
+	@./scripts/test_offline_install.sh
+build-wheels-all:
+	@for py in python3.10 python3.11 python3.12 python3.13; do \
+		if command -v $$py >/dev/null 2>&1; then \
+			echo "Building wheels for $$py..."; \
+			./scripts/build_wheels.sh $$py; \
+		fi; \
+	done
