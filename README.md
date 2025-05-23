@@ -33,6 +33,8 @@ For details on the architecture and testing strategies see:
 - [DI Architecture Guide](docs/di_architecture.md)
 - [Dependency Injection Guide](docs/dependency_injection.md)
 - [fastapi-injectable Guide](docs/fastapi_injectable.md)
+- [Services Guide](docs/services_guide.md)
+- [DTO Patterns Guide](docs/dto_patterns_guide.md)
 - [Documentation Index](docs/README.md)
 
 ## Setup
