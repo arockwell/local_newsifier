@@ -19,12 +19,13 @@ from local_newsifier.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 # Type variables for the with_session decorator
-F = TypeVar('F', bound=Callable[..., Any])
-T = TypeVar('T')
+F = TypeVar("F", bound=Callable[..., Any])
+T = TypeVar("T")
 
 
-def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int = 2, 
-               test_mode: bool = False):
+def get_engine(
+    url: Optional[str] = None, max_retries: int = 3, retry_delay: int = 2, test_mode: bool = False
+):
     """Get SQLModel engine with enhanced logging and retry logic.
 
     Args:
@@ -42,6 +43,7 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
         # Try to get the shared test engine from pytest plugin
         try:
             import pytest
+
             if hasattr(pytest, "test_engine_plugin"):
                 # First try to get a worker-specific engine when running with pytest-xdist
                 try:
@@ -54,46 +56,49 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
                     worker_id = None
                     # Look for gw0, gw1, etc. in sys.argv for xdist workers
                     for arg in sys.argv:
-                        if arg.startswith('gw'):
+                        if arg.startswith("gw"):
                             worker_id = arg
                             break
-                            
+
                     # If we didn't find it in sys.argv, check for PYTEST_XDIST_WORKER env var
                     if not worker_id:
-                        worker_id = os.environ.get('PYTEST_XDIST_WORKER')
-                        
+                        worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+
                     engine = pytest.test_engine_plugin.get_engine(worker_id)
                 except (ImportError, AttributeError):
                     # Fallback to the standard method if we can't determine worker ID
                     engine = pytest.test_engine_plugin.get_engine()
-                
+
                 if engine:
-                    logger.info(f"Using shared test engine from pytest plugin (worker: {worker_id or 'master'})")
+                    logger.info(
+                        f"Using shared test engine from pytest plugin (worker: {worker_id or 'master'})"
+                    )
                     return engine
         except (ImportError, AttributeError):
             # We're not running under pytest or plugin isn't registered
             logger.debug("Test engine plugin not available")
-        
+
         # Use faster retry for tests if we don't get a test engine
         retry_delay = 0.01  # Use milliseconds instead of seconds for tests
-    
+
     for attempt in range(max_retries + 1):
         try:
             # Import settings here to avoid circular imports
             from local_newsifier.config.settings import get_settings
+
             settings = get_settings()
             url = url or str(settings.DATABASE_URL)
-            
+
             # Log database connection attempt (without password)
             safe_url = url
             if settings.POSTGRES_PASSWORD and settings.POSTGRES_PASSWORD in url:
                 safe_url = url.replace(settings.POSTGRES_PASSWORD, "********")
-            
+
             if attempt > 0:
                 logger.info(f"Retry {attempt}/{max_retries} connecting to database: {safe_url}")
             else:
                 logger.info(f"Connecting to database: {safe_url}")
-            
+
             # Only add application_name for PostgreSQL
             connect_args = {}
             if url.startswith("postgresql:"):
@@ -101,12 +106,12 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
                     "application_name": "local_newsifier",
                     "connect_timeout": 10,  # Timeout after 10 seconds
                 }
-                
+
             # Use settings or default values from common module
-            pool_size = getattr(settings, 'DB_POOL_SIZE', DEFAULT_DB_POOL_SIZE)
-            max_overflow = getattr(settings, 'DB_MAX_OVERFLOW', DEFAULT_DB_MAX_OVERFLOW)
-            echo = getattr(settings, 'DB_ECHO', DEFAULT_DB_ECHO)
-                
+            pool_size = getattr(settings, "DB_POOL_SIZE", DEFAULT_DB_POOL_SIZE)
+            max_overflow = getattr(settings, "DB_MAX_OVERFLOW", DEFAULT_DB_MAX_OVERFLOW)
+            echo = getattr(settings, "DB_ECHO", DEFAULT_DB_ECHO)
+
             engine = create_engine(
                 url,
                 pool_size=pool_size,
@@ -117,16 +122,28 @@ def get_engine(url: Optional[str] = None, max_retries: int = 3, retry_delay: int
                 pool_pre_ping=True,
                 pool_recycle=300,  # Recycle connections after 5 minutes
             )
-            
+
             # Verify connection works with a simple query
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-                
+
             logger.info("Database engine created and verified successfully")
+
+            # Set up database monitoring
+            try:
+                from local_newsifier.monitoring.database import setup_database_monitoring
+
+                setup_database_monitoring(engine)
+                logger.info("Database monitoring initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize database monitoring: {str(e)}")
+
             return engine
         except Exception as e:
-            logger.error(f"Failed to create database engine (attempt {attempt+1}/{max_retries+1}): {str(e)}")
-            
+            logger.error(
+                f"Failed to create database engine (attempt {attempt+1}/{max_retries+1}): {str(e)}"
+            )
+
             if attempt < max_retries:
                 logger.info(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
@@ -217,7 +234,7 @@ class SessionManager:
 
     def __init__(self, test_mode: bool = False):
         """Initialize the session manager.
-        
+
         Args:
             test_mode: If True, use optimized database settings for tests
         """
@@ -285,6 +302,7 @@ def with_session(func: F) -> F:
     Returns:
         Decorated function
     """
+
     def wrapper(*args, session: Optional[Session] = None, **kwargs):
         """Execute function with session management.
 
@@ -307,7 +325,9 @@ def with_session(func: F) -> F:
         try:
             with SessionManager() as new_session:
                 if new_session is None:
-                    logger.warning("with_session: SessionManager returned None, cannot execute function")
+                    logger.warning(
+                        "with_session: SessionManager returned None, cannot execute function"
+                    )
                     return None
                 return func(*args, session=new_session, **kwargs)
         except Exception as e:

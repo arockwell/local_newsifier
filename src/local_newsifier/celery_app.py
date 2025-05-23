@@ -3,12 +3,15 @@ Celery application configuration for the Local Newsifier project.
 This module sets up the Celery application using PostgreSQL as both the broker and result backend.
 """
 
+import logging
 import os
 
 from celery import Celery
 
 # Load environment variables for configuration
 from local_newsifier.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 # Create the Celery application
 app = Celery("local_newsifier")
@@ -31,6 +34,15 @@ app.conf.update(
 
 # Auto-discover tasks from all registered app modules
 app.autodiscover_tasks(["local_newsifier.tasks"])
+
+# Set up Celery monitoring
+try:
+    from local_newsifier.monitoring.celery_monitor import setup_celery_monitoring
+
+    setup_celery_monitoring()
+    logger.info("Celery monitoring initialized")
+except Exception as e:
+    logger.warning(f"Failed to initialize Celery monitoring: {str(e)}")
 
 if __name__ == "__main__":
     app.start()
