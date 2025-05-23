@@ -122,3 +122,177 @@ class ApifyWebhook(TableBase, table=True):
     event_types: List[str] = Field(default_factory=list, sa_type=JSON)  # e.g., ["RUN.SUCCEEDED"]
     payload_template: Optional[str] = None  # Custom payload template if used
     is_active: bool = Field(default=True)
+
+
+# Read DTOs for API responses
+class ApifySourceConfigRead(SQLModel):
+    """Read DTO for ApifySourceConfig model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    name: str
+    actor_id: str
+    is_active: bool
+    schedule: Optional[str] = None
+    schedule_id: Optional[str] = None
+    source_type: str
+    source_url: Optional[str] = None
+    input_configuration: Dict[str, Any]
+    last_run_at: Optional[datetime] = None
+    
+    # Related job IDs instead of full objects
+    job_ids: List[int] = Field(default_factory=list)
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "name": "Local News Scraper",
+                    "actor_id": "news-scraper-actor",
+                    "is_active": True,
+                    "schedule": "0 */6 * * *",
+                    "source_type": "news",
+                    "source_url": "https://example.com",
+                    "input_configuration": {"url": "https://example.com/news"},
+                    "job_ids": [1, 2, 3]
+                }
+            ]
+        }
+    }
+
+
+class ApifyJobRead(SQLModel):
+    """Read DTO for ApifyJob model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    source_config_id: Optional[int] = None
+    run_id: str
+    actor_id: str
+    status: str
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+    dataset_id: Optional[str] = None
+    item_count: Optional[int] = None
+    error_message: Optional[str] = None
+    processed: bool
+    articles_created: Optional[int] = None
+    processed_at: Optional[datetime] = None
+    
+    # Related dataset item IDs instead of full objects
+    dataset_item_ids: List[int] = Field(default_factory=list)
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "source_config_id": 1,
+                    "run_id": "apify-run-123",
+                    "actor_id": "news-scraper-actor",
+                    "status": "SUCCEEDED",
+                    "started_at": "2023-01-01T12:00:00Z",
+                    "finished_at": "2023-01-01T12:05:00Z",
+                    "duration_seconds": 300,
+                    "item_count": 10,
+                    "processed": True,
+                    "articles_created": 5,
+                    "dataset_item_ids": [1, 2, 3]
+                }
+            ]
+        }
+    }
+
+
+class ApifyDatasetItemRead(SQLModel):
+    """Read DTO for ApifyDatasetItem model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    job_id: int
+    apify_id: str
+    raw_data: Dict[str, Any]
+    transformed: bool
+    article_id: Optional[int] = None
+    error_message: Optional[str] = None
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "job_id": 1,
+                    "apify_id": "item-123",
+                    "raw_data": {
+                        "title": "Breaking News",
+                        "content": "News content...",
+                        "url": "https://example.com/news/1"
+                    },
+                    "transformed": True,
+                    "article_id": 1
+                }
+            ]
+        }
+    }
+
+
+class ApifyCredentialsRead(SQLModel):
+    """Read DTO for ApifyCredentials model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    # Note: api_token is intentionally excluded for security
+    label: str
+    is_active: bool
+    rate_limit_remaining: Optional[int] = None
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "label": "Production Token",
+                    "is_active": True,
+                    "rate_limit_remaining": 1000
+                }
+            ]
+        }
+    }
+
+
+class ApifyWebhookRead(SQLModel):
+    """Read DTO for ApifyWebhook model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    webhook_id: str
+    actor_id: Optional[str] = None
+    event_types: List[str]
+    payload_template: Optional[str] = None
+    is_active: bool
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "webhook_id": "webhook-123",
+                    "actor_id": "news-scraper-actor",
+                    "event_types": ["RUN.SUCCEEDED", "RUN.FAILED"],
+                    "is_active": True
+                }
+            ]
+        }
+    }

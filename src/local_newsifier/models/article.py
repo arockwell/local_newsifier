@@ -58,3 +58,42 @@ class Article(SQLModel, table=True):
             ]
         }
     }
+
+
+class ArticleRead(SQLModel):
+    """Read DTO for Article model - used for API responses."""
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    title: str
+    content: str
+    url: str
+    source: str
+    published_at: datetime
+    status: str
+    scraped_at: datetime
+    
+    # Related entity IDs instead of full objects to avoid deep nesting
+    entity_ids: List[int] = Field(default_factory=list)
+    analysis_result_ids: List[int] = Field(default_factory=list)
+    
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "title": "Sample Article",
+                    "content": "This is a sample article content.",
+                    "url": "https://example.com/sample",
+                    "source": "Example News",
+                    "published_at": "2023-01-01T00:00:00Z",
+                    "status": "new",
+                    "scraped_at": "2023-01-01T01:00:00Z",
+                    "entity_ids": [1, 2, 3],
+                    "analysis_result_ids": [1]
+                }
+            ]
+        }
+    }
