@@ -23,13 +23,10 @@ If a `CLAUDE.md` file is added or removed, update this list.
 1. **Install dependencies using Poetry offline**:
    After building or copying wheels, run:
    ```bash
-   make setup-poetry-offline
-   # or alternatively
-   OFFLINE=1 make setup-poetry
+   make install-offline
    ```
-   `make test` relies on these dev dependencies.
-2. If spaCy models are already available locally: `make setup-spacy`
-3. Run the test suite from the Poetry environment: `make test`
+   This will install all dependencies and set up the database.
+2. Run the test suite from the Poetry environment: `make test`
 
 ### Faster Testing
 
@@ -68,14 +65,16 @@ To build wheels for the current environment:
 make build-wheels
 ```
 
-To build wheels for Python 3.12 on Linux (x64 and arm64):
+To build wheels for Linux platforms (requires Docker):
 ```bash
-make build-linux-wheels-py312
+make build-wheels-linux
 ```
 
-This requires Docker and builds all dependencies, including platform-specific ones like psycopg2-binary.
-After building wheels, run `make test-wheels` or
-`./scripts/test_offline_install.sh <python>` to verify that all required runtime and development packages are present before running tests.
+This builds all dependencies, including platform-specific ones like psycopg2-binary.
+After building wheels, you can test the offline installation with:
+```bash
+make test-wheels  # or ./scripts/test_offline_install.sh
+```
 
 #### Organizing Existing Wheels
 

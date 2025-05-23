@@ -12,20 +12,29 @@ A `.python-version` file is included in the project root that specifies Python 3
 
 We use Poetry for dependency management:
 
+### Quick Setup (Recommended)
+
 ```bash
-# Install dependencies using Poetry (offline)
-make setup-poetry-offline
+# Complete installation (Poetry, dependencies, spaCy models, database)
+make install
 
 # Activate the Poetry environment
 poetry shell
-
-# Install spaCy models
-make setup-spacy
 ```
 
-Running `make setup-poetry-offline` installs all
-packages from the `wheels/` directory and is required before executing
-`make test` in an offline environment.
+### Alternative Setup Methods
+
+```bash
+# For offline installation (requires pre-built wheels)
+make install-offline
+
+# For development with extra dependencies
+make install-dev
+
+# Manual spaCy model installation if needed
+poetry run python -m spacy download en_core_web_sm
+poetry run python -m spacy download en_core_web_lg
+```
 
 ### Offline Installation
 
@@ -75,7 +84,14 @@ git commit -m "Update wheels for offline installation for [platform]"
 
 #### Offline Installation on Target Machine
 
-On the target machine without internet access, install packages using the appropriate platform-specific directory if available, or fall back to the version-specific directory:
+On the target machine without internet access:
+
+```bash
+# Simplified offline installation (handles platform detection automatically)
+make install-offline
+```
+
+For manual installation, use the appropriate platform-specific directory:
 
 ```bash
 # For Python 3.12 on Linux x64
@@ -118,7 +134,12 @@ poetry env use python3.12  # or the path to your Python executable
    Check which Python version Poetry is using: `poetry env info`
 
 3. **"spaCy model not found"**
-   Install the required models: `make setup-spacy`
+   Install the required models:
+   ```bash
+   # These are installed automatically with 'make install'
+   poetry run python -m spacy download en_core_web_sm
+   poetry run python -m spacy download en_core_web_lg
+   ```
 
 4. **"No matching distribution found for sqlalchemy..."**
    This typically happens during offline installation when wheels for your Python version or platform are missing.
