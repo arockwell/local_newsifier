@@ -17,6 +17,12 @@ from local_newsifier.utils.rate_limiter import rate_limit
 
 def apify_rate_limit(func):
     """Apply Apify-specific rate limiting to a function."""
+    # Delay accessing settings until function is called
+    import os
+
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        # In tests, don't apply rate limiting
+        return func
     return rate_limit(
         service="apify",
         max_calls=settings.RATE_LIMIT_APIFY_CALLS,

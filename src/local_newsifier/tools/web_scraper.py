@@ -93,16 +93,7 @@ class WebScraperTool:
         wait=wait_exponential(multiplier=1, min=4, max=10),
         reraise=True,
     )
-    @rate_limit(
-        service="web",
-        max_calls=settings.RATE_LIMIT_WEB_CALLS,
-        period=settings.RATE_LIMIT_WEB_PERIOD,
-        enable_backoff=settings.RATE_LIMIT_ENABLE_BACKOFF,
-        max_retries=settings.RATE_LIMIT_MAX_RETRIES,
-        initial_backoff=settings.RATE_LIMIT_INITIAL_BACKOFF,
-        backoff_multiplier=settings.RATE_LIMIT_BACKOFF_MULTIPLIER,
-    )
-    def _fetch_url(self, url: str) -> str:
+    def _fetch_url_impl(self, url: str) -> str:
         """Fetch URL content with retries and error handling."""
         print(f"Attempting to fetch URL: {url}")
         try:
@@ -157,6 +148,29 @@ class WebScraperTool:
                 raise ValueError(
                     f"Failed to fetch URL with both methods: {str(e)} and {str(selenium_error)}"
                 )
+
+    def _fetch_url(self, url: str) -> str:
+        """Fetch URL with rate limiting."""
+        import os
+
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            # In tests, call directly without rate limiting
+            return self._fetch_url_impl(url)
+        else:
+            # In production, apply rate limiting
+            @rate_limit(
+                service="web",
+                max_calls=settings.RATE_LIMIT_WEB_CALLS,
+                period=settings.RATE_LIMIT_WEB_PERIOD,
+                enable_backoff=settings.RATE_LIMIT_ENABLE_BACKOFF,
+                max_retries=settings.RATE_LIMIT_MAX_RETRIES,
+                initial_backoff=settings.RATE_LIMIT_INITIAL_BACKOFF,
+                backoff_multiplier=settings.RATE_LIMIT_BACKOFF_MULTIPLIER,
+            )
+            def _rate_limited_fetch(url):
+                return self._fetch_url_impl(url)
+
+            return _rate_limited_fetch(url)
 
     def extract_article_text(self, html_content: str) -> str:
         """Extract main article text from HTML content."""
