@@ -68,17 +68,24 @@ install: check-deps
 	@echo "$(GREEN)✓ Poetry environment created$(NC)"
 
 	@echo "Step 2/4: Installing spaCy language models..."
-	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then \
-		echo "$(GREEN)✓ en_core_web_sm already installed$(NC)"; \
+	@if $(POETRY) run python -c "import spacy" 2>/dev/null; then \
+		if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then \
+			echo "$(GREEN)✓ en_core_web_sm already installed$(NC)"; \
+		else \
+			echo "Downloading en_core_web_sm..."; \
+			$(POETRY) run python -m spacy download en_core_web_sm || echo "$(YELLOW)Warning: Failed to install en_core_web_sm$(NC)"; \
+		fi; \
+		if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_lg')" 2>/dev/null; then \
+			echo "$(GREEN)✓ en_core_web_lg already installed$(NC)"; \
+		else \
+			echo "Downloading en_core_web_lg..."; \
+			$(POETRY) run python -m spacy download en_core_web_lg || echo "$(YELLOW)Warning: Failed to install en_core_web_lg$(NC)"; \
+		fi; \
 	else \
-		$(POETRY) run python -m spacy download en_core_web_sm || (echo "$(YELLOW)Warning: Failed to install en_core_web_sm$(NC)"); \
+		echo "$(YELLOW)Warning: spaCy not installed yet, skipping model downloads$(NC)"; \
+		echo "$(YELLOW)Run 'make setup-spacy' after installation completes$(NC)"; \
 	fi
-	@if $(POETRY) run python -c "import spacy; spacy.load('en_core_web_lg')" 2>/dev/null; then \
-		echo "$(GREEN)✓ en_core_web_lg already installed$(NC)"; \
-	else \
-		$(POETRY) run python -m spacy download en_core_web_lg || (echo "$(YELLOW)Warning: Failed to install en_core_web_lg$(NC)"); \
-	fi
-	@echo "$(GREEN)✓ spaCy models ready$(NC)"
+	@echo "$(GREEN)✓ spaCy setup complete$(NC)"
 
 	@echo "Step 3/4: Initializing database..."
 	@$(POETRY) run python scripts/init_cursor_db.py || (echo "$(RED)Database initialization failed$(NC)" && exit 1)
@@ -98,6 +105,9 @@ install: check-deps
 	@echo "  3. Visit http://localhost:8000"
 
 # Offline installation from pre-built wheels
+# This target automatically detects your platform and uses the appropriate wheels directory
+# Platform detection: py<version>-<os>-<arch> (e.g., py312-macos-arm64)
+# Falls back to version-only directory if platform-specific not found
 install-offline: check-deps
 	@echo "$(GREEN)Starting offline installation...$(NC)"
 	@if [ ! -d "wheels" ]; then \
@@ -106,20 +116,41 @@ install-offline: check-deps
 		exit 1; \
 	fi
 
-	@echo "Step 1/4: Creating Poetry environment..."
-	@$(POETRY) env use $(PYTHON)
+	@echo "Detecting platform..."
+	$(eval PY_VERSION := $(shell $(PYTHON) -c "import sys; print(f'py{sys.version_info.major}{sys.version_info.minor}')"))
+	$(eval OS_TYPE := $(shell uname | tr '[:upper:]' '[:lower:]' | sed 's/darwin/macos/'))
+	$(eval ARCH := $(shell uname -m | sed 's/x86_64/x64/' | sed 's/aarch64/arm64/'))
+	$(eval WHEELS_PATH := wheels/$(PY_VERSION)-$(OS_TYPE)-$(ARCH))
+	$(eval FALLBACK_PATH := wheels/$(PY_VERSION))
 
-	@echo "Step 2/4: Installing dependencies from wheels..."
-	@$(POETRY) run pip install --no-index --find-links=wheels -r requirements.txt
-	@$(POETRY) run pip install --no-index --find-links=wheels -r requirements-dev.txt
+	@echo "Platform: $(PY_VERSION)-$(OS_TYPE)-$(ARCH)"
+	@if [ -d "$(WHEELS_PATH)" ]; then \
+		echo "Using platform-specific wheels: $(WHEELS_PATH)"; \
+		WHEELS_DIR="$(WHEELS_PATH)"; \
+	elif [ -d "$(FALLBACK_PATH)" ]; then \
+		echo "Using version-specific wheels: $(FALLBACK_PATH)"; \
+		WHEELS_DIR="$(FALLBACK_PATH)"; \
+	else \
+		echo "$(RED)Error: No wheels found for $(PY_VERSION) on $(OS_TYPE)-$(ARCH)$(NC)"; \
+		echo "Available wheel directories:"; \
+		ls -la wheels/; \
+		exit 1; \
+	fi; \
+	\
+	echo "Step 1/4: Creating Poetry environment..."; \
+	$(POETRY) env use $(PYTHON); \
+	\
+	echo "Step 2/4: Installing dependencies from wheels..."; \
+	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r requirements.txt || exit 1; \
+	$(POETRY) run pip install --no-index --find-links="$$WHEELS_DIR" -r requirements-dev.txt || exit 1; \
+	\
+	echo "Step 3/4: Installing local package..."; \
+	$(POETRY) run pip install -e . || exit 1; \
+	\
+	echo "Step 4/4: Setting up database..."; \
+	$(MAKE) db-init
 
-	@echo "Step 3/4: Installing local package..."
-	@$(POETRY) run pip install -e .
-
-	@echo "Step 4/4: Setting up database and spaCy models..."
-	@$(MAKE) db-init
 	@echo "$(YELLOW)Note: spaCy models must be manually provided for offline installation$(NC)"
-
 	@echo "$(GREEN)✓ Offline installation complete!$(NC)"
 
 # Development installation with extra dependencies
@@ -275,7 +306,8 @@ setup-db: db-init
 organize-wheels:
 	@./scripts/organize_wheels.sh
 test-wheels:
-	@./scripts/test_offline_install.sh
+	@echo "$(GREEN)Testing offline installation...$(NC)"
+	@./scripts/test_offline_install.sh $(PYTHON)
 build-wheels-all:
 	@for py in python3.10 python3.11 python3.12 python3.13; do \
 		if command -v $$py >/dev/null 2>&1; then \
