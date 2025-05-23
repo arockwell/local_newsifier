@@ -4,6 +4,9 @@ import os
 import pathlib
 from typing import Generator
 
+from fastapi_injectable import injectable
+from local_newsifier.services.background_task_manager import BackgroundTaskManager
+
 from fastapi import HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
@@ -95,3 +98,13 @@ def get_rss_feed_service() -> RSSFeedService:
     # Use injectable provider with session
     with next(get_session()) as session:
         return get_injectable_rss_feed_service(session=session)
+
+
+# Create a shared instance for the background task manager
+_background_task_manager = BackgroundTaskManager()
+
+
+@injectable(use_cache=True)
+def get_background_task_manager() -> BackgroundTaskManager:
+    """Get the shared background task manager instance."""
+    return _background_task_manager
