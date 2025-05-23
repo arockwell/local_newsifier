@@ -15,6 +15,7 @@ This document helps Codex locate developer guides and explains how to work with 
   - src/local_newsifier/services/CLAUDE.md
   - src/local_newsifier/tools/CLAUDE.md
 - Additional docs: all Markdown files under `docs/`, plus `FastAPI-Injectable-Migration-Plan.md`, `README.md`, and `README_CLI.md`.
+  - Performance monitoring: `docs/performance_monitoring.md`
 
 If a `CLAUDE.md` file is added or removed, update this list.
 
