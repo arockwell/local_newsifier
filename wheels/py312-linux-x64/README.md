@@ -9,14 +9,11 @@ This directory contains all the wheels needed for offline installation of Local 
 For the simplest installation, use the provided helper script:
 
 ```bash
-# Navigate to the wheels directory
-cd wheels/py312-linux-x64
-
-# Make the script executable (if needed)
-chmod +x install_helper.sh
+# From the project root make the helper executable (if needed)
+chmod +x scripts/wheels/install_helper.sh
 
 # Install the project and all dependencies
-./install_helper.sh
+./scripts/wheels/install_helper.sh
 ```
 
 ### Method 2: Using pip directly
@@ -38,14 +35,11 @@ If you encounter issues with specific wheel files having long filenames, use the
 For any missing dependencies, you can run the included fix script:
 
 ```bash
-# Navigate to the wheels directory
-cd wheels/py312-linux-x64
-
-# Make the script executable (if needed)
-chmod +x fix_missing_deps.sh
+# From the project root make the script executable (if needed)
+chmod +x scripts/wheels/fix_missing_deps.sh
 
 # Run the fix script
-./fix_missing_deps.sh
+./scripts/wheels/fix_missing_deps.sh
 ```
 
 ## Development Dependencies
@@ -62,12 +56,9 @@ pip install --no-index --find-links=wheels/py312-linux-x64 -e ".[dev]"
 To verify that all required wheels are present:
 
 ```bash
-# Navigate to the wheels directory
-cd wheels/py312-linux-x64
-
-# Make the script executable (if needed)
-chmod +x verify_wheels.sh
+# From the project root make the script executable (if needed)
+chmod +x scripts/wheels/verify_wheels.sh
 
 # Run the verification script
-./verify_wheels.sh
+./scripts/wheels/verify_wheels.sh
 ```
