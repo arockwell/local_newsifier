@@ -37,46 +37,82 @@ For details on the architecture and testing strategies see:
 
 ## Setup
 
+### Prerequisites
+
 1. Install Poetry (package manager):
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Install dependencies from the local wheels directory (required before running tests):
+2. Ensure Python 3.10-3.12 is installed (Python 3.12 recommended)
+
+### Quick Start
+
+Complete installation in one command:
 ```bash
-make setup-poetry-offline
+make install
 ```
-If you have internet access you can simply run `make setup-poetry` instead.
 
-If your environment lacks internet access, generate the wheels directory on a
-connected machine first:
+This will:
+- Set up Poetry environment
+- Install all dependencies
+- Download spaCy language models
+- Initialize the database
+- Run database migrations
 
+### Alternative Installation Methods
+
+#### Offline Installation
+
+For environments without internet access:
+
+1. First, build wheels on a connected machine:
 ```bash
 make build-wheels
 ```
 
-Copy the resulting `wheels/` directory and install from it locally:
+2. Copy the `wheels/` directory to your offline environment
 
+3. Run offline installation:
 ```bash
-make setup-poetry-offline
+make install-offline
 ```
 
-### Offline wheels directory
+#### Development Installation
 
-The `wheels/` directory stores pre-built wheels for all runtime and development packages. Running `make setup-poetry-offline` installs these packages without contacting PyPI. `make test` expects these dependencies to be present before execution.
-
-If you are missing wheels for the development tools, generate them with:
-
+For development with extra dependencies:
 ```bash
-./scripts/build_dev_wheels.sh
+make install-dev
 ```
 
-3. Download spaCy model:
+### Manual Setup Steps
+
+If you prefer manual setup or need to customize:
+
+1. Install dependencies:
 ```bash
+poetry install
+```
+
+2. Download spaCy models:
+```bash
+poetry run python -m spacy download en_core_web_sm
 poetry run python -m spacy download en_core_web_lg
 ```
 
-4. (Optional) Set up Apify Token:
+3. Initialize database:
+```bash
+poetry run python scripts/init_cursor_db.py
+```
+
+4. Run migrations:
+```bash
+poetry run alembic upgrade head
+```
+
+### Configuration
+
+#### Apify Token (Optional)
 ```bash
 # Create .env file with your Apify token
 echo "APIFY_TOKEN=your_token_here" > .env
@@ -84,7 +120,10 @@ echo "APIFY_TOKEN=your_token_here" > .env
 
 Note: While an Apify token is required for production use, the test suite can run without it. See [docs/testing_apify.md](docs/testing_apify.md) for more details.
 
-- For a complete offline setup guide, see [docs/python_setup.md](docs/python_setup.md).
+### Additional Resources
+
+- For detailed offline setup: [docs/python_setup.md](docs/python_setup.md)
+- For testing guide: [docs/testing_guide.md](docs/testing_guide.md)
 
 ## Usage
 
@@ -165,17 +204,20 @@ Test results and coverage reports are available in GitHub Actions:
 
 Basic test execution:
 ```bash
-poetry run pytest
+make test              # Run tests in parallel (recommended)
+make test-serial       # Run tests serially (for debugging)
 ```
 
 With coverage:
 ```bash
-poetry run pytest --cov=src/local_newsifier
+make test-coverage     # Run tests with coverage report
 ```
 
-With detailed test output:
+Manual test execution:
 ```bash
-poetry run pytest -v --durations=0
+poetry run pytest                                # Basic execution
+poetry run pytest --cov=src/local_newsifier      # With coverage
+poetry run pytest -v --durations=0               # With detailed output
 ```
 
 ### Test Structure
