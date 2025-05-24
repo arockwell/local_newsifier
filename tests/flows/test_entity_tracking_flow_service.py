@@ -12,7 +12,7 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlowBase
 from local_newsifier.models.state import EntityTrackingState, TrackingStatus
 from local_newsifier.services.entity_service import EntityService
 from tests.ci_skip_config import ci_skip
@@ -73,7 +73,7 @@ def test_entity_tracking_flow_uses_service(
     )
 
     # Create flow with mock service and dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -122,7 +122,7 @@ def test_entity_tracking_flow_creates_default_service(
     mock_tracker_class.return_value = mock_tracker
     
     # Create flow without providing a service
-    flow = EntityTrackingFlow()
+    flow = EntityTrackingFlowBase()
     
     # Verify the service and tools were created
     mock_service_class.assert_called_once()
@@ -180,7 +180,7 @@ def test_entity_tracking_flow_handles_errors(
     )
     
     # Create flow with mock service and dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,

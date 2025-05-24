@@ -11,7 +11,7 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlowBase
 from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
                                           EntityRelationshipState, EntityTrackingState,
                                           TrackingStatus)
@@ -49,7 +49,7 @@ def test_entity_tracking_flow_init(
     mock_resolver_class.return_value = mock_resolver
     
     # Initialize flow
-    flow = EntityTrackingFlow()
+    flow = EntityTrackingFlowBase()
     
     # Verify service and tools were created
     assert flow.entity_service is not None
@@ -76,7 +76,7 @@ def test_entity_tracking_flow_init_with_dependencies(mock_tracker_class, mock_re
     mock_session = Mock()
     
     # Initialize flow with mock dependencies
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -123,7 +123,7 @@ def test_process_method(mock_tracker_class, mock_resolver_class, mock_context_an
     mock_resolver_class.return_value = mock_resolver
 
     # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -159,7 +159,7 @@ def test_process_new_articles_method(mock_tracker_class, mock_resolver_class, mo
     mock_entity_service.process_articles_batch.return_value = mock_result_state
     
     # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -218,7 +218,7 @@ def test_process_article_method(mock_tracker_class, mock_resolver_class, mock_co
     mock_entity_service.process_article_with_state.return_value = mock_result_state
     
     # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -263,7 +263,7 @@ def test_get_entity_dashboard_method(mock_tracker_class, mock_resolver_class, mo
     mock_entity_service.generate_entity_dashboard.return_value = mock_result_state
     
     # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,
@@ -306,7 +306,7 @@ def test_find_entity_relationships_method(mock_tracker_class, mock_resolver_clas
     mock_entity_service.find_entity_relationships.return_value = mock_result_state
     
     # Initialize flow with mock dependencies to avoid loading spaCy models
-    flow = EntityTrackingFlow(
+    flow = EntityTrackingFlowBase(
         entity_service=mock_entity_service,
         entity_tracker=mock_entity_tracker,
         entity_extractor=mock_entity_extractor,

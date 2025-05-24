@@ -12,7 +12,7 @@ patch('textblob.TextBlob', MagicMock(return_value=MagicMock(
 ))).start()
 patch('spacy.language.Language', MagicMock()).start()
 
-from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlowBase
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
@@ -36,8 +36,8 @@ def test_entity_tracking_flow_init_basic(
     mock_entity_service_class.return_value = mock_service
     
     # Test with session and without session
-    flow1 = EntityTrackingFlow()
-    flow2 = EntityTrackingFlow(session=MagicMock())
+    flow1 = EntityTrackingFlowBase()
+    flow2 = EntityTrackingFlowBase(session=MagicMock())
     
     assert flow1._entity_tracker is not None
     assert flow2._entity_tracker is not None
@@ -66,7 +66,7 @@ def test_process_article_basic(mock_article_crud):
     mock_entity_service.session_factory.return_value = mock_context_manager
     
     # Test process_article
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    flow = EntityTrackingFlowBase(entity_service=mock_entity_service)
     result = flow.process_article(article_id=1)
     
     # Basic assertions
@@ -91,7 +91,7 @@ def test_get_entity_dashboard_basic():
     mock_entity_service.generate_entity_dashboard.return_value = mock_result_state
     
     # Test get_entity_dashboard
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    flow = EntityTrackingFlowBase(entity_service=mock_entity_service)
     result = flow.get_entity_dashboard(entity_type="PERSON", days=30)
     
     # Basic assertions
@@ -110,7 +110,7 @@ def test_process_new_articles_basic():
     mock_entity_service.process_articles_batch.return_value = mock_result_state
     
     # Test process_new_articles
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    flow = EntityTrackingFlowBase(entity_service=mock_entity_service)
     result = flow.process_new_articles()
     
     # Basic assertions
@@ -140,7 +140,7 @@ def test_find_entity_relationships_basic():
     mock_entity_service.find_entity_relationships.return_value = mock_result_state
     
     # Test find_entity_relationships
-    flow = EntityTrackingFlow(entity_service=mock_entity_service)
+    flow = EntityTrackingFlowBase(entity_service=mock_entity_service)
     result = flow.find_entity_relationships(entity_id=1, days=30)
     
     # Basic assertions

@@ -18,9 +18,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article as article_crud
+from local_newsifier.di import providers
 from local_newsifier.models.sentiment import SentimentVisualizationData
 from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
 from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
@@ -29,8 +32,8 @@ from local_newsifier.tools.sentiment_tracker import SentimentTracker
 logger = logging.getLogger(__name__)
 
 
-class PublicOpinionFlow(Flow):
-    """Flow for analyzing public opinion and sentiment in news articles."""
+class PublicOpinionFlowBase(Flow):
+    """Base flow for analyzing public opinion and sentiment in news articles."""
 
     def __init__(
         self,
@@ -424,4 +427,23 @@ class PublicOpinionFlow(Flow):
         except Exception as e:
             logger.error(f"Error generating comparison report: {str(e)}")
             return f"Error generating comparison report: {str(e)}"
+
+
+@injectable(use_cache=False)
+class PublicOpinionFlow(PublicOpinionFlowBase):
+    """Injectable public opinion flow."""
+
+    def __init__(
+        self,
+        session: Annotated[Session, Depends(providers.get_session)],
+        sentiment_analyzer: Annotated[SentimentAnalyzer, Depends(providers.get_sentiment_analyzer_tool)],
+        sentiment_tracker: Annotated[SentimentTracker, Depends(providers.get_sentiment_tracker_tool)],
+        opinion_visualizer: Annotated[OpinionVisualizerTool, Depends(providers.get_opinion_visualizer_tool)],
+    ) -> None:
+        super().__init__(
+            session=session,
+            sentiment_analyzer=sentiment_analyzer,
+            sentiment_tracker=sentiment_tracker,
+            opinion_visualizer=opinion_visualizer,
+        )
             

@@ -18,15 +18,18 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from crewai import Flow
+from fastapi import Depends
+from fastapi_injectable import injectable
 from sqlmodel import Session
 
+from local_newsifier.di import providers
 from local_newsifier.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
 
 
-class HeadlineTrendFlow(Flow):
-    """Flow for analyzing trends in article headlines over time."""
+class HeadlineTrendFlowBase(Flow):
+    """Base flow for analyzing trends in article headlines over time."""
 
     def __init__(
         self,
@@ -206,4 +209,16 @@ class HeadlineTrendFlow(Flow):
 
         report += "</body></html>"
         return report
+
+
+@injectable(use_cache=False)
+class HeadlineTrendFlow(HeadlineTrendFlowBase):
+    """Injectable headline trend flow."""
+
+    def __init__(
+        self,
+        session: Annotated[Session, Depends(providers.get_session)],
+        analysis_service: Annotated[AnalysisService, Depends(providers.get_analysis_service)],
+    ) -> None:
+        super().__init__(session=session, analysis_service=analysis_service)
         

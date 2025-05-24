@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pytest_mock import MockFixture
 
-from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
+from local_newsifier.flows.public_opinion_flow import PublicOpinionFlowBase
 from local_newsifier.models.sentiment import SentimentVisualizationData
 from tests.ci_skip_config import ci_skip
 from tests.fixtures.event_loop import event_loop_fixture
@@ -34,7 +34,7 @@ class TestPublicOpinionFlow:
             mock_visualizer.return_value = MagicMock()
             
             # Create flow with the session
-            flow = PublicOpinionFlow(session=mock_session)
+            flow = PublicOpinionFlowBase(session=mock_session)
             
             # Replace the automatically created tools with our mocks
             flow.sentiment_analyzer = mock_analyzer.return_value
@@ -51,7 +51,7 @@ class TestPublicOpinionFlow:
              patch('local_newsifier.flows.public_opinion_flow.SentimentTracker'), \
              patch('local_newsifier.flows.public_opinion_flow.OpinionVisualizerTool'):
 
-            flow = PublicOpinionFlow(session=mock_session)
+            flow = PublicOpinionFlowBase(session=mock_session)
 
             assert flow.session is mock_session
 

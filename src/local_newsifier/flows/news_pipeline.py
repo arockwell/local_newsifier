@@ -25,8 +25,14 @@ from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 from local_newsifier.tools.web_scraper import WebScraperTool
 
 
-class NewsPipelineFlow(Flow):
-    """Flow for processing news articles with NER analysis."""
+from fastapi import Depends
+from fastapi_injectable import injectable
+
+from local_newsifier.di import providers
+
+
+class NewsPipelineFlowBase(Flow):
+    """Base flow for processing news articles with NER analysis."""
 
     def __init__(
         self, 
@@ -263,4 +269,34 @@ class NewsPipelineFlow(Flow):
             Dictionary with processing results
         """
         return self.pipeline_service.process_url(url)
+
+
+@injectable(use_cache=False)
+class NewsPipelineFlow(NewsPipelineFlowBase):
+    """Injectable news pipeline flow."""
+
+    def __init__(
+        self,
+        article_service: Annotated[ArticleService, Depends(providers.get_article_service)],
+        entity_service: Annotated[EntityService, Depends(providers.get_entity_service)],
+        pipeline_service: Annotated[NewsPipelineService, Depends(providers.get_news_pipeline_service)],
+        web_scraper: Annotated[WebScraperTool, Depends(providers.get_web_scraper_tool)],
+        file_writer: Annotated[FileWriterTool, Depends(providers.get_file_writer_tool)],
+        entity_extractor: Annotated[EntityExtractor, Depends(providers.get_entity_extractor_tool)],
+        context_analyzer: Annotated[ContextAnalyzer, Depends(providers.get_context_analyzer_tool)],
+        entity_resolver: Annotated[EntityResolver, Depends(providers.get_entity_resolver_tool)],
+        session: Annotated[Session, Depends(providers.get_session)],
+    ) -> None:
+        super().__init__(
+            article_service=article_service,
+            entity_service=entity_service,
+            pipeline_service=pipeline_service,
+            web_scraper=web_scraper,
+            file_writer=file_writer,
+            entity_extractor=entity_extractor,
+            context_analyzer=context_analyzer,
+            entity_resolver=entity_resolver,
+            session_factory=lambda: session,
+            session=session,
+        )
     

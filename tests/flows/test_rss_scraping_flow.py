@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
+from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlowBase
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.rss_parser import RSSItem
 from tests.fixtures.event_loop import event_loop_fixture
@@ -58,7 +58,7 @@ class TestRSSScrapingFlow:
         self.mock_parser = mock_rss_parser.return_value
         self.mock_scraper = mock_web_scraper.return_value
         # Create the flow with our mocked dependencies
-        self.flow = RSSScrapingFlow(
+        self.flow = RSSScrapingFlowBase(
             session_factory=mock_session_factory,
             rss_parser=self.mock_parser,
             web_scraper=self.mock_scraper
@@ -79,7 +79,7 @@ class TestRSSScrapingFlow:
             mock_scraper = Mock()
             mock_web_scraper.return_value = mock_scraper
 
-            flow = RSSScrapingFlow(cache_dir=str(tmp_path), session_factory=mock_session_factory)
+            flow = RSSScrapingFlowBase(cache_dir=str(tmp_path), session_factory=mock_session_factory)
 
             # Verify basic properties
             assert flow.cache_dir == tmp_path
@@ -97,7 +97,7 @@ class TestRSSScrapingFlow:
         mock_session_factory = lambda: Mock()
 
         # Create flow with all dependencies provided
-        flow = RSSScrapingFlow(
+        flow = RSSScrapingFlowBase(
             rss_feed_service=mock_rss_feed_service,
             article_service=mock_article_service,
             rss_parser=parser_instance,

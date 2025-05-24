@@ -26,7 +26,7 @@ def test_news_pipeline_with_entity_service(
 ):
     """Test that the news pipeline works with the entity service."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase
     from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -59,7 +59,7 @@ def test_news_pipeline_with_entity_service(
     mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow(
+    pipeline = NewsPipelineFlowBase(
         web_scraper=mock_scraper,
         file_writer=mock_writer,
         entity_extractor=mock_entity_extractor,
@@ -183,7 +183,7 @@ def test_process_url_directly(
 ):
     """Test processing a URL directly using the pipeline service."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
@@ -215,7 +215,7 @@ def test_process_url_directly(
     mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow(
+    pipeline = NewsPipelineFlowBase(
         web_scraper=mock_scraper,
         file_writer=mock_writer,
         entity_extractor=mock_entity_extractor,
@@ -280,7 +280,7 @@ def test_integration_with_entity_tracking(
 ):
     """Test integration with entity tracking components."""
     # Arrange
-    from local_newsifier.flows.news_pipeline import NewsPipelineFlow
+    from local_newsifier.flows.news_pipeline import NewsPipelineFlowBase
     from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.news_pipeline_service import NewsPipelineService
@@ -313,7 +313,7 @@ def test_integration_with_entity_tracking(
     mock_resolver_class.return_value = mock_resolver
     
     # Create pipeline with mocked dependencies
-    pipeline = NewsPipelineFlow(
+    pipeline = NewsPipelineFlowBase(
         web_scraper=mock_scraper,
         file_writer=mock_writer,
         entity_extractor=mock_entity_extractor,

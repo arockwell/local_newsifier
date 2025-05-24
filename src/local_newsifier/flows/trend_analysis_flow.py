@@ -65,8 +65,14 @@ class TrendAnalysisState:
         self.add_log(f"ERROR: {error_message}")
 
 
-class NewsTrendAnalysisFlow(Flow):
-    """Flow for detecting and analyzing trends in local news coverage."""
+from fastapi import Depends
+from fastapi_injectable import injectable
+
+from local_newsifier.di import providers
+
+
+class NewsTrendAnalysisFlowBase(Flow):
+    """Base flow for detecting and analyzing trends in local news coverage."""
 
     def __init__(
         self,
@@ -183,6 +189,23 @@ class NewsTrendAnalysisFlow(Flow):
             state.set_error(f"Error during article retrieval: {str(e)}")
 
         return state
+
+
+@injectable(use_cache=False)
+class NewsTrendAnalysisFlow(NewsTrendAnalysisFlowBase):
+    """Injectable trend analysis flow."""
+
+    def __init__(
+        self,
+        analysis_service: Annotated[AnalysisService, Depends(providers.get_analysis_service)],
+        trend_reporter: Annotated[TrendReporter, Depends(providers.get_trend_reporter_tool)],
+        session: Annotated[Session, Depends(providers.get_session)],
+    ) -> None:
+        super().__init__(
+            analysis_service=analysis_service,
+            trend_reporter=trend_reporter,
+            session=session,
+        )
 
     def detect_trends(self, state: TrendAnalysisState) -> TrendAnalysisState:
         """
