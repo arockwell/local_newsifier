@@ -3,21 +3,20 @@
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi_injectable import register_app
-from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models
-from local_newsifier.api.dependencies import get_templates
+from local_newsifier.api.dependencies import get_templates, get_article_service
 from local_newsifier.api.routers import auth, system, tasks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
+from local_newsifier.services.article_service import ArticleService
 
 # Configure logging
 logging.basicConfig(
@@ -76,46 +75,15 @@ app.include_router(tasks.router)
 @app.get("/", response_class=HTMLResponse)
 async def root(
     request: Request,
-    templates: Jinja2Templates = Depends(get_templates)
+    templates: Jinja2Templates = Depends(get_templates),
+    article_service: ArticleService = Depends(get_article_service)
 ):
     """Root endpoint serving home page with recent headlines."""
-    # Get recent articles from the last 30 days
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=30)
-    
-    recent_articles_data = []
     try:
-        # Use a synchronous session to avoid event loop issues
-        from local_newsifier.crud.article import article as article_crud_instance
-        from local_newsifier.database.engine import SessionManager
-        
-        with SessionManager() as session:
-            articles = article_crud_instance.get_by_date_range(
-                session, 
-                start_date=start_date, 
-                end_date=end_date
-            )
-            
-            # Order by published date (newest first) and limit to 20 articles
-            articles = sorted(
-                articles, 
-                key=lambda x: x.published_at, 
-                reverse=True
-            )[:20]
-            
-            # Convert SQLModel objects to dictionaries to avoid detached instance errors
-            for article in articles:
-                article_dict = {
-                    "id": article.id,
-                    "title": article.title,
-                    "url": article.url,
-                    "source": article.source,
-                    "published_at": article.published_at,
-                    "status": article.status
-                }
-                recent_articles_data.append(article_dict)
+        recent_articles_data = article_service.get_recent_articles()
     except Exception as e:
         logger.error(f"Error fetching recent articles: {str(e)}")
+        recent_articles_data = []
     
     return templates.TemplateResponse(
         "index.html",
