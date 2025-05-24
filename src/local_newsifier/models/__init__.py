@@ -17,6 +17,8 @@ from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMenti
                                                     EntityRelationship)
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.models.sentiment import OpinionTrend, SentimentAnalysis, SentimentShift
+from local_newsifier.models.webhook import (ApifyDatasetTransformationConfig, ApifyWebhookPayload,
+                                            ApifyWebhookResponse)
 
 # Export only the class names, not the actual classes
 __all__ = [
@@ -39,8 +41,12 @@ __all__ = [
     "SentimentShift",
     # Apify models
     "ApifySourceConfig",
-    "ApifyJob", 
+    "ApifyJob",
     "ApifyDatasetItem",
     "ApifyCredentials",
     "ApifyWebhook",
+    # Webhook models
+    "ApifyWebhookPayload",
+    "ApifyWebhookResponse",
+    "ApifyDatasetTransformationConfig",
 ]
