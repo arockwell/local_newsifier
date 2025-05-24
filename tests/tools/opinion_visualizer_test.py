@@ -369,3 +369,23 @@ class TestOpinionVisualizerTool:
         # HTML report should handle empty data
         html_report = visualizer.generate_html_report(empty_comparison, "comparison")
         assert "<p>No sentiment data available for comparison</p>" in html_report
+
+    def test_timeline_summary_helper(self, visualizer, sample_data, event_loop_fixture):
+        """Ensure _timeline_summary computes correct values."""
+        summary = visualizer._timeline_summary(sample_data)
+
+        assert summary["avg_sentiment"] == pytest.approx(-0.2)
+        assert summary["min_sentiment"] == -0.5
+        assert summary["max_sentiment"] == 0.2
+        assert summary["total_articles"] == 15
+        assert summary["viz_metadata"]["interval"] == "day"
+
+    def test_comparison_summary_helper(self, visualizer, comparison_data, event_loop_fixture):
+        """Ensure _comparison_summary aggregates topic stats correctly."""
+        stats, metadata = visualizer._comparison_summary(comparison_data)
+
+        assert metadata["start_date"] == "2023-05-01"
+        assert stats["climate change"]["avg_sentiment"] == pytest.approx(-0.2)
+        assert stats["climate change"]["total_articles"] == 15
+        assert stats["renewable energy"]["avg_sentiment"] == pytest.approx(0.5)
+        assert stats["renewable energy"]["total_articles"] == 12
