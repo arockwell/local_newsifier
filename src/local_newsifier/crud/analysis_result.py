@@ -6,14 +6,14 @@ from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.analysis_result import AnalysisResult
+from local_newsifier.monitoring.decorators import monitor_db_query
 
 
 class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
     """CRUD operations for analysis results."""
 
-    def get_by_article(
-        self, db: Session, *, article_id: int
-    ) -> List[AnalysisResult]:
+    @monitor_db_query(operation="select", table="analysis_results")
+    def get_by_article(self, db: Session, *, article_id: int) -> List[AnalysisResult]:
         """Get all analysis results for an article.
 
         Args:
@@ -23,11 +23,12 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
         Returns:
             List of analysis results for the article
         """
-        results = db.execute(select(AnalysisResult).where(
-            AnalysisResult.article_id == article_id
-        )).all()
+        results = db.execute(
+            select(AnalysisResult).where(AnalysisResult.article_id == article_id)
+        ).all()
         return [row[0] for row in results]
 
+    @monitor_db_query(operation="select", table="analysis_results")
     def get_by_article_and_type(
         self, db: Session, *, article_id: int, analysis_type: str
     ) -> Optional[AnalysisResult]:
@@ -41,10 +42,12 @@ class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
         Returns:
             Analysis result if found, None otherwise
         """
-        result = db.execute(select(AnalysisResult).where(
-            AnalysisResult.article_id == article_id,
-            AnalysisResult.analysis_type == analysis_type
-        )).first()
+        result = db.execute(
+            select(AnalysisResult).where(
+                AnalysisResult.article_id == article_id,
+                AnalysisResult.analysis_type == analysis_type,
+            )
+        ).first()
         return result[0] if result else None
 
 

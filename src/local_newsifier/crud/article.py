@@ -7,11 +7,13 @@ from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.article import Article
+from local_newsifier.monitoring.decorators import monitor_db_query
 
 
 class CRUDArticle(CRUDBase[Article]):
     """CRUD operations for articles."""
 
+    @monitor_db_query(operation="select", table="articles")
     def get_by_url(self, db: Session, *, url: str) -> Optional[Article]:
         """Get an article by URL.
 
@@ -26,9 +28,8 @@ class CRUDArticle(CRUDBase[Article]):
         results = db.exec(statement)
         return results.first()
 
-    def create(
-        self, db: Session, *, obj_in: Union[Dict[str, Any], Article]
-    ) -> Article:
+    @monitor_db_query(operation="insert", table="articles")
+    def create(self, db: Session, *, obj_in: Union[Dict[str, Any], Article]) -> Article:
         """Create a new article.
 
         Args:
@@ -43,7 +44,7 @@ class CRUDArticle(CRUDBase[Article]):
             article_data = obj_in
         else:
             article_data = obj_in.model_dump(exclude_unset=True)
-            
+
         # Add scraped_at if not provided
         if "scraped_at" not in article_data or article_data["scraped_at"] is None:
             article_data["scraped_at"] = datetime.now(timezone.utc)
@@ -54,9 +55,8 @@ class CRUDArticle(CRUDBase[Article]):
         db.refresh(db_article)
         return db_article
 
-    def update_status(
-        self, db: Session, *, article_id: int, status: str
-    ) -> Optional[Article]:
+    @monitor_db_query(operation="update", table="articles")
+    def update_status(self, db: Session, *, article_id: int, status: str) -> Optional[Article]:
         """Update an article's status.
 
         Args:
@@ -68,7 +68,7 @@ class CRUDArticle(CRUDBase[Article]):
             Updated article if found, None otherwise
         """
         db_article = db.exec(select(Article).where(Article.id == article_id)).first()
-        
+
         if db_article:
             db_article.status = status
             db.add(db_article)
@@ -77,6 +77,7 @@ class CRUDArticle(CRUDBase[Article]):
             return db_article
         return None
 
+    @monitor_db_query(operation="select", table="articles")
     def get_by_status(self, db: Session, *, status: str) -> List[Article]:
         """Get all articles with a specific status.
 
@@ -88,14 +89,10 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles with the specified status
         """
         return db.exec(select(Article).where(Article.status == status)).all()
-        
+
+    @monitor_db_query(operation="select", table="articles")
     def get_by_date_range(
-        self, 
-        db: Session, 
-        *, 
-        start_date: datetime, 
-        end_date: datetime,
-        source: Optional[str] = None
+        self, db: Session, *, start_date: datetime, end_date: datetime, source: Optional[str] = None
     ) -> List[Article]:
         """Get articles within a date range.
 
@@ -109,17 +106,16 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles within the date range
         """
         query = select(Article).where(
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
+            Article.published_at >= start_date, Article.published_at <= end_date
         )
-        
+
         # Add source filter if provided
         if source:
             query = query.where(Article.source == source)
-            
+
         # Order by published date
         query = query.order_by(Article.published_at)
-        
+
         return db.exec(query).all()
 
 

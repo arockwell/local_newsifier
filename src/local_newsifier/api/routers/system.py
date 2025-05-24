@@ -1,8 +1,7 @@
 """System information router for database tables."""
 
 import logging
-import os
-from typing import Annotated, Dict, List
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -10,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, text
 
 from local_newsifier.api.dependencies import get_session, get_templates, require_admin
+from local_newsifier.monitoring.dashboard import MetricsDashboard
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,9 +50,7 @@ async def get_tables(
                 "tables_info": [],
                 "title": "Database Tables - Minimal Mode",
                 "minimal_mode": True,
-                "message": (
-                    "Running in minimal mode - database features are disabled."
-                ),
+                "message": ("Running in minimal mode - database features are disabled."),
             },
         )
 
@@ -99,9 +97,7 @@ async def get_tables_api(
             content=[
                 {
                     "name": "minimal_mode",
-                    "message": (
-                        "Running in minimal mode - database features are disabled"
-                    ),
+                    "message": ("Running in minimal mode - database features are disabled"),
                 }
             ]
         )
@@ -268,12 +264,7 @@ async def get_table_details_api(
         logger.error(f"Error in table details API: {str(e)}")
         # Include row_count and other expected fields in error response
         return JSONResponse(
-            content={
-                "table_name": table_name,
-                "error": str(e),
-                "row_count": 0,
-                "columns": []
-            }
+            content={"table_name": table_name, "error": str(e), "row_count": 0, "columns": []}
         )
 
 
@@ -315,7 +306,7 @@ def get_tables_info(session: Session) -> List[Dict]:
         # Get row count
         count_query = text(f"SELECT COUNT(*) FROM {table_name}")
         row_count = session.exec(count_query).one()
-        
+
         # Convert row_count to int if it's a SQLAlchemy Row object
         if hasattr(row_count, "__iter__"):
             row_count = row_count[0]
@@ -348,3 +339,57 @@ def format_size(size_bytes: int) -> str:
         if size_bytes < 1024 or unit == "TB":
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
+
+
+@router.get("/metrics/dashboard", response_class=HTMLResponse)
+async def metrics_dashboard(
+    request: Request,
+    _: bool = Depends(require_admin),
+    templates: Jinja2Templates = Depends(get_templates),
+):
+    """Display metrics dashboard.
+
+    Args:
+        request: FastAPI request
+        templates: Jinja2 templates
+
+    Returns:
+        HTML response with metrics dashboard
+    """
+    dashboard = MetricsDashboard()
+    metrics_summary = dashboard.get_metrics_summary()
+
+    return templates.TemplateResponse(
+        "metrics_dashboard.html",
+        {
+            "request": request,
+            "title": "Performance Metrics Dashboard",
+            "metrics": metrics_summary,
+        },
+    )
+
+
+@router.get("/metrics/api")
+async def get_metrics_api(
+    _: bool = Depends(require_admin),
+):
+    """Get metrics summary (API version).
+
+    Returns:
+        JSON with metrics summary
+    """
+    dashboard = MetricsDashboard()
+    return JSONResponse(content=dashboard.get_metrics_summary())
+
+
+@router.get("/metrics/baseline")
+async def get_performance_baseline(
+    _: bool = Depends(require_admin),
+):
+    """Get performance baseline metrics.
+
+    Returns:
+        JSON with performance baseline
+    """
+    dashboard = MetricsDashboard()
+    return JSONResponse(content=dashboard.get_performance_baseline())
