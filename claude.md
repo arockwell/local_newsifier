@@ -15,11 +15,14 @@ This project requires Python 3.10-3.12, with Python 3.12 recommended to match CI
 
 ### Setup
 ```bash
-# Install dependencies with Poetry
-make setup-poetry
+# Complete installation (Poetry, dependencies, spaCy models, database)
+make install
 
-# Install spaCy models
-make setup-spacy
+# For offline installation (requires pre-built wheels)
+make install-offline
+
+# For development setup with extra dependencies
+make install-dev
 ```
 
 See `docs/python_setup.md` for more details.
@@ -50,9 +53,34 @@ See `docs/python_setup.md` for more details.
 - `python scripts/demo_sentiment_analysis.py`: Run sentiment analysis demo
 
 ### Development Commands
-- `poetry run pytest`: Run all tests
-- `poetry run pytest --cov=src/local_newsifier`: Run tests with coverage
-- `poetry run python -m spacy download en_core_web_lg`: Download required spaCy model
+```bash
+# Testing
+make test              # Run tests in parallel
+make test-serial       # Run tests serially (for debugging)
+make test-coverage     # Run tests with coverage report
+
+# Code quality
+make lint              # Run linting (flake8 + mypy)
+make format            # Auto-format code (isort + black)
+
+# Running services
+make run-api           # Run FastAPI server
+make run-worker        # Run Celery worker
+make run-beat          # Run Celery beat scheduler
+make run-all           # Run all services (API, worker, beat)
+
+# Database management
+make db-init           # Initialize cursor-specific database
+make db-reset          # Reset database (WARNING: deletes data)
+make db-stats          # Show database statistics
+
+# Cleanup
+make clean             # Remove build artifacts
+
+# Offline support
+make build-wheels      # Build wheels for current platform
+make build-wheels-linux # Build Linux wheels using Docker
+```
 
 ## Architecture
 
@@ -313,4 +341,3 @@ def test_problematic_in_ci(event_loop_fixture):
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.
-
