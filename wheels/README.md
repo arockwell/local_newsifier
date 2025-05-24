@@ -49,15 +49,14 @@ Wheels are both platform-specific and Python version-specific. Each subdirectory
 If you need to update the wheel files (e.g., when project dependencies change):
 
 ```bash
-# For the current Python version on the current platform
-./scripts/build_wheels.sh
+# Use the Makefile command for the current platform
+make build-wheels
 
-# For a specific Python version on the current platform
-./scripts/build_wheels.sh python3.12
-./scripts/build_wheels.sh python3.13
+# For Linux wheels (requires Docker)
+make build-wheels-linux
 ```
 
-This will download all required wheels for the specified Python version with their dependencies to the appropriate platform-specific directory.
+This will download all required wheels for Python 3.12 with their dependencies to the appropriate platform-specific directory. The Makefile automatically detects your platform and Python version.
 
 ### Cross-Platform Support
 
@@ -66,13 +65,13 @@ To fully support offline installation across multiple platforms:
 1. Build wheels on each target platform:
    ```bash
    # On macOS with arm64 (M1/M2)
-   ./scripts/build_wheels.sh python3.12
-   
+   make build-wheels
+
    # On Linux with x86_64 (using Docker)
-   ./scripts/build_linux_wheels.sh 3.12
-   
-   # On Windows
-   ./scripts/build_wheels.sh python3.12
+   make build-wheels-linux
+
+   # On Windows (not yet implemented in Makefile)
+   # Use the script directly: ./scripts/build_wheels.sh python3.12
    ```
 
 2. Commit all platform-specific wheel directories to the repository.
@@ -82,8 +81,8 @@ To fully support offline installation across multiple platforms:
 After building wheels, make sure to commit them to the repository:
 
 ```bash
-# Organize any wheels at the root level into version and platform directories
-make organize-wheels
+# Test the wheels first
+make test-wheels
 
 # Add all wheels to git
 git add wheels/py*/
@@ -113,26 +112,26 @@ It could mean either:
 1. Check for platform-specific wheel directory first:
    ```bash
    # Example: For Python 3.12 on Linux x64
-   ls -la wheels/py312-linux-x64/
+   eza -la wheels/py312-linux-x64/  # or use 'ls -la' if eza not available
    ```
 
 2. If missing, fall back to version-specific directory:
    ```bash
-   ls -la wheels/py312/
+   eza -la wheels/py312/  # or use 'ls -la' if eza not available
    ```
 
 3. If still missing, generate wheels for your specific Python version and platform:
    ```bash
    # For local platform
-   ./scripts/build_wheels.sh python3.12
-   
+   make build-wheels
+
    # For Linux using Docker
-   ./scripts/build_linux_wheels.sh 3.12
+   make build-wheels-linux
    ```
 
-4. Organize the wheels and commit them for other users:
+4. Test and commit the wheels for other users:
    ```bash
-   make organize-wheels
+   make test-wheels
    git add wheels/py*/
    git commit -m "Add Python 3.12 wheels for Linux x64"
    ```

@@ -5,8 +5,8 @@ This document explains how to effectively run and optimize tests in the Local Ne
 Before running tests, install dependencies and spaCy models using:
 
 ```bash
-make setup-poetry-offline
-make setup-spacy
+# Complete setup including spaCy models
+make install
 ```
 
 See [Python Setup](python_setup.md) for full environment preparation details.
