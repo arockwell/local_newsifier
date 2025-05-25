@@ -46,6 +46,12 @@ See `docs/python_setup.md` for more details.
 - `nf apify web-scraper <URL>`: Scrape websites using Apify's web-scraper
 - `nf apify run-actor <ACTOR_ID>`: Run an Apify actor
 
+### Webhook Testing Functions (Fish Shell)
+- `test_webhook`: Main webhook testing function with customizable parameters
+- `test_webhook_success`: Test successful actor run webhook
+- `test_webhook_failure`: Test failed actor run webhook
+- `test_webhook_batch`: Run multiple webhook test scenarios
+
 ### Standalone Scripts
 - `python scripts/run_pipeline.py --url <URL>`: Process a single article
 - `python scripts/demo_headline_trends.py --days 30 --interval day`: Analyze recent headlines
@@ -296,6 +302,12 @@ def test_component_success(mock_component):
   - CELERY_BROKER_URL (Redis URL for Celery broker)
   - CELERY_RESULT_BACKEND (Redis URL for Celery results)
   - APIFY_TOKEN (for Apify web scraping)
+  - APIFY_WEBHOOK_SECRET (optional, for webhook validation)
+
+### Webhook Configuration
+- The `/webhooks/apify` endpoint accepts Apify webhook notifications
+- Fish shell functions are available for easy webhook testing
+- See `docs/apify_webhook_testing.md` for comprehensive testing guide
 
 ## Known Issues & Gotchas
 - Environment variables must be properly managed in tests

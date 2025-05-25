@@ -147,6 +147,8 @@ You can set up Apify to call back to Local Newsifier when scraping jobs complete
 2. Set up the webhook in Apify to trigger when runs complete
 3. Local Newsifier will automatically process new data when notified
 
+For detailed webhook testing instructions, including Fish shell functions, HTTPie examples, and troubleshooting, see the [Apify Webhook Testing Guide](apify_webhook_testing.md).
+
 ## Common Troubleshooting
 
 ### Rate Limits
