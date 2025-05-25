@@ -1,5 +1,5 @@
 """
-Local Newsifier CLI - Main Entry Point
+Local Newsifier CLI - Main Entry Point.
 
 The `nf` command is the entry point for the Local Newsifier CLI.
 This module provides a foundation for managing RSS feeds and other local newsifier
@@ -9,7 +9,6 @@ operations from the command line.
 import sys
 
 import click
-from tabulate import tabulate
 
 
 @click.group()
@@ -17,7 +16,7 @@ from tabulate import tabulate
 def cli():
     """
     Local Newsifier CLI - A tool for managing local news data.
-    
+
     This CLI provides commands for managing RSS feeds, processing articles,
     and analyzing news data.
     """
@@ -42,9 +41,11 @@ if is_apify_command():
     # Only load the apify command if it's being used
     if sys.argv[1] == "apify":
         from local_newsifier.cli.commands.apify import apify_group
+
         cli.add_command(apify_group)
     elif sys.argv[1] == "apify-config":
         from local_newsifier.cli.commands.apify_config import apify_config_group
+
         cli.add_command(apify_config_group)
 else:
     # Load all other command groups
@@ -52,11 +53,13 @@ else:
     from local_newsifier.cli.commands.apify_config import apify_config_group
     from local_newsifier.cli.commands.db import db_group
     from local_newsifier.cli.commands.feeds import feeds_group
+    from local_newsifier.cli.commands.hello import hello_group
 
     cli.add_command(feeds_group)
     cli.add_command(db_group)
     cli.add_command(apify_group)
     cli.add_command(apify_config_group)
+    cli.add_command(hello_group)
 
 
 def main():
