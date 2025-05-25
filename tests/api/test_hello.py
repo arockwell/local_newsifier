@@ -1,4 +1,4 @@
-"""Tests for the SNAZZY V9 Hello World endpoints."""
+"""Tests for the MEGA ULTRA SUPREME V11 Hello World endpoints."""
 
 from unittest.mock import patch
 
@@ -24,18 +24,26 @@ def test_hello_world_json(client):
 
     data = response.json()
     assert "message" in data
-    assert "V9" in data["message"]
-    assert "SNAZZY" in data["message"]
-    assert data["version"] == "9.0.0-SNAZZY"
+    assert "V11" in data["message"]
+    assert "MEGA ULTRA SUPREME" in data["message"]
+    assert data["version"] == "11.0.0-MEGA-ULTRA-SUPREME"
     assert "timestamp" in data
     assert "theme" in data
     assert "greeting_language" in data
     assert "ascii_art" in data
     assert "fun_fact" in data
     assert "snazziness_level" in data
-    assert data["snazziness_level"] >= 9000
+    assert data["snazziness_level"] >= 11000
     assert "emojis" in data
-    assert len(data["emojis"]) == 3
+    assert len(data["emojis"]) == 4
+    assert "sound_effect" in data
+    assert "achievement_unlocked" in data
+    assert "power_level" in data
+    assert data["power_level"] == "OVER 9000!!!"
+    assert "v11_features" in data
+    assert data["v11_features"]["mega_mode"] == "ACTIVATED"
+    assert data["v11_features"]["ultra_boost"] == "ENGAGED"
+    assert data["v11_features"]["supreme_status"] == "ACHIEVED"
 
 
 def test_hello_world_web(client):
@@ -45,12 +53,14 @@ def test_hello_world_web(client):
     assert response.headers["content-type"] == "text/html; charset=utf-8"
 
     content = response.text
-    assert "HELLO WORLD V9" in content
-    assert "ULTRA SNAZZY" in content
+    assert "HELLO WORLD V11" in content
+    assert "MEGA ULTRA SUPREME" in content
     assert "Snazziness Meter" in content
     assert "Fun Fact:" in content
+    assert "V11 EXCLUSIVE FEATURES" in content
     assert "<style>" in content
     assert "animation" in content
+    assert "hueRotate" in content
 
 
 def test_get_all_languages(client):
@@ -61,9 +71,12 @@ def test_get_all_languages(client):
     data = response.json()
     assert "languages" in data
     assert isinstance(data["languages"], dict)
-    assert len(data["languages"]) > 10
+    assert len(data["languages"]) > 15  # V11 has more languages!
     assert "en" in data["languages"]
     assert data["languages"]["en"] == "Hello World"
+    assert "pirate" in data["languages"]
+    assert "alien" in data["languages"]
+    assert "dinosaur" in data["languages"]
     assert data["total"] == len(data["languages"])
     assert data["snazzy_factor"] == "MAXIMUM"
 
@@ -81,6 +94,11 @@ def test_get_emoji_themes(client):
     assert "nature" in data["themes"]
     assert "tech" in data["themes"]
     assert "food" in data["themes"]
+    assert "epic" in data["themes"]  # V11 new themes
+    assert "animals" in data["themes"]
+    assert "magical" in data["themes"]
+    assert "cosmic" in data["themes"]
+    assert "extreme" in data["themes"]
     assert data["total"] == len(data["themes"])
     assert "current_vibe" in data
 
@@ -93,7 +111,9 @@ def test_hello_world_specific_language(client):
     data = response.json()
     assert "Hello World" in data["message"]
     assert data["language"] == "en"
-    assert data["version"] == "9.0.0-SNAZZY"
+    assert data["version"] == "11.0.0-MEGA-ULTRA-SUPREME"
+    assert "sound_effect" in data
+    assert "v11_bonus" in data
 
     # Test Spanish
     response = client.get("/hello/es")
@@ -115,6 +135,19 @@ def test_hello_world_specific_language(client):
     data = response.json()
     assert "👋🌍" in data["message"]
     assert data["language"] == "emoji"
+
+    # Test V11 exclusive languages
+    response = client.get("/hello/pirate")
+    assert response.status_code == 200
+    data = response.json()
+    assert "Ahoy, World!" in data["message"]
+    assert data["language"] == "pirate"
+
+    response = client.get("/hello/dinosaur")
+    assert response.status_code == 200
+    data = response.json()
+    assert "RAWR WORLD!" in data["message"]
+    assert data["language"] == "dinosaur"
 
 
 def test_hello_world_unknown_language(client):
@@ -155,3 +188,21 @@ def test_random_elements(client):
     assert len(themes) >= 2
     assert len(greetings) >= 2
     assert len(snazziness_levels) >= 2
+
+
+def test_mega_ultra_supreme_endpoint(client):
+    """Test the V11 exclusive mega-ultra-supreme endpoint."""
+    response = client.get("/hello/mega-ultra-supreme")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "message" in data
+    assert data["version"] == "11.0.0-MEGA-ULTRA-SUPREME-MAXIMUM-OVERDRIVE"
+    assert "mega_features" in data
+    assert data["mega_features"]["power_level"] == "∞"
+    assert data["mega_features"]["snazziness"] == "MAXIMUM OVERDRIVE"
+    assert data["mega_features"]["special_message"] == "YOU HAVE ACHIEVED PEAK HELLO WORLD!"
+    assert "ascii_art" in data
+    assert len(data["ascii_art"]) > 100  # Combined ASCII arts
+    assert "timestamp" in data
+    assert "fun_fact" in data
