@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlmodel import JSON, Field, Relationship, SQLModel
+from sqlmodel import JSON, Field, Relationship
 
 from local_newsifier.models.base import TableBase
 
@@ -16,7 +16,7 @@ class ApifySourceConfig(TableBase, table=True):
     """SQLModel for storing Apify scraper configurations."""
 
     __tablename__ = "apify_source_configs"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
@@ -42,11 +42,13 @@ class ApifyJob(TableBase, table=True):
     """SQLModel for tracking Apify job runs."""
 
     __tablename__ = "apify_jobs"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
-    source_config_id: Optional[int] = Field(default=None, foreign_key="apify_source_configs.id", index=True)
+    source_config_id: Optional[int] = Field(
+        default=None, foreign_key="apify_source_configs.id", index=True
+    )
     run_id: str = Field(index=True)  # Apify run ID
     actor_id: str  # Apify actor ID that was run
     status: str  # e.g., "RUNNING", "SUCCEEDED", "FAILED", "ABORTED"
@@ -68,7 +70,7 @@ class ApifyJob(TableBase, table=True):
 
     # Relationship back to source config
     source_config: Optional["ApifySourceConfig"] = Relationship(back_populates="jobs")
-    
+
     # Relationship to dataset items
     dataset_items: List["ApifyDatasetItem"] = Relationship(back_populates="job")
 
@@ -77,7 +79,7 @@ class ApifyDatasetItem(TableBase, table=True):
     """SQLModel for storing raw Apify dataset items before transformation."""
 
     __tablename__ = "apify_dataset_items"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
@@ -92,14 +94,14 @@ class ApifyDatasetItem(TableBase, table=True):
 
     # Relationships
     job: "ApifyJob" = Relationship(back_populates="dataset_items")
-    article: Optional["local_newsifier.models.article.Article"] = Relationship()
+    article: Optional["Article"] = Relationship()
 
 
 class ApifyCredentials(TableBase, table=True):
     """SQLModel for storing Apify API credentials."""
 
     __tablename__ = "apify_credentials"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
@@ -113,7 +115,7 @@ class ApifyWebhook(TableBase, table=True):
     """SQLModel for managing Apify webhooks."""
 
     __tablename__ = "apify_webhooks"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
@@ -122,3 +124,17 @@ class ApifyWebhook(TableBase, table=True):
     event_types: List[str] = Field(default_factory=list, sa_type=JSON)  # e.g., ["RUN.SUCCEEDED"]
     payload_template: Optional[str] = None  # Custom payload template if used
     is_active: bool = Field(default=True)
+
+
+class ApifyWebhookRaw(TableBase, table=True):
+    """Minimal model for storing raw Apify webhook data."""
+
+    __tablename__ = "apify_webhook_raw"
+
+    # Handle multiple imports during test collection
+    __table_args__ = {"extend_existing": True}
+
+    run_id: str = Field(unique=True, index=True)  # Apify run ID (unique constraint)
+    actor_id: str  # Apify actor ID
+    status: str  # Run status (SUCCEEDED, FAILED, etc.)
+    data: Dict[str, Any] = Field(sa_type=JSON)  # Complete webhook payload

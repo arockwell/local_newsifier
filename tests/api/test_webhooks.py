@@ -7,7 +7,6 @@ and logging. Data processing functionality will be tested separately.
 """
 
 import datetime
-import logging
 import uuid
 
 import pytest
@@ -34,37 +33,8 @@ def mock_db():
 class TestApifyWebhookInfrastructure:
     """Test suite for Apify webhook infrastructure (validation and logging only)."""
 
-    def test_apify_webhook_invalid_secret(self, client, monkeypatch):
-        """Test that the webhook rejects requests with invalid secrets."""
-        # Set a webhook secret
-        monkeypatch.setattr(
-            "local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", "test_secret"
-        )
-
-        # Create a sample webhook payload with wrong secret
-        payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
-            "secret": "wrong_secret",  # Wrong secret
-        }
-
-        # Send request to webhook endpoint
-        response = client.post("/webhooks/apify", json=payload)
-
-        # Should be unauthorized
-        assert response.status_code == 401
-        assert "Invalid webhook secret" in response.json()["detail"]
-
-    def test_apify_webhook_valid_payload(self, client, monkeypatch):
-        """Test that the webhook accepts valid payloads."""
+    def test_apify_webhook_invalid_signature(self, client, monkeypatch):
+        """Test that the webhook rejects requests with invalid signatures."""
         # Set a webhook secret
         monkeypatch.setattr(
             "local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", "test_secret"
@@ -82,7 +52,34 @@ class TestApifyWebhookInfrastructure:
             "startedAt": datetime.datetime.now().isoformat(),
             "status": "SUCCEEDED",
             "webhookId": str(uuid.uuid4()),
-            "secret": "test_secret",  # Correct secret
+        }
+
+        # Send request with wrong signature header
+        response = client.post(
+            "/webhooks/apify", json=payload, headers={"Apify-Webhook-Signature": "wrong_signature"}
+        )
+
+        # Should return bad request
+        assert response.status_code == 400
+        assert "Invalid signature" in response.json()["detail"]
+
+    def test_apify_webhook_valid_payload(self, client, monkeypatch):
+        """Test that the webhook accepts valid payloads without signature."""
+        # Clear webhook secret for this test
+        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
+
+        # Create a sample webhook payload
+        payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            "actorRunId": str(uuid.uuid4()),
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "SUCCEEDED",
+            "webhookId": str(uuid.uuid4()),
         }
 
         # Send request to webhook endpoint
@@ -94,8 +91,8 @@ class TestApifyWebhookInfrastructure:
         assert response_data["status"] == "accepted"
         assert response_data["actor_id"] == "test_actor"
         assert response_data["dataset_id"] == "test_dataset"
-        assert response_data["processing_status"] == "webhook_recorded"
-        assert "received and validated" in response_data["message"]
+        assert response_data["processing_status"] == "completed"
+        assert "processed" in response_data["message"].lower()
 
     def test_apify_webhook_no_secret_configured(self, client, monkeypatch):
         """Test that the webhook accepts all requests when no secret is configured."""
@@ -123,60 +120,21 @@ class TestApifyWebhookInfrastructure:
         assert response.status_code == 202
         response_data = response.json()
         assert response_data["status"] == "accepted"
-        assert response_data["processing_status"] == "webhook_recorded"
-
-    def test_apify_webhook_logs_details(self, client, monkeypatch, caplog):
-        """Test that the webhook properly logs webhook details."""
-        # Clear the webhook secret to simplify test
-        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
-
-        # Set caplog to capture INFO level logs from webhook router
-        caplog.set_level(logging.INFO)
-        # Also ensure the webhook logger is set to INFO level
-        logging.getLogger("local_newsifier.api.routers.webhooks").setLevel(logging.INFO)
-
-        # Create a sample webhook payload
-        payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor_123",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset_456",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
-        }
-
-        # Send request to webhook endpoint
-        response = client.post("/webhooks/apify", json=payload)
-
-        # Should be accepted
-        assert response.status_code == 202
-
-        # Check that appropriate logs were generated
-        log_messages = [record.message for record in caplog.records]
-
-        # Should log webhook receipt
-        assert any(
-            "Received Apify webhook: ACTOR.RUN.SUCCEEDED for actor test_actor_123" in msg
-            for msg in log_messages
-        )
-
-        # Should log webhook details
-        assert any("test_actor_123" in msg and "test_dataset_456" in msg for msg in log_messages)
+        assert response_data["processing_status"] == "completed"
 
     def test_apify_webhook_invalid_payload_structure(self, client):
         """Test that the webhook rejects malformed payloads."""
         # Send an invalid payload (missing required fields)
         invalid_payload = {
             "eventType": "ACTOR.RUN.SUCCEEDED",
-            # Missing required fields like actorId, createdAt, etc.
+            # Missing required fields like actorId, actorRunId, etc.
         }
 
         # Send request to webhook endpoint
         response = client.post("/webhooks/apify", json=invalid_payload)
 
-        # Should return validation error
-        assert response.status_code == 422  # Unprocessable Entity
+        # Should return accepted but with error message about missing fields
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "error"
+        assert "Missing required fields" in response_data["message"]

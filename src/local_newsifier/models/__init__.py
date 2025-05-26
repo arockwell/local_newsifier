@@ -5,7 +5,7 @@ from sqlmodel import SQLModel
 
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.apify import (ApifyCredentials, ApifyDatasetItem, ApifyJob,
-                                          ApifySourceConfig, ApifyWebhook)
+                                          ApifySourceConfig, ApifyWebhook, ApifyWebhookRaw)
 # Import all models from their original locations but don't re-export
 # This prevents duplicate class registrations
 from local_newsifier.models.article import Article
@@ -45,6 +45,7 @@ __all__ = [
     "ApifyDatasetItem",
     "ApifyCredentials",
     "ApifyWebhook",
+    "ApifyWebhookRaw",
     # Webhook models
     "ApifyWebhookPayload",
     "ApifyWebhookResponse",
