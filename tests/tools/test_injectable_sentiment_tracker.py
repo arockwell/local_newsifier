@@ -26,13 +26,15 @@ class TestInjectableSentimentTracker:
         session = MagicMock()
         return session
 
-    @pytest.mark.skip(reason="unstable offline environment")
-    def test_provider_function(self, mock_session):
+    @patch("fastapi_injectable.concurrency.run_coroutine_sync")
+    def test_provider_function(self, mock_run_coroutine, mock_session):
         """Test that provider functions create a properly configured SentimentTracker.
 
-        This test is skipped in CI environments due to issues with fastapi-injectable's
-        dependency resolution that causes event loop errors.
+        This test uses the run_coroutine_sync patch pattern to avoid event loop issues.
         """
+        # Setup mock to avoid actual asyncio operations
+        mock_run_coroutine.return_value = []
+
         # Import here after patching. Reload providers to apply injectable patch
         import importlib
 
