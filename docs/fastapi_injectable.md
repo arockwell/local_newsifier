@@ -3,7 +3,6 @@
 Local Newsifier now uses **fastapi-injectable** exclusively. For a high-level overview of the architecture, see the [DI Architecture Guide](di_architecture.md).
 >
 > **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
->
 
 ## Overview
 

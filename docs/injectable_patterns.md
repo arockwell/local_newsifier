@@ -670,7 +670,6 @@ Break the components into smaller, more focused ones to eliminate circular depen
 2. Use IDs instead of objects when crossing session boundaries
 3. Ensure session is properly managed in provider functions
 4. Make sure to use `use_cache=False` for database-interacting components
-
 ### Performance Considerations
 
 1. **Session Management**: Avoid carrying SQLModel objects between sessions

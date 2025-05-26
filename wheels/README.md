@@ -9,14 +9,14 @@ This directory contains Python wheels for offline installation. Wheels are organ
 ```
 wheels/
 ├── py312/                  # Cross-platform wheels for Python 3.12
-├── py312-linux-x64/        # Platform-specific wheels for Python 3.12 on Linux x64
-├── py312-linux-arm64/      # Platform-specific wheels for Python 3.12 on Linux arm64
-└── py312-macos-arm64/      # Platform-specific wheels for Python 3.12 on macOS arm64
+├── py312-linux-x86_64/     # Platform-specific wheels for Python 3.12 on Linux x86_64
+├── py312-linux-aarch64/    # Platform-specific wheels for Python 3.12 on Linux ARM64/aarch64
+└── py312-macos-arm64/      # Platform-specific wheels for Python 3.12 on macOS ARM64
 ```
 
 The directory structure includes both:
 - Version-specific directories (py312) with cross-platform wheels
-- Platform-specific directories (py312-macos-arm64, py312-linux-x64, etc.) with platform-specific wheels
+- Platform-specific directories (py312-macos-arm64, py312-linux-x86_64, etc.) with platform-specific wheels
 
 Note: As of May 2024, we only maintain wheels for Python 3.12, as this is the primary version used in development and production.
 
@@ -25,8 +25,11 @@ Note: As of May 2024, we only maintain wheels for Python 3.12, as this is the pr
 For offline installation, use the appropriate platform-specific directory if available, or fall back to the version-specific directory:
 
 ```bash
-# For Python 3.12 on Linux x64
-python3.12 -m pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements.txt
+# For Python 3.12 on Linux x86_64
+python3.12 -m pip install --no-index --find-links=wheels/py312-linux-x86_64 -r requirements.txt
+
+# For Python 3.12 on Linux ARM64/aarch64
+python3.12 -m pip install --no-index --find-links=wheels/py312-linux-aarch64 -r requirements.txt
 
 # If platform-specific directory isn't available, fall back to version directory
 python3.12 -m pip install --no-index --find-links=wheels/py312 -r requirements.txt
@@ -111,8 +114,8 @@ It could mean either:
 
 1. Check for platform-specific wheel directory first:
    ```bash
-   # Example: For Python 3.12 on Linux x64
-   eza -la wheels/py312-linux-x64/  # or use 'ls -la' if eza not available
+   # Example: For Python 3.12 on Linux x86_64
+   eza -la wheels/py312-linux-x86_64/  # or use 'ls -la' if eza not available
    ```
 
 2. If missing, fall back to version-specific directory:
@@ -133,5 +136,5 @@ It could mean either:
    ```bash
    make test-wheels
    git add wheels/py*/
-   git commit -m "Add Python 3.12 wheels for Linux x64"
+   git commit -m "Add Python 3.12 wheels for [platform]"
    ```

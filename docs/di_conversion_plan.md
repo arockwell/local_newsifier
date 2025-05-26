@@ -95,15 +95,15 @@ Testing infrastructure needs to support easy mocking of provider functions and i
 
 ## Important Implementation Notes
 
-### Event Loop Handling
+### Async Testing
 
-Components using the `@injectable` decorator may encounter event loop issues in tests. To avoid these problems:
+When testing components with async code:
 
-- Use the [conditional decorator pattern](injectable_patterns.md#the-conditional-decorator-pattern) when implementing components
-- Add the `event_loop_fixture` to all tests that interact with injectable components
-- Consider using `ci_skip_injectable` for tests that cannot avoid event loop issues in CI environments
+- Use `@pytest.mark.asyncio` for async tests
+- Mock async dependencies with `AsyncMock`
+- Avoid mixing sync and async patterns in tests
 
-For detailed guidance, see the [Event Loop Handling in Tests](injectable_patterns.md#event-loop-handling-in-tests) section in the Injectable Patterns Guide.
+For detailed guidance on async testing patterns, see [Event Loop Stabilization](plans/event-loop-stabilization.md).
 
 ## Test Scenarios
 

@@ -202,7 +202,6 @@ def test_endpoint(client, mock_get_service):
     assert response.status_code == 200
 ```
 
-
 ## Best Practices
 
 ### 1. Explicit Dependencies

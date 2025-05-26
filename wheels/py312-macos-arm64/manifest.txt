@@ -1,7 +1,0 @@
-Python Version: 3.12
-Platform: macOS-15.2-arm64-arm-64bit
-OS Type: macos
-Architecture: arm64
-Machine: arm64
-Date: Thu May 22 23:31:16 EDT 2025
-Wheel Count:      228
