@@ -73,7 +73,7 @@
 - Focuses on entity tracking, sentiment analysis, and headline trend detection
 - Uses NLP for entity recognition and relationship mapping
 - Supports multiple content acquisition methods (RSS feeds, Apify web scraping)
-- Uses Celery with Redis for background task processing
+- Moving from Celery to FastAPI Background Tasks for simpler task processing
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Environment Setup
