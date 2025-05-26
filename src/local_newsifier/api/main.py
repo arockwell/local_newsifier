@@ -18,6 +18,7 @@ from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks, webhooks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import create_db_and_tables
+from local_newsifier.di.providers import get_background_task_manager
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
     """
     # Startup logic
     logger.info("Application startup initiated")
+    manager = get_background_task_manager()
     try:
         # Initialize database tables
         create_db_and_tables()
@@ -43,8 +45,11 @@ async def lifespan(app: FastAPI):
         # Initialize fastapi-injectable
         logger.info("Initializing fastapi-injectable")
         await register_app(app)
-        
+
         logger.info("fastapi-injectable initialization completed")
+
+        if hasattr(manager, "restore_tasks"):
+            await manager.restore_tasks()
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
     
@@ -54,6 +59,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown logic
     logger.info("Application shutdown initiated")
+    if hasattr(manager, "save_tasks"):
+        await manager.save_tasks()
     logger.info("Application shutdown complete")
 
 
