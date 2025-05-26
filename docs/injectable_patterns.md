@@ -32,7 +32,7 @@ The Local Newsifier project uses the `fastapi-injectable` framework for dependen
 ### Key Principles
 
 1. **Always use `use_cache=False`**
-   
+
    For consistency and safety, we've standardized on `use_cache=False` for all components:
 
    ```python
@@ -40,7 +40,7 @@ The Local Newsifier project uses the `fastapi-injectable` framework for dependen
    ```
 
 2. **Explicit Dependencies**
-   
+
    Always declare dependencies explicitly in constructors using `Annotated` and `Depends`:
 
    ```python
@@ -52,7 +52,7 @@ The Local Newsifier project uses the `fastapi-injectable` framework for dependen
    ```
 
 3. **Type Safety**
-   
+
    Always use proper type annotations for better IDE support and error checking.
 
 ## Component Patterns
@@ -77,7 +77,7 @@ from local_newsifier.di.providers import get_entity_crud, get_canonical_entity_c
 @injectable(use_cache=False)
 class EntityService:
     """Service for managing entities with injectable dependencies."""
-    
+
     def __init__(
         self,
         entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
@@ -85,7 +85,7 @@ class EntityService:
         session: Annotated[Session, Depends(get_session)],
     ):
         """Initialize with injected dependencies.
-        
+
         Args:
             entity_crud: CRUD operations for entities
             canonical_entity_crud: CRUD operations for canonical entities
@@ -94,21 +94,21 @@ class EntityService:
         self.entity_crud = entity_crud
         self.canonical_entity_crud = canonical_entity_crud
         self.session = session
-    
+
     def get_entity(self, entity_id: int) -> Optional[Entity]:
         """Get an entity by ID.
-        
+
         Args:
             entity_id: The entity ID
-            
+
         Returns:
             The entity or None if not found
         """
         return self.entity_crud.get(self.session, id=entity_id)
-    
+
     def get_canonical_entities(self) -> List[CanonicalEntity]:
         """Get all canonical entities.
-        
+
         Returns:
             List of canonical entities
         """
@@ -126,7 +126,7 @@ def get_entity_service(
 ) -> EntityService:
     """Provide EntityService with injected dependencies."""
     from local_newsifier.services.entity_service import EntityService
-    
+
     return EntityService(
         entity_crud=entity_crud,
         canonical_entity_crud=canonical_entity_crud,
@@ -144,7 +144,7 @@ Flow components orchestrate higher-level workflows by combining services and too
 # Base class (dependency-free implementation)
 class EntityTrackingFlowBase:
     """Base implementation of entity tracking flow."""
-    
+
     def __init__(
         self,
         entity_service,
@@ -152,7 +152,7 @@ class EntityTrackingFlowBase:
         entity_resolver,
     ):
         """Initialize with dependencies.
-        
+
         Args:
             entity_service: Service for entity operations
             entity_tracker: Tool for tracking entity mentions
@@ -161,13 +161,13 @@ class EntityTrackingFlowBase:
         self.entity_service = entity_service
         self.entity_tracker = entity_tracker
         self.entity_resolver = entity_resolver
-    
+
     def track_entities_in_article(self, article_id: int) -> dict:
         """Track entities in an article.
-        
+
         Args:
             article_id: The article ID
-            
+
         Returns:
             Dictionary with tracking results
         """
@@ -179,7 +179,7 @@ class EntityTrackingFlowBase:
 @injectable(use_cache=False)
 class EntityTrackingFlow(EntityTrackingFlowBase):
     """Injectable implementation of entity tracking flow."""
-    
+
     def __init__(
         self,
         entity_service: Annotated[EntityService, Depends(get_entity_service)],
@@ -205,7 +205,7 @@ def get_entity_tracking_flow(
 ) -> EntityTrackingFlow:
     """Provide EntityTrackingFlow with injected dependencies."""
     from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-    
+
     return EntityTrackingFlow(
         entity_service=entity_service,
         entity_tracker=entity_tracker,
@@ -230,30 +230,30 @@ from local_newsifier.di.providers import get_nlp_model
 @injectable(use_cache=False)
 class EntityExtractor:
     """Tool for extracting entities from text using NLP."""
-    
+
     def __init__(
         self,
         nlp_model: Annotated[spacy.language.Language, Depends(get_nlp_model)],
     ):
         """Initialize with injected dependencies.
-        
+
         Args:
             nlp_model: The spaCy NLP model
         """
         self.nlp_model = nlp_model
-    
+
     def extract_entities(self, text: str) -> List[Dict]:
         """Extract entities from text.
-        
+
         Args:
             text: The text to process
-            
+
         Returns:
             List of extracted entities
         """
         doc = self.nlp_model(text)
         entities = []
-        
+
         for ent in doc.ents:
             entities.append({
                 "text": ent.text,
@@ -261,7 +261,7 @@ class EntityExtractor:
                 "start": ent.start_char,
                 "end": ent.end_char
             })
-        
+
         return entities
 ```
 
@@ -274,7 +274,7 @@ def get_entity_extractor_tool(
 ) -> EntityExtractor:
     """Provide EntityExtractor with injected dependencies."""
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-    
+
     return EntityExtractor(nlp_model=nlp_model)
 ```
 
@@ -301,7 +301,7 @@ def process_feed_command(
     rss_feed_service: RSSFeedService = None
 ):
     """Process articles from an RSS feed.
-    
+
     Args:
         feed_id: The feed ID to process
         limit: Optional limit for the number of articles to process
@@ -310,7 +310,7 @@ def process_feed_command(
     # Get dependencies if not provided
     if rss_feed_service is None:
         rss_feed_service = get_injected_obj(get_rss_feed_service)
-    
+
     # Command implementation
     result = rss_feed_service.process_feed(feed_id, limit=limit)
     typer.echo(f"Processed {result['processed']} articles from feed {feed_id}")
@@ -387,7 +387,7 @@ class ArticleService:
     ):
         self.article_crud = article_crud
         self.session = session
-    
+
     def get_article(self, article_id: int) -> Optional[Article]:
         return self.article_crud.get(self.session, id=article_id)
 ```
@@ -401,7 +401,7 @@ class NewsPipelineFlow:
         self.article_service = article_service or ArticleService()
         self.entity_service = entity_service or EntityService()
         self.entity_tracker = entity_tracker or EntityTracker()
-    
+
     def process_article(self, article_id):
         article = self.article_service.get_article(article_id)
         entities = self.entity_tracker.extract_entities(article.content)
@@ -416,7 +416,7 @@ class NewsPipelineFlowBase:
         self.article_service = article_service
         self.entity_service = entity_service
         self.entity_tracker = entity_tracker
-    
+
     def process_article(self, article_id):
         article = self.article_service.get_article(article_id)
         entities = self.entity_tracker.extract_entities(article.content)
@@ -463,11 +463,11 @@ def mock_entity_service_deps():
     mock_entity_crud = Mock()
     mock_canonical_entity_crud = Mock()
     mock_session = Mock()
-    
+
     # Create a test entity
     test_entity = Entity(id=1, name="Test Entity", type="PERSON")
     mock_entity_crud.get.return_value = test_entity
-    
+
     return {
         "entity_crud": mock_entity_crud,
         "canonical_entity_crud": mock_canonical_entity_crud,
@@ -484,10 +484,10 @@ def test_entity_service_get_entity(mock_entity_service_deps):
         canonical_entity_crud=deps["canonical_entity_crud"],
         session=deps["session"]
     )
-    
+
     # Act
     entity = service.get_entity(1)
-    
+
     # Assert
     deps["entity_crud"].get.assert_called_once_with(deps["session"], id=1)
     assert entity == deps["test_entity"]
@@ -517,13 +517,13 @@ def mock_tracking_flow_deps():
     mock_entity_service = Mock()
     mock_entity_tracker = Mock()
     mock_entity_resolver = Mock()
-    
+
     # Configure mock behaviors
     mock_entity_tracker.extract_entities.return_value = [
         {"text": "John Doe", "type": "PERSON"},
         {"text": "New York", "type": "LOCATION"}
     ]
-    
+
     return {
         "entity_service": mock_entity_service,
         "entity_tracker": mock_entity_tracker,
@@ -539,13 +539,13 @@ def test_entity_tracking_flow(mock_tracking_flow_deps):
         entity_tracker=deps["entity_tracker"],
         entity_resolver=deps["entity_resolver"]
     )
-    
+
     # Create a test article
     article = Article(id=1, title="Test Article", content="John Doe visited New York")
-    
+
     # Act
     result = flow.track_entities_in_article(article.id)
-    
+
     # Assert
     deps["entity_tracker"].extract_entities.assert_called_once()
     assert len(result["tracked_entities"]) == 2
@@ -562,11 +562,11 @@ def patch_injectable_dependencies(monkeypatch):
     # Create mocks
     mock_entity_crud = Mock()
     mock_session = Mock()
-    
+
     # Patch provider functions
     monkeypatch.setattr("local_newsifier.di.providers.get_entity_crud", lambda: mock_entity_crud)
     monkeypatch.setattr("local_newsifier.di.providers.get_session", lambda: mock_session)
-    
+
     return {
         "entity_crud": mock_entity_crud,
         "session": mock_session
@@ -576,10 +576,10 @@ def test_with_patched_dependencies(patch_injectable_dependencies):
     """Test using patched dependencies."""
     # Mock dependencies are available in the fixture
     deps = patch_injectable_dependencies
-    
+
     # Now any component using these provider functions will get the mocks
     result = some_function_using_injectable_components()
-    
+
     # Assert using the mocks
     deps["entity_crud"].get.assert_called_once()
 ```
@@ -592,17 +592,17 @@ def test_with_direct_instantiation():
     # Create mock dependencies
     mock_entity_crud = Mock()
     mock_session = Mock()
-    
+
     # Create the service directly with mocks
     service = EntityService(
         entity_crud=mock_entity_crud,
         session=mock_session,
         canonical_entity_crud=Mock()
     )
-    
+
     # Test the service
     service.get_entity(1)
-    
+
     # Assert
     mock_entity_crud.get.assert_called_once_with(mock_session, id=1)
 ```
@@ -619,10 +619,10 @@ def get_service_a():
     """Provider for ServiceA that handles circular dependency."""
     from local_newsifier.services.service_b import ServiceB
     from local_newsifier.di.providers import get_service_b
-    
+
     # Get ServiceB lazily to break the circular dependency
     service_b = get_service_b()
-    
+
     from local_newsifier.services.service_a import ServiceA
     return ServiceA(service_b=service_b)
 ```
@@ -635,7 +635,7 @@ class ServiceA:
     def __init__(self):
         """Initialize without circular dependencies."""
         pass
-    
+
     def method_needing_service_b(
         self,
         service_b: Annotated[ServiceB, Depends(get_service_b)]
@@ -678,233 +678,32 @@ Break the components into smaller, more focused ones to eliminate circular depen
 - "No running event loop" errors
 
 **Solution**:
-1. Use the appropriate event loop fixture in tests
-2. Ensure the event loop is properly managed in tests
-3. Add and use the `event_loop_fixture` in test functions
+1. Use `@pytest.mark.asyncio` for async tests
+2. Mock async dependencies properly with `AsyncMock`
+3. Avoid mixing sync and async patterns
 
 ```python
 @pytest.mark.asyncio
-async def test_async_function(event_loop_fixture):
-    """Test an async function with proper event loop fixture."""
-    # Test implementation
+async def test_async_function():
+    """Test an async function properly."""
+    result = await async_function()
+    assert result == expected
 ```
 
-## Event Loop Handling in Tests
+## Testing Async Components
 
-When testing components that use the `@injectable` decorator, you may encounter asyncio event loop related errors. This is because fastapi-injectable uses asyncio under the hood for dependency resolution, even in synchronous code.
-
-### Common Event Loop Issues
-
-1. **"Event loop is closed" Errors**
-
-   This happens when a test uses an event loop that was already closed, often due to setup/teardown ordering issues.
-
-2. **"No running event loop in thread" Errors**
-
-   This occurs when fastapi-injectable tries to use an event loop that doesn't exist in the current thread.
-
-3. **Invalid Type Errors with SQLModel Session**
-
-   FastAPI's dependency injection may try to handle SQLModel's Session as a Pydantic field, which doesn't work properly in test environments.
-
-### The Conditional Decorator Pattern
-
-To avoid event loop issues, use the "Conditional Decorator Pattern" - applying the `@injectable` decorator conditionally based on the execution environment:
-
-```python
-# First define your class normally
-class OpinionVisualizerTool:
-    """Tool for generating visualizations of sentiment and opinion data."""
-
-    def __init__(self, session: Optional[Session] = None):
-        self.session = session
-
-    # ... rest of the class implementation ...
-
-# Then apply the decorator conditionally at the end of the file
-try:
-    # Only apply in non-test environments
-    if not os.environ.get('PYTEST_CURRENT_TEST'):
-        from fastapi_injectable import injectable
-        OpinionVisualizerTool = injectable(use_cache=False)(OpinionVisualizerTool)
-except (ImportError, Exception):
-    pass
-```
-
-### Implementing the Conditional Decorator Pattern
-
-Follow these steps to implement this pattern:
-
-1. **Define your class normally** without applying the decorator directly
-   ```python
-   class MyTool:
-       def __init__(self, session: Optional[Session] = None):
-           self.session = session
-   ```
-
-2. **Apply the decorator conditionally** at the end of your file
-   ```python
-   try:
-       # Only apply in non-test environments
-       if not os.environ.get('PYTEST_CURRENT_TEST'):
-           from fastapi_injectable import injectable
-           MyTool = injectable(use_cache=False)(MyTool)
-   except (ImportError, Exception):
-       pass
-   ```
-
-### Properly Using the event_loop_fixture
-
-Always include the `event_loop_fixture` in tests that interact with injectable components:
-
-```python
-def test_with_injectable_component(event_loop_fixture):
-    """Test that interacts with an injectable component."""
-    # Create the component directly to bypass dependency injection
-    component = MyComponent(session=Mock(), other_dependency=Mock())
-
-    # Test the component
-    result = component.process()
-    assert result == expected_value
-```
-
-For components that absolutely require dependency injection in tests:
+When testing components with async code, use pytest-asyncio:
 
 ```python
 @pytest.mark.asyncio
-async def test_with_injected_component(event_loop_fixture, injectable_service_fixture):
-    """Test that uses the injectable service fixture."""
-    # Get the service using the fixture
-    service = injectable_service_fixture(get_my_service)
-
-    # Test the service
-    result = service.process()
-    assert result == expected_value
+async def test_async_component():
+    """Test an async component."""
+    component = MyAsyncComponent()
+    result = await component.process()
+    assert result == expected
 ```
 
-### Testing Strategy for Injectable Components
-
-1. **Prefer Direct Instantiation**: When possible, instantiate components directly with mock dependencies
-   ```python
-   # Direct instantiation bypasses dependency injection entirely
-   service = MyService(
-       dependency1=mock_dependency1,
-       dependency2=mock_dependency2
-   )
-   ```
-
-2. **Use CI Skip for Problematic Tests**: For tests that can't avoid event loop issues, use the CI skip decorator
-   ```python
-   from tests.ci_skip_config import ci_skip_injectable
-
-   @ci_skip_injectable
-   def test_problematic_injectable(event_loop_fixture):
-       # Test implementation
-   ```
-
-3. **Create Separate Test Files**: Keep tests that require event loops in separate files from those that don't
-   ```
-   test_component.py         # Direct instantiation tests (no event loop needed)
-   test_component_inject.py  # Tests that use dependency injection (needs event loop)
-   ```
-
-### Complete Example: Implementing and Testing a Tool with the Conditional Decorator Pattern
-
-Here's a complete example of implementing a tool using the conditional decorator pattern:
-
-**File: src/local_newsifier/tools/my_analyzer.py**
-```python
-import os
-import logging
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
-
-from sqlmodel import Session
-
-if TYPE_CHECKING:
-    # Import types only for type checking
-    from fastapi_injectable import injectable
-else:
-    # Runtime imports
-    pass
-
-logger = logging.getLogger(__name__)
-
-class MyAnalyzerTool:
-    """Tool for analyzing data."""
-
-    def __init__(self, session: Optional[Session] = None):
-        """Initialize with optional dependencies."""
-        self.session = session
-
-    def analyze_data(self, data: Dict[str, Any], *, session: Optional[Session] = None) -> List[Dict]:
-        """Analyze the provided data.
-
-        Args:
-            data: The data to analyze
-            session: Optional session override
-
-        Returns:
-            Analysis results
-        """
-        # Use provided session or instance session
-        session = session or self.session
-
-        # Analysis implementation...
-        results = []
-
-        # Return results
-        return results
-
-# Apply injectable decorator conditionally to avoid test issues
-try:
-    # Only apply in non-test environments
-    if not os.environ.get('PYTEST_CURRENT_TEST'):
-        from fastapi_injectable import injectable
-        MyAnalyzerTool = injectable(use_cache=False)(MyAnalyzerTool)
-except (ImportError, Exception):
-    pass
-```
-
-**File: tests/tools/test_my_analyzer.py**
-```python
-import pytest
-from unittest.mock import Mock, patch
-
-from tests.fixtures.event_loop import event_loop_fixture
-from tests.ci_skip_config import ci_skip_injectable
-
-from local_newsifier.tools.my_analyzer import MyAnalyzerTool
-
-# Regular tests using direct instantiation
-class TestMyAnalyzerTool:
-    @pytest.fixture
-    def mock_session(self):
-        return Mock()
-
-    @pytest.fixture
-    def analyzer(self, mock_session):
-        return MyAnalyzerTool(session=mock_session)
-
-    def test_analyze_data(self, analyzer, mock_session):
-        # Test using direct instantiation
-        test_data = {"key": "value"}
-        results = analyzer.analyze_data(test_data)
-
-        # Assertions...
-        assert isinstance(results, list)
-
-# Injectable-specific tests that might have event loop issues
-@ci_skip_injectable
-class TestMyAnalyzerToolInjectable:
-    @pytest.fixture
-    def mock_session(self):
-        return Mock()
-
-    def test_with_session_override(self, mock_session, event_loop_fixture):
-        """Test providing a session override at call time."""
-        analyzer = MyAnalyzerTool()
-        analyzer.analyze_data({"key": "value"}, session=mock_session)
-```
+For more details on handling async patterns and avoiding event loop issues, see `docs/plans/event-loop-stabilization.md`.
 
 ### Performance Considerations
 

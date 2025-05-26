@@ -127,55 +127,39 @@ def check_version_conflicts():
 
 ### 2. Test Infrastructure
 
-#### Event Loop Issues
+#### Event Loop Issues ✅ (Partially Resolved)
 **Problem**: Async tests fail in CI due to event loop conflicts
 
-**Root Cause Analysis**:
-```python
-# Event loop conflict scenario
-# 1. pytest-asyncio creates an event loop
-# 2. fastapi-injectable tries to access it from different thread
-# 3. Tests fail with "attached to different loop" error
-```
+**Status**: Critical issues resolved in Phase 1-3 of event loop stabilization. CI tests now pass reliably.
 
-**Comprehensive Fix**:
+**What Was Fixed**:
+1. ✅ Removed problematic thread-local event loop fixture
+2. ✅ Eliminated flaky CI skip decorators (@ci_skip_async, @ci_skip_injectable)
+3. ✅ Simplified event loop management to use standard pytest-asyncio patterns
+4. ✅ Updated documentation to reflect best practices
+
+**Remaining Work**:
+- 28 test files still import old event_loop_fixture
+- Only 1 test file uses @pytest.mark.asyncio properly
+- Mixed sync/async patterns throughout codebase
+
+**📋 See detailed plan**: [event-loop-stabilization.md](event-loop-stabilization.md) and [event-loop-remaining-work.md](event-loop-remaining-work.md)
+
+**Current Best Practice**:
 ```python
-# tests/fixtures/async_fixtures.py
-import asyncio
+# For async tests - use pytest-asyncio
 import pytest
-from unittest.mock import AsyncMock, patch
 
-@pytest.fixture(scope="function")
-def event_loop():
-    """Create an event loop for each test function."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
+@pytest.mark.asyncio
+async def test_async_functionality():
+    result = await async_function()
+    assert result == expected
 
-    # Clean up
-    try:
-        _cancel_all_tasks(loop)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.run_until_complete(loop.shutdown_default_executor())
-    finally:
-        loop.close()
+# For mocking async dependencies
+from unittest.mock import AsyncMock
 
-def _cancel_all_tasks(loop):
-    """Cancel all pending tasks."""
-    tasks = asyncio.all_tasks(loop)
-    for task in tasks:
-        task.cancel()
-
-    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-
-# Async test helper
-class AsyncTestHelper:
-    @staticmethod
-    def mock_async_dependency(return_value):
-        """Create a properly mocked async dependency."""
-        mock = AsyncMock(return_value=return_value)
-        mock._is_coroutine = lambda: True
-        return mock
+mock_service = MagicMock()
+mock_service.async_method = AsyncMock(return_value=result)
 
     @staticmethod
     async def run_with_timeout(coro, timeout=5):
@@ -678,7 +662,7 @@ class CircuitBreaker:
 
 ### Phase 1: Critical Fixes (2 weeks)
 - [ ] Fix offline installation
-- [ ] Resolve event loop issues
+- [x] Resolve event loop issues (✅ Critical issues fixed, 28 files remain)
 - [ ] Optimize critical queries
 
 ### Phase 2: Quality Improvements (4 weeks)
