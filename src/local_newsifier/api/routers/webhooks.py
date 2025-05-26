@@ -5,7 +5,6 @@ This module provides endpoints for receiving webhook notifications from
 external services like Apify, validating payloads, and processing data.
 """
 
-import asyncio
 import logging
 from typing import Annotated
 
@@ -15,7 +14,7 @@ from sqlmodel import Session
 from local_newsifier.config.settings import settings
 from local_newsifier.di.providers import get_session
 from local_newsifier.models.webhook import ApifyWebhookResponse
-from local_newsifier.services.apify_webhook_service import ApifyWebhookService
+from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -59,14 +58,13 @@ async def apify_webhook(
         # Parse payload
         payload_dict = await request.json()
 
-        # Initialize webhook service
-        webhook_service = ApifyWebhookService(
+        # Initialize async webhook service
+        webhook_service = ApifyWebhookServiceAsync(
             session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
-        # Handle webhook - run synchronous method in a thread to avoid blocking
-        result = await asyncio.to_thread(
-            webhook_service.handle_webhook,
+        # Handle webhook using async method
+        result = await webhook_service.handle_webhook(
             payload=payload_dict,
             raw_payload=raw_payload_str,
             signature=apify_webhook_signature,
