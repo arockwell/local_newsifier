@@ -319,8 +319,87 @@ def test_component_success(mock_component):
 - Use runtime imports to break circular dependencies
 - Redis is required for Celery - PostgreSQL is no longer supported as a broker
 
+
 ### Testing Async Code
 When testing async code with FastAPI and fastapi-injectable, use pytest-asyncio's built-in capabilities:
+
+### Async Development Best Practices
+
+#### Async Database Sessions
+When implementing async database operations, follow these patterns:
+
+1. **Async Session Management**:
+```python
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncGenerator
+from typing import AsyncGenerator
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+```
+
+2. **Async CRUD Operations**:
+```python
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+async def create_async(self, session: AsyncSession, data: dict):
+    obj = self.model(**data)
+    session.add(obj)
+    await session.flush()  # Ensure ID is generated
+    await session.refresh(obj)  # Load relationships
+    return obj
+
+async def get_by_field_async(self, session: AsyncSession, field: str, value: Any):
+    stmt = select(self.model).where(getattr(self.model, field) == value)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+```
+
+3. **Async Service Pattern**:
+```python
+class AsyncService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.crud = AsyncCRUD()
+
+    async def process_data(self, data: dict):
+        # All database operations use await
+        result = await self.crud.create_async(self.session, data)
+        # Process result...
+        return result
+```
+
+4. **Error Handling in Async Endpoints**:
+```python
+from fastapi import HTTPException
+
+async def webhook_endpoint(data: dict, session: AsyncSession):
+    try:
+        result = await service.process(data)
+        return {"status": "success", "id": result.id}
+    except HTTPException:
+        raise  # Let FastAPI handle HTTP exceptions
+    except Exception as e:
+        logger.error(f"Processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+#### Important Async Gotchas
+- **No Implicit Commits**: Unlike sync SQLAlchemy, async sessions require explicit `await session.commit()`
+- **Session Lifecycle**: Always ensure sessions are properly closed with try/finally blocks
+- **Query Execution**: Use `await session.execute(stmt)` not `session.exec(stmt)`
+- **Timezone Handling**: Use timezone-naive datetime in database, handle timezone at API boundaries
+
+### Handling Event Loop Issues in Tests
+When testing async code, especially with FastAPI and fastapi-injectable, you may encounter event loop-related errors. Follow these guidelines to avoid them:
 
 1. Mark async tests with `@pytest.mark.asyncio`:
 ```python
