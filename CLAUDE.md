@@ -1,3 +1,71 @@
+# Claude Bootstrap Instructions
+
+> **IMPORTANT**: This is the PRIMARY guide Claude should read first when working on this project. This file contains critical instructions that override default behaviors.
+
+## Quick Start for Claude
+
+1. **Always read this file first** when starting work on this project
+2. **Check AGENTS.md** to find other CLAUDE.md files for specific modules
+3. **Follow the patterns** documented here consistently across all changes
+4. **Use the tools** specified (rg instead of grep, fd instead of find, etc.)
+5. **Run tests** before completing any task
+
+## Core Principles
+
+### 1. Always Use Modern CLI Tools
+- `rg` (ripgrep) instead of `grep` - respects .gitignore, faster
+- `fd` instead of `find` - simpler syntax, respects .gitignore
+- `bat` instead of `cat` - syntax highlighting, line numbers
+- `eza` instead of `ls` - better formatting, git integration
+- `jq` for JSON processing
+- `httpie`/`http` instead of `curl` - more intuitive
+
+### 2. Git Workflow
+- Create new branch immediately for any changes
+- Commit early and often with descriptive messages
+- Push after first commit and create PR using `gh pr create`
+- Include issue number in PR title: "Fix X (Issue #123)"
+- Monitor PR build (takes ~4 minutes) - use sleep loops to check
+- Last line of responses should include PR and issue numbers
+
+### 3. Testing Requirements
+- Run full test suite before marking complete: `make test`
+- Check GitHub Actions status after pushing
+- For faster local testing: `poetry run pytest -n auto -q`
+- Serial testing for debugging: `make test-serial`
+
+### 4. Code Patterns to Follow
+- Use SQLModel for all database models
+- Use fastapi-injectable for dependency injection
+- Return IDs not objects across session boundaries
+- Mock external dependencies in tests
+- Add newline at end of every file
+
+### 5. Communication Style
+- Be concise - max 4 lines unless asked for detail
+- Skip unnecessary preambles/postambles
+- One-word answers when appropriate
+- Include file:line references for code locations
+
+### 6. Consistency Rules
+- **Error Handling**: Always use custom error classes from `src/local_newsifier/errors/`
+- **Imports**: Group imports - stdlib, third-party, local (separated by blank lines)
+- **Type Hints**: Always include type hints for function arguments and returns
+- **Docstrings**: Use Google-style docstrings for all public functions/classes
+- **File Operations**: Always use context managers (with statements)
+- **Database Queries**: Never use raw SQL - always use SQLModel query builders
+- **Tests**: Name test files with `test_` prefix, test functions with `test_` prefix
+- **Fixtures**: Define fixtures in conftest.py files at appropriate levels
+
+### 7. Common Mistakes to Avoid
+- Don't use print() - use proper logging
+- Don't hardcode credentials - use environment variables
+- Don't catch generic Exception - catch specific exceptions
+- Don't modify mutable default arguments
+- Don't forget to close resources (use context managers)
+- Don't mix sync and async code patterns
+- Don't forget to add files to git before committing
+
 # Local Newsifier Development Guide
 
 ## Project Overview
