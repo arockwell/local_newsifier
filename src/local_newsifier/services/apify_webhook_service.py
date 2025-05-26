@@ -8,7 +8,7 @@ from typing import Dict, Optional
 
 from sqlmodel import Session, select
 
-from local_newsifier.crud.article import article_crud
+from local_newsifier.crud.article import article
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service import ApifyService
@@ -138,12 +138,12 @@ class ApifyWebhookService:
                     continue
 
                 # Check if article already exists
-                existing = article_crud.get_by_url(self.session, url)
+                existing = article.get_by_url(self.session, url=url)
                 if existing:
                     continue
 
                 # Create article
-                article = Article(
+                new_article = Article(
                     url=url,
                     title=title,
                     content=content,
@@ -152,7 +152,7 @@ class ApifyWebhookService:
                     status="published",
                     scraped_at=datetime.now(timezone.utc),
                 )
-                self.session.add(article)
+                self.session.add(new_article)
                 articles_created += 1
 
             return articles_created
