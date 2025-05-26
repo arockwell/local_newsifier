@@ -87,8 +87,19 @@ class ApifyWebhookServiceAsync:
             logger.info(f"Duplicate webhook for run_id: {run_id}")
             return {"status": "ok", "message": "Duplicate webhook ignored"}
 
+        # Convert datetime strings to string format for JSON storage
+        # This avoids timezone issues when storing in JSONB
+        payload_copy = payload.copy()
+        for field in ["createdAt", "startedAt", "finishedAt"]:
+            if field in payload_copy and payload_copy[field]:
+                # Keep datetime strings as strings in the JSON field
+                # This preserves the original format and avoids timezone issues
+                pass
+
         # Save raw webhook data
-        webhook_raw = ApifyWebhookRaw(run_id=run_id, actor_id=actor_id, status=status, data=payload)
+        webhook_raw = ApifyWebhookRaw(
+            run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+        )
         self.session.add(webhook_raw)
 
         # If successful run, try to create articles

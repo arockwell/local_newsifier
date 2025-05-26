@@ -48,5 +48,6 @@ class ApifyServiceAsync:
 
     async def close(self):
         """Close the async client."""
-        if self._client:
-            await self._client.aclose()
+        # ApifyClientAsync doesn't have a close method
+        # The httpx client it uses internally manages its own lifecycle
+        pass

@@ -85,8 +85,28 @@ class ApifyWebhookService:
             logger.info(f"Duplicate webhook for run_id: {run_id}")
             return {"status": "ok", "message": "Duplicate webhook ignored"}
 
+        # Convert datetime strings to naive UTC datetime objects
+        payload_copy = payload.copy()
+        for field in ["createdAt", "startedAt", "finishedAt"]:
+            if field in payload_copy and payload_copy[field]:
+                try:
+                    # Parse ISO format datetime string
+                    dt_str = payload_copy[field]
+                    # Handle 'Z' suffix for UTC
+                    if dt_str.endswith("Z"):
+                        dt_str = dt_str[:-1] + "+00:00"
+                    dt = datetime.fromisoformat(dt_str)
+                    # Convert to naive UTC datetime
+                    payload_copy[field] = dt.replace(tzinfo=None)
+                except (ValueError, AttributeError) as e:
+                    logger.warning(f"Error parsing datetime field {field}: {e}")
+                    # Keep original value if parsing fails
+                    pass
+
         # Save raw webhook data
-        webhook_raw = ApifyWebhookRaw(run_id=run_id, actor_id=actor_id, status=status, data=payload)
+        webhook_raw = ApifyWebhookRaw(
+            run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+        )
         self.session.add(webhook_raw)
 
         # If successful run, try to create articles
