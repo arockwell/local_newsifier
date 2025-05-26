@@ -11,6 +11,8 @@ import uuid
 
 import pytest
 
+from tests.fixtures.event_loop import event_loop_fixture
+
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_db():
@@ -33,7 +35,7 @@ def mock_db():
 class TestApifyWebhookInfrastructure:
     """Test suite for Apify webhook infrastructure (validation and logging only)."""
 
-    def test_apify_webhook_invalid_signature(self, client, monkeypatch):
+    def test_apify_webhook_invalid_signature(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook rejects requests with invalid signatures."""
         # Set a webhook secret
         monkeypatch.setattr(
@@ -63,7 +65,7 @@ class TestApifyWebhookInfrastructure:
         assert response.status_code == 400
         assert "Invalid signature" in response.json()["detail"]
 
-    def test_apify_webhook_valid_payload(self, client, monkeypatch):
+    def test_apify_webhook_valid_payload(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook accepts valid payloads without signature."""
         # Clear webhook secret for this test
         monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
@@ -94,7 +96,7 @@ class TestApifyWebhookInfrastructure:
         assert response_data["processing_status"] == "completed"
         assert "processed" in response_data["message"].lower()
 
-    def test_apify_webhook_no_secret_configured(self, client, monkeypatch):
+    def test_apify_webhook_no_secret_configured(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook accepts all requests when no secret is configured."""
         # Clear the webhook secret
         monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
@@ -122,7 +124,7 @@ class TestApifyWebhookInfrastructure:
         assert response_data["status"] == "accepted"
         assert response_data["processing_status"] == "completed"
 
-    def test_apify_webhook_invalid_payload_structure(self, client):
+    def test_apify_webhook_invalid_payload_structure(self, client, event_loop_fixture):
         """Test that the webhook rejects malformed payloads."""
         # Send an invalid payload (missing required fields)
         invalid_payload = {
