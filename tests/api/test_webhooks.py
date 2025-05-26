@@ -180,8 +180,7 @@ class TestApifyWebhookInfrastructure:
             # Send request to webhook endpoint
             response = client.post("/webhooks/apify", json=invalid_payload)
 
-            # Should return accepted but with error message about missing fields
-            assert response.status_code == 202
+            # Should return 400 for error response from webhook service
+            assert response.status_code == 400
             response_data = response.json()
-            assert response_data["status"] == "error"
-            assert "Missing required fields" in response_data["message"]
+            assert "Missing required fields" in response_data["detail"]
