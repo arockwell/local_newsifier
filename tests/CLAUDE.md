@@ -64,21 +64,23 @@ def test_service_method():
 
 ### 3. Async Testing
 
-Use centralized event loop fixture:
+Use pytest-asyncio's built-in event loop handling (event loop stabilization has been completed):
 ```python
-from tests.fixtures.event_loop import event_loop  # noqa
-
 @pytest.mark.asyncio
 async def test_async_function():
     result = await async_function()
     assert result == expected
 ```
 
-For simpler async tests:
+For testing async database operations:
 ```python
-def test_with_async(run_async):
-    result = run_async(async_function())
-    assert result == expected
+@pytest.mark.asyncio
+async def test_async_crud_operation():
+    # Use async session fixture
+    async with get_async_session() as session:
+        crud = AsyncCRUDArticle(Article)
+        article = await crud.create(session, Article(title="Test"))
+        assert article.id is not None
 ```
 
 ### 4. Mocking External Dependencies
@@ -151,15 +153,7 @@ def test_endpoint(mock_injectable_dependencies):
 
 ## CI-Specific Considerations
 
-Some tests may be flaky in CI. Use skip decorators when necessary:
-```python
-from tests.ci_skip_config import ci_skip_async
-
-@ci_skip_async
-async def test_flaky_async():
-    # Test that may fail in CI
-    pass
-```
+The event loop stabilization has been completed and flaky CI skip decorators have been removed. All async tests should now run reliably in CI without special handling.
 
 ## Testing Services with Dependencies
 
@@ -198,18 +192,75 @@ For async code testing:
 3. Use `await` for async calls
 4. Mock async dependencies with `AsyncMock`
 
-Example:
+### Testing Async Services
+
+Example async service test:
 ```python
 @pytest.mark.asyncio
-async def test_async_service():
-    mock_dep = AsyncMock()
-    mock_dep.fetch_data.return_value = {"data": "test"}
+async def test_async_webhook_service():
+    # Mock async session
+    mock_session = MagicMock()
+    mock_session.execute = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.commit = AsyncMock()
 
-    service = AsyncService(dependency=mock_dep)
-    result = await service.process()
+    # Create service
+    service = ApifyWebhookServiceAsync(session=mock_session)
 
-    assert result == {"data": "test"}
-    mock_dep.fetch_data.assert_awaited_once()
+    # Test async method
+    result = await service.process_webhook({"eventType": "ACTOR.RUN.SUCCEEDED"})
+
+    assert result["status"] == "processed"
+    mock_session.flush.assert_awaited_once()
+```
+
+### Testing Async CRUD Operations
+
+```python
+@pytest.mark.asyncio
+async def test_async_crud_get_by_url():
+    # Setup async in-memory database
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    async with AsyncSession(engine) as session:
+        # Create test data
+        crud = AsyncCRUDArticle(Article)
+        article = Article(title="Test", url="https://test.com")
+        created = await crud.create(session, article)
+        await session.commit()
+
+        # Test get_by_url
+        found = await crud.get_by_url(session, "https://test.com")
+        assert found is not None
+        assert found.title == "Test"
+```
+
+### Mocking Async Dependencies
+
+```python
+from unittest.mock import AsyncMock, MagicMock
+
+@pytest.mark.asyncio
+async def test_with_async_mocks():
+    # Mock async external API
+    mock_client = MagicMock()
+    mock_client.fetch = AsyncMock(return_value={"data": "test"})
+
+    # Mock async database operation
+    mock_crud = MagicMock()
+    mock_crud.get = AsyncMock(return_value=Article(id=1, title="Test"))
+
+    # Use in service
+    service = MyAsyncService(client=mock_client, crud=mock_crud)
+    result = await service.process(1)
+
+    # Verify async calls
+    mock_client.fetch.assert_awaited_with("https://api.example.com/1")
+    mock_crud.get.assert_awaited_with(1)
 ```
 
 ## Running Tests

@@ -46,7 +46,7 @@ def fetch_feed(feed_id):
 ```python
 @apify_group.command(name="scrape-content")
 @click.argument("url", required=True)
-@click.option("--max-pages", type=int, default=5, 
+@click.option("--max-pages", type=int, default=5,
               help="Maximum number of pages to scrape")
 @click.option("--max-depth", type=int, default=1,
               help="Maximum crawl depth from start URL")
@@ -58,17 +58,54 @@ def scrape_content(url, max_pages, max_depth, token, output):
 ```
 
 ### Service Access
-CLI commands obtain services via provider functions:
+CLI commands obtain services via provider functions with fastapi-injectable:
 
 ```python
 from local_newsifier.di.providers import get_rss_feed_service
 
+@feeds_group.command(name="list")
 def list_feeds():
     """List all configured RSS feeds."""
     try:
+        # Provider functions handle all dependency injection
         feed_service = get_rss_feed_service()
         feeds = feed_service.list_feeds()
-        # ...
+
+        # Format and display feeds
+        for feed in feeds:
+            click.echo(f"[{feed['id']}] {feed['name']} - {feed['url']}")
+    except Exception as e:
+        click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+```
+
+The provider functions automatically handle:
+- Session creation and cleanup
+- Dependency injection for CRUD components
+- Service instantiation with all required dependencies
+
+### Handling Async Operations in CLI
+
+While CLI commands are synchronous, they may need to interact with async services:
+
+```python
+import asyncio
+
+@apify_group.command(name="process-webhook")
+@click.argument("webhook_data", type=click.File('r'))
+def process_webhook(webhook_data):
+    """Process a webhook payload (for testing)."""
+    try:
+        data = json.load(webhook_data)
+
+        # Run async operation in sync context
+        async def process():
+            from local_newsifier.database.async_engine import get_async_session
+            async with get_async_session() as session:
+                service = ApifyWebhookServiceAsync(session=session)
+                return await service.process_webhook(data)
+
+        result = asyncio.run(process())
+        click.echo(f"Webhook processed: {result['webhook_id']}")
     except Exception as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
 ```
@@ -117,7 +154,7 @@ from tabulate import tabulate
 def list_feeds():
     """List all configured RSS feeds."""
     # ...
-    
+
     # Format feeds as a table
     table_data = []
     for feed in feeds:
@@ -128,7 +165,7 @@ def list_feeds():
             feed.is_active,
             feed.last_fetched_at or "Never"
         ])
-    
+
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
 ```
@@ -140,7 +177,7 @@ For long-running operations, show progress:
 def process_feeds():
     """Process all feeds."""
     # ...
-    
+
     with click.progressbar(feeds, label="Processing feeds") as bar:
         for feed in bar:
             process_feed(feed.id)
@@ -154,7 +191,7 @@ CLI commands can process directly or queue tasks:
 ```python
 def process_feed(feed_id, use_queue=True):
     """Process a feed.
-    
+
     Args:
         feed_id: ID of the feed to process
         use_queue: Whether to use the task queue or process directly
@@ -176,14 +213,14 @@ Handle file input and output:
 ```python
 def export_data(data, output_file):
     """Export data to a file.
-    
+
     Args:
         data: The data to export
         output_file: Path to the output file
     """
     if output_file:
         file_extension = output_file.split(".")[-1].lower()
-        
+
         if file_extension == "json":
             with open(output_file, "w") as f:
                 json.dump(data, f, indent=2)
@@ -194,7 +231,7 @@ def export_data(data, output_file):
             # Default to JSON
             with open(output_file, "w") as f:
                 json.dump(data, f, indent=2)
-                
+
         click.echo(f"Data exported to {output_file}")
     else:
         # Print to console

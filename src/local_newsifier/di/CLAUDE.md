@@ -13,63 +13,68 @@ Local Newsifier has completed the transition from a custom DIContainer to fastap
 These functions define how dependencies are created and their lifecycle:
 
 ```python
-@injectable(scope=Scope.SINGLETON)
+@injectable(use_cache=False)
 def get_entity_crud():
     """Provide the entity CRUD component."""
     from local_newsifier.crud.entity import entity
     return entity
 
-@injectable(scope=Scope.REQUEST)
-def get_session() -> Session:
+@injectable(use_cache=False)
+def get_session() -> Generator[Session, None, None]:
     """Provide a database session."""
     from local_newsifier.database.engine import get_session as get_db_session
-    return next(get_db_session())
+
+    session = next(get_db_session())
+    try:
+        yield session
+    finally:
+        session.close()
 ```
 
-### Scope Management
+### Cache Management
 
-fastapi-injectable uses three scopes with the following guidelines for Local Newsifier:
+The fastapi-injectable framework uses the `use_cache` parameter to control instance reuse:
 
-- `Scope.SINGLETON`: 
-  - Use ONLY for completely stateless and thread-safe components
-  - Examples: Configuration providers, constants, pure utility functions
-  - Use with extreme caution to avoid shared state issues
-  - Never use for components that interact with database
-
-- `Scope.TRANSIENT`: 
-  - **Default choice** for almost all components
+- `use_cache=False` (Project Standard):
+  - **Used for ALL providers in Local Newsifier**
   - Creates a fresh instance every time the dependency is injected
-  - Required for all components that interact with database
-  - Examples: CRUD components, entity services, analysis services, processing tools
-  
-- `Scope.REQUEST`: 
-  - Used for request-scoped resources in HTTP context
-  - Example: Database sessions in FastAPI endpoints
+  - Prevents state leakage between operations
+  - Required for components that interact with databases or maintain state
+  - Examples: CRUD components, services, tools, parsers, database sessions
 
-Always prefer TRANSIENT over SINGLETON when in doubt, particularly for any component
-that interacts with databases or maintains internal state.
+- `use_cache=True` (Not Used):
+  - Would reuse the same instance across injections
+  - Could be used for purely functional utilities with no state
+  - Currently not used in the project to maintain consistency
+
+The project has standardized on `use_cache=False` for all providers to ensure safety
+and prevent subtle bugs from shared state.
 
 ## Usage Patterns
 
 ### Injecting Dependencies
 
-Use the `@injectable` decorator with scope and `Annotated` with `Depends()`:
+Use the `@injectable` decorator and `Annotated` with `Depends()`:
 
 ```python
-@injectable(scope=Scope.TRANSIENT)  # Explicitly use TRANSIENT scope for safety
-class EntityService:
-    """Entity service with injected dependencies.
-    
-    Uses TRANSIENT scope to ensure a fresh instance for each usage,
+@injectable(use_cache=False)
+def get_entity_service(
+    entity_crud: Annotated["CRUDEntity", Depends(get_entity_crud)],
+    canonical_entity_crud: Annotated["CRUDCanonicalEntity", Depends(get_canonical_entity_crud)],
+    session: Annotated[Session, Depends(get_session)]
+):
+    """Provide the entity service.
+
+    Uses use_cache=False to create new instances for each injection,
     preventing state leakage between operations.
     """
-    def __init__(
-        self,
-        entity_crud: Annotated[EntityCRUD, Depends(get_entity_crud)],
-        session: Annotated[Session, Depends(get_session)]
-    ):
-        self.entity_crud = entity_crud
-        self.session = session
+    from local_newsifier.services.entity_service import EntityService
+
+    return EntityService(
+        entity_crud=entity_crud,
+        canonical_entity_crud=canonical_entity_crud,
+        session_factory=lambda: session
+    )
 ```
 
 ### FastAPI Endpoint Usage
@@ -94,20 +99,70 @@ For testing injectable components:
 def test_entity_service(patch_injectable_dependencies):
     # Get mocks from fixture
     mocks = patch_injectable_dependencies
-    
+
     # Create service with mocked dependencies
     service = EntityService(
         entity_crud=mocks["entity_crud"],
         session=mocks["session"]
     )
-    
+
     # Test logic
     result = service.get_entity(1)
     assert result is not None
+```
+
+## Async Providers
+
+The `async_providers.py` module provides async versions of key dependencies:
+
+```python
+async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Get an async database session.
+
+    Yields:
+        AsyncSession: Async database session
+    """
+    async for session in get_async_session():
+        yield session
+```
+
+### Using Async Providers in Endpoints
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from local_newsifier.di.async_providers import get_async_db_session
+
+@router.post("/webhook")
+async def handle_webhook(
+    data: WebhookData,
+    session: Annotated[AsyncSession, Depends(get_async_db_session)]
+):
+    # Use async session for database operations
+    service = ApifyWebhookServiceAsync(session=session)
+    await service.process_webhook(data)
+```
+
+### Async Service Providers
+
+While async services can be created directly in endpoints, you can also define providers:
+
+```python
+@injectable(use_cache=False)
+async def get_async_webhook_service(
+    session: Annotated[AsyncSession, Depends(get_async_db_session)]
+):
+    """Provide async webhook service."""
+    from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
+
+    return ApifyWebhookServiceAsync(session=session)
 ```
 
 ## Migration Notes
 
 - All components now use fastapi-injectable directly
 - The legacy adapter layer has been removed
-- See `docs/fastapi_injectable.md` for provider examples
+- Project standardized on `use_cache=False` for all providers
+- Async providers available for async endpoints and operations
+- See `docs/fastapi_injectable.md` for more provider examples
