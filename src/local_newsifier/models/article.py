@@ -1,6 +1,6 @@
 """Article model for the news analysis system."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -15,18 +15,18 @@ class Article(SQLModel, table=True):
     """SQLModel for articles - serves as both ORM model and Pydantic schema."""
 
     __tablename__ = "articles"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
-    
+
     # Primary key and timestamps
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(UTC).replace(tzinfo=None)},
     )
-    
+
     # Article fields
     title: str
     content: str
@@ -35,11 +35,11 @@ class Article(SQLModel, table=True):
     published_at: datetime
     status: str
     scraped_at: datetime
-    
+
     # Define relationships with fully qualified paths
-    entities: List["local_newsifier.models.entity.Entity"] = Relationship(back_populates="article")
-    analysis_results: List["local_newsifier.models.analysis_result.AnalysisResult"] = Relationship(back_populates="article")
-    
+    entities: List["Entity"] = Relationship(back_populates="article")
+    analysis_results: List["AnalysisResult"] = Relationship(back_populates="article")
+
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {
         "arbitrary_types_allowed": True,
@@ -56,5 +56,5 @@ class Article(SQLModel, table=True):
                     "scraped_at": "2023-01-01T01:00:00Z",
                 }
             ]
-        }
+        },
     }
