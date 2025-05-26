@@ -63,7 +63,7 @@
 - Don't catch generic Exception - catch specific exceptions
 - Don't modify mutable default arguments
 - Don't forget to close resources (use context managers)
-- Don't mix sync and async code patterns
+- Don't use async patterns - the project is moving to sync-only
 - Don't forget to add files to git before committing
 
 # Local Newsifier Development Guide
@@ -73,7 +73,7 @@
 - Focuses on entity tracking, sentiment analysis, and headline trend detection
 - Uses NLP for entity recognition and relationship mapping
 - Supports multiple content acquisition methods (RSS feeds, Apify web scraping)
-- Uses Celery with Redis for asynchronous task processing
+- Moving from Celery to FastAPI Background Tasks for simpler task processing
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Environment Setup
@@ -270,13 +270,13 @@ class ApifyService:
 ### Session Management
 Use the `get_session` provider to obtain a database session:
 ```python
-from typing import Annotated, Generator
+from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session
 
 from local_newsifier.di.providers import get_session
 
-async def some_endpoint(
+def some_endpoint(
     session: Annotated[Session, Depends(get_session)]
 ):
     # Database operations here
@@ -388,10 +388,11 @@ def test_component_success(mock_component):
 - Redis is required for Celery - PostgreSQL is no longer supported as a broker
 
 
-### Testing Async Code
-When testing async code with FastAPI and fastapi-injectable, use pytest-asyncio's built-in capabilities:
+### Async Patterns (Deprecated)
 
-### Async Development Best Practices
+> **IMPORTANT**: The project is moving away from async patterns to sync-only implementations. The async patterns shown below are deprecated and should not be used for new development. All new code should use synchronous patterns only.
+
+### Legacy Async Development (Do Not Use)
 
 #### Async Database Sessions
 When implementing async database operations, follow these patterns:
@@ -502,6 +503,15 @@ def test_service():
 ```
 
 For more details on async testing patterns, see `docs/plans/event-loop-stabilization.md`.
+
+### Use Sync Patterns Instead
+
+For all new development, use synchronous patterns:
+- Use `def` instead of `async def`
+- Use `Session` instead of `AsyncSession`
+- Use `session.exec()` instead of `await session.execute()`
+- Use `requests` instead of `httpx.AsyncClient`
+- Remove all `await` keywords
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.

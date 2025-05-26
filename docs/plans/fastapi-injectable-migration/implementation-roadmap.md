@@ -208,8 +208,8 @@ class ApifyService:
 
 #### Tasks:
 1. **Update All Tests**
-   - ~~Remove `event_loop_fixture`~~ (COMPLETED)
-   - ~~Remove `@ci_skip_async`~~ (COMPLETED)
+   - Remove `event_loop_fixture`
+   - Remove `@ci_skip_async`
    - Update mocking patterns
 
 2. **Performance Testing**

@@ -172,8 +172,11 @@ def test_service_handles_external_failure():
 
 ## Testing Async Services
 
-### Async Service Methods
+### Basic Async Service Testing
 ```python
+from unittest.mock import AsyncMock, MagicMock
+import pytest
+
 @pytest.mark.asyncio
 async def test_async_service_method():
     # Mock async dependencies
@@ -190,6 +193,138 @@ async def test_async_service_method():
 
     assert result == {"data": "test"}
     mock_client.fetch_data.assert_awaited_once_with("test-id")
+```
+
+### Testing Async Webhook Service
+```python
+@pytest.mark.asyncio
+async def test_async_webhook_service():
+    # Mock async session
+    mock_session = MagicMock()
+    mock_session.execute = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+
+    # Create service
+    service = ApifyWebhookServiceAsync(
+        session=mock_session,
+        webhook_secret="test-secret"
+    )
+
+    # Test webhook processing
+    webhook_data = {
+        "eventType": "ACTOR.RUN.SUCCEEDED",
+        "actorId": "test-actor",
+        "runId": "test-run",
+        "data": {"results": ["item1", "item2"]}
+    }
+
+    result = await service.process_webhook(webhook_data)
+
+    assert result["status"] == "processed"
+    assert "webhook_id" in result
+    mock_session.flush.assert_awaited_once()
+```
+
+### Testing Async Database Operations
+```python
+@pytest.mark.asyncio
+async def test_async_service_with_database():
+    # Mock async CRUD
+    mock_crud = MagicMock()
+    mock_crud.create = AsyncMock(return_value=Article(id=1, title="Test"))
+    mock_crud.get = AsyncMock(return_value=Article(id=1, title="Test"))
+
+    # Mock async session
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = Article(id=1, title="Test")
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    service = AsyncArticleService(
+        article_crud=mock_crud,
+        session=mock_session
+    )
+
+    # Test create operation
+    created = await service.create_article({"title": "Test"})
+    assert created.id == 1
+
+    # Test get operation
+    fetched = await service.get_article(1)
+    assert fetched.title == "Test"
+```
+
+### Testing Async Error Handling
+```python
+@pytest.mark.asyncio
+async def test_async_service_error_handling():
+    # Mock session with rollback
+    mock_session = MagicMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock(side_effect=Exception("Database error"))
+    mock_session.rollback = AsyncMock()
+
+    service = ApifyWebhookServiceAsync(session=mock_session)
+
+    # Test that errors are handled properly
+    with pytest.raises(Exception, match="Database error"):
+        await service.process_webhook({"eventType": "test"})
+
+    # Verify rollback was called
+    mock_session.rollback.assert_awaited_once()
+```
+
+### Testing Concurrent Async Operations
+```python
+@pytest.mark.asyncio
+async def test_concurrent_async_operations():
+    # Mock async operations with delays
+    import asyncio
+
+    async def delayed_response(delay, value):
+        await asyncio.sleep(delay)
+        return value
+
+    mock_client = MagicMock()
+    mock_client.fetch_item = AsyncMock(
+        side_effect=lambda id: delayed_response(0.1, {"id": id, "data": f"item{id}"})
+    )
+
+    service = AsyncBatchService(client=mock_client)
+
+    # Test concurrent fetching
+    items = await service.fetch_multiple_items([1, 2, 3, 4, 5])
+
+    assert len(items) == 5
+    assert all(item["id"] in [1, 2, 3, 4, 5] for item in items)
+    assert mock_client.fetch_item.await_count == 5
+```
+
+### Testing Async Context Managers
+```python
+@pytest.mark.asyncio
+async def test_async_context_manager():
+    # Mock async context manager
+    mock_session = MagicMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    mock_session.execute = AsyncMock()
+
+    async def mock_get_session():
+        return mock_session
+
+    service = AsyncServiceWithContextManager(
+        session_factory=mock_get_session
+    )
+
+    # Test that context manager is used properly
+    await service.process_data()
+
+    mock_session.__aenter__.assert_awaited_once()
+    mock_session.__aexit__.assert_awaited_once()
 ```
 
 ## Testing Service Initialization
@@ -320,3 +455,36 @@ def test_batch_processing():
 3. **Don't create complex mock chains** - Keep mocks simple and focused
 4. **Don't skip error testing** - Services should handle failures gracefully
 5. **Don't mix unit and integration tests** - Keep them separate
+
+## Async Service Testing Best Practices
+
+1. **Always use AsyncMock for async methods** - Regular MagicMock won't work
+2. **Don't forget to await** - Missing await will return coroutines, not results
+3. **Mock at the session level** - Mock session.execute, not the entire SQLAlchemy stack
+4. **Test error paths with rollback** - Ensure async transactions are rolled back on error
+5. **Use pytest.mark.asyncio** - Required for all async test functions
+6. **Mock both __aenter__ and __aexit__** - When testing async context managers
+7. **Test concurrent operations** - Verify services handle concurrent requests properly
+8. **Verify awaited calls** - Use assert_awaited_once() instead of assert_called_once()
+
+### Common Async Testing Gotchas
+
+```python
+# Wrong - Returns coroutine, not result
+mock.method.return_value = async_function()
+
+# Correct - Returns the actual value
+mock.method.return_value = {"result": "data"}
+
+# Wrong - Forgot to mock as async
+mock_session.execute = MagicMock()
+
+# Correct - Mock as async
+mock_session.execute = AsyncMock()
+
+# Wrong - Not awaiting in test
+result = service.async_method()
+
+# Correct - Await the result
+result = await service.async_method()
+```
