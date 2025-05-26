@@ -9,10 +9,10 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from local_newsifier.config.settings import settings
-from local_newsifier.di.providers import get_session
+from local_newsifier.database.async_engine import get_async_session
 from local_newsifier.models.webhook import ApifyWebhookResponse
 from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
 
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 )
 async def apify_webhook(
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
     """Handle webhook notifications from Apify.
@@ -41,7 +41,7 @@ async def apify_webhook(
 
     Args:
         request: FastAPI request object containing raw body
-        session: Database session
+        session: Async database session
         apify_webhook_signature: Optional signature header for validation
 
     Returns:

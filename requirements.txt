@@ -1,5 +1,6 @@
 -e .
 alembic>=1.13.1
+asyncpg>=0.29.0
 beautifulsoup4>=4.13.3
 celery>=5.3.6
 chromadb==1.0.9

@@ -6,9 +6,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlmodel import Session, select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from local_newsifier.crud.article import article
+from local_newsifier.crud.async_article import async_article
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service_async import ApifyServiceAsync
@@ -19,11 +20,11 @@ logger = logging.getLogger(__name__)
 class ApifyWebhookServiceAsync:
     """Async service for handling Apify webhooks."""
 
-    def __init__(self, session: Session, webhook_secret: Optional[str] = None):
+    def __init__(self, session: AsyncSession, webhook_secret: Optional[str] = None):
         """Initialize webhook service.
 
         Args:
-            session: Database session
+            session: Async database session
             webhook_secret: Optional webhook secret for signature validation
         """
         self.session = session
@@ -77,9 +78,10 @@ class ApifyWebhookServiceAsync:
             return {"status": "error", "message": "Missing required fields"}
 
         # Check for duplicate
-        existing = self.session.exec(
+        result = await self.session.execute(
             select(ApifyWebhookRaw).where(ApifyWebhookRaw.run_id == run_id)
-        ).first()
+        )
+        existing = result.scalar_one_or_none()
 
         if existing:
             logger.info(f"Duplicate webhook for run_id: {run_id}")
@@ -103,7 +105,7 @@ class ApifyWebhookServiceAsync:
                 # Always close the async client
                 await self.apify_service.close()
 
-        self.session.commit()
+        await self.session.commit()
 
         return {
             "status": "ok",
@@ -143,7 +145,7 @@ class ApifyWebhookServiceAsync:
                     continue
 
                 # Check if article already exists
-                existing = article.get_by_url(self.session, url=url)
+                existing = await async_article.get_by_url(self.session, url=url)
                 if existing:
                     continue
 
