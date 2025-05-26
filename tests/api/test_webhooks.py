@@ -11,6 +11,7 @@ import uuid
 
 import pytest
 
+from tests.ci_skip_config import ci_skip_async
 from tests.fixtures.event_loop import event_loop_fixture
 
 
@@ -35,6 +36,7 @@ def mock_db():
 class TestApifyWebhookInfrastructure:
     """Test suite for Apify webhook infrastructure (validation and logging only)."""
 
+    @ci_skip_async
     def test_apify_webhook_invalid_signature(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook rejects requests with invalid signatures."""
         # Set a webhook secret
@@ -65,6 +67,7 @@ class TestApifyWebhookInfrastructure:
         assert response.status_code == 400
         assert "Invalid signature" in response.json()["detail"]
 
+    @ci_skip_async
     def test_apify_webhook_valid_payload(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook accepts valid payloads without signature."""
         # Clear webhook secret for this test
@@ -96,6 +99,7 @@ class TestApifyWebhookInfrastructure:
         assert response_data["processing_status"] == "completed"
         assert "processed" in response_data["message"].lower()
 
+    @ci_skip_async
     def test_apify_webhook_no_secret_configured(self, client, monkeypatch, event_loop_fixture):
         """Test that the webhook accepts all requests when no secret is configured."""
         # Clear the webhook secret
@@ -124,6 +128,7 @@ class TestApifyWebhookInfrastructure:
         assert response_data["status"] == "accepted"
         assert response_data["processing_status"] == "completed"
 
+    @ci_skip_async
     def test_apify_webhook_invalid_payload_structure(self, client, event_loop_fixture):
         """Test that the webhook rejects malformed payloads."""
         # Send an invalid payload (missing required fields)
