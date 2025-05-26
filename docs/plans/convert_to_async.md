@@ -19,6 +19,16 @@ The codebase is currently in a hybrid state:
 4. **Resource Efficiency**: Reduce thread blocking and improve CPU utilization
 5. **Maintainability**: Consistent async patterns throughout the codebase
 
+## Prerequisites
+
+### Event Loop Stabilization ✅ (Partially Complete)
+Before beginning the async migration, event loop issues must be resolved:
+- ✅ Critical CI failures fixed
+- ✅ Flaky test decorators removed
+- ✅ Documentation updated
+- 🔄 28 test files still need updating
+- 📋 See [event-loop-stabilization.md](event-loop-stabilization.md) for details
+
 ## Migration Phases
 
 ### Phase 1: Foundation (Weeks 1-2)

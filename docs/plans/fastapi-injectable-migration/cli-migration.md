@@ -23,19 +23,15 @@ def process_feed(
 
 ### 2. Complex Test Workarounds
 ```python
-# Current test complexity
-@pytest.fixture
-def event_loop_fixture():
-    """Complex fixture to handle event loop issues."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
+# Previous test complexity (NOW RESOLVED)
+# The custom event_loop_fixture has been removed
 
-@ci_skip_async  # Skip in CI due to event loop conflicts
-def test_cli_command(event_loop_fixture):
-    # Test with event loop workarounds
-    pass
+# New approach using pytest-asyncio
+@pytest.mark.asyncio
+async def test_cli_command():
+    # Tests now work consistently without workarounds
+    result = await async_cli_function()
+    assert result == expected
 ```
 
 ## Migration Strategy
@@ -416,7 +412,7 @@ def test_full_workflow():
 - [ ] Add progress tracking for long operations
 - [ ] Implement comprehensive error handling
 - [ ] Update all CLI tests
-- [ ] Remove event_loop_fixture from CLI tests
+- [x] Remove event_loop_fixture from CLI tests (COMPLETED)
 - [ ] Update CLI documentation
 - [ ] Test local development mode
 - [ ] Performance test batch operations

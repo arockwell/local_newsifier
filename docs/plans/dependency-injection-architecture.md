@@ -209,23 +209,32 @@ Async operations in tests can conflict with pytest's event loop.
 
 ### Solutions:
 
-1. **Use event_loop_fixture**:
+1. **Use pytest-asyncio**:
    ```python
-   def test_async_operation(event_loop_fixture):
-       result = event_loop_fixture.run_until_complete(async_func())
+   @pytest.mark.asyncio
+   async def test_async_operation():
+       result = await async_func()
+       assert result == expected
    ```
 
 2. **Mock async dependencies**:
    ```python
-   with patch("module.async_dep", AsyncMock(return_value=result)):
+   with patch("module.async_dep", new_callable=AsyncMock) as mock:
+       mock.return_value = expected_result
        # Test code
    ```
 
-3. **Skip in CI if needed**:
+3. **Avoid mixing sync/async patterns**:
    ```python
-   @ci_skip_async
-   def test_problematic_async(event_loop_fixture):
-       # Test code
+   # Good - fully async
+   @pytest.mark.asyncio
+   async def test_service():
+       service = await get_service()
+       result = await service.process()
+
+   # Bad - mixing patterns
+   def test_service():
+       service = asyncio.run(get_service())  # Don't do this
    ```
 
 ## Best Practices
