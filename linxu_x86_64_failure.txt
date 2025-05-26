@@ -1,0 +1,21 @@
+# Test Attempt Report
+
+This document summarizes the attempt to run the project's tests in an offline environment.
+
+## Setup Steps
+
+1. Ran `poetry env use python3` via `make setup-poetry-offline`, which failed because `pip` could not locate the `poetry-core` package when searching only the `wheels/` directory.
+2. Retried installation with a platform-specific wheels directory:
+   ```bash
+   poetry run pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements.txt
+   ```
+   This succeeded for runtime dependencies.
+3. Attempted to install development dependencies with:
+   ```bash
+   poetry run pip install --no-index --find-links=wheels/py312-linux-x64 -r requirements-dev.txt
+   ```
+   Installation failed because the `coverage` wheel was missing for the current platform.
+
+## Result
+
+Due to the missing `coverage` wheel, `pytest-cov` could not be installed. As a result, the test suite could not be executed.
