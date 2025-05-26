@@ -14,6 +14,11 @@ This document helps Codex locate developer guides and explains how to work with 
   - src/local_newsifier/models/CLAUDE.md
   - src/local_newsifier/services/CLAUDE.md
   - src/local_newsifier/tools/CLAUDE.md
+- Test guides:
+  - tests/CLAUDE.md
+  - tests/api/CLAUDE.md
+  - tests/crud/CLAUDE.md
+  - tests/services/CLAUDE.md
 - Additional docs: all Markdown files under `docs/`, plus `FastAPI-Injectable-Migration-Plan.md`, `README.md`, and `README_CLI.md`.
 
 If a `CLAUDE.md` file is added or removed, update this list.
