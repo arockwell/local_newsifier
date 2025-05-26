@@ -57,6 +57,9 @@ help:
 	@echo "$(YELLOW)Offline Support:$(NC)"
 	@echo "  make build-wheels  - Build wheels for current platform"
 	@echo "  make build-wheels-linux - Build Linux wheels using Docker"
+	@echo "  make build-wheels-linux-x86_64 - Build Linux x86_64 wheels only"
+	@echo "  make validate-offline - Validate offline installation will work"
+	@echo "  make install-offline-linux-x86_64 - Install offline (Linux x86_64)"
 
 # ===== INSTALLATION TARGETS =====
 
@@ -277,6 +280,24 @@ build-wheels-linux:
 	@echo "$(GREEN)Building Linux wheels using Docker...$(NC)"
 	@./scripts/build_linux_wheels.sh 3.12
 	@echo "$(GREEN)✓ Linux wheels built successfully$(NC)"
+
+# Build wheels specifically for Linux x86_64
+build-wheels-linux-x86_64:
+	@echo "$(GREEN)Building Linux x86_64 wheels...$(NC)"
+	@./scripts/build_linux_x86_64_wheels.sh
+	@echo "$(GREEN)✓ Linux x86_64 wheels built successfully$(NC)"
+
+# Validate offline installation
+validate-offline:
+	@echo "$(GREEN)Validating offline installation...$(NC)"
+	@$(PYTHON) scripts/validate_offline_wheels.py
+	@echo "$(GREEN)✓ Validation complete$(NC)"
+
+# Install offline for Linux x86_64
+install-offline-linux-x86_64:
+	@echo "$(GREEN)Installing offline for Linux x86_64...$(NC)"
+	@./scripts/install_offline_linux.sh
+	@echo "$(GREEN)✓ Installation complete$(NC)"
 
 # ===== CLEANUP =====
 
