@@ -10,7 +10,7 @@ The examples showcase how to test different types of components:
 2. **Flows**: Higher-level components that orchestrate multiple services (`test_injectable_flow_example.py`)
 3. **Tools**: Utility components that provide specific functionality (`test_injectable_tool_example.py`)
 
-Each example demonstrates various testing patterns and techniques using the testing utilities defined in `tests/conftest_injectable.py`.
+Each example demonstrates various testing patterns and techniques for testing injectable components.
 
 ## Key Testing Utilities
 
@@ -93,7 +93,7 @@ pytest tests/examples/ -v
 
 1. **Study the Patterns**: Review the examples to understand the different testing patterns
 2. **Choose the Appropriate Pattern**: Select the pattern that best fits your component
-3. **Use the Testing Utilities**: Leverage the utilities in `tests/conftest_injectable.py`
+3. **Use the Testing Utilities**: Leverage the testing utilities and patterns
 4. **Follow the AAA Pattern**: Structure your tests with Arrange, Act, Assert
 
 For detailed guidance on testing with injectable dependencies, refer to the comprehensive documentation in `docs/testing_injectable_dependencies.md`.

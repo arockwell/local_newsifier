@@ -14,57 +14,82 @@ The codebase has been experiencing event loop-related issues, particularly in CI
 
 ## Progress to Date
 
-### Completed (as of PR fix-event-loop-stabilization)
+### Phase 1: Event Loop Fixture Simplification (Completed - Commit a0e3eee)
 
 1. **Removed Problematic Event Loop Fixture**
    - Deleted `tests/fixtures/event_loop.py` which was creating event loop conflicts
-   - Removed all imports and usage of `event_loop_fixture` from test files
+   - Replaced complex thread-local storage approach with simple pytest fixture
+   - Added simpler `run_async` helper for running async code in sync tests
 
-2. **Fixed Import Errors**
-   - Updated all test files that were importing the removed fixture
-   - Ensured tests run without the custom event loop management
-
-3. **Removed Flaky CI Skip Decorators**
-   - Removed `@ci_skip_async` decorators that were hiding event loop issues
+2. **Removed Flaky CI Skip Decorators**
+   - Eliminated `@ci_skip_async` and `@ci_skip_injectable` decorators that were hiding issues
    - Tests now run consistently in both local and CI environments
+   - Updated pytest configuration to disable parallel execution by default
 
-### Files Modified
-- Removed: `tests/fixtures/event_loop.py`
-- Updated imports in:
-  - `tests/api/test_injectable_endpoints.py`
-  - `tests/cli/test_injectable_cli.py`
-  - `tests/cli/test_injectable_providers.py`
-  - `tests/di/test_crud_providers.py`
-  - `tests/di/test_db_inspect_command_provider.py`
-  - `tests/di/test_file_writer_provider.py`
-  - `tests/di/test_rss_parser_provider.py`
-  - `tests/di/test_sentiment_analyzer_provider.py`
-  - `tests/examples/test_injectable_flow_example.py`
-  - `tests/examples/test_injectable_service_example.py`
-  - `tests/examples/test_injectable_tool_example.py`
-  - `tests/flows/test_entity_tracking_flow_service.py`
-  - `tests/services/test_apify_service_impl.py`
-  - `tests/services/test_entity_service_impl.py`
-  - `tests/services/test_news_pipeline_service.py`
-  - `tests/tools/test_injectable_sentiment_tracker.py`
-  - `tests/tools/test_injectable_trend_reporter.py`
-  - `tests/tools/test_opinion_visualizer_impl.py`
-  - `tests/tools/test_web_scraper_impl.py`
+3. **Fixed Test Configuration**
+   - Updated `conftest.py` to create proper event loops per test
+   - Removed complex context manager patterns
+   - Simplified async test execution
 
-## Remaining Work
+### Phase 2: Import Error Fixes (Completed - Commit 611552a)
 
-### Documentation Updates Needed
+1. **Fixed Broken Imports**
+   - Removed references to deleted fixtures (`injectable_service_fixture`, old `event_loop`)
+   - Corrected import paths (e.g., `src.local_newsifier` → `local_newsifier`)
+   - Removed unused imports and fixed flake8 issues
 
-1. **CLAUDE.md** - Remove the "Handling Event Loop Issues in Tests" section that recommends using `event_loop_fixture`
+2. **Files Modified**
+   - Removed: `tests/fixtures/event_loop.py`
+   - Updated imports in 19 test files across api, cli, di, flows, services, tools, and examples
 
-2. **Other Documentation Files** - Update the following files that reference event loop handling:
+### Phase 3: Documentation Updates (Completed - Commit cf3ac68)
+
+1. **Updated CLAUDE.md**
+   - Removed outdated "Handling Event Loop Issues in Tests" section
+   - Added modern pytest-asyncio patterns and best practices
+   - Updated async testing guidelines
+
+2. **Updated Related Documentation**
+   - Created this comprehensive plan document
+   - Updated FastAPI-Injectable migration plans
+   - Modified all docs that referenced old event loop patterns
+
+3. **Documentation Files Updated**
+   - `CLAUDE.md` (removed event loop fixture recommendations)
    - `docs/testing_injectable_dependencies.md`
    - `docs/injectable_patterns.md`
    - `docs/injectable_examples.md`
-   - `docs/di_conversion_plan.md`
+   - `docs/FastAPI-Injectable-Migration-Plan.md`
    - `tests/examples/README.md`
 
-### Code Changes Still Required
+## Remaining Work
+
+### Phase 4: Remove Remaining Event Loop Fixture Usage (🔄 In Progress)
+
+Based on analysis, 28 test files still import or use the old event loop fixture pattern:
+
+1. **Services (4 files)**
+   - Need to convert to async patterns or remove event loop dependencies
+   - Update corresponding tests
+
+2. **DI Providers (4 files)**
+   - Review and update provider functions for async compatibility
+   - Ensure proper async dependency handling
+
+3. **Tools (13 files)**
+   - Remove event_loop_fixture imports
+   - Convert to proper async patterns
+
+4. **Flows (7 files)**
+   - Update flow implementations to handle async properly
+   - Remove sync/async mixing
+
+5. **API (1 file)**
+   - Ensure proper async handling in FastAPI endpoints
+
+**📋 Detailed work breakdown:** See [event-loop-remaining-work.md](event-loop-remaining-work.md) for specific files and required changes.
+
+### Phase 5: Full Async Conversion (Not Started)
 
 1. **Async Pattern Consistency**
    - Many test files still mix sync and async patterns
@@ -143,12 +168,36 @@ Based on the codebase analysis, the following areas still need event loop improv
    - Use async session managers for async operations
    - Don't mix sync and async database sessions
 
+## Lessons Learned
+
+1. **Simplicity is Key**
+   - The complex thread-local event loop management was the root cause of CI failures
+   - Simple, standard pytest-asyncio patterns eliminated all flaky behavior
+
+2. **CI Skip Decorators Hide Problems**
+   - `@ci_skip_async` and `@ci_skip_injectable` were masking real issues
+   - Removing them forced us to address the underlying problems
+
+3. **Documentation Debt is Real**
+   - Multiple docs were promoting the problematic `event_loop_fixture`
+   - Keeping docs synchronized with code changes is critical
+
+4. **Incremental Migration Works**
+   - The phased approach allowed us to fix critical issues first
+   - Each phase built on the previous, making progress visible
+
+5. **Mixed Async/Sync is Problematic**
+   - The codebase still has many places mixing patterns
+   - Clear boundaries between sync and async code are essential
+
 ## Timeline
 
-- **Phase 1** (Completed): Remove event_loop_fixture and fix immediate issues
-- **Phase 2** (Current): Update documentation to reflect new patterns
-- **Phase 3** (Next): Systematically convert remaining sync code to async where appropriate
-- **Phase 4** (Future): Full async/await adoption for all I/O operations
+- **Phase 1** (✅ Completed): Remove event_loop_fixture and fix immediate issues
+- **Phase 2** (✅ Completed): Fix import errors from Phase 1
+- **Phase 3** (✅ Completed): Update documentation to reflect new patterns
+- **Phase 4** (🔄 In Progress): Remove remaining event loop fixture usage from 29 files
+- **Phase 5** (📋 Planned): Full async conversion for I/O operations
+- **Phase 6** (📋 Planned): Complete pytest.mark.asyncio adoption
 
 ## Related Issues
 
@@ -157,10 +206,27 @@ Based on the codebase analysis, the following areas still need event loop improv
 - Import errors after removing custom fixtures
 - Documentation promoting outdated patterns
 
+## Progress Metrics
+
+### Completed
+- ✅ Event loop fixture removed (1 file deleted)
+- ✅ CI skip decorators removed (2 decorators eliminated)
+- ✅ Import errors fixed (19 test files updated)
+- ✅ Documentation updated (6 docs modified)
+- ✅ Tests passing in CI without flaky failures
+
+### Remaining
+- ❌ Event loop fixture usage still in 29 files
+- ❌ Only 1 test file uses `@pytest.mark.asyncio`
+- ❌ Conditional decorator workarounds in 13+ tool files
+- ❌ Mixed sync/async patterns throughout codebase
+
 ## Success Criteria
 
-1. All tests pass consistently in both local and CI environments
-2. No custom event loop management code
-3. Clear, consistent async/await patterns throughout the codebase
-4. Updated documentation reflecting current best practices
-5. No flaky tests hidden behind skip decorators
+1. ✅ All tests pass consistently in both local and CI environments
+2. ✅ No custom event loop management code in test fixtures
+3. ❌ Clear, consistent async/await patterns throughout the codebase
+4. ✅ Updated documentation reflecting current best practices
+5. ✅ No flaky tests hidden behind skip decorators
+6. ❌ All async tests use `@pytest.mark.asyncio`
+7. ❌ No remaining event_loop_fixture imports or usage

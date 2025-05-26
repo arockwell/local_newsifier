@@ -3,10 +3,6 @@
 Local Newsifier now uses **fastapi-injectable** exclusively. For a high-level overview of the architecture, see the [DI Architecture Guide](di_architecture.md).
 >
 > **NEW**: For comprehensive examples and practical patterns, check out the new [Injectable Patterns Guide](injectable_patterns.md).
->
-> **WARNING**: When testing components using the injectable pattern, be aware of potential event loop issues.
-> See the [Event Loop Handling in Tests](injectable_patterns.md#event-loop-handling-in-tests) section for guidance
-> on avoiding common problems.
 
 ## Overview
 
