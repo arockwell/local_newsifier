@@ -6,7 +6,7 @@ set -euo pipefail
 echo "Building wheels for Linux x86_64..."
 
 # Define wheel directory
-WHEEL_DIR="wheels/linux-x86_64"
+WHEEL_DIR="wheels/py312-linux-x86_64"
 
 # Clean existing directory (but keep requirements.txt)
 if [ -f "$WHEEL_DIR/requirements.txt" ]; then

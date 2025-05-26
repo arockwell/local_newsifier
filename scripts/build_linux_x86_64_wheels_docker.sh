@@ -6,7 +6,7 @@ set -euo pipefail
 echo "Building Linux x86_64 wheels using Docker..."
 
 # Define wheel directory
-WHEEL_DIR="wheels/linux-x86_64"
+WHEEL_DIR="wheels/py312-linux-x86_64"
 
 # Create temporary Dockerfile
 cat > /tmp/Dockerfile.wheel-builder << 'EOF'
@@ -18,7 +18,7 @@ WORKDIR /build
 RUN pip install --upgrade pip wheel
 
 # Copy requirements
-COPY wheels/linux-x86_64/requirements.txt /build/requirements.txt
+COPY wheels/py312-linux-x86_64/requirements.txt /build/requirements.txt
 
 # Download all wheels
 RUN pip download \
