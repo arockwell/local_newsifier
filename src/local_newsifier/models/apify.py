@@ -1,6 +1,6 @@
 """Apify integration models for the Local Newsifier system."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlmodel import JSON, Field, Relationship
@@ -54,7 +54,7 @@ class ApifyJob(TableBase, table=True):
     status: str  # e.g., "RUNNING", "SUCCEEDED", "FAILED", "ABORTED"
 
     # Run statistics
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     finished_at: Optional[datetime] = None
     duration_seconds: Optional[int] = None
 

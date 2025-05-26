@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Dict, Optional
 
 from sqlmodel import Session, select
@@ -148,9 +148,9 @@ class ApifyWebhookService:
                     title=title,
                     content=content,
                     source=item.get("source", "apify"),
-                    published_at=datetime.now(timezone.utc),
+                    published_at=datetime.now(UTC).replace(tzinfo=None),
                     status="published",
-                    scraped_at=datetime.now(timezone.utc),
+                    scraped_at=datetime.now(UTC).replace(tzinfo=None),
                 )
                 self.session.add(new_article)
                 articles_created += 1
