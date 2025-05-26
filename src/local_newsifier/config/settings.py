@@ -110,6 +110,34 @@ class Settings(BaseSettings):
         default=None, description="Secret for validating Apify webhook requests"
     )
 
+    # Rate limiting settings
+    RATE_LIMIT_APIFY_CALLS: int = Field(default=100, description="Max Apify API calls per period")
+    RATE_LIMIT_APIFY_PERIOD: int = Field(
+        default=3600, description="Apify rate limit period in seconds"
+    )
+    RATE_LIMIT_RSS_CALLS: int = Field(default=10, description="Max RSS feed calls per period")
+    RATE_LIMIT_RSS_PERIOD: int = Field(default=60, description="RSS rate limit period in seconds")
+    RATE_LIMIT_WEB_CALLS: int = Field(default=30, description="Max web scraping calls per period")
+    RATE_LIMIT_WEB_PERIOD: int = Field(
+        default=60, description="Web scraping rate limit period in seconds"
+    )
+    RATE_LIMIT_OPENAI_CALLS: int = Field(default=60, description="Max OpenAI API calls per period")
+    RATE_LIMIT_OPENAI_PERIOD: int = Field(
+        default=60, description="OpenAI rate limit period in seconds"
+    )
+    RATE_LIMIT_ENABLE_BACKOFF: bool = Field(
+        default=True, description="Enable automatic retry with backoff"
+    )
+    RATE_LIMIT_MAX_RETRIES: int = Field(
+        default=3, description="Max retry attempts for rate limited calls"
+    )
+    RATE_LIMIT_INITIAL_BACKOFF: float = Field(
+        default=1.0, description="Initial backoff time in seconds"
+    )
+    RATE_LIMIT_BACKOFF_MULTIPLIER: float = Field(
+        default=2.0, description="Backoff multiplier for exponential backoff"
+    )
+
     def validate_apify_token(self, skip_validation_in_test=False) -> str:
         """Validate that APIFY_TOKEN is set and return it.
 
@@ -124,12 +152,14 @@ class Settings(BaseSettings):
         """
         # Check if we're in a test environment
         import os
+
         in_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
         # Skip validation if requested and in test mode
         if skip_validation_in_test and in_test_env:
             if not self.APIFY_TOKEN:
                 import logging
+
                 logging.warning("Using dummy Apify token for testing")
                 return "test_dummy_token"
 
@@ -146,8 +176,8 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         """Get the database URL based on environment.
 
-        Checks for DATABASE_URL environment variable first (commonly used by Railway and other platforms)
-        and falls back to constructing one from individual components if not present.
+        Checks for DATABASE_URL environment variable first (commonly used by Railway and other
+        platforms) and falls back to constructing one from individual components if not present.
         """
         # Check if DATABASE_URL is provided directly (common in Railway and other cloud platforms)
         env_db_url = os.environ.get("DATABASE_URL")
@@ -160,12 +190,13 @@ class Settings(BaseSettings):
             self.POSTGRES_PASSWORD,
             self.POSTGRES_HOST,
             self.POSTGRES_PORT,
-            self.POSTGRES_DB
+            self.POSTGRES_DB,
         )
 
     @computed_field
     def CELERY_BROKER_URL(self) -> str:
         """Get the Celery broker URL based on environment.
+
         Uses Redis as the message broker.
         """
         # Use dedicated environment variable if available
@@ -179,6 +210,7 @@ class Settings(BaseSettings):
     @computed_field
     def CELERY_RESULT_BACKEND(self) -> str:
         """Get the Celery result backend URL based on environment.
+
         Uses Redis as the result backend.
         """
         # Use dedicated environment variable if available
