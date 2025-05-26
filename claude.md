@@ -319,37 +319,42 @@ def test_component_success(mock_component):
 - Use runtime imports to break circular dependencies
 - Redis is required for Celery - PostgreSQL is no longer supported as a broker
 
-### Handling Event Loop Issues in Tests
-When testing async code, especially with FastAPI and fastapi-injectable, you may encounter event loop-related errors. Follow these guidelines to avoid them:
+### Testing Async Code
+When testing async code with FastAPI and fastapi-injectable, use pytest-asyncio's built-in capabilities:
 
-1. Use the event_loop_fixture for any test that may interact with async code:
+1. Mark async tests with `@pytest.mark.asyncio`:
 ```python
-def test_my_async_functionality(event_loop_fixture):
+@pytest.mark.asyncio
+async def test_async_functionality():
+    result = await async_function()
+    assert result == expected
+```
+
+2. Mock async dependencies properly:
+```python
+from unittest.mock import AsyncMock, patch
+
+# Mock async dependencies
+with patch("my_module.async_dependency", new_callable=AsyncMock) as mock:
+    mock.return_value = expected_value
     # Test code here
 ```
 
-2. For running async code in tests, use event_loop_fixture.run_until_complete() instead of await:
+3. Avoid mixing sync and async patterns:
 ```python
-async def my_async_function():
-    # async code here
+# Good - fully async test
+@pytest.mark.asyncio
+async def test_service():
+    service = await get_service()
+    result = await service.process()
+    assert result == expected
 
-# Inside a test
-event_loop_fixture.run_until_complete(my_async_function())
+# Bad - mixing patterns
+def test_service():
+    service = asyncio.run(get_service())  # Don't do this
 ```
 
-3. For FastAPI tests with async dependencies, mock the dependencies instead of using actual async functions:
-```python
-# Instead of using actual async dependency
-with patch("my_module.async_dependency", AsyncMock(return_value=mock_result)):
-    # Test code here
-```
-
-4. If you must skip a test in CI environments but keep it running locally, use ci_skip_async:
-```python
-@ci_skip_async
-def test_problematic_in_ci(event_loop_fixture):
-    # Test code here
-```
+For more details on async testing patterns, see `docs/plans/event-loop-stabilization.md`.
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.

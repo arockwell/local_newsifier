@@ -18,7 +18,6 @@ Each example demonstrates various testing patterns and techniques using the test
 - `common_injectable_mocks`: Pre-configured mocks for common dependencies
 - `create_mock_service`: A helper function for creating services with mocks
 - `injectable_test_app`: A fixture for testing FastAPI endpoints
-- `event_loop`: A fixture for managing async event loops
 
 ## Testing Patterns Demonstrated
 
