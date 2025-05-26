@@ -499,10 +499,88 @@ async def test_concurrent_operations():
 4. **Risk**: Team learning curve
    - **Mitigation**: Training sessions and documentation
 
+## Progress Update
+
+### Completed Tasks (Issue #721)
+
+#### ✅ Phase 1: Foundation
+- Created async database session management with `get_async_session()`
+- Implemented proper async session lifecycle management
+- Fixed critical bugs in session binding and query execution
+
+#### ✅ Phase 2: Webhook Handler
+- Successfully converted `/webhooks/apify` endpoint to fully async
+- Implemented async `ApifyWebhookService` with proper error handling
+- Created async CRUD operations for `ApifyWebhookRaw`
+- Fixed timezone handling issues in models
+
+#### ✅ Key Patterns Established
+
+1. **Async Session Management**
+```python
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+```
+
+2. **Async CRUD Operations**
+```python
+async def create_async(self, session: AsyncSession, data: dict):
+    obj = self.model(**data)
+    session.add(obj)
+    await session.flush()
+    await session.refresh(obj)
+    return obj
+```
+
+3. **Proper Error Handling**
+```python
+try:
+    result = await service.process_webhook(webhook_data)
+except HTTPException:
+    raise  # Let FastAPI handle it
+except Exception as e:
+    logger.error(f"Webhook processing failed: {e}")
+    raise HTTPException(status_code=500, detail=str(e))
+```
+
+4. **Async Service Pattern**
+```python
+class ApifyWebhookService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.crud = CRUDApifyWebhookRaw()
+
+    async def process_webhook(self, data: dict):
+        # All database operations use await
+        webhook = await self.crud.create_async(self.session, data)
+        return webhook
+```
+
+### Lessons Learned
+
+1. **Session Management is Critical**: Async sessions must be properly managed with explicit commit/rollback/close operations
+2. **Error Propagation**: HTTPException must be re-raised, not wrapped
+3. **No Implicit Commits**: Unlike sync SQLAlchemy, async requires explicit `await session.commit()`
+4. **Timezone Handling**: Use timezone-naive datetime in database, handle timezone conversion at API boundaries
+
+### Next Steps
+
+- Continue async migration for other services following established patterns
+- Implement async versions of remaining CRUD operations
+- Convert external API clients (Apify, HTTP requests) to async
+
 ## Timeline
 
-- **Week 1-2**: Database layer and CRUD operations
-- **Week 2-3**: External API integrations
+- **Week 1-2**: Database layer and CRUD operations ✅ (Partially complete)
+- **Week 2-3**: External API integrations (In progress)
 - **Week 3-5**: Service layer migration
 - **Week 5-6**: Tools and flows
 - **Week 6-7**: Testing and migration
@@ -513,3 +591,5 @@ Total estimated time: 8 weeks for full migration
 ## Conclusion
 
 This migration plan provides a structured approach to converting the Local Newsifier codebase to fully async operations. By following this plan, we can achieve significant performance improvements while maintaining code quality and system reliability. The phased approach allows for gradual migration with minimal risk to existing functionality.
+
+The successful implementation of async webhook handling (Issue #721) has validated our approach and established solid patterns for the rest of the migration.
