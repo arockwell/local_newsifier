@@ -4,24 +4,21 @@ This module provides common test fixtures like sample data.
 Database configuration is handled in the root conftest.py.
 """
 
-import os
 from datetime import datetime, timezone
-from typing import Dict, Generator, List
+from typing import Dict, List
 
 import pytest
-from sqlmodel import Session
+import pytest_asyncio
 
-from local_newsifier.models.analysis_result import AnalysisResult
 # Import model classes only for type hints
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMention,
-                                                    EntityMentionContext, EntityProfile,
-                                                    EntityRelationship)
+from local_newsifier.models.entity_tracking import CanonicalEntity
 
 # Note: We don't need to register models here as it's done in root conftest.py
 
 # ==================== Sample Data Fixtures ====================
+
 
 @pytest.fixture(scope="function")
 def sample_article_data() -> Dict:
@@ -105,8 +102,8 @@ def sample_apify_source_config_data() -> Dict:
         "source_url": "https://example.com/news",
         "input_configuration": {
             "startUrls": [{"url": "https://example.com/news"}],
-            "maxPagesPerCrawl": 10
-        }
+            "maxPagesPerCrawl": 10,
+        },
     }
 
 
@@ -121,7 +118,9 @@ def sample_entity_relationship_data() -> Dict:
         "evidence": "This is evidence for the relationship.",
     }
 
+
 # ==================== Database Entity Creation Fixtures ====================
+
 
 @pytest.fixture(scope="function")
 def create_article(db_session) -> Article:
@@ -154,6 +153,43 @@ def create_entity(db_session, create_article) -> Entity:
     db_session.add(entity)
     db_session.commit()
     db_session.refresh(entity)
+    return entity
+
+
+# ==================== Async Database Entity Creation Fixtures ====================
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_create_article(async_db_session) -> Article:
+    """Create a test article in the async database."""
+    article = Article(
+        title="Test Article",
+        content="This is a test article.",
+        url="https://example.com/test-article",
+        source="test_source",
+        published_at=datetime.now(timezone.utc),
+        status="new",
+        scraped_at=datetime.now(timezone.utc),
+    )
+    async_db_session.add(article)
+    await async_db_session.commit()
+    await async_db_session.refresh(article)
+    return article
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_create_entity(async_db_session, async_create_article) -> Entity:
+    """Create a test entity in the async database."""
+    entity = Entity(
+        article_id=async_create_article.id,
+        text="Test Entity",
+        entity_type="TEST",
+        confidence=0.95,
+        sentence_context="This is a test entity context.",
+    )
+    async_db_session.add(entity)
+    await async_db_session.commit()
+    await async_db_session.refresh(entity)
     return entity
 
 
