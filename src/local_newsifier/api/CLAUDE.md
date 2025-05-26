@@ -124,13 +124,13 @@ async def not_found_handler(request: Request, exc: HTTPException):
 4. Transform response data as needed
 5. Return appropriate response (HTML or JSON)
 
-## Async Endpoints
+## Async Endpoints (Deprecated)
 
-The API now includes async endpoints for handling I/O-intensive operations, particularly webhooks and concurrent data processing.
+> **IMPORTANT**: The project is moving away from async patterns to synchronous-only implementations. The async endpoints shown below are being phased out and should not be used for new development. All new endpoints should use synchronous patterns only.
 
-### Async Webhook Handling
+### Legacy Async Webhook Handling
 
-The webhook router demonstrates async patterns:
+The following shows the deprecated async pattern that is being replaced:
 
 ```python
 from typing import Annotated
@@ -166,9 +166,9 @@ async def apify_webhook(
     return {"status": "accepted", "webhook_id": result["webhook_id"]}
 ```
 
-### Async Database Operations in Endpoints
+### Legacy Async Database Operations
 
-Use async sessions for database operations:
+The following shows deprecated async database patterns:
 
 ```python
 @router.get("/articles/{article_id}")
@@ -187,20 +187,64 @@ async def get_article_async(
     return article.model_dump()
 ```
 
-### When to Use Async Endpoints
+### Migration to Sync-Only Patterns
 
-**Use Async Endpoints For:**
-- Webhook handlers that process external notifications
-- Endpoints that make multiple database queries
-- Integration with async external APIs
-- File upload/download operations
-- Real-time data streaming
+**Important**: Do NOT create new async endpoints. Instead, use synchronous patterns:
 
-**Use Sync Endpoints For:**
-- Simple CRUD operations
-- Template rendering without complex queries
-- Legacy code integration
-- CPU-bound operations (consider background tasks instead)
+1. Replace `async def` with `def`
+2. Use regular `Session` instead of `AsyncSession`
+3. Use `requests` instead of `httpx.AsyncClient`
+4. Use synchronous database queries
+5. Remove all `await` keywords
+
+All existing async endpoints will be migrated to sync patterns as part of the ongoing simplification effort.
+
+## Preferred Sync Pattern
+
+Here's the correct way to implement endpoints using synchronous patterns:
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from local_newsifier.di.providers import get_session
+from local_newsifier.models.article import Article
+
+@router.post("/webhooks/apify", status_code=202)
+def apify_webhook(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    apify_webhook_signature: Annotated[str | None, Header()] = None
+):
+    # Get body for signature validation
+    body = request.body()
+    data = request.json()
+
+    # Use sync service
+    from local_newsifier.services.apify_webhook_service import ApifyWebhookService
+    service = ApifyWebhookService(
+        session=session,
+        webhook_secret=settings.APIFY_WEBHOOK_SECRET
+    )
+
+    # Process webhook synchronously
+    result = service.process_webhook(data)
+    return {"status": "accepted", "webhook_id": result["webhook_id"]}
+
+@router.get("/articles/{article_id}")
+def get_article(
+    article_id: int,
+    session: Annotated[Session, Depends(get_session)]
+):
+    # Use sync query
+    stmt = select(Article).where(Article.id == article_id)
+    article = session.exec(stmt).first()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    return article.model_dump()
+```
 
 ## Injectable Services in Endpoints
 
