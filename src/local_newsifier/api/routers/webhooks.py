@@ -83,6 +83,9 @@ async def apify_webhook(
             processing_status="completed",
         )
 
+    except HTTPException:
+        # Re-raise HTTPException so FastAPI handles it properly
+        raise
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
         return ApifyWebhookResponse(
