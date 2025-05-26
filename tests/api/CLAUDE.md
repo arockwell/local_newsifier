@@ -191,24 +191,104 @@ def test_file_upload(mock_injectable_dependencies):
 
 ## Testing Async Endpoints
 
-For async endpoints:
+### Testing Async Webhook Endpoints
+
+For async webhook endpoints with async sessions:
+```python
+from unittest.mock import AsyncMock, MagicMock
+import pytest
+
+@pytest.mark.asyncio
+async def test_async_webhook_endpoint():
+    # Mock async session
+    mock_session = MagicMock()
+    mock_session.execute = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    # Override async session dependency
+    async def override_get_async_session():
+        yield mock_session
+
+    app.dependency_overrides[get_async_session] = override_get_async_session
+
+    # Test webhook
+    client = TestClient(app)
+    response = client.post(
+        "/webhooks/apify",
+        json={
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test-actor",
+            "runId": "test-run"
+        },
+        headers={"Apify-Webhook-Signature": "test-signature"}
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "accepted"
+
+    # Verify async operations were called
+    mock_session.flush.assert_awaited()
+
+    # Clean up override
+    app.dependency_overrides.clear()
+```
+
+### Testing Async Database Operations in Endpoints
+
 ```python
 @pytest.mark.asyncio
-async def test_async_endpoint(mock_injectable_dependencies):
-    mock_service = AsyncMock()
-    mock_service.async_method.return_value = {"result": "data"}
+async def test_async_article_endpoint():
+    # Mock async CRUD
+    mock_crud = MagicMock()
+    mock_crud.get = AsyncMock(return_value=Article(id=1, title="Test"))
 
+    # Mock async session with proper query execution
+    mock_session = MagicMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = Article(id=1, title="Test")
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    async def override_get_async_session():
+        yield mock_session
+
+    app.dependency_overrides[get_async_session] = override_get_async_session
+
+    client = TestClient(app)
+    response = client.get("/api/articles/1")
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Test"
+
+    app.dependency_overrides.clear()
+```
+
+### Testing Async Service Dependencies
+
+```python
+def test_endpoint_with_async_service(mock_injectable_dependencies):
+    # Create async service mock
+    mock_service = MagicMock()
+    mock_service.process_webhook = AsyncMock(
+        return_value={"status": "processed", "webhook_id": 123}
+    )
+
+    # Override the service provider
     mock_injectable_dependencies.patch_provider(
-        "get_async_service",
+        "get_apify_webhook_service_async",
         mock_service
     )
 
-    # TestClient handles async automatically
+    # TestClient handles async endpoints transparently
     client = TestClient(app)
-    response = client.get("/api/async-endpoint")
+    response = client.post(
+        "/webhooks/apify",
+        json={"eventType": "test"}
+    )
 
-    assert response.status_code == 200
-    mock_service.async_method.assert_awaited_once()
+    assert response.status_code == 202
+    mock_service.process_webhook.assert_awaited_once()
 ```
 
 ## Common Patterns
