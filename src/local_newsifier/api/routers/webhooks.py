@@ -5,6 +5,7 @@ This module provides endpoints for receiving webhook notifications from
 external services like Apify, validating payloads, and processing data.
 """
 
+import asyncio
 import logging
 from typing import Annotated
 
@@ -63,9 +64,12 @@ async def apify_webhook(
             session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
-        # Handle webhook
-        result = webhook_service.handle_webhook(
-            payload=payload_dict, raw_payload=raw_payload_str, signature=apify_webhook_signature
+        # Handle webhook - run synchronous method in a thread to avoid blocking
+        result = await asyncio.to_thread(
+            webhook_service.handle_webhook,
+            payload=payload_dict,
+            raw_payload=raw_payload_str,
+            signature=apify_webhook_signature,
         )
 
         # Check if there was an error
