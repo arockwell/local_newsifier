@@ -202,31 +202,6 @@ def test_endpoint(client, mock_get_service):
     assert response.status_code == 200
 ```
 
-## Event Loop Management
-
-### Problem: Event Loop Conflicts
-Async operations in tests can conflict with pytest's event loop.
-
-### Solutions:
-
-1. **Use event_loop_fixture**:
-   ```python
-   def test_async_operation(event_loop_fixture):
-       result = event_loop_fixture.run_until_complete(async_func())
-   ```
-
-2. **Mock async dependencies**:
-   ```python
-   with patch("module.async_dep", AsyncMock(return_value=result)):
-       # Test code
-   ```
-
-3. **Skip in CI if needed**:
-   ```python
-   @ci_skip_async
-   def test_problematic_async(event_loop_fixture):
-       # Test code
-   ```
 
 ## Best Practices
 
@@ -286,9 +261,6 @@ def get_complex_service(...) -> Service:
 **Cause**: Services importing each other at module level
 **Fix**: Use runtime imports in provider functions
 
-### Event Loop Errors in Tests
-**Cause**: Conflict between pytest and async code
-**Fix**: Use event_loop_fixture or mock async dependencies
 
 ### Dependency Not Found
 **Cause**: Provider not registered or imported
