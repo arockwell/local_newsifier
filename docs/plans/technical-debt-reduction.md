@@ -145,6 +145,14 @@ def check_version_conflicts():
 
 **📋 See detailed plan**: [event-loop-stabilization.md](event-loop-stabilization.md) and [event-loop-remaining-work.md](event-loop-remaining-work.md)
 
+**🔍 Related Async Documentation**:
+- [async-migration/async-sync-crash-analysis.md](async-migration/async-sync-crash-analysis.md) - Root cause analysis of production crashes
+- [async-migration/async-sync-fix-plan.md](async-migration/async-sync-fix-plan.md) - Immediate fix strategies
+- [async-migration/async-migration-patterns.md](async-migration/async-migration-patterns.md) - Correct async/sync patterns
+- [async-migration/async-antipatterns-catalog.md](async-migration/async-antipatterns-catalog.md) - Common mistakes to avoid
+- [async-migration/async-migration-guide.md](async-migration/async-migration-guide.md) - Comprehensive migration guide
+- [async-migration/async-patterns-analysis.md](async-migration/async-patterns-analysis.md) - Architectural analysis
+
 **Current Best Practice**:
 ```python
 # For async tests - use pytest-asyncio

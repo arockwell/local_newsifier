@@ -12,6 +12,8 @@ The codebase has been experiencing event loop-related issues, particularly in CI
 3. Flaky tests marked with `@ci_skip_async` that hide underlying event loop problems
 4. Inconsistent async/await usage across the codebase
 
+> **📚 Related Documentation**: For a comprehensive catalog of async/sync antipatterns found in this codebase, see [async-migration/async-antipatterns-catalog.md](async-migration/async-antipatterns-catalog.md)
+
 ## Progress to Date
 
 ### Phase 1: Event Loop Fixture Simplification (Completed - Commit a0e3eee)
@@ -167,6 +169,8 @@ Based on the codebase analysis, the following areas still need event loop improv
 2. **Proper Session Management**
    - Use async session managers for async operations
    - Don't mix sync and async database sessions
+
+> **🔍 See Also**: For correct async patterns and common pitfalls, refer to [async-migration/async-migration-patterns.md](async-migration/async-migration-patterns.md)
 
 ## Lessons Learned
 

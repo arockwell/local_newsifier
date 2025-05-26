@@ -71,6 +71,24 @@ Related documents:
 - [Remaining Work Detail](./event-loop-remaining-work.md) - Specific files and changes needed
 - [Next Steps](./event-loop-next-steps.md) - Actionable plan for completion
 
+### Async Migration
+
+#### [Async Migration Documentation](./async-migration/)
+Comprehensive documentation for migrating from mixed async/sync to consistent architecture:
+
+- **[Crash Analysis](./async-migration/async-sync-crash-analysis.md)** - Root cause analysis of production crashes
+- **[Fix Plan](./async-migration/async-sync-fix-plan.md)** - Immediate and long-term fix strategies
+- **[Migration Patterns](./async-migration/async-migration-patterns.md)** - Correct async/sync patterns with examples
+- **[Antipatterns Catalog](./async-migration/async-antipatterns-catalog.md)** - Common mistakes to avoid
+- **[Migration Guide](./async-migration/async-migration-guide.md)** - Step-by-step implementation guide
+- **[Patterns Analysis](./async-migration/async-patterns-analysis.md)** - Architectural analysis of current state
+
+Key insights:
+- Production crashes caused by async endpoints using sync database sessions
+- FastAPI's `contextmanager_in_threadpool` fails with mixed async/sync
+- Two fix options: Quick sync conversion or full async migration
+- Comprehensive patterns for database, service, and API layers
+
 ## How to Use This Knowledge Base
 
 ### For New Features

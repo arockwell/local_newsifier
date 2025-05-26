@@ -1,84 +1,117 @@
-2025-05-26 01:30:07,374 - local_newsifier.database.engine - INFO - Successfully created all database tables
-2025-05-26 01:30:07,374 - local_newsifier.api.main - INFO - Database initialization completed
-2025-05-26 01:30:07,374 - local_newsifier.api.main - INFO - Initializing fastapi-injectable
-2025-05-26 01:30:07,374 - local_newsifier.api.main - INFO - fastapi-injectable initialization completed
-2025-05-26 01:30:07,374 - local_newsifier.api.main - INFO - Application startup complete
-INFO:     Application startup complete.
-2025-05-26 01:30:08,447 - local_newsifier.database.async_engine - INFO - Async database engine created
-2025-05-26 01:30:08,475 - local_newsifier.api.routers.webhooks - ERROR - Error processing webhook: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.DataError'>: invalid in
-[SQL: INSERT INTO apify_webhook_raw (created_at, updated_at, run_id, actor_id, status, data) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::TIMESTAMP WITHOUT TIME ZONE, $3::VARCHAR, $4::VARCHAR, $5:
-[parameters: (datetime.datetime(2025, 5, 26, 5, 30, 8, 473287, tzinfo=datetime.timezone.utc), datetime.datetime(2025, 5, 26, 5, 30, 8, 473298, tzinfo=datetime.timezone.utc), 'test-run-123', 'tom_c
-(Background on this error at: https://sqlalche.me/e/20/dbapi)
-INFO:     127.0.0.1:53195 - "POST /webhooks/apify HTTP/1.1" 500 Internal Server Error
-ERROR:    Exception in ASGI application
-Traceback (most recent call last):
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 419, in run_asgi
-    result = await app(  # type: ignore[func-returns-value]
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
-    await super().__call__(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
-    raise exc
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
-    await self.app(scope, receive, _send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/middleware/sessions.py", line 85, in __call__
-    await self.app(scope, receive, send_wrapper)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
     await app(scope, receive, sender)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
-    await route.handle(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
-    await self.app(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+
     response = await f(request)
+
                ^^^^^^^^^^^^^^^^
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/fastapi/routing.py", line 290, in app
-    async with AsyncExitStack() as async_exit_stack:
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/routing.py", line 291, in app
+
+    solved_result = await solve_dependencies(
+
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 634, in solve_dependencies
+
+    solved = await solve_generator(
+
+             ^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 560, in solve_generator
+
+    return await stack.enter_async_context(cm)
+
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/root/.nix-profile/lib/python3.12/contextlib.py", line 659, in enter_async_context
+
+    result = await _enter(cm)
+
+             ^^^^^^^^^^^^^^^^
+
+  File "/root/.nix-profile/lib/python3.12/contextlib.py", line 210, in __aenter__
+
+    return await anext(self.gen)
+
+           ^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/concurrency.py", line 35, in contextmanager_in_threadpool
+
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+
+    raise exc
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+
+    await app(scope, receive, sender)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 715, in __call__
+
+    await self.middleware_stack(scope, receive, send)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 735, in app
+
+    await route.handle(scope, receive, send)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+
+    await self.app(scope, receive, send)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+
+    raise exc
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+
+    await app(scope, receive, sender)
+
+  File "/opt/venv/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+
+    response = await f(request)
+
                ^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 754, in __aexit__
-    raise exc_details[1]
-  File "/opt/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 737, in __aexit__
-    cb_suppress = await cb(*exc_details)
-                  ^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 217, in __aexit__
-    await anext(self.gen)
-  File "/Users/alexrockwell/dev/worktrees/plan-issue-721/src/local_newsifier/database/async_engine.py", line 117, in get_async_session
-    async with manager.get_session() as session:
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 217, in __aexit__
-    await anext(self.gen)
-  File "/Users/alexrockwell/dev/worktrees/plan-issue-721/src/local_newsifier/database/async_engine.py", line 78, in get_session
-    await session.commit()
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 1014, in commit
-    await greenlet_spawn(self.sync_session.commit)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 190, in greenlet_spawn
-    result = context.switch(*args, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2032, in commit
-    trans.commit(_to_root=True)
-  File "<string>", line 2, in commit
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 103, in _go
-    self._raise_for_prerequisite_state(fn.__name__, current_state)
-  File "/Users/alexrockwell/Library/Caches/pypoetry/virtualenvs/local-newsifier-vO2b83xR-py3.12/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 973, in _raise_for_prerequisite_state
-    raise sa_exc.PendingRollbackError(
-sqlalchemy.exc.PendingRollbackError: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.DataError'>: invalid input for query argument $1: datetime.datetime(2025, 5, 26, 5, 30, 8,... (can't subtract offset-naive and offset-aware datetimes)
-[SQL: INSERT INTO apify_webhook_raw (created_at, updated_at, run_id, actor_id, status, data) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::TIMESTAMP WITHOUT TIME ZONE, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::JSON) RETURNING apify_webhook_raw.id]
-[parameters: (datetime.datetime(2025, 5, 26, 5, 30, 8, 473287, tzinfo=datetime.timezone.utc), datetime.datetime(2025, 5, 26, 5, 30, 8, 473298, tzinfo=datetime.timezone.utc), 'test-run-123', 'tom_cruise', '0', '{"eventType": "ACTOR.RUN.SUCCEEDED", "actorId": "tom_cruise", "actorRunId": "test-run-123", "webhookId": "webhook-456", "createdAt": "2025-05-26T05:3 ... (7 characters truncated) ...  "userId": "test_user", "defaultKeyValueStoreId": "test_kvs", "defaultDatasetId": "test_dataset", "startedAt": "2025-05-26T05:30:08Z", "status": "0"}')]
-(Background on this error at: https://sqlalche.me/e/20/dbapi) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/routing.py", line 291, in app
+
+    solved_result = await solve_dependencies(
+
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 634, in solve_dependencies
+
+    solved = await solve_generator(
+
+             ^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py", line 560, in solve_generator
+
+    return await stack.enter_async_context(cm)
+
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/root/.nix-profile/lib/python3.12/contextlib.py", line 659, in enter_async_context
+
+    result = await _enter(cm)
+
+             ^^^^^^^^^^^^^^^^
+
+  File "/root/.nix-profile/lib/python3.12/contextlib.py", line 210, in __aenter__
+
+    return await anext(self.gen)
+
+           ^^^^^^^^^^^^^^^^^^^^^
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/concurrency.py", line 35, in contextmanager_in_threadpool
+
+    raise e
+
+  File "/opt/venv/lib/python3.12/site-packages/fastapi/concurrency.py", line 27, in contextmanager_in_threadpool
+
+    yield await run_in_threadpool(cm.__enter__)

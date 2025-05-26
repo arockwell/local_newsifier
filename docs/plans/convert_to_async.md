@@ -4,12 +4,26 @@
 
 This document outlines the comprehensive plan to migrate the Local Newsifier codebase from synchronous to fully asynchronous operations. The migration aims to improve performance, scalability, and resource utilization by leveraging Python's async/await capabilities throughout the application stack.
 
+> **⚠️ CRITICAL UPDATE**: Production crashes have been identified due to async/sync mixing. See [async-migration/async-sync-crash-analysis.md](async-migration/async-sync-crash-analysis.md) for root cause analysis and [async-migration/async-sync-fix-plan.md](async-migration/async-sync-fix-plan.md) for immediate fixes.
+
+## Related Documentation
+
+For comprehensive async migration guidance, see:
+- **[async-migration/](async-migration/)** - Complete async migration documentation
+  - [async-sync-crash-analysis.md](async-migration/async-sync-crash-analysis.md) - Root cause of production crashes
+  - [async-sync-fix-plan.md](async-migration/async-sync-fix-plan.md) - Immediate fix options
+  - [async-migration-patterns.md](async-migration/async-migration-patterns.md) - Correct async/sync patterns
+  - [async-antipatterns-catalog.md](async-migration/async-antipatterns-catalog.md) - Common mistakes to avoid
+  - [async-migration-guide.md](async-migration/async-migration-guide.md) - Detailed implementation guide
+  - [async-patterns-analysis.md](async-migration/async-patterns-analysis.md) - Architectural analysis
+
 ## Current State
 
 The codebase is currently in a hybrid state:
 - **Async**: FastAPI endpoints are defined as async functions
 - **Sync**: All services, CRUD operations, tools, and database operations are synchronous
 - **Problem**: Async endpoints call sync services, creating blocking operations and defeating the purpose of async
+- **CRITICAL**: This mixing causes production crashes when FastAPI tries to bridge sync/async gap
 
 ## Goals
 
