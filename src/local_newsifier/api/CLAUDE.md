@@ -1,7 +1,7 @@
 # Local Newsifier API Guide
 
 ## Overview
-The API module provides a web interface for the Local Newsifier system using FastAPI. It includes both HTML user interfaces (using Jinja2 templates) and JSON API endpoints for programmatic access.
+The API module provides a web interface for the Local Newsifier system using FastAPI. It includes both HTML user interfaces (using Jinja2 templates) and JSON API endpoints for programmatic access. All endpoints use synchronous patterns - no async/await code.
 
 ## Key Components
 
@@ -34,7 +34,7 @@ from local_newsifier.di.providers import get_session, get_entity_service
 from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
-async def get_entity(
+def get_entity(
     entity_id: int,
     request: Request,
     entity_service: Annotated[EntityService, Depends(get_entity_service)]
@@ -49,7 +49,7 @@ The API supports both UI (HTML) and API (JSON) responses:
 1. **HTML Responses** - For human interaction:
 ```python
 @router.get("/tables", response_class=HTMLResponse)
-async def get_tables(request: Request, session: Session = Depends(get_session)):
+def get_tables(request: Request, session: Session = Depends(get_session)):
     tables_info = get_tables_info(session)
     return templates.TemplateResponse(
         "tables.html",
@@ -60,7 +60,7 @@ async def get_tables(request: Request, session: Session = Depends(get_session)):
 2. **JSON Responses** - For programmatic access:
 ```python
 @router.get("/tables/api", response_model=List[Dict])
-async def get_tables_api(session: Session = Depends(get_session)):
+def get_tables_api(session: Session = Depends(get_session)):
     return get_tables_info(session)
 ```
 
@@ -93,7 +93,7 @@ The API includes exception handlers for common errors:
 
 ```python
 @app.exception_handler(404)
-async def not_found_handler(request: Request, exc: HTTPException):
+def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(
         "404.html",
         {"request": request, "detail": exc.detail},
@@ -124,84 +124,19 @@ async def not_found_handler(request: Request, exc: HTTPException):
 4. Transform response data as needed
 5. Return appropriate response (HTML or JSON)
 
-## Async Endpoints (Deprecated)
+## Sync-Only Endpoints
 
-> **IMPORTANT**: The project is moving away from async patterns to synchronous-only implementations. The async endpoints shown below are being phased out and should not be used for new development. All new endpoints should use synchronous patterns only.
+> **CRITICAL**: This project uses ONLY synchronous patterns. No async/await code is allowed.
 
-### Legacy Async Webhook Handling
+### Why Sync-Only?
+- Simpler debugging and error handling
+- Easier to understand execution flow
+- Better compatibility with existing tools
+- Reduced complexity in testing
 
-The following shows the deprecated async pattern that is being replaced:
+### Implementing Sync Endpoints
 
-```python
-from typing import Annotated
-from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from local_newsifier.database.async_engine import get_async_session
-from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
-
-@router.post("/webhooks/apify", status_code=202)
-async def apify_webhook(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    apify_webhook_signature: Annotated[str | None, Header()] = None
-):
-    # Get raw body for signature validation
-    body = await request.body()
-    data = await request.json()
-
-    # Create async service
-    service = ApifyWebhookServiceAsync(
-        session=session,
-        webhook_secret=settings.APIFY_WEBHOOK_SECRET
-    )
-
-    # Validate signature if provided
-    if apify_webhook_signature:
-        if not service.validate_signature(body.decode(), apify_webhook_signature):
-            raise HTTPException(status_code=401, detail="Invalid signature")
-
-    # Process webhook asynchronously
-    result = await service.process_webhook(data)
-
-    return {"status": "accepted", "webhook_id": result["webhook_id"]}
-```
-
-### Legacy Async Database Operations
-
-The following shows deprecated async database patterns:
-
-```python
-@router.get("/articles/{article_id}")
-async def get_article_async(
-    article_id: int,
-    session: Annotated[AsyncSession, Depends(get_async_session)]
-):
-    # Use async query syntax
-    stmt = select(Article).where(Article.id == article_id)
-    result = await session.execute(stmt)
-    article = result.scalar_one_or_none()
-
-    if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
-
-    return article.model_dump()
-```
-
-### Migration to Sync-Only Patterns
-
-**Important**: Do NOT create new async endpoints. Instead, use synchronous patterns:
-
-1. Replace `async def` with `def`
-2. Use regular `Session` instead of `AsyncSession`
-3. Use `requests` instead of `httpx.AsyncClient`
-4. Use synchronous database queries
-5. Remove all `await` keywords
-
-All existing async endpoints will be migrated to sync patterns as part of the ongoing simplification effort.
-
-## Preferred Sync Pattern
-
-Here's the correct way to implement endpoints using synchronous patterns:
+Here's how to implement endpoints using synchronous patterns:
 
 ```python
 from typing import Annotated
@@ -259,7 +194,7 @@ from local_newsifier.di.providers import get_entity_service
 from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
-async def get_entity(
+def get_entity(
     entity_id: int,
     entity_service: Annotated[EntityService, Depends(get_entity_service)]
 ):
@@ -269,19 +204,19 @@ async def get_entity(
     return entity
 ```
 
-### Testing Endpoints
+### Testing Sync Endpoints
 
 Test endpoints by overriding dependencies:
 
 ```python
 from fastapi.testclient import TestClient
+from unittest.mock import Mock
 
 def test_webhook_endpoint(test_client: TestClient):
-    # Mock the async session dependency
-    async def mock_session():
-        return MagicMock()
+    # Mock the session dependency
+    mock_session = Mock()
 
-    app.dependency_overrides[get_async_session] = mock_session
+    app.dependency_overrides[get_session] = lambda: mock_session
 
     # Test the endpoint
     response = test_client.post(
@@ -291,12 +226,12 @@ def test_webhook_endpoint(test_client: TestClient):
     assert response.status_code == 202
 ```
 
-## Best Practices for Async Endpoints
+## Best Practices for Sync Endpoints
 
-1. **Always await async operations**: Forgetting `await` will return a coroutine instead of a result
-2. **Use async context managers**: For database sessions and other resources
-3. **Handle exceptions properly**: Use try/except with proper error responses
-4. **Avoid blocking operations**: Don't use sync I/O in async endpoints
-5. **Consider timeouts**: For external API calls and long operations
+1. **Use dependency injection**: Always inject services and sessions via `Depends()`
+2. **Handle exceptions properly**: Use try/except with proper error responses
+3. **Return IDs not objects**: Avoid passing SQLModel objects between requests
+4. **Keep endpoints focused**: Delegate business logic to services
+5. **Use appropriate HTTP status codes**: 200 for success, 404 for not found, etc.
 
 For more information on dependency injection patterns, see `docs/dependency_injection.md`.

@@ -17,15 +17,13 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from local_newsifier.models.base_state import ErrorDetails
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 from local_newsifier.tools.file_writer import FileWriterTool
-from tests.ci_skip_config import ci_skip_injectable
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
@@ -56,27 +54,20 @@ def complex_state():
         scraped_text="This is a complex article with various data types.",
     )
     state.analysis_results = {
-        "entities": [
-            {"name": "John Doe", "type": "PERSON"},
-            {"name": "Acme Corp", "type": "ORG"}
-        ],
-        "sentiment": {
-            "score": 0.75,
-            "magnitude": 0.9,
-            "label": "positive"
-        },
+        "entities": [{"name": "John Doe", "type": "PERSON"}, {"name": "Acme Corp", "type": "ORG"}],
+        "sentiment": {"score": 0.75, "magnitude": 0.9, "label": "positive"},
         "keywords": ["technology", "innovation", "research"],
         "summary": "This is a summary of the article content.",
         "metadata": {
             "word_count": 150,
             "language": "en",
-            "processed_at": datetime.now(timezone.utc).isoformat()
-        }
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        },
     }
     return state
 
 
-def test_file_writer(tmp_path, sample_state, event_loop_fixture):
+def test_file_writer(tmp_path, sample_state):
     """Test result file writing using event loop fixture."""
     # Direct instantiation with mocked dependencies (approach i)
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -110,7 +101,8 @@ def create_file_writer_tool(output_dir=None):
 
     return FileWriterTool(output_dir=output_dir)
 
-def test_file_writer_with_errors(tmp_path, error_state, event_loop_fixture):
+
+def test_file_writer_with_errors(tmp_path, error_state):
     """Test file writing with error details using event loop fixture."""
     # Use helper function to create FileWriterTool (approach ii)
     writer = create_file_writer_tool(output_dir=str(tmp_path))
@@ -143,7 +135,8 @@ def file_writer_tool(tmp_path):
     """
     return FileWriterTool(output_dir=str(tmp_path))
 
-def test_file_writer_permission_error(tmp_path, sample_state, event_loop_fixture):
+
+def test_file_writer_permission_error(tmp_path, sample_state):
     """Test file writing with permission error."""
     # Direct instantiation instead of using the fixture (more reliable in CI)
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -159,7 +152,7 @@ def test_file_writer_permission_error(tmp_path, sample_state, event_loop_fixture
         assert "Permission denied" in sample_state.error_details.message
 
 
-def test_file_writer_json_error(tmp_path, sample_state, event_loop_fixture):
+def test_file_writer_json_error(tmp_path, sample_state):
     """Test file writing with JSON serialization error using event loop fixture."""
     # Direct instantiation with mocked dependencies (approach i)
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -175,7 +168,7 @@ def test_file_writer_json_error(tmp_path, sample_state, event_loop_fixture):
     assert sample_state.error_details.task == "saving"
 
 
-def test_file_writer_status_transitions(tmp_path, sample_state, event_loop_fixture):
+def test_file_writer_status_transitions(tmp_path, sample_state):
     """Test status transitions during save operation using event loop fixture."""
     # Use helper function to create FileWriterTool (approach ii)
     writer = create_file_writer_tool(output_dir=str(tmp_path))
@@ -190,7 +183,7 @@ def test_file_writer_status_transitions(tmp_path, sample_state, event_loop_fixtu
     assert len(state.run_logs) >= 2  # Should have at least start and success logs
 
 
-def test_generate_filename(tmp_path, sample_state, event_loop_fixture):
+def test_generate_filename(tmp_path, sample_state):
     """Test filename generation with different URLs using event loop fixture."""
     # Use the fixture approach (approach iii) through file_writer_tool fixture
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -209,17 +202,17 @@ def test_generate_filename(tmp_path, sample_state, event_loop_fixture):
     assert "news.example.com" in filename
 
 
-def test_ensure_output_dir(tmp_path, event_loop_fixture):
+def test_ensure_output_dir(tmp_path):
     """Test output directory creation using event loop fixture."""
     nested_path = tmp_path / "nested" / "path"
-    writer = FileWriterTool(output_dir=str(nested_path))
+    FileWriterTool(output_dir=str(nested_path))
 
     # Directory should be created
     assert nested_path.exists()
     assert nested_path.is_dir()
 
 
-def test_file_writer_with_complex_data(tmp_path, complex_state, event_loop_fixture):
+def test_file_writer_with_complex_data(tmp_path, complex_state):
     """Test file writing with complex nested data structures using event loop fixture."""
     # Direct instantiation with mocked dependencies (approach i)
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -240,7 +233,7 @@ def test_file_writer_with_complex_data(tmp_path, complex_state, event_loop_fixtu
         assert "technology" in data["analysis"]["results"]["keywords"]
 
 
-def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
+def test_file_writer_atomic_write(tmp_path):
     """Test that file writer performs atomic write operations using event loop fixture."""
     # Create test data and output path
     test_content = {"test": "data", "numbers": [1, 2, 3]}
@@ -250,9 +243,7 @@ def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
     writer = create_file_writer_tool(output_dir=str(output_dir))
 
     # Create state with test content
-    state = NewsAnalysisState(
-        target_url="https://example.com/atomic-test"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/atomic-test")
     state.analysis_results = test_content
 
     # Create a real temporary file for testing
@@ -260,13 +251,13 @@ def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
         temp_path = temp_file.name
 
     # Mock json.dump to avoid actual writing
-    with patch('json.dump') as mock_dump:
+    with patch("json.dump") as mock_dump:
         # Mock os.replace to avoid actual file operations
-        with patch('os.replace') as mock_replace:
+        with patch("os.replace") as mock_replace:
             # Mock os.fsync to avoid file operations
-            with patch('os.fsync') as mock_fsync:
+            with patch("os.fsync") as mock_fsync:
                 # Mock tempfile.NamedTemporaryFile to return our controlled file
-                with patch('tempfile.NamedTemporaryFile') as mock_temp_file:
+                with patch("tempfile.NamedTemporaryFile") as mock_temp_file:
                     # Setup the mock to return a file-like object with proper methods
                     mock_file = MagicMock()
                     mock_file.name = temp_path
@@ -295,14 +286,13 @@ def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
         os.unlink(temp_path)
 
 
-def test_file_system_full_error(tmp_path, sample_state, event_loop_fixture):
+def test_file_system_full_error(tmp_path, sample_state):
     """Test handling of file system full error using event loop fixture."""
     # Use fixture through local instantiation (approach iii variant)
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Mock tempfile.NamedTemporaryFile to raise OSError for disk full
-    with patch("tempfile.NamedTemporaryFile",
-               side_effect=OSError(28, "No space left on device")):
+    with patch("tempfile.NamedTemporaryFile", side_effect=OSError(28, "No space left on device")):
         with pytest.raises(OSError) as exc_info:
             writer.save(sample_state)
 
@@ -316,7 +306,7 @@ def test_file_system_full_error(tmp_path, sample_state, event_loop_fixture):
         assert "No space left on device" in sample_state.error_details.message
 
 
-def test_readonly_filesystem_error(tmp_path, sample_state, event_loop_fixture):
+def test_readonly_filesystem_error(tmp_path, sample_state):
     """Test handling of read-only filesystem errors using event loop fixture."""
     # Direct instantiation with mocked dependencies (approach i)
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -332,7 +322,7 @@ def test_readonly_filesystem_error(tmp_path, sample_state, event_loop_fixture):
         assert "Read-only file system" in str(exc_info.value)
 
 
-def test_invalid_path_handling(sample_state, event_loop_fixture):
+def test_invalid_path_handling(sample_state):
     """Test handling of invalid paths using event loop fixture."""
     # Try with an invalid path containing illegal characters
     invalid_path = "/\0invalid"  # Null character is invalid in paths
@@ -342,17 +332,13 @@ def test_invalid_path_handling(sample_state, event_loop_fixture):
         writer.save(sample_state)
 
 
-def test_prepare_output_format(tmp_path, sample_state, event_loop_fixture):
+def test_prepare_output_format(tmp_path, sample_state):
     """Test the format of prepared output using event loop fixture."""
     # Use helper function to create FileWriterTool (approach ii)
     writer = create_file_writer_tool(output_dir=str(tmp_path))
 
     # Add some analysis results
-    sample_state.analysis_results = {
-        "key1": "value1",
-        "key2": 123,
-        "nested": {"a": 1, "b": 2}
-    }
+    sample_state.analysis_results = {"key1": "value1", "key2": 123, "nested": {"a": 1, "b": 2}}
 
     # Set some timestamps
     now = datetime.now(timezone.utc)
@@ -387,11 +373,9 @@ def test_prepare_output_format(tmp_path, sample_state, event_loop_fixture):
     assert output["metadata"]["status"] == AnalysisStatus.COMPLETED_SUCCESS
 
 
-def test_concurrent_writing(tmp_path, event_loop_fixture):
+def test_concurrent_writing(tmp_path):
     """Test concurrent writing scenarios using event loop fixture."""
     import threading
-    import time
-    from uuid import uuid4
 
     # Use fixture approach (approach iii variant) with direct instantiation
     writer = FileWriterTool(output_dir=str(tmp_path))
@@ -400,9 +384,7 @@ def test_concurrent_writing(tmp_path, event_loop_fixture):
 
     def write_file(index):
         try:
-            state = NewsAnalysisState(
-                target_url=f"https://example.com/concurrent/{index}"
-            )
+            state = NewsAnalysisState(target_url=f"https://example.com/concurrent/{index}")
             state.analysis_results = {"index": index, "data": f"Test data {index}"}
             result_state = writer.save(state)
             results.append(result_state.save_path)
@@ -436,7 +418,7 @@ def test_concurrent_writing(tmp_path, event_loop_fixture):
             assert data["analysis"]["results"]["data"] == f"Test data {index}"
 
 
-def test_special_character_handling_in_paths(tmp_path, event_loop_fixture):
+def test_special_character_handling_in_paths(tmp_path):
     """Test handling of special characters in paths using event loop fixture."""
     # Create a path with spaces and special characters
     special_path = tmp_path / "special dir!@#$" / "sub dir"
@@ -448,22 +430,20 @@ def test_special_character_handling_in_paths(tmp_path, event_loop_fixture):
     assert special_path.exists()
 
     # Save a file
-    state = NewsAnalysisState(
-        target_url="https://example.com/special"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/special")
     result_state = writer.save(state)
 
     # Verify file was saved
     assert os.path.exists(result_state.save_path)
 
 
-def test_path_normalization(tmp_path, event_loop_fixture):
+def test_path_normalization(tmp_path):
     """Test path normalization using event loop fixture."""
     # Test with relative path
     rel_path = "./relative/path"
-    abs_path = os.path.abspath(rel_path)
+    # abs_path = os.path.abspath(rel_path)  # Not used
 
-    with patch("os.makedirs") as mock_makedirs:
+    with patch("os.makedirs"):
         # Direct instantiation (approach i)
         writer = FileWriterTool(output_dir=rel_path)
         # Verify the path was normalized
@@ -472,29 +452,27 @@ def test_path_normalization(tmp_path, event_loop_fixture):
     # Test with path containing ..
     parent_path = "../parent/path"
 
-    with patch("os.makedirs") as mock_makedirs:
+    with patch("os.makedirs"):
         # Direct instantiation (approach i)
         writer = FileWriterTool(output_dir=parent_path)
         # Verify the path was normalized
         assert writer.output_dir == Path(parent_path)
 
     # Test with absolute path
-    with patch("os.makedirs") as mock_makedirs:
+    with patch("os.makedirs"):
         # Direct instantiation (approach i)
         writer = FileWriterTool(output_dir=str(tmp_path))
         # Verify the path was normalized
         assert writer.output_dir == tmp_path
 
 
-def test_filename_generation(tmp_path, event_loop_fixture):
+def test_filename_generation(tmp_path):
     """Test filename generation with various URLs using event loop fixture."""
     # Use the fixture approach (approach iii fixture pattern)
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Test with standard URL
-    state = NewsAnalysisState(
-        target_url="https://example.com/article"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/article")
     filename = writer._generate_filename(state)
     assert "example.com" in filename
     assert str(state.run_id) in filename

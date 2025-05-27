@@ -10,7 +10,6 @@ import pytest
 from local_newsifier.models.trend import (TrendAnalysis, TrendEntity, TrendEvidenceItem,
                                           TrendStatus, TrendType)
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
@@ -34,20 +33,12 @@ def sample_trends():
     # Add entities
     trend1.add_entity(
         TrendEntity(
-            text="Downtown Development",
-            entity_type="ORG",
-            frequency=5,
-            relevance_score=1.0,
+            text="Downtown Development", entity_type="ORG", frequency=5, relevance_score=1.0
         )
     )
 
     trend1.add_entity(
-        TrendEntity(
-            text="City Council",
-            entity_type="ORG",
-            frequency=3,
-            relevance_score=0.8,
-        )
+        TrendEntity(text="City Council", entity_type="ORG", frequency=3, relevance_score=0.8)
     )
 
     # Add evidence
@@ -76,17 +67,14 @@ def sample_trends():
     # Add entities
     trend2.add_entity(
         TrendEntity(
-            text="Business Association",
-            entity_type="ORG",
-            frequency=3,
-            relevance_score=1.0,
+            text="Business Association", entity_type="ORG", frequency=3, relevance_score=1.0
         )
     )
 
     return [trend1, trend2]
 
 
-def test_init(event_loop_fixture):
+def test_init():
     """Test TrendReporter initialization."""
     with patch("os.makedirs") as mock_makedirs:
         # Test with default output_dir
@@ -100,7 +88,7 @@ def test_init(event_loop_fixture):
         mock_makedirs.assert_called_with("custom_output", exist_ok=True)
 
 
-def test_generate_trend_summary_empty(event_loop_fixture):
+def test_generate_trend_summary_empty():
     """Test generating summary with no trends."""
     reporter = TrendReporter()
 
@@ -115,7 +103,7 @@ def test_generate_trend_summary_empty(event_loop_fixture):
     assert "No significant trends" in summary
 
 
-def test_generate_text_summary(event_loop_fixture, sample_trends):
+def test_generate_text_summary(sample_trends):
     """Test generating text format summary."""
     reporter = TrendReporter()
 
@@ -140,7 +128,7 @@ def test_generate_text_summary(event_loop_fixture, sample_trends):
     assert "New Downtown Project Announced" in summary
 
 
-def test_generate_markdown_summary(event_loop_fixture, sample_trends):
+def test_generate_markdown_summary(sample_trends):
     """Test generating markdown format summary."""
     reporter = TrendReporter()
 
@@ -175,7 +163,7 @@ def test_generate_markdown_summary(event_loop_fixture, sample_trends):
     assert "| 2023-01-15 | 2 |" in summary
 
 
-def test_generate_json_summary(event_loop_fixture, sample_trends):
+def test_generate_json_summary(sample_trends):
     """Test generating JSON format summary."""
     reporter = TrendReporter()
 
@@ -215,7 +203,7 @@ def test_generate_json_summary(event_loop_fixture, sample_trends):
 
 
 @patch("builtins.open", new_callable=mock_open)
-def test_save_report(mock_file, sample_trends, event_loop_fixture):
+def test_save_report(mock_file, sample_trends):
     """Test saving reports to file."""
     # Test only filename functionality and file_writer integration
     # We won't check content writing as it's difficult to mock consistently
