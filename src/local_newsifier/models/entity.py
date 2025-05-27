@@ -34,9 +34,7 @@ class Entity(SQLModel, table=True):
     sentence_context: Optional[str] = None
 
     # Define relationship with fully qualified path
-    article: Optional["local_newsifier.models.article.Article"] = Relationship(
-        back_populates="entities"
-    )
+    article: Optional["Article"] = Relationship(back_populates="entities")
 
     # Model configuration for both SQLModel and Pydantic functionality
     model_config = {

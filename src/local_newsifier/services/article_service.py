@@ -97,7 +97,7 @@ class ArticleService:
                 results=analysis_result_data,  # Use the correct field name
             )
 
-            analysis_result = self.analysis_result_crud.create(session, obj_in=analysis_result_obj)
+            self.analysis_result_crud.create(session, obj_in=analysis_result_obj)
 
             # Commit the transaction
             session.commit()

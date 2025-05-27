@@ -19,7 +19,11 @@ from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMenti
                                                     EntityMentionContext, EntityProfile,
                                                     EntityRelationship)
 
+# Import injectable test fixtures
+from .conftest_injectable import mock_injectable_dependencies
+
 # Note: We don't need to register models here as it's done in root conftest.py
+
 
 # ==================== Sample Data Fixtures ====================
 

@@ -83,9 +83,6 @@ def get_engine(
 
     for attempt in range(max_retries + 1):
         try:
-            # Import settings here to avoid circular imports
-            from local_newsifier.config.settings import get_settings
-
             settings = get_settings()
             url = url or str(settings.DATABASE_URL)
 
