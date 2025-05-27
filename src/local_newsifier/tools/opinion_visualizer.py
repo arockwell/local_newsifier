@@ -27,12 +27,8 @@ class OpinionVisualizerTool:
     """
 
     def __init__(
-        self, 
-        session: Annotated[
-            Session, 
-            Depends(),
-            Query(JoinTransactionMode.CONDITIONAL_SAVEPOINT)
-        ]
+        self,
+        session: Annotated[Session, Depends(), Query(JoinTransactionMode.CONDITIONAL_SAVEPOINT)],
     ):
         """
         Initialize the opinion visualizer.
@@ -71,12 +67,16 @@ class OpinionVisualizerTool:
         from ..models.database.article import Article
 
         # Get analysis results for the topic using SQLModel syntax
-        statement = select(AnalysisResult).where(
-            AnalysisResult.analysis_type == "SENTIMENT",
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
-        ).join(Article)
-        
+        statement = (
+            select(AnalysisResult)
+            .where(
+                AnalysisResult.analysis_type == "SENTIMENT",
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+            .join(Article)
+        )
+
         results = self.session.execute(statement)
         analysis_results = results.all()
 
@@ -101,9 +101,7 @@ class OpinionVisualizerTool:
 
             if period_results:
                 # Calculate average sentiment for this period
-                sentiments = [
-                    r.results["topic_sentiments"][topic] for r in period_results
-                ]
+                sentiments = [r.results["topic_sentiments"][topic] for r in period_results]
                 avg_sentiment = sum(sentiments) / len(sentiments)
 
                 time_periods.append(current_date.strftime("%Y-%m-%d"))
@@ -164,13 +162,11 @@ class OpinionVisualizerTool:
 
         Returns:
             Dictionary mapping topics to visualization data
-        """        
+        """
         comparison_data = {}
 
         for topic in topics:
-            topic_data = self.prepare_timeline_data(
-                topic, start_date, end_date, interval
-            )
+            topic_data = self.prepare_timeline_data(topic, start_date, end_date, interval)
             comparison_data[topic] = topic_data
 
         return comparison_data
@@ -192,16 +188,12 @@ class OpinionVisualizerTool:
         Returns:
             Formatted text report
         """
-        if report_type == "timeline" and isinstance(
-            visualization_data, SentimentVisualizationData
-        ):
+        if report_type == "timeline" and isinstance(visualization_data, SentimentVisualizationData):
             return self._generate_timeline_text_report(visualization_data)
         elif report_type == "comparison" and isinstance(visualization_data, dict):
             return self._generate_comparison_text_report(visualization_data)
         else:
-            raise ValueError(
-                f"Invalid report type: {report_type} or data type mismatch"
-            )
+            raise ValueError(f"Invalid report type: {report_type} or data type mismatch")
 
     def generate_markdown_report(
         self,
@@ -220,16 +212,12 @@ class OpinionVisualizerTool:
         Returns:
             Formatted markdown report
         """
-        if report_type == "timeline" and isinstance(
-            visualization_data, SentimentVisualizationData
-        ):
+        if report_type == "timeline" and isinstance(visualization_data, SentimentVisualizationData):
             return self._generate_timeline_markdown_report(visualization_data)
         elif report_type == "comparison" and isinstance(visualization_data, dict):
             return self._generate_comparison_markdown_report(visualization_data)
         else:
-            raise ValueError(
-                f"Invalid report type: {report_type} or data type mismatch"
-            )
+            raise ValueError(f"Invalid report type: {report_type} or data type mismatch")
 
     def generate_html_report(
         self,
@@ -248,20 +236,14 @@ class OpinionVisualizerTool:
         Returns:
             Formatted HTML report
         """
-        if report_type == "timeline" and isinstance(
-            visualization_data, SentimentVisualizationData
-        ):
+        if report_type == "timeline" and isinstance(visualization_data, SentimentVisualizationData):
             return self._generate_timeline_html_report(visualization_data)
         elif report_type == "comparison" and isinstance(visualization_data, dict):
             return self._generate_comparison_html_report(visualization_data)
         else:
-            raise ValueError(
-                f"Invalid report type: {report_type} or data type mismatch"
-            )
+            raise ValueError(f"Invalid report type: {report_type} or data type mismatch")
 
-    def _timeline_summary(
-        self, data: SentimentVisualizationData
-    ) -> Dict[str, Any]:
+    def _timeline_summary(self, data: SentimentVisualizationData) -> Dict[str, Any]:
         """Return summary statistics for a timeline visualization."""
         avg_sentiment = sum(data.sentiment_values) / len(data.sentiment_values)
         return {
@@ -308,7 +290,12 @@ class OpinionVisualizerTool:
 
         # Check if metadata is available
         metadata = summary["viz_metadata"]
-        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+        if (
+            metadata
+            and "start_date" in metadata
+            and "end_date" in metadata
+            and "interval" in metadata
+        ):
             report += f"Time period: {metadata['start_date']} to {metadata['end_date']}\n"
             report += f"Interval: {metadata['interval']}\n\n"
         else:
@@ -330,9 +317,7 @@ class OpinionVisualizerTool:
 
         return report
 
-    def _generate_comparison_text_report(
-        self, data: Dict[str, SentimentVisualizationData]
-    ) -> str:
+    def _generate_comparison_text_report(self, data: Dict[str, SentimentVisualizationData]) -> str:
         """Generate a text report for comparison visualization."""
         if not data:
             return "No sentiment data available for comparison"
@@ -343,7 +328,12 @@ class OpinionVisualizerTool:
 
         topic_stats, viz_metadata = self._comparison_summary(data)
 
-        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+        if (
+            viz_metadata
+            and "start_date" in viz_metadata
+            and "end_date" in viz_metadata
+            and "interval" in viz_metadata
+        ):
             report += f"Time period: {viz_metadata['start_date']} to {viz_metadata['end_date']}\n"
             report += f"Interval: {viz_metadata['interval']}\n\n"
         else:
@@ -352,7 +342,9 @@ class OpinionVisualizerTool:
 
         report += "SUMMARY STATISTICS\n"
         for topic, stats in topic_stats.items():
-            report += f"{topic}: {stats['avg_sentiment']:.2f} ({stats['total_articles']} articles)\n"
+            report += (
+                f"{topic}: {stats['avg_sentiment']:.2f} ({stats['total_articles']} articles)\n"
+            )
 
         report += "\nDETAILED COMPARISON\n"
 
@@ -378,9 +370,7 @@ class OpinionVisualizerTool:
 
         return report
 
-    def _generate_timeline_markdown_report(
-        self, data: SentimentVisualizationData
-    ) -> str:
+    def _generate_timeline_markdown_report(self, data: SentimentVisualizationData) -> str:
         """Generate a markdown report for timeline visualization."""
         # Calculate summary statistics
         if not data.sentiment_values:
@@ -393,7 +383,12 @@ class OpinionVisualizerTool:
 
         # Check if metadata is available
         metadata = summary["viz_metadata"]
-        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+        if (
+            metadata
+            and "start_date" in metadata
+            and "end_date" in metadata
+            and "interval" in metadata
+        ):
             report += f"**Time period:** {metadata['start_date']} to {metadata['end_date']}  \n"
             report += f"**Interval:** {metadata['interval']}\n\n"
         else:
@@ -429,8 +424,15 @@ class OpinionVisualizerTool:
 
         topic_stats, viz_metadata = self._comparison_summary(data)
 
-        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
-            report += f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
+        if (
+            viz_metadata
+            and "start_date" in viz_metadata
+            and "end_date" in viz_metadata
+            and "interval" in viz_metadata
+        ):
+            report += (
+                f"**Time period:** {viz_metadata['start_date']} to {viz_metadata['end_date']}  \n"
+            )
             report += f"**Interval:** {viz_metadata['interval']}\n\n"
         else:
             report += "**Time period:** Not specified  \n"
@@ -503,7 +505,12 @@ class OpinionVisualizerTool:
 
         # Check if metadata is available
         metadata = summary["viz_metadata"]
-        if metadata and "start_date" in metadata and "end_date" in metadata and "interval" in metadata:
+        if (
+            metadata
+            and "start_date" in metadata
+            and "end_date" in metadata
+            and "interval" in metadata
+        ):
             report += f"<p><strong>Time period:</strong> {metadata['start_date']} to {metadata['end_date']}<br>\n"
             report += f"<strong>Interval:</strong> {metadata['interval']}</p>\n"
         else:
@@ -531,9 +538,7 @@ class OpinionVisualizerTool:
         report += "</body></html>"
         return report
 
-    def _generate_comparison_html_report(
-        self, data: Dict[str, SentimentVisualizationData]
-    ) -> str:
+    def _generate_comparison_html_report(self, data: Dict[str, SentimentVisualizationData]) -> str:
         """Generate an HTML report for comparison visualization."""
         if not data:
             return "<p>No sentiment data available for comparison</p>"
@@ -555,7 +560,12 @@ class OpinionVisualizerTool:
 
         topic_stats, viz_metadata = self._comparison_summary(data)
 
-        if viz_metadata and 'start_date' in viz_metadata and 'end_date' in viz_metadata and 'interval' in viz_metadata:
+        if (
+            viz_metadata
+            and "start_date" in viz_metadata
+            and "end_date" in viz_metadata
+            and "interval" in viz_metadata
+        ):
             report += f"<p><strong>Time period:</strong> {viz_metadata['start_date']} to {viz_metadata['end_date']}<br>\n"
             report += f"<strong>Interval:</strong> {viz_metadata['interval']}</p>\n"
         else:
@@ -564,9 +574,7 @@ class OpinionVisualizerTool:
 
         report += "<h2>Summary Statistics</h2>\n"
         report += "<table>\n"
-        report += (
-            "<tr><th>Topic</th><th>Average Sentiment</th><th>Total Articles</th></tr>\n"
-        )
+        report += "<tr><th>Topic</th><th>Average Sentiment</th><th>Total Articles</th></tr>\n"
         for topic, stats in topic_stats.items():
             report += f"<tr><td>{topic}</td><td>{stats['avg_sentiment']:.2f}</td><td>{stats['total_articles']}</td></tr>\n"
         report += "</table>\n"

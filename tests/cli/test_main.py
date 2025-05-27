@@ -13,7 +13,7 @@ def test_cli_loads_without_error():
     assert result.exit_code == 0
     assert "feeds" in result.output
     assert "db" in result.output
-    
+
 
 def test_cli_version():
     """Test that the CLI has a version."""

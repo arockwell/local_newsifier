@@ -27,6 +27,7 @@ def feeds_group():
     """Manage RSS feeds."""
     pass
 
+
 @feeds_group.command(name="list")
 @click.option("--active-only", is_flag=True, help="Show only active feeds")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
@@ -52,17 +53,20 @@ def list_feeds(active_only, json_output, limit, skip):
         if last_fetched:
             last_fetched = datetime.fromisoformat(last_fetched).strftime("%Y-%m-%d %H:%M")
 
-        table_data.append([
-            feed["id"],
-            feed["name"],
-            feed["url"],
-            "✓" if feed["is_active"] else "✗",
-            last_fetched or "Never"
-        ])
+        table_data.append(
+            [
+                feed["id"],
+                feed["name"],
+                feed["url"],
+                "✓" if feed["is_active"] else "✗",
+                last_fetched or "Never",
+            ]
+        )
 
     # Display table
     headers = ["ID", "Name", "URL", "Active", "Last Fetched"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
 
 @feeds_group.command(name="add")
 @click.argument("url", required=True)
@@ -78,6 +82,7 @@ def add_feed(url, name, description):
         click.echo(f"Feed added successfully with ID: {feed['id']}")
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
+
 
 @feeds_group.command(name="show")
 @click.argument("id", type=int, required=True)
@@ -108,7 +113,7 @@ def show_feed(id, json_output, show_logs):
     # Display feed details
     click.echo(click.style(f"Feed #{feed['id']}: {feed['name']}", fg="green", bold=True))
     click.echo(f"URL: {feed['url']}")
-    if feed['description']:
+    if feed["description"]:
         click.echo(f"Description: {feed['description']}")
     click.echo(f"Active: {'Yes' if feed['is_active'] else 'No'}")
 
@@ -136,18 +141,21 @@ def show_feed(id, json_output, show_logs):
             status_color = "green" if log["status"] == "success" else "red"
             status = click.style(log["status"], fg=status_color)
 
-            log_data.append([
-                log["id"],
-                started_at,
-                completed_at,
-                status,
-                log["articles_found"],
-                log["articles_added"],
-                log["error_message"] or ""
-            ])
+            log_data.append(
+                [
+                    log["id"],
+                    started_at,
+                    completed_at,
+                    status,
+                    log["articles_found"],
+                    log["articles_added"],
+                    log["error_message"] or "",
+                ]
+            )
 
         log_headers = ["ID", "Started At", "Completed At", "Status", "Found", "Added", "Error"]
         click.echo(tabulate(log_data, headers=log_headers, tablefmt="simple"))
+
 
 @feeds_group.command(name="remove")
 @click.argument("id", type=int, required=True)
@@ -170,6 +178,7 @@ def remove_feed(id, force):
         click.echo(f"Feed '{feed['name']}' (ID: {id}) removed successfully.")
     else:
         click.echo(click.style(f"Error removing feed with ID {id}", fg="red"), err=True)
+
 
 def direct_process_article(article_id):
     """Process an article directly without Celery.
@@ -219,6 +228,7 @@ def direct_process_article(article_id):
         )
         return False
 
+
 @feeds_group.command(name="process")
 @click.argument("id", type=int, required=True)
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
@@ -244,6 +254,7 @@ def process_feed(id, no_process):
     else:
         click.echo(click.style("Processing failed.", fg="red"), err=True)
         click.echo(click.style(f"Error: {result['message']}", fg="red"), err=True)
+
 
 @feeds_group.command(name="update")
 @click.argument("id", type=int, required=True)
@@ -283,6 +294,7 @@ def update_feed(id, name, description, active):
     else:
         click.echo(click.style(f"Error updating feed with ID {id}", fg="red"), err=True)
 
+
 @feeds_group.command(name="fetch")
 @click.option("--no-process", is_flag=True, help="Skip article processing, just fetch articles")
 @click.option(
@@ -317,8 +329,9 @@ def fetch_feeds(no_process, active_only):
     failed = 0
 
     # Process each feed
-    with click.progressbar(feeds, label="Processing feeds",
-                          item_show_func=lambda f: f["name"] if f else "") as feed_list:
+    with click.progressbar(
+        feeds, label="Processing feeds", item_show_func=lambda f: f["name"] if f else ""
+    ) as feed_list:
         for feed in feed_list:
             try:
                 result = rss_feed_service.process_feed(feed["id"], task_queue_func=task_func)

@@ -52,7 +52,7 @@ def test_full_article_entity_workflow(db_session):
         content="This is a test article about Gainesville.",
         status=AnalysisStatus.INITIALIZED.value,
         published_at=now,
-        scraped_at=now
+        scraped_at=now,
     )
     db_session.add(article)
     db_session.commit()
@@ -63,26 +63,20 @@ def test_full_article_entity_workflow(db_session):
             article_id=article.id,
             text="Gainesville",
             entity_type="GPE",
-            sentence_context=(
-                "This is a test article about Gainesville."
-            )
+            sentence_context=("This is a test article about Gainesville."),
         ),
         Entity(
             article_id=article.id,
             text="University of Florida",
             entity_type="ORG",
-            sentence_context=(
-                "The University of Florida is located in Gainesville."
-            )
+            sentence_context=("The University of Florida is located in Gainesville."),
         ),
         Entity(
             article_id=article.id,
             text="John Smith",
             entity_type="PERSON",
-            sentence_context=(
-                "John Smith is a professor at the University of Florida."
-            )
-        )
+            sentence_context=("John Smith is a professor at the University of Florida."),
+        ),
     ]
 
     for entity in entities:

@@ -71,9 +71,7 @@ class FileWriterTool:
                 "text_length": len(state.scraped_text) if state.scraped_text else 0,
             },
             "analysis": {
-                "timestamp": (
-                    state.analyzed_at.isoformat() if state.analyzed_at else None
-                ),
+                "timestamp": (state.analyzed_at.isoformat() if state.analyzed_at else None),
                 "success": state.status
                 in [
                     AnalysisStatus.ANALYSIS_SUCCEEDED,
@@ -134,10 +132,7 @@ class FileWriterTool:
             state.add_log(f"Successfully saved results to {filepath}")
 
             # If everything succeeded, mark as complete
-            if (
-                state.status == AnalysisStatus.SAVE_SUCCEEDED
-                and not state.error_details
-            ):
+            if state.status == AnalysisStatus.SAVE_SUCCEEDED and not state.error_details:
                 state.status = AnalysisStatus.COMPLETED_SUCCESS
             else:
                 state.status = AnalysisStatus.COMPLETED_WITH_ERRORS

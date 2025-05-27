@@ -60,4 +60,3 @@ def test_extract_error_details_unwraps_service_error():
     assert err_type == "RuntimeError"
     assert message == "oops"
     assert isinstance(tb, str)
-

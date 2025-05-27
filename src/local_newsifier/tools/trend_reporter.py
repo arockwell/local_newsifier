@@ -70,18 +70,18 @@ class TrendReporter:
             summary += f"{i}. {trend.name} (Confidence: {trend.confidence_score:.2f})\n"
             summary += f"   Type: {trend.trend_type.replace('_', ' ').title()}\n"
             summary += f"   {trend.description}\n"
-            
+
             if trend.entities and len(trend.entities) > 1:
                 summary += "   Related entities:\n"
                 for entity in trend.entities[1:4]:  # Show up to 3 related entities
                     summary += f"   - {entity.text} ({entity.entity_type})\n"
-            
+
             if trend.evidence:
                 summary += "   Supporting evidence:\n"
                 for ev in trend.evidence[:3]:  # Show up to 3 evidence items
                     date_str = ev.published_at.strftime("%Y-%m-%d")
                     summary += f"   - [{date_str}] {ev.article_title or 'Untitled article'}\n"
-            
+
             summary += "\n"
 
         return summary
@@ -96,17 +96,17 @@ class TrendReporter:
             summary += f"**Type:** {trend.trend_type.replace('_', ' ').title()}  \n"
             summary += f"**Confidence:** {trend.confidence_score:.2f}  \n"
             summary += f"**Description:** {trend.description}  \n\n"
-            
+
             if trend.tags:
                 tags = " ".join([f"#{tag}" for tag in trend.tags])
                 summary += f"**Tags:** {tags}  \n\n"
-            
+
             if trend.entities and len(trend.entities) > 1:
                 summary += "### Related entities\n\n"
                 for entity in trend.entities[1:]:
                     summary += f"- **{entity.text}** ({entity.entity_type}) - Relevance: {entity.relevance_score:.2f}\n"
                 summary += "\n"
-            
+
             if trend.evidence:
                 summary += "### Supporting evidence\n\n"
                 for ev in trend.evidence:
@@ -114,7 +114,7 @@ class TrendReporter:
                     title = ev.article_title or "Untitled article"
                     summary += f"- [{title}]({ev.article_url}) - {date_str}\n"
                 summary += "\n"
-                
+
             # Add frequency data if available
             if trend.frequency_data:
                 summary += "### Frequency over time\n\n"
@@ -123,7 +123,7 @@ class TrendReporter:
                 for date, count in sorted(trend.frequency_data.items()):
                     summary += f"| {date} | {count} |\n"
                 summary += "\n"
-            
+
             summary += "---\n\n"
 
         summary += f"*Report generated at {datetime.now().isoformat()}*"
@@ -132,7 +132,7 @@ class TrendReporter:
     def _generate_json_summary(self, trends: List[TrendAnalysis]) -> str:
         """Generate JSON format summary."""
         trend_data = []
-        
+
         for trend in trends:
             # Convert the trend to a dict
             trend_dict = {
@@ -165,9 +165,9 @@ class TrendReporter:
                 ],
                 "frequency_data": trend.frequency_data,
             }
-            
+
             trend_data.append(trend_dict)
-            
+
         return json.dumps(
             {
                 "report_date": datetime.now().isoformat(),
@@ -228,6 +228,7 @@ class TrendReporter:
 # Apply the injectable decorator consistently
 try:
     from fastapi_injectable import injectable
+
     TrendReporter = injectable(use_cache=False)(TrendReporter)
 except (ImportError, Exception) as e:
     logger.debug(f"Skipping injectable decorator application for TrendReporter: {e}")

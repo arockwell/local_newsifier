@@ -12,7 +12,7 @@ def test_celery_app_instance():
     """Test that the celery app is properly configured."""
     assert isinstance(app, Celery)
     assert app.main == "local_newsifier"
-    
+
     # Check configuration values
     assert app.conf.task_serializer == "json"
     assert app.conf.accept_content == ["json"]
@@ -32,6 +32,6 @@ def test_celery_app_main_execution():
         # Call the start method directly, bypassing the __name__ == "__main__" check
         # This is an acceptable test since we're just verifying the app.start call
         app.start()
-        
+
         # Verify start was called
         assert mock_start.call_count == 1

@@ -21,7 +21,7 @@ from local_newsifier.tools.resolution.entity_resolver import EntityResolver
 
 class EntityTracker:
     """Tool for tracking entities across news articles using the EntityService."""
-    
+
     def __init__(self, entity_service=None, session=None):
         """Initialize with dependencies.
 
@@ -34,12 +34,12 @@ class EntityTracker:
 
         # Initialize dependencies if needed
         self._ensure_dependencies()
-    
+
     def _ensure_dependencies(self):
         """Ensure all dependencies are available."""
         if self.entity_service is None:
             self.entity_service = self._create_default_service()
-    
+
     def _create_default_service(self):
         """Create default entity service with all dependencies."""
         return EntityService(
@@ -51,12 +51,12 @@ class EntityTracker:
             entity_extractor=EntityExtractor(),
             context_analyzer=ContextAnalyzer(),
             entity_resolver=EntityResolver(),
-            session_factory=get_session
+            session_factory=get_session,
         )
-    
+
     @with_session
     def process_article(
-        self, 
+        self,
         article_id: int,
         content: str,
         title: str,
@@ -65,24 +65,21 @@ class EntityTracker:
         session: Session = None
     ) -> List[Dict[str, Any]]:
         """Process an article to track entity mentions.
-        
+
         Args:
             article_id: ID of the article being processed
             content: Article content
             title: Article title
             published_at: Article publication date
             session: Database session
-            
+
         Returns:
             List of processed entity mentions
         """
         # Ensure dependencies are available
         self._ensure_dependencies()
-        
+
         # Delegate to the service
         return self.entity_service.process_article_entities(
-            article_id=article_id,
-            content=content,
-            title=title,
-            published_at=published_at
+            article_id=article_id, content=content, title=title, published_at=published_at
         )

@@ -12,12 +12,7 @@ class CRUDEntityRelationship:
     """CRUD operations for entity relationships."""
 
     def get(
-        self,
-        db: Session,
-        *,
-        source_entity_id: int,
-        target_entity_id: int,
-        relationship_type: str
+        self, db: Session, *, source_entity_id: int, target_entity_id: int, relationship_type: str
     ) -> Optional[EntityRelationship]:
         """Get a relationship by source, target, and type.
 
@@ -33,7 +28,7 @@ class CRUDEntityRelationship:
         statement = select(EntityRelationship).where(
             EntityRelationship.source_entity_id == source_entity_id,
             EntityRelationship.target_entity_id == target_entity_id,
-            EntityRelationship.relationship_type == relationship_type
+            EntityRelationship.relationship_type == relationship_type,
         )
         return db.exec(statement).first()
 
@@ -49,9 +44,11 @@ class CRUDEntityRelationship:
         Returns:
             List of entity relationships
         """
-        return db.exec(select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == source_entity_id
-        )).all()
+        return db.exec(
+            select(EntityRelationship).where(
+                EntityRelationship.source_entity_id == source_entity_id
+            )
+        ).all()
 
     def create_or_update(
         self, db: Session, *, obj_in: Union[EntityRelationship, Dict[str, Any]]
@@ -78,12 +75,12 @@ class CRUDEntityRelationship:
             relationship_type = obj_in.relationship_type
             confidence = obj_in.confidence
             evidence = obj_in.evidence
-            
+
         # Check if relationship already exists
         statement = select(EntityRelationship).where(
             EntityRelationship.source_entity_id == source_entity_id,
             EntityRelationship.target_entity_id == target_entity_id,
-            EntityRelationship.relationship_type == relationship_type
+            EntityRelationship.relationship_type == relationship_type,
         )
         existing = db.exec(statement).first()
 
@@ -92,44 +89,39 @@ class CRUDEntityRelationship:
             existing.confidence = confidence
             existing.evidence = evidence
             existing.updated_at = datetime.now(timezone.utc)
-            
+
             db.add(existing)
             db.commit()
             db.refresh(existing)
             return existing
-        
+
         # Create new relationship
         db_obj = EntityRelationship(
             source_entity_id=source_entity_id,
             target_entity_id=target_entity_id,
             relationship_type=relationship_type,
             confidence=confidence,
-            evidence=evidence
+            evidence=evidence,
         )
-        
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        
+
         result = self.get(
             db,
             source_entity_id=source_entity_id,
             target_entity_id=target_entity_id,
             relationship_type=relationship_type,
         )
-        
+
         if not result:
             raise ValueError("Failed to create entity relationship")
-            
+
         return result
 
     def remove(
-        self,
-        db: Session,
-        *,
-        source_entity_id: int,
-        target_entity_id: int,
-        relationship_type: str
+        self, db: Session, *, source_entity_id: int, target_entity_id: int, relationship_type: str
     ) -> bool:
         """Remove a relationship.
 
@@ -145,15 +137,15 @@ class CRUDEntityRelationship:
         statement = select(EntityRelationship).where(
             EntityRelationship.source_entity_id == source_entity_id,
             EntityRelationship.target_entity_id == target_entity_id,
-            EntityRelationship.relationship_type == relationship_type
+            EntityRelationship.relationship_type == relationship_type,
         )
         entity_to_delete = db.exec(statement).first()
-        
+
         if entity_to_delete:
             db.delete(entity_to_delete)
             db.commit()
             return True
-        
+
         return False
 
 

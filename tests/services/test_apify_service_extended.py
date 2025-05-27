@@ -267,9 +267,7 @@ class TestApifyServiceExtended:
         result = service.get_dataset_items("test-dataset")
 
         # Verify
-        assert result == {
-            "items": [{"id": 7, "title": "Test private _items attribute"}]
-        }
+        assert result == {"items": [{"id": 7, "title": "Test private _items attribute"}]}
 
     @patch("local_newsifier.services.apify_service.ApifyClient")
     def test_get_dataset_items_with_json_parsing_edge_cases(self, mock_client_class):

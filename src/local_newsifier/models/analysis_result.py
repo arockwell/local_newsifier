@@ -15,13 +15,15 @@ class AnalysisResult(TableBase, table=True):
     """SQLModel for analysis results."""
 
     __tablename__ = "analysis_results"
-    
+
     # Handle multiple imports during test collection
     __table_args__ = {"extend_existing": True}
 
     article_id: int = Field(foreign_key="articles.id")
     analysis_type: str
     results: Dict[str, Any] = Field(sa_type=JSON)
-    
+
     # Define relationship with fully qualified path
-    article: Optional["local_newsifier.models.article.Article"] = Relationship(back_populates="analysis_results")
+    article: Optional["local_newsifier.models.article.Article"] = Relationship(
+        back_populates="analysis_results"
+    )

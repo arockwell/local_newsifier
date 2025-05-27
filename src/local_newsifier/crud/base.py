@@ -31,9 +31,7 @@ class CRUDBase(Generic[ModelType]):
         """
         return db.exec(select(self.model).where(self.model.id == id)).first()
 
-    def get_multi(
-        self, db: Session, *, skip: int = 0, limit: int = 100
-    ) -> List[ModelType]:
+    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
         """Get multiple items with pagination.
 
         Args:
@@ -46,9 +44,7 @@ class CRUDBase(Generic[ModelType]):
         """
         return db.exec(select(self.model).offset(skip).limit(limit)).all()
 
-    def create(
-        self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]
-    ) -> ModelType:
+    def create(self, db: Session, *, obj_in: Union[Dict[str, Any], ModelType]) -> ModelType:
         """Create a new item.
 
         Args:
@@ -71,11 +67,7 @@ class CRUDBase(Generic[ModelType]):
         return db_obj
 
     def update(
-        self,
-        db: Session,
-        *,
-        db_obj: ModelType,
-        obj_in: Union[Dict[str, Any], ModelType]
+        self, db: Session, *, db_obj: ModelType, obj_in: Union[Dict[str, Any], ModelType]
     ) -> ModelType:
         """Update an item.
 

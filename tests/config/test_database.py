@@ -77,9 +77,7 @@ class TestDatabaseConfig:
         mock_settings.POSTGRES_HOST = "testhost"
         mock_settings.POSTGRES_PORT = "5432"
         mock_settings.POSTGRES_DB = "testdb"
-        mock_settings.DATABASE_URL = (
-            "postgresql://testuser:testpass@testhost:5432/testdb"
-        )
+        mock_settings.DATABASE_URL = "postgresql://testuser:testpass@testhost:5432/testdb"
         mock_get_settings.return_value = mock_settings
 
         # Get database settings
@@ -91,14 +89,8 @@ class TestDatabaseConfig:
         assert settings.POSTGRES_HOST == "testhost"
         assert settings.POSTGRES_PORT == "5432"
         assert settings.POSTGRES_DB == "testdb"
-        assert (
-            settings.DATABASE_URL
-            == "postgresql://testuser:testpass@testhost:5432/testdb"
-        )
-        assert (
-            settings.get_database_url()
-            == "postgresql://testuser:testpass@testhost:5432/testdb"
-        )
+        assert settings.DATABASE_URL == "postgresql://testuser:testpass@testhost:5432/testdb"
+        assert settings.get_database_url() == "postgresql://testuser:testpass@testhost:5432/testdb"
 
     @patch("local_newsifier.database.engine.get_engine")
     @patch("local_newsifier.config.database.get_settings")
@@ -106,9 +98,7 @@ class TestDatabaseConfig:
         """Test getting database engine instance."""
         # Mock settings
         mock_settings = MagicMock()
-        mock_settings.DATABASE_URL = (
-            "postgresql://testuser:testpass@testhost:5432/testdb"
-        )
+        mock_settings.DATABASE_URL = "postgresql://testuser:testpass@testhost:5432/testdb"
         mock_get_settings.return_value = mock_settings
 
         # Mock engine
