@@ -24,6 +24,4 @@ class AnalysisResult(TableBase, table=True):
     results: Dict[str, Any] = Field(sa_type=JSON)
 
     # Define relationship with fully qualified path
-    article: Optional["local_newsifier.models.article.Article"] = Relationship(
-        back_populates="analysis_results"
-    )
+    article: Optional["Article"] = Relationship(back_populates="analysis_results")
