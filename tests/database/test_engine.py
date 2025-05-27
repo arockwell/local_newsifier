@@ -10,7 +10,7 @@ from local_newsifier.database.engine import (SessionManager, create_db_and_table
 
 
 @patch("local_newsifier.database.engine.create_engine")
-@patch("local_newsifier.config.settings.get_settings")
+@patch("local_newsifier.database.engine.get_settings")
 def test_get_engine_success(mock_get_settings, mock_create_engine):
     """Test successful engine creation."""
     # Arrange
@@ -41,7 +41,7 @@ def test_get_engine_success(mock_get_settings, mock_create_engine):
     "local_newsifier.database.engine.create_engine",
     side_effect=OperationalError("statement", {}, None),
 )
-@patch("local_newsifier.config.settings.get_settings")
+@patch("local_newsifier.database.engine.get_settings")
 @patch("local_newsifier.database.engine.time.sleep")
 def test_get_engine_retry_and_fail(mock_sleep, mock_get_settings, mock_create_engine):
     """Test engine creation with retries that eventually fail."""
@@ -252,7 +252,7 @@ def test_with_session_decorator_exception():
 
 def test_with_session_decorator_no_session():
     """Test with_session decorator when session is None."""
-
+    # Arrange
     @with_session
     def test_func(session):
         return "Session exists" if session else "No session"

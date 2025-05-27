@@ -52,9 +52,7 @@ def handle_rss_cli_errors(func: Callable) -> Callable:
                     "Use another URL or update the existing feed."
                 )
             else:
-                hint = (
-                    "There was a problem with the RSS feed operation. " "Check the details above."
-                )
+                hint = "There was a problem with the RSS feed operation. Check the details above."
 
             click.echo(click.style(f"Hint: {hint}", fg="yellow"), err=True)
 
