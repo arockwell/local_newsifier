@@ -7,9 +7,9 @@ external services like Apify, validating payloads, and processing data.
 
 import json
 import logging
-from typing import Annotated
+from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
 from sqlmodel import Session
 
 from local_newsifier.api.dependencies import get_session
@@ -24,15 +24,6 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
 
-async def get_raw_body(request: Request) -> bytes:
-    """Get raw request body as bytes.
-
-    This async dependency is needed to read the request body,
-    which can then be used in sync endpoint handlers.
-    """
-    return await request.body()
-
-
 @router.post(
     "/apify",
     response_model=ApifyWebhookResponse,
@@ -41,7 +32,8 @@ async def get_raw_body(request: Request) -> bytes:
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
 def apify_webhook(
-    raw_body: Annotated[bytes, Depends(get_raw_body)],
+    request: Request,
+    payload: Annotated[Dict[str, Any], Body()],
     session: Annotated[Session, Depends(get_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
@@ -50,7 +42,8 @@ def apify_webhook(
     This endpoint validates webhook payloads and creates articles from successful runs.
 
     Args:
-        raw_body: Raw request body as bytes
+        request: FastAPI request object
+        payload: Parsed JSON payload
         session: Database session
         apify_webhook_signature: Optional signature header for validation
 
@@ -61,11 +54,8 @@ def apify_webhook(
         HTTPException: If webhook validation fails
     """
     try:
-        # Decode raw payload
-        raw_payload_str = raw_body.decode("utf-8")
-
-        # Parse payload
-        payload_dict = json.loads(raw_payload_str)
+        # Convert payload dict back to string for signature validation
+        raw_payload_str = json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
         # Initialize sync webhook service
         webhook_service = ApifyWebhookServiceSync(
@@ -74,7 +64,7 @@ def apify_webhook(
 
         # Handle webhook using sync method
         result = webhook_service.handle_webhook(
-            payload=payload_dict,
+            payload=payload,
             raw_payload=raw_payload_str,
             signature=apify_webhook_signature,
         )
@@ -87,8 +77,8 @@ def apify_webhook(
         return ApifyWebhookResponse(
             status="accepted",
             message=result["message"],
-            actor_id=payload_dict.get("actorId"),
-            dataset_id=payload_dict.get("defaultDatasetId"),
+            actor_id=payload.get("actorId"),
+            dataset_id=payload.get("defaultDatasetId"),
             processing_status="completed",
         )
 

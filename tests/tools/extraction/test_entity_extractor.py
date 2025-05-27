@@ -15,8 +15,6 @@ import pytest
 
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
 
-pytestmark = pytest.mark.usefixtures("event_loop_fixture")
-
 
 class MockSpacyDoc:
     """Mock spaCy Doc for testing."""

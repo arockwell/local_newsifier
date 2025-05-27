@@ -9,8 +9,6 @@ from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TimeFrame, TrendType
 
-pytestmark = pytest.mark.usefixtures("event_loop_fixture")
-
 
 # Create a mock TrendAnalyzer class that works without dependency injection
 class MockTrendAnalyzer:

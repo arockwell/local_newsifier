@@ -394,7 +394,7 @@ def test_concurrent_writing(tmp_path):
     # Create and start threads
     threads = []
     for i in range(5):
-        thread = threading.Thread(target=write_file, args=(i))
+        thread = threading.Thread(target=write_file, args=(i,))
         threads.append(thread)
         thread.start()
 
@@ -443,7 +443,7 @@ def test_path_normalization(tmp_path):
     rel_path = "./relative/path"
     # abs_path = os.path.abspath(rel_path)  # Not used
 
-    with patch("os.makedirs") as mock_makedirs:
+    with patch("os.makedirs"):
         # Direct instantiation (approach i)
         writer = FileWriterTool(output_dir=rel_path)
         # Verify the path was normalized

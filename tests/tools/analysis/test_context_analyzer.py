@@ -14,8 +14,6 @@ import pytest
 
 from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
 
-pytestmark = pytest.mark.usefixtures("event_loop_fixture")
-
 
 class MockSpacyDoc:
     """Mock spaCy Doc for testing."""
