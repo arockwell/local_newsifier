@@ -95,15 +95,6 @@ Testing infrastructure needs to support easy mocking of provider functions and i
 
 ## Important Implementation Notes
 
-### Async Testing
-
-When testing components with async code:
-
-- Use `@pytest.mark.asyncio` for async tests
-- Mock async dependencies with `AsyncMock`
-- Avoid mixing sync and async patterns in tests
-
-For detailed guidance on async testing patterns, see [Event Loop Stabilization](plans/event-loop-stabilization.md).
 
 ## Test Scenarios
 
