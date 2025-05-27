@@ -15,13 +15,22 @@ from sqlmodel import Session
 from local_newsifier.api.dependencies import get_session
 from local_newsifier.config.settings import settings
 from local_newsifier.models.webhook import ApifyWebhookResponse
-from local_newsifier.services.apify_webhook_service import ApifyWebhookService
+from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # Setup logger
 logger = logging.getLogger(__name__)
+
+
+async def get_raw_body(request: Request) -> bytes:
+    """Get raw request body as bytes.
+
+    This async dependency is needed to read the request body,
+    which can then be used in sync endpoint handlers.
+    """
+    return await request.body()
 
 
 @router.post(
@@ -31,8 +40,8 @@ logger = logging.getLogger(__name__)
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
-async def apify_webhook(
-    request: Request,
+def apify_webhook(
+    raw_body: Annotated[bytes, Depends(get_raw_body)],
     session: Annotated[Session, Depends(get_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
@@ -41,7 +50,7 @@ async def apify_webhook(
     This endpoint validates webhook payloads and creates articles from successful runs.
 
     Args:
-        request: FastAPI request object containing raw body
+        raw_body: Raw request body as bytes
         session: Database session
         apify_webhook_signature: Optional signature header for validation
 
@@ -52,15 +61,14 @@ async def apify_webhook(
         HTTPException: If webhook validation fails
     """
     try:
-        # Get raw payload for signature validation
-        raw_payload = await request.body()
-        raw_payload_str = raw_payload.decode("utf-8")
+        # Decode raw payload
+        raw_payload_str = raw_body.decode("utf-8")
 
         # Parse payload
         payload_dict = json.loads(raw_payload_str)
 
         # Initialize sync webhook service
-        webhook_service = ApifyWebhookService(
+        webhook_service = ApifyWebhookServiceSync(
             session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
