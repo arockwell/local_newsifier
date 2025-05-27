@@ -391,6 +391,8 @@ def test_component_success(mock_component):
 ### Async Patterns (Deprecated)
 
 > **IMPORTANT**: The project is moving away from async patterns to sync-only implementations. The async patterns shown below are deprecated and should not be used for new development. All new code should use synchronous patterns only.
+>
+> **Production Crash Analysis**: See `docs/plans/async-migration/async-sync-crash-analysis.md` for detailed analysis of the production crashes caused by mixing async/sync patterns. The crash logs are in `log_crash.txt`.
 
 ### Legacy Async Development (Do Not Use)
 
@@ -503,6 +505,16 @@ def test_service():
 ```
 
 For more details on async testing patterns, see `docs/plans/event-loop-stabilization.md`.
+
+### Async Migration Documentation
+
+For comprehensive documentation on the async-to-sync migration:
+- **Migration Overview**: `docs/plans/async-migration/README.md`
+- **Anti-patterns Catalog**: `docs/plans/async-migration/async-antipatterns-catalog.md`
+- **Migration Guide**: `docs/plans/async-migration/async-migration-guide.md`
+- **Pattern Analysis**: `docs/plans/async-migration/async-patterns-analysis.md`
+- **Crash Analysis**: `docs/plans/async-migration/async-sync-crash-analysis.md`
+- **Fix Plan**: `docs/plans/async-migration/async-sync-fix-plan.md`
 
 ### Use Sync Patterns Instead
 
