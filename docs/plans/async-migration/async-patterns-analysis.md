@@ -314,6 +314,6 @@ async def get_item(...):  # This will cause issues
 
 The Local Newsifier codebase has significant architectural issues around async/sync patterns. The mixing of async FastAPI endpoints with synchronous database operations, combined with fastapi-injectable's event loop requirements, creates a fragile system with frequent test failures.
 
-The recommended approach is a full migration to async (Option 1), which aligns with FastAPI's design and modern Python web development practices. However, if the team prefers simplicity, a clear separation with sync-only database endpoints (Option 2) is also viable.
+**UPDATE**: The project has decided to migrate to sync-only patterns. The previously recommended async approach (Option 1) has been deprecated due to production crashes caused by async/sync mixing. The sync-only approach provides better stability and easier maintenance.
 
 The current approach of mixing patterns and using workarounds is unsustainable and should be addressed as a priority.

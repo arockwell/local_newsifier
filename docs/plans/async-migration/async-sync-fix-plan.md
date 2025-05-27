@@ -54,70 +54,48 @@ def process_feeds(  # Remove async
 - Load testing to ensure performance is acceptable
 - Verify background tasks still function correctly
 
-## Option 2: Full Async Migration (Long-term Solution)
+## Option 2: Full Async Migration (DEPRECATED - DO NOT USE)
 
-### Implementation Steps
+**⚠️ WARNING**: This option has been deprecated. The project is moving to sync-only implementations.
 
-#### 1. Create Async Database Engine
-```python
-# src/local_newsifier/database/async_engine.py
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+### Why This Option Was Rejected
 
-async_engine = create_async_engine(
-    database_url.replace("postgresql://", "postgresql+asyncpg://")
-)
-```
+1. **Production Crashes**: Mixing async/sync patterns caused severe production issues
+2. **Complexity**: Async patterns add unnecessary complexity for minimal performance gain
+3. **Maintenance**: Harder to debug and maintain async code
+4. **Team Decision**: Project has decided to use sync-only patterns
 
-#### 2. Update Dependencies
-```python
-# src/local_newsifier/api/dependencies.py
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-```
-
-#### 3. Create Async Service Providers
-```python
-async def get_article_service_async(
-    session: Annotated[AsyncSession, Depends(get_async_session)]
-):
-    # Return async-compatible service
-```
-
-#### 4. Update CRUD Operations
-- Convert all CRUD classes to support async operations
-- Update query patterns to use `await session.execute()`
-- Handle async context properly
+### DO NOT IMPLEMENT THE FOLLOWING:
+- Async database engines
+- AsyncSession usage
+- async/await patterns
+- Async CRUD operations
+- Async service providers
 
 ## Recommended Approach
 
-**Start with Option 1** for immediate stability:
+**Use Option 1 (Sync-Only)** - This is the approved approach:
 1. Remove `async` from endpoint definitions
 2. Test thoroughly
 3. Deploy to fix crashes
-4. Plan Option 2 migration separately
+4. Continue with sync-only development
 
 ## Migration Timeline
 
 ### Phase 1: Immediate Fix (1-2 days)
-- Implement Option 1
+- Implement Option 1 (sync-only)
 - Test all endpoints
 - Deploy hotfix
 
-### Phase 2: Async Migration Planning (1 week)
-- Design async architecture
-- Create migration plan
-- Set up async testing framework
+### Phase 2: Complete Sync Migration (1-2 weeks)
+- Remove any remaining async patterns
+- Update all services to sync-only
+- Update documentation
 
-### Phase 3: Incremental Migration (2-4 weeks)
-- Migrate one router at a time
-- Maintain backward compatibility
-- Comprehensive testing at each step
+### Phase 3: Maintain Sync Architecture (Ongoing)
+- Ensure all new code is synchronous
+- Regular code reviews to prevent async patterns
+- Update developer guidelines
 
 ## Testing Strategy
 

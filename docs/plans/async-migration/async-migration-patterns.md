@@ -1,5 +1,9 @@
 # Async Migration Patterns and Best Practices
 
+**⚠️ DEPRECATED**: This document is kept for historical reference only. The project uses sync-only patterns.
+
+**IMPORTANT**: Do not use async patterns shown in this document. All new code must be synchronous.
+
 ## Common Patterns to Fix
 
 ### 1. Sync Session in Async Endpoint (Current Problem)
@@ -11,17 +15,18 @@ async def get_data(session: Session = Depends(get_session)):
     return session.query(Model).all()
 ```
 
-**Good Pattern - Option 1 (Quick Fix):**
+**Good Pattern (RECOMMENDED - Sync Only):**
 ```python
 def get_data(session: Session = Depends(get_session)):
     # Sync function with sync session - works fine
     return session.query(Model).all()
 ```
 
-**Good Pattern - Option 2 (Async):**
+**Deprecated Pattern (DO NOT USE):**
 ```python
+# DO NOT USE - Async patterns are deprecated
 async def get_data(session: AsyncSession = Depends(get_async_session)):
-    # Async function with async session
+    # This pattern is no longer supported
     result = await session.execute(select(Model))
     return result.scalars().all()
 ```
@@ -35,28 +40,30 @@ def get_service():
         return Service(session)
 ```
 
-**Good Pattern - Sync:**
+**Good Pattern (RECOMMENDED - Sync Only):**
 ```python
 def get_service(session: Session = Depends(get_session)):
     return Service(session)
 ```
 
-**Good Pattern - Async:**
+**Deprecated Pattern (DO NOT USE):**
 ```python
+# DO NOT USE - Async patterns are deprecated
 async def get_service(session: AsyncSession = Depends(get_async_session)):
     return AsyncService(session)
 ```
 
 ### 3. Database Query Patterns
 
-**Sync Pattern (SQLModel):**
+**Recommended Pattern (Sync Only):**
 ```python
 def get_articles(session: Session):
     return session.exec(select(Article)).all()
 ```
 
-**Async Pattern (SQLModel with AsyncSession):**
+**Deprecated Pattern (DO NOT USE):**
 ```python
+# DO NOT USE - Async patterns are deprecated
 async def get_articles(session: AsyncSession):
     result = await session.execute(select(Article))
     return result.scalars().all()
@@ -64,7 +71,7 @@ async def get_articles(session: AsyncSession):
 
 ### 4. Transaction Patterns
 
-**Sync Transaction:**
+**Recommended Pattern (Sync Only):**
 ```python
 def create_with_transaction(session: Session, data: dict):
     with session.begin():
@@ -74,8 +81,9 @@ def create_with_transaction(session: Session, data: dict):
         return obj
 ```
 
-**Async Transaction:**
+**Deprecated Pattern (DO NOT USE):**
 ```python
+# DO NOT USE - Async patterns are deprecated
 async def create_with_transaction(session: AsyncSession, data: dict):
     async with session.begin():
         obj = Model(**data)
@@ -86,7 +94,7 @@ async def create_with_transaction(session: AsyncSession, data: dict):
 
 ## Service Layer Patterns
 
-### Sync Service Pattern
+### Recommended Service Pattern (Sync Only)
 ```python
 class ArticleService:
     def __init__(self, session_factory):
@@ -97,8 +105,9 @@ class ArticleService:
             return session.exec(select(Article)).all()
 ```
 
-### Async Service Pattern
+### Deprecated Service Pattern (DO NOT USE)
 ```python
+# DO NOT USE - Async patterns are deprecated
 class AsyncArticleService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -110,7 +119,7 @@ class AsyncArticleService:
 
 ## Dependency Injection Patterns
 
-### Sync Dependencies
+### Recommended Pattern (Sync Only)
 ```python
 @injectable(use_cache=False)
 def get_article_crud(session: Session = Depends(get_session)):
@@ -118,8 +127,9 @@ def get_article_crud(session: Session = Depends(get_session)):
     return CRUDArticle(Article)
 ```
 
-### Async Dependencies
+### Deprecated Pattern (DO NOT USE)
 ```python
+# DO NOT USE - Async patterns are deprecated
 @injectable(use_cache=False)
 async def get_article_crud_async(
     session: AsyncSession = Depends(get_async_session)
@@ -130,7 +140,7 @@ async def get_article_crud_async(
 
 ## Background Task Patterns
 
-### With Sync Endpoints
+### Recommended Pattern (Sync Only)
 ```python
 def process_data(
     background_tasks: BackgroundTasks,
@@ -141,8 +151,9 @@ def process_data(
     return {"status": "processing"}
 ```
 
-### With Async Endpoints
+### Deprecated Pattern (DO NOT USE)
 ```python
+# DO NOT USE - Async patterns are deprecated
 async def process_data(
     background_tasks: BackgroundTasks,
     service: AsyncService = Depends(get_async_service)

@@ -1,25 +1,30 @@
 # Async Migration Guide - Local Newsifier
 
-This guide provides a detailed roadmap for migrating the Local Newsifier codebase to a consistent async/sync architecture.
+**⚠️ DEPRECATED**: This guide is kept for historical reference only. The project has decided to move to sync-only implementations. All async patterns are deprecated and should not be used.
+
+**IMPORTANT**: Do not follow the async migration patterns in this guide. Use sync patterns exclusively. See the main CLAUDE.md file for current development guidelines.
 
 ## Migration Options Overview
 
-### Option 1: Full Async Architecture (Recommended)
-- **Pros**: Maximum performance, aligns with FastAPI design, modern Python practices
-- **Cons**: Larger migration effort, requires learning async patterns
-- **Effort**: 4-6 weeks
+### Option 1: Full Async Architecture (DEPRECATED - DO NOT USE)
+- **Status**: Deprecated due to production crashes from async/sync mixing
+- **Issues**: Complex migration, event loop problems, difficult debugging
+- **Decision**: Rejected in favor of sync-only approach
 
-### Option 2: Full Sync Architecture
-- **Pros**: Simpler code, easier to understand, no event loop issues
-- **Cons**: Lower performance, doesn't leverage FastAPI's strengths
+### Option 2: Full Sync Architecture (RECOMMENDED)
+- **Pros**: Simpler code, easier to understand, no event loop issues, stable in production
+- **Cons**: Slightly lower theoretical performance (negligible in practice)
 - **Effort**: 2-3 weeks
+- **Status**: This is the chosen approach for the project
 
 ### Option 3: Clear Separation
 - **Pros**: Balanced approach, clear boundaries, moderate effort
 - **Cons**: Two patterns to maintain, potential confusion
 - **Effort**: 3-4 weeks
 
-## Option 1: Full Async Migration (Recommended)
+## Option 1: Full Async Migration (DEPRECATED - DO NOT USE)
+
+**⚠️ WARNING**: This section is kept for historical reference only. Do not implement these patterns.
 
 ### Prerequisites
 

@@ -34,19 +34,21 @@ These documents work in conjunction with:
 - **Problem**: Mixed async/sync architecture causing production crashes
 - **Root Cause**: FastAPI endpoints marked as `async` but using synchronous database sessions
 - **Impact**: Application crashes when dependency injection tries to bridge sync/async gap
-- **Solution**: Either convert everything to sync (quick fix) or migrate to full async (recommended)
+- **Solution**: Convert everything to sync (recommended) - async patterns are deprecated
 
 ## Migration Priority
 
-Based on our analysis, the recommended approach is:
+**IMPORTANT**: The project is moving to sync-only implementations. All async patterns are deprecated.
 
-1. **Immediate**: Apply quick sync fix to stop production crashes
-2. **Short-term**: Begin phased async migration following the patterns guide
-3. **Long-term**: Complete full async migration for better performance and scalability
+Recommended approach:
+
+1. **Immediate**: Apply sync fixes to stop production crashes
+2. **Short-term**: Remove all remaining async patterns
+3. **Long-term**: Maintain sync-only codebase for stability
 
 ## Key Decisions
 
-1. **Use native async** instead of thread pool executors for service migration
-2. **Maintain consistency** - don't mix async and sync in the same router
-3. **Test thoroughly** - async code requires different testing patterns
-4. **Follow patterns** - use the documented patterns to avoid common pitfalls
+1. **No async patterns** - all new code must be synchronous
+2. **Remove existing async** - migrate all async code to sync patterns
+3. **Maintain consistency** - use sync patterns throughout the codebase
+4. **Follow sync patterns** - avoid any async/await keywords or AsyncSession usage
