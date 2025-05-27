@@ -6,21 +6,21 @@ This document outlines the systematic approach to convert all FastAPI routes and
 ## Phase 1: Remove Async Services and Dependencies
 
 ### 1.1 Convert Async Service Classes
-- [ ] Convert `apify_webhook_service_async.py` to sync
-  - Remove all `async/await` keywords
-  - Replace `AsyncSession` with `Session`
-  - Update method signatures
-- [ ] Convert `apify_service_async.py` to sync (or remove if duplicate of sync version)
-- [ ] Remove/convert `async_article.py` CRUD module
-- [ ] Update `async_base.py` if still in use
+- [x] ~~Convert `apify_webhook_service_async.py` to sync~~ (Removed - sync version already exists)
+  - ~~Remove all `async/await` keywords~~
+  - ~~Replace `AsyncSession` with `Session`~~
+  - ~~Update method signatures~~
+- [x] ~~Convert `apify_service_async.py` to sync~~ (Removed - sync version already exists)
+- [x] ~~Remove/convert `async_article.py` CRUD module~~ (Removed - sync version already exists)
+- [x] ~~Update `async_base.py` if still in use~~ (Removed - no longer needed)
 
 ### 1.2 Update Async Providers
-- [ ] Check `di/async_providers.py` and convert any async providers to sync
-- [ ] Update provider functions to return sync instances
+- [x] ~~Check `di/async_providers.py` and convert any async providers to sync~~ (Removed - no longer needed)
+- [x] ~~Update provider functions to return sync instances~~ (Not applicable - async providers removed)
 
 ### 1.3 Database Engine Updates
-- [ ] Review `database/async_engine.py` and ensure all async patterns are removed
-- [ ] Update any async session factories to sync
+- [x] ~~Review `database/async_engine.py` and ensure all async patterns are removed~~ (Removed - no longer needed)
+- [x] ~~Update any async session factories to sync~~ (Not applicable - async engine removed)
 
 ## Phase 2: Convert Application Lifecycle
 
