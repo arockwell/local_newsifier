@@ -114,10 +114,26 @@ After each phase:
 
 - [x] All `async def` converted to `def` in API routes (except lifespan which is required)
 - [x] No `await` keywords in API code (except in lifespan and webhook body reading)
-- [ ] All tests passing
-- [ ] No async runtime warnings
-- [ ] API performance maintained or improved
-- [ ] Code coverage maintained at >90%
+- [x] All tests passing (769 passed, 62 skipped)
+- [x] No async runtime warnings (server starts cleanly, only DB connection issues)
+- [ ] API performance maintained or improved (not tested)
+- [ ] Code coverage maintained at >90% (currently 82%)
+
+## Remaining Work
+
+1. **Improve test coverage from 82% to >90%**
+   - Focus on areas with low coverage:
+     - `src/local_newsifier/di/providers.py` (51% coverage)
+     - `src/local_newsifier/services/apify_webhook_service_sync.py` (22% coverage)
+     - `src/local_newsifier/services/article_service.py` (23% coverage)
+     - `src/local_newsifier/services/rss_feed_service.py` (31% coverage)
+     - `src/local_newsifier/flows/analysis/headline_trend_flow.py` (26% coverage)
+     - `src/local_newsifier/errors/rss_error.py` (29% coverage)
+
+2. **Performance testing** (optional)
+   - Compare API response times before and after sync conversion
+   - Measure memory usage and CPU utilization
+   - Test concurrent request handling
 
 ## Notes
 
