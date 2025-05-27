@@ -2,18 +2,14 @@
 
 import argparse
 import logging
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Dict, List, Optional
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from local_newsifier.database.engine import SessionManager
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
+from local_newsifier.database.engine import SessionManager
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
-from local_newsifier.models.article import Article as ArticleDB
-from local_newsifier.models.entity_tracking import CanonicalEntity
 from local_newsifier.models.article import Article
 
 # Set up logging
@@ -46,7 +42,7 @@ def add_sample_articles(session: Session):
                 "importance of industry cooperation."
             ),
             "published_at": datetime.now(timezone.utc),
-            "status": "new"
+            "status": "new",
         },
         {
             "url": f"https://example.com/local-news-{timestamp}",
@@ -59,8 +55,8 @@ def add_sample_articles(session: Session):
                 "led by Bay Area Development Corp, will include affordable housing."
             ),
             "published_at": datetime.now(timezone.utc),
-            "status": "new"
-        }
+            "status": "new",
+        },
     ]
 
     for article_data in articles:
@@ -77,16 +73,16 @@ def add_sample_articles(session: Session):
 def process_articles(session: Session):
     """Process articles for entity tracking."""
     flow = EntityTrackingFlow(session=session)
-    
+
     # Process all articles
     results = flow.process_new_articles()
-    
+
     # Display results
     logger.info(f"\nProcessed {len(results.processed_articles)} articles:")
     for result in results.processed_articles:
         logger.info(f"\nArticle: {result['title']}")
         logger.info(f"Found {result['entity_count']} entities:")
-        for entity in result['entities']:
+        for entity in result["entities"]:
             logger.info(f"  - {entity['original_text']} -> {entity['canonical_name']}")
             logger.info(f"    Sentiment: {entity['sentiment_score']:.2f}")
             logger.info(f"    Context: {entity['context']}")
@@ -95,39 +91,44 @@ def process_articles(session: Session):
 def show_entity_dashboard(session: Session, days: int = 30):
     """Show entity tracking dashboard."""
     flow = EntityTrackingFlow(session=session)
-    
+
     # Get dashboard data
     dashboard = flow.get_entity_dashboard(days=days)
-    
+
     # Display dashboard
     logger.info("\n=== Entity Tracking Dashboard ===")
-    logger.info(f"Time period: {dashboard['date_range']['start']} to {dashboard['date_range']['end']}")
+    logger.info(
+        f"Time period: {dashboard['date_range']['start']} to " f"{dashboard['date_range']['end']}"
+    )
     logger.info(f"Total entities: {dashboard['entity_count']}")
     logger.info(f"Total mentions: {dashboard['total_mentions']}")
-    
+
     logger.info("\nTop entities:")
-    for entity in dashboard['entities']:
+    for entity in dashboard["entities"]:
         logger.info(f"\n{entity['name']} ({entity['type']})")
         logger.info(f"  Mentions: {entity['mention_count']}")
         logger.info(f"  First seen: {entity['first_seen']}")
         logger.info(f"  Last seen: {entity['last_seen']}")
-        if entity['sentiment_trend']:
+        if entity["sentiment_trend"]:
             logger.info(f"  Recent sentiment trend: {entity['sentiment_trend']}")
 
 
 def show_entity_relationships(session: Session, entity_id: int, days: int = 30):
     """Show relationships between entities."""
     flow = EntityTrackingFlow(session=session)
-    
+
     # Get relationships data
     relationships = flow.find_entity_relationships(entity_id, days)
-    
+
     # Display relationships
     logger.info(f"\n=== Entity Relationships for {relationships['entity_name']} ===")
-    logger.info(f"Time period: {relationships['date_range']['start']} to {relationships['date_range']['end']}")
-    
+    logger.info(
+        f"Time period: {relationships['date_range']['start']} to "
+        f"{relationships['date_range']['end']}"
+    )
+
     logger.info("\nTop co-occurring entities:")
-    for rel in relationships['relationships']:
+    for rel in relationships["relationships"]:
         logger.info(f"\n{rel['entity_name']} ({rel['entity_type']})")
         logger.info(f"  Co-occurrences: {rel['co_occurrence_count']}")
         logger.info(f"  Articles: {rel['article_count']}")

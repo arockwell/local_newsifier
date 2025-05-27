@@ -10,13 +10,12 @@ This module provides commands for inspecting and managing database state, includ
 
 import json
 from datetime import datetime
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Optional  # noqa: F401
 
 import click
-from fastapi import Depends
 from fastapi_injectable import get_injected_obj
 from sqlalchemy import func, text
-from sqlmodel import Session, select
+from sqlmodel import select
 from tabulate import tabulate
 
 from local_newsifier.di.providers import (get_article_crud, get_entity_crud,
@@ -56,7 +55,7 @@ def db_stats(json_output: bool):
     # RSS Feed stats
     feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
     active_feed_count = session.exec(
-        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
+        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active)
     ).one()
 
     # RSSFeedProcessingLog stats
@@ -180,7 +179,7 @@ def check_duplicates(limit: int, json_output: bool):
     )
 
     for idx, result in enumerate(results):
-        click.echo(click.style(f"\n{idx+1}. URL: {result['url']}", fg="cyan"))
+        click.echo(click.style(f"\n{idx + 1}. URL: {result['url']}", fg="cyan"))
         click.echo(f"   Number of duplicates: {result['count']}")
 
         table_data = []
@@ -327,7 +326,6 @@ def inspect_record(table: str, id: int, json_output: bool):
     feed_processing_log_crud = get_injected_obj(get_feed_processing_log_crud)
 
     # Import model only when needed for feed_log
-    from local_newsifier.models.entity import Entity
     from local_newsifier.models.rss_feed import RSSFeedProcessingLog
 
     result = None

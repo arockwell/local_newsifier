@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from local_newsifier.crud.entity import CRUDEntity
     from local_newsifier.crud.entity_mention_context import CRUDEntityMentionContext
     from local_newsifier.crud.entity_profile import CRUDEntityProfile
-    from local_newsifier.crud.entity_relationship import CRUDEntityRelationship
+    from local_newsifier.crud.entity_relationship import CRUDEntityRelationship  # noqa: F401
     from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog
     from local_newsifier.crud.rss_feed import CRUDRSSFeed
     from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from local_newsifier.flows.public_opinion_flow import PublicOpinionFlow
     from local_newsifier.flows.rss_scraping_flow import RSSScrapingFlow
     from local_newsifier.flows.trend_analysis_flow import NewsTrendAnalysisFlow
+    from local_newsifier.services.analysis_service import AnalysisService
     from local_newsifier.services.apify_service import ApifyService
     from local_newsifier.services.article_service import ArticleService
     from local_newsifier.services.entity_service import EntityService
@@ -48,7 +49,11 @@ if TYPE_CHECKING:
     from local_newsifier.tools.analysis.trend_analyzer import TrendAnalyzer
     from local_newsifier.tools.entity_tracker_service import EntityTracker
     from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+    from local_newsifier.tools.opinion_visualizer import OpinionVisualizerTool
     from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+    from local_newsifier.tools.sentiment_analyzer import SentimentAnalyzer
+    from local_newsifier.tools.sentiment_tracker import SentimentTracker
+    from local_newsifier.tools.trend_reporter import TrendReporter
 
 logger = logging.getLogger(__name__)
 

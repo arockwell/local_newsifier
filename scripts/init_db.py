@@ -9,10 +9,11 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.local_newsifier.config.database import DatabaseSettings
-from src.local_newsifier.models.base import Base
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+from src.local_newsifier.config.database import DatabaseSettings
+from src.local_newsifier.models.base import Base
 
 # Set up logging
 logging.basicConfig(
@@ -27,20 +28,20 @@ def init_db():
     """Initialize the database."""
     settings = DatabaseSettings()
     engine = create_engine(str(settings.DATABASE_URL))
-    
+
     # Drop all tables in the correct order
     with engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
         conn.commit()
-    
+
     # Create all tables
     Base.metadata.create_all(engine)
-    
+
     # Create session
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     return session
 
 

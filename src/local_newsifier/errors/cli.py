@@ -7,7 +7,7 @@ This module provides decorators for CLI error presentation.
 import functools
 import sys
 import traceback
-from typing import Callable, Optional
+from typing import Callable
 
 import click
 

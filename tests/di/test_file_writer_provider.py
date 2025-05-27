@@ -2,8 +2,7 @@
 
 import inspect
 
-import pytest
-
+import pytest  # noqa: F401
 
 
 def test_get_file_writer_config():

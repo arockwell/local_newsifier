@@ -12,8 +12,6 @@ from sqlmodel import Session, SQLModel, create_engine
 # Import common settings to avoid circular imports
 from local_newsifier.config.common import (DEFAULT_DB_ECHO, DEFAULT_DB_MAX_OVERFLOW,
                                            DEFAULT_DB_POOL_SIZE)
-# Re-export get_settings for backward compatibility
-from local_newsifier.config.settings import get_settings
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -70,8 +68,9 @@ def get_engine(
                     engine = pytest.test_engine_plugin.get_engine()
 
                 if engine:
+                    worker_name = worker_id or "master"
                     logger.info(
-                        f"Using shared test engine from pytest plugin (worker: {worker_id or 'master'})"
+                        f"Using shared test engine from pytest plugin (worker: {worker_name})"
                     )
                     return engine
         except (ImportError, AttributeError):
@@ -131,7 +130,8 @@ def get_engine(
             return engine
         except Exception as e:
             logger.error(
-                f"Failed to create database engine (attempt {attempt+1}/{max_retries+1}): {str(e)}"
+                f"Failed to create database engine "
+                f"(attempt {attempt + 1}/{max_retries + 1}): {str(e)}"
             )
 
             if attempt < max_retries:

@@ -56,10 +56,7 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
             List of active source configurations
         """
         return db.exec(
-            select(ApifySourceConfig)
-            .where(ApifySourceConfig.is_active == True)
-            .offset(skip)
-            .limit(limit)
+            select(ApifySourceConfig).where(ApifySourceConfig.is_active).offset(skip).limit(limit)
         ).all()
 
     @handle_service_error(service="apify")
@@ -90,10 +87,10 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         Returns:
             List of configurations with a schedule
         """
-        query = select(ApifySourceConfig).where(ApifySourceConfig.schedule != None)
+        query = select(ApifySourceConfig).where(ApifySourceConfig.schedule.is_not(None))
 
         if enabled_only:
-            query = query.where(ApifySourceConfig.is_active == True)
+            query = query.where(ApifySourceConfig.is_active)
 
         return db.exec(query).all()
 
@@ -107,7 +104,9 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         Returns:
             List of configurations with schedule IDs
         """
-        return db.exec(select(ApifySourceConfig).where(ApifySourceConfig.schedule_id != None)).all()
+        return db.exec(
+            select(ApifySourceConfig).where(ApifySourceConfig.schedule_id.is_not(None))
+        ).all()
 
     @handle_service_error(service="apify")
     def update_schedule_id(
@@ -202,7 +201,9 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
                 raise ServiceError(
                     service="apify",
                     error_type="validation",
-                    message=f"Source configuration with name '{update_data['name']}' already exists",
+                    message=(
+                        f"Source configuration with name '{update_data['name']}' " "already exists"
+                    ),
                     context={"name": update_data["name"]},
                 )
 

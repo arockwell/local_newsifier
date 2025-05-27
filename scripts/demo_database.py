@@ -3,13 +3,13 @@
 import logging
 from datetime import UTC, datetime
 
-from local_newsifier.database.engine import get_session
+from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
 from local_newsifier.crud.article import article as article_crud
 from local_newsifier.crud.entity import entity as entity_crud
-from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+from local_newsifier.database.engine import get_session
+from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.analysis_result import AnalysisResult
 
 # Set up logging
 logging.basicConfig(
@@ -38,7 +38,7 @@ def show_database_state(session):
         logger.info("\nEntities:")
         for entity in article.entities:
             logger.info(
-                f"  - {entity.text} ({entity.entity_type}, confidence: {entity.confidence})"
+                f"  - {entity.text} ({entity.entity_type}, " f"confidence: {entity.confidence})"
             )
 
         # Analysis Results
@@ -50,6 +50,7 @@ def show_database_state(session):
 
 
 def main():
+    """Run the database demo."""
     # Use a context manager for the session
     with get_session() as session:
         # Show current state
@@ -61,11 +62,11 @@ def main():
         article = Article(
             url=f"https://example.com/demo-{timestamp}",
             title="New Demo Article",
-            content="This is a new demo article for testing the database functionality.",
+            content=("This is a new demo article for testing the database functionality."),
             published_at=datetime.now(UTC),
             status="new",
             source="Demo Source",
-            scraped_at=datetime.now(UTC)
+            scraped_at=datetime.now(UTC),
         )
         created_article = article_crud.create(session, obj_in=article)
         logger.info(f"Created article with ID: {created_article.id}")
@@ -79,9 +80,7 @@ def main():
             confidence=0.95,
         )
         created_entity = entity_crud.create(session, obj_in=entity)
-        logger.info(
-            f"Added entity: {created_entity.text} ({created_entity.entity_type})"
-        )
+        logger.info(f"Added entity: {created_entity.text} ({created_entity.entity_type})")
 
         # Add analysis result
         logger.info("Adding analysis result...")

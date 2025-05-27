@@ -8,7 +8,7 @@ import functools
 import logging
 import time
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional, Type, cast
+from typing import Any, Callable, Dict, Optional
 
 # Common error types for all services
 ERROR_TYPES = {
@@ -244,8 +244,8 @@ def _classify_database_error(error: Exception) -> tuple:
 
     # Use dictionary mapping for common error types (more efficient than multiple if-statements)
     error_mappings = {
-        "NoResultFound": ("not_found", f"Record not found in the database"),
-        "MultipleResultsFound": ("multiple", f"Multiple records found where only one was expected"),
+        "NoResultFound": ("not_found", "Record not found in the database"),
+        "MultipleResultsFound": ("multiple", "Multiple records found where only one was expected"),
         "DisconnectionError": ("connection", f"Database connection error: {error}"),
         "DBAPIError": ("connection", f"Database operational error: {error}"),
         "TimeoutError": ("timeout", f"Database query timeout: {error}"),
@@ -268,7 +268,14 @@ def _classify_database_error(error: Exception) -> tuple:
                 if any(term in error_str for term in ["timeout", "timed out"])
                 else "connection"
             ),
-            f"Database {'timeout' if any(term in error_str for term in ['timeout', 'timed out']) else 'connection'} error: {error}",
+            "Database {} error: {}".format(
+                (
+                    "timeout"
+                    if any(term in error_str for term in ["timeout", "timed out"])
+                    else "connection"
+                ),
+                error,
+            ),
         )
 
     if "IntegrityError" in error_name:

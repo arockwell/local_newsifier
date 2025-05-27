@@ -1,10 +1,10 @@
 """Script to add test headlines to the database."""
 
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
-from local_newsifier.database.engine import get_session
 from local_newsifier.crud.article import article as article_crud
+from local_newsifier.database.engine import get_session
 from local_newsifier.models.article import Article
 
 # Set up logging
@@ -67,6 +67,7 @@ TEST_HEADLINES = [
     },
 ]
 
+
 def main():
     """Add test headlines to the database."""
     with get_session() as session:
@@ -79,16 +80,17 @@ def main():
                     published_at=headline["published_at"],
                     status="analyzed",
                     content="Sample content",  # Required field
-                    source="Test Source",      # Required field
-                    scraped_at=datetime.now(UTC)
+                    source="Test Source",  # Required field
+                    scraped_at=datetime.now(UTC),
                 )
                 article_crud.create(session, obj_in=article)
                 logger.info(f"Added headline: {headline['title']}")
-                
+
             logger.info("Successfully added all test headlines to the database")
-            
+
         except Exception as e:
             logger.error(f"Error adding test headlines: {e}")
+
 
 if __name__ == "__main__":
     main()

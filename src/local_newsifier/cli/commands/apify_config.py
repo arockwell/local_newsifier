@@ -11,12 +11,10 @@ This module provides commands for managing Apify source configurations, includin
 
 import json
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Optional  # noqa: F401
 
 import click
-from fastapi import Depends
 from fastapi_injectable import get_injected_obj
-from sqlmodel import Session
 from tabulate import tabulate
 
 from local_newsifier.di.providers import (get_apify_source_config_crud,
@@ -69,7 +67,7 @@ def list_configs(active_only, json_output, limit, skip, source_type):
             if isinstance(last_run, str):
                 try:
                     last_run = datetime.fromisoformat(last_run).strftime("%Y-%m-%d %H:%M")
-                except:
+                except (ValueError, TypeError):
                     # Handle potential format issues
                     pass
 

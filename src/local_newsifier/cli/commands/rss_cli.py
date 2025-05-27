@@ -1,6 +1,4 @@
-"""
-CLI utilities for handling RSS errors in a user-friendly way.
-"""
+"""CLI utilities for handling RSS errors in a user-friendly way."""
 
 import functools
 import sys
@@ -44,11 +42,19 @@ def handle_rss_cli_errors(func: Callable) -> Callable:
             elif "not found" in str(e).lower():
                 hint = "The RSS feed could not be found. Check that the URL is correct."
             elif "format" in str(e).lower() or "parse" in str(e).lower():
-                hint = "The feed format is invalid or could not be parsed. Check that it's a valid RSS/Atom feed."
+                hint = (
+                    "The feed format is invalid or could not be parsed. "
+                    "Check that it's a valid RSS/Atom feed."
+                )
             elif "exists" in str(e).lower():
-                hint = "A feed with this URL already exists. Use another URL or update the existing feed."
+                hint = (
+                    "A feed with this URL already exists. "
+                    "Use another URL or update the existing feed."
+                )
             else:
-                hint = "There was a problem with the RSS feed operation. Check the details above."
+                hint = (
+                    "There was a problem with the RSS feed operation. " "Check the details above."
+                )
 
             click.echo(click.style(f"Hint: {hint}", fg="yellow"), err=True)
 

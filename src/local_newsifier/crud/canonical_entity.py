@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, func, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.article import Article

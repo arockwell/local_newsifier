@@ -5,7 +5,7 @@ This module provides pre-configured handlers for specific services.
 """
 
 import functools
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Optional
 
 from .error import handle_service_error, with_retry, with_timing
 
@@ -17,7 +17,9 @@ ERROR_MESSAGES = {
         "server": "Apify server is experiencing issues. Try again later.",
     },
     "rss": {
-        "network": "Could not connect to RSS feed. Check the feed URL and your internet connection.",
+        "network": (
+            "Could not connect to RSS feed. Check the feed URL and your internet connection."
+        ),
         "parse": "RSS feed format is invalid or unsupported.",
         "not_found": "RSS feed not found. Check the feed URL.",
     },

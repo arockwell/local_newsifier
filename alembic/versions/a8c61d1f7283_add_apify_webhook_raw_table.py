@@ -39,7 +39,10 @@ def upgrade() -> None:
     )
     # Create index on created_at for efficient querying
     op.create_index(
-        op.f("ix_apify_webhook_raw_created_at"), "apify_webhook_raw", ["created_at"], unique=False
+        op.f("ix_apify_webhook_raw_created_at"),
+        "apify_webhook_raw",
+        ["created_at"],
+        unique=False,
     )
 
 

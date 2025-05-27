@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, select
 
 from local_newsifier.models.entity_tracking import EntityRelationship
 
