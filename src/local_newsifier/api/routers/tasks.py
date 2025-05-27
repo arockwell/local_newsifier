@@ -1,9 +1,9 @@
-"""
-API router for Celery task management.
+"""API router for Celery task management.
+
 This module provides endpoints for submitting, checking, and managing asynchronous tasks.
 """
 
-from typing import Annotated, Dict, List, Optional, Union
+from typing import List, Optional
 
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from local_newsifier.api.dependencies import (get_article_service, get_rss_feed_service,
-                                              get_session, get_templates)
+                                              get_templates)
 from local_newsifier.celery_app import app as celery_app
 from local_newsifier.config.settings import settings
 from local_newsifier.services.article_service import ArticleService
@@ -22,10 +22,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.get("/", response_class=HTMLResponse)
-async def tasks_dashboard(
-    request: Request, 
-    templates: Jinja2Templates = Depends(get_templates)
-):
+async def tasks_dashboard(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """
     Task management dashboard.
 
@@ -62,7 +59,7 @@ async def process_article_endpoint(
 
     # Submit task
     task = process_article.delay(article_id)
-    
+
     return {
         "task_id": task.id,
         "article_id": article_id,
@@ -92,7 +89,7 @@ async def fetch_rss_feeds_endpoint(
         feed_urls = settings.RSS_FEED_URLS
 
     task = fetch_rss_feeds.delay(feed_urls)
-    
+
     return {
         "task_id": task.id,
         "feed_count": len(feed_urls),
@@ -115,12 +112,12 @@ async def get_task_status(
         Task status information
     """
     task_result = AsyncResult(task_id, app=celery_app)
-    
+
     result = {
         "task_id": task_id,
         "status": task_result.status,
     }
-    
+
     # Add additional info based on task state
     if task_result.successful():
         result["result"] = task_result.result
@@ -128,7 +125,7 @@ async def get_task_status(
         result["error"] = str(task_result.result)
     elif task_result.status == "PROGRESS":
         result["progress"] = task_result.info
-        
+
     return result
 
 
@@ -146,11 +143,11 @@ async def cancel_task(
         Confirmation message
     """
     task_result = AsyncResult(task_id, app=celery_app)
-    
+
     if task_result.successful() or task_result.failed():
         return {"message": f"Task {task_id} already completed"}
-        
+
     # Attempt to revoke the task
     celery_app.control.revoke(task_id, terminate=True)
-    
+
     return {"message": f"Task {task_id} revoke signal sent"}
