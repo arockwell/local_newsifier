@@ -65,10 +65,6 @@ This directory contains comprehensive knowledge documentation consolidated from 
 - Prioritization matrix
 - Remediation roadmap
 
-#### [Event Loop Cleanup](./event-loop-stabilization.md) ✅ (No longer needed)
-- This work is superseded by the sync-only migration
-- Event loop issues will be eliminated by removing all async code
-- See [Async to Sync Migration](./async-to-sync-migration.md) for current approach
 
 ### Architecture Decision: Sync-Only Implementation
 
