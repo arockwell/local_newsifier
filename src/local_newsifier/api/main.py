@@ -2,13 +2,11 @@
 
 import logging
 import os
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from fastapi_injectable import register_app
 from starlette.middleware.sessions import SessionMiddleware
 
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
@@ -26,13 +24,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context manager for FastAPI application.
+# Create app without lifespan (sync-only)
+app = FastAPI(
+    title="Local Newsifier API",
+    description="API for Local Newsifier",
+    version="0.1.0",
+)
 
-    Handles startup and shutdown events.
-    """
-    # Startup logic
+# Add session middleware
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+
+# Startup logging
+@app.on_event("startup")
+def startup_event():
+    """Handle application startup."""
     logger.info("Application startup initiated")
     try:
         # Verify database connection
@@ -42,33 +48,17 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("Database connection could not be established")
 
-        # Initialize fastapi-injectable
-        logger.info("Initializing fastapi-injectable")
-        await register_app(app)
-
-        logger.info("fastapi-injectable initialization completed")
+        logger.info("Application startup complete")
     except Exception as e:
         logger.error(f"Startup error: {str(e)}")
 
-    logger.info("Application startup complete")
 
-    yield  # This is where FastAPI serves requests
-
-    # Shutdown logic
+@app.on_event("shutdown")
+def shutdown_event():
+    """Handle application shutdown."""
     logger.info("Application shutdown initiated")
     logger.info("Application shutdown complete")
 
-
-# Create app with our custom lifespan
-app = FastAPI(
-    title="Local Newsifier API",
-    description="API for Local Newsifier",
-    version="0.1.0",
-    lifespan=lifespan,  # Set the lifespan context manager
-)
-
-# Add session middleware
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Include routers
 app.include_router(auth.router)

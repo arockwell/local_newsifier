@@ -21,7 +21,6 @@ selenium = "^4.31.0"
 webdriver-manager = "^4.0.2"
 python-dateutil = "^2.9.0"
 psycopg2-binary = "~2.9.10"
-asyncpg = "^0.29.0"
 textblob = "^0.18.0"
 sqlmodel = "0.0.24"
 fastapi = "0.115.9"
@@ -46,8 +45,6 @@ nf = "local_newsifier.cli.main:main"
 pytest = "^8.0.0"
 pytest-mock = "^3.12.0"
 pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.26.0"
-aiosqlite = "^0.20.0"
 pre-commit = "^3.6.0"
 black = "^24.1.1"
 isort = "^5.13.2"
@@ -71,13 +68,9 @@ addopts = "-vs"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "db: marks tests that require database connection",
-    "fast: marks tests that should run quickly",
-    "asyncio: mark a test as an asyncio test"
+    "fast: marks tests that should run quickly"
 ]
 
-# Configure pytest-asyncio to fix deprecation warning
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
 
 filterwarnings = [
     # Pydantic V2 deprecation warning about class-based config

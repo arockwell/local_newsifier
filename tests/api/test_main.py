@@ -1,16 +1,14 @@
 """Tests for the main FastAPI application."""
 
 import os
-from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 from starlette.middleware.sessions import SessionMiddleware
 
-from local_newsifier.api.main import app, lifespan
+from local_newsifier.api.main import app
 
 
 @pytest.fixture
@@ -130,102 +128,72 @@ class TestEndpoints:
         assert "404.html" in template_name
 
 
-class TestLifespan:
-    """Tests for the lifespan context manager."""
+class TestStartupShutdown:
+    """Tests for startup and shutdown event handlers."""
 
-    def test_lifespan_existence(self):
-        """Test that the lifespan context manager is configured."""
-        from local_newsifier.api.main import lifespan
+    def test_startup_event_exists(self):
+        """Test that startup event handler is configured."""
+        from local_newsifier.api.main import startup_event
 
-        assert callable(lifespan), "lifespan should be a callable function"
+        assert callable(startup_event), "startup_event should be a callable function"
 
-    def test_get_engine_called_in_lifespan(self):
-        """Test that get_engine is called during lifespan startup."""
-        import inspect
+    def test_shutdown_event_exists(self):
+        """Test that shutdown event handler is configured."""
+        from local_newsifier.api.main import shutdown_event
 
-        # Get the source code of the lifespan function
-        source = inspect.getsource(lifespan)
+        assert callable(shutdown_event), "shutdown_event should be a callable function"
 
-        # Verify the function contains a call to get_engine
-        assert "get_engine" in source, "get_engine should be called in lifespan"
-
-    def test_lifespan_startup_success(self, mock_logger):
-        """Test successful startup in lifespan context manager."""
-        # Create a completely mocked version of the lifespan function to test the flow
-        # This avoids any actual database connection attempts
+    def test_startup_event_success(self, mock_logger):
+        """Test successful startup event handler."""
+        from local_newsifier.api.main import startup_event
 
         # Create a mock of the get_engine function
         get_engine_mock = MagicMock(return_value=MagicMock())
-        # Use AsyncMock for async functions
-        register_app_mock = AsyncMock()
 
-        # Use multiple patches to mock all external dependencies
-        with patch("local_newsifier.database.engine.get_engine", get_engine_mock), patch(
-            "local_newsifier.api.main.register_app", register_app_mock
+        # Use patch to mock external dependencies
+        with patch("local_newsifier.api.main.get_engine", get_engine_mock), patch(
+            "local_newsifier.api.main.logger", mock_logger
         ):
-
-            # Create a simplified test lifespan function that mimics the behavior
-            # but doesn't try to actually connect to the database
-            @asynccontextmanager
-            async def test_lifespan(app: FastAPI):
-                # Startup logic - mimics the real lifespan but with mocked functions
-                get_engine_mock()  # Call our mock instead of the real function
-                await register_app_mock(app)  # Call our mock instead of the real function
-                yield  # This is where FastAPI serves requests
-                # No shutdown logic needed for this test
-
-            # Now test our mocked lifespan
-            async def run_lifespan():
-                async with test_lifespan(app):
-                    pass
-
-            # Run the async function
-            import asyncio
-
-            asyncio.run(run_lifespan())
+            # Call the startup event
+            startup_event()
 
             # Verify our mocks were called as expected
             get_engine_mock.assert_called_once()
-            register_app_mock.assert_called_once_with(app)
+            mock_logger.info.assert_any_call("Application startup initiated")
+            mock_logger.info.assert_any_call("Database connection verified")
+            mock_logger.info.assert_any_call("Application startup complete")
 
-    def test_lifespan_startup_error(self, mock_logger):
-        """Test error handling during startup in lifespan context manager."""
-        # Create a completely mocked version of the lifespan function to test the error flow
-        # This avoids any actual database connection attempts
+    def test_startup_event_error(self, mock_logger):
+        """Test error handling during startup event."""
+        from local_newsifier.api.main import startup_event
 
         # Setup the error to be raised
         error_message = "Database connection error"
         get_engine_mock = MagicMock(side_effect=Exception(error_message))
 
-        # Use patches to mock all external dependencies
+        # Use patches to mock external dependencies
         with patch("local_newsifier.api.main.get_engine", get_engine_mock), patch(
             "local_newsifier.api.main.logger", mock_logger
         ):
-
-            # Create a simplified test lifespan function that mimics the behavior
-            # but with controlled error handling
-            @asynccontextmanager
-            async def test_lifespan(app: FastAPI):
-                # Startup logic with error handling
-                try:
-                    get_engine_mock()  # This will raise our mocked exception
-                except Exception as e:
-                    mock_logger.exception(f"Error during startup: {str(e)}")
-                yield  # This is where FastAPI serves requests
-
-            # Now test our mocked lifespan
-            async def run_lifespan():
-                async with test_lifespan(app):
-                    pass
-
-            # Run the async function
-            import asyncio
-
-            asyncio.run(run_lifespan())
+            # Call the startup event
+            startup_event()
 
             # Verify our mocks were called as expected
             get_engine_mock.assert_called_once()
-            mock_logger.exception.assert_called_with(f"Error during startup: {error_message}")
+            mock_logger.error.assert_called_with(f"Startup error: {error_message}")
+
+    def test_shutdown_event(self, mock_logger):
+        """Test shutdown event handler."""
+        from local_newsifier.api.main import shutdown_event
+
+        # Use patch to mock logger
+        with patch("local_newsifier.api.main.logger", mock_logger):
+            # Call the shutdown event
+            shutdown_event()
+
+            # Verify logger was called as expected
+            mock_logger.info.assert_any_call("Application shutdown initiated")
+            mock_logger.info.assert_any_call("Application shutdown complete")
 
 
 class TestAppConfiguration:
