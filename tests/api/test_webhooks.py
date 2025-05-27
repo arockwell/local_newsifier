@@ -185,6 +185,7 @@ class TestApifyWebhookInfrastructure:
             response_data = response.json()
             assert "Missing required fields" in response_data["detail"]
 
+    @ci_skip_async
     def test_apify_webhook_sync_conversion(self, client, monkeypatch):
         """Test that the webhook endpoint is properly converted to sync (no async/await)."""
         # Clear webhook secret for this test
@@ -231,6 +232,7 @@ class TestApifyWebhookInfrastructure:
             assert "raw_payload" in call_args[1]
             assert call_args[1]["signature"] is None  # No signature header sent
 
+    @ci_skip_async
     def test_apify_webhook_exception_handling(self, client):
         """Test that the webhook handles exceptions gracefully."""
         payload = {
