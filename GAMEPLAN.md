@@ -25,11 +25,12 @@ This document outlines the systematic approach to convert all FastAPI routes and
 ## Phase 2: Convert Application Lifecycle
 
 ### 2.1 Main Application File (`api/main.py`)
-- [ ] Convert `lifespan` context manager from async to sync
-  - Remove `async` keyword
-  - Update any startup/shutdown logic
-- [ ] Convert `register_app` function to sync
-- [ ] Update exception handler (`not_found_handler`) to sync
+- [x] Keep `lifespan` context manager as async (FastAPI requirement)
+  - FastAPI requires lifespan to be async
+  - Keep `await register_app(app)` call
+- [x] Update exception handler (`not_found_handler`) to sync
+- [x] Convert main route handlers (`root`, `health_check`, `get_config`) to sync
+- [x] Update tests to handle async lifespan properly
 
 ## Phase 3: Convert Route Handlers
 
@@ -52,8 +53,8 @@ This document outlines the systematic approach to convert all FastAPI routes and
 - [ ] Convert `cancel_task()` to sync
 
 ### 3.4 Webhook Routes (`routers/webhooks.py`)
-- [x] Convert `apify_webhook()` to sync
-- [x] Replace `await request.body()` with `request.body`
+- [x] Keep `apify_webhook()` as async (required for `await request.body()`)
+- [x] Keep `await request.body()` (FastAPI requirement)
 - [x] Update webhook service calls to use sync version
 
 ### 3.5 Main Routes (`api/main.py`)

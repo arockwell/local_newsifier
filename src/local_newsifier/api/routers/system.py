@@ -1,8 +1,7 @@
 """System information router for database tables."""
 
 import logging
-import os
-from typing import Annotated, Dict, List
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -25,7 +24,7 @@ MINIMAL_MODE = False  # Permanently disabled
 
 
 @router.get("/tables", response_class=HTMLResponse)
-async def get_tables(
+def get_tables(
     request: Request,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
@@ -50,9 +49,7 @@ async def get_tables(
                 "tables_info": [],
                 "title": "Database Tables - Minimal Mode",
                 "minimal_mode": True,
-                "message": (
-                    "Running in minimal mode - database features are disabled."
-                ),
+                "message": ("Running in minimal mode - database features are disabled."),
             },
         )
 
@@ -82,7 +79,7 @@ async def get_tables(
 
 
 @router.get("/tables/api", response_model=List[Dict])
-async def get_tables_api(
+def get_tables_api(
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
 ):
@@ -99,9 +96,7 @@ async def get_tables_api(
             content=[
                 {
                     "name": "minimal_mode",
-                    "message": (
-                        "Running in minimal mode - database features are disabled"
-                    ),
+                    "message": ("Running in minimal mode - database features are disabled"),
                 }
             ]
         )
@@ -114,7 +109,7 @@ async def get_tables_api(
 
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
-async def get_table_details(
+def get_table_details(
     request: Request,
     table_name: str,
     _: bool = Depends(require_admin),
@@ -210,7 +205,7 @@ async def get_table_details(
 
 
 @router.get("/tables/{table_name}/api")
-async def get_table_details_api(
+def get_table_details_api(
     table_name: str,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
@@ -268,12 +263,7 @@ async def get_table_details_api(
         logger.error(f"Error in table details API: {str(e)}")
         # Include row_count and other expected fields in error response
         return JSONResponse(
-            content={
-                "table_name": table_name,
-                "error": str(e),
-                "row_count": 0,
-                "columns": []
-            }
+            content={"table_name": table_name, "error": str(e), "row_count": 0, "columns": []}
         )
 
 
@@ -315,7 +305,7 @@ def get_tables_info(session: Session) -> List[Dict]:
         # Get row count
         count_query = text(f"SELECT COUNT(*) FROM {table_name}")
         row_count = session.exec(count_query).one()
-        
+
         # Convert row_count to int if it's a SQLAlchemy Row object
         if hasattr(row_count, "__iter__"):
             row_count = row_count[0]
