@@ -2,14 +2,14 @@
 
 This document outlines the standardized approach for error handling across the Local Newsifier application, focusing on the decorator-based error handling pattern that has been adopted project-wide.
 
-## Core Architecture 
+## Core Architecture
 
 The Local Newsifier project uses a **decorator-based approach** for consistent error handling. This approach has been chosen over parallel class hierarchies (like `ErrorHandledCRUD`) to simplify the codebase and create clearer separation of concerns.
 
 ### Key Components
 
 1. **Service-Level Decorators**:
-   - `@handle_database` - For database operations 
+   - `@handle_database` - For database operations
    - `@handle_apify` - For Apify API operations
    - `@handle_rss` - For RSS feed operations
    - `@handle_web_scraper` - For web scraping operations
@@ -48,14 +48,14 @@ All errors are classified into these types:
 from local_newsifier.errors import handle_database
 
 class ArticleService:
-    
+
     @handle_database
     def get_article(self, article_id: int):
         """Get article by ID with database error handling.
-        
+
         Returns:
             Article if found
-            
+
         Raises:
             ServiceError: On database errors with appropriate classification
         """
@@ -72,11 +72,11 @@ class ArticleService:
 from local_newsifier.errors import handle_apify
 
 class ApifyService:
-    
+
     @handle_apify
     def run_actor(self, actor_id: str, run_input: dict):
         """Run an Apify actor with error handling.
-        
+
         Raises:
             ServiceError: On API errors with appropriate classification
         """
@@ -89,11 +89,11 @@ class ApifyService:
 from local_newsifier.errors import handle_rss
 
 class RSSFeedService:
-    
+
     @handle_rss
     def parse_feed(self, feed_url: str):
         """Parse RSS feed with error handling.
-        
+
         Raises:
             ServiceError: On RSS parsing errors with appropriate classification
         """
@@ -291,7 +291,7 @@ Error: Could not connect to RSS feed. Check the feed URL and your internet conne
 
 Each service that interacts with external systems should use the appropriate decorator:
 
-1. **Database Services**: 
+1. **Database Services**:
    - AnalysisService, ArticleService, EntityService - `@handle_database`
 
 2. **API Services**:
@@ -310,7 +310,7 @@ For each decorated method, an undecorated implementation method is provided to s
 def get_articles_by_date(self, start_date, end_date):
     """Get articles within date range with error handling."""
     return self._get_articles_by_date_impl(start_date, end_date)
-    
+
 def _get_articles_by_date_impl(self, start_date, end_date):
     """Implementation method without error handling for testing."""
     with self.session_factory() as session:

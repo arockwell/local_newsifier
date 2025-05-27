@@ -44,4 +44,3 @@ Set these variables before running Celery:
 - **Connection errors** – confirm Redis is running and the URLs are correct
 - **No tasks processed** – ensure the worker is connected to the broker
 - **Need more logs** – run with `--loglevel=debug` for verbose output
-

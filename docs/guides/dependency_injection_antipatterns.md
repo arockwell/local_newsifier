@@ -38,7 +38,7 @@ class RSSParser:
 @injectable(use_cache=False)
 def get_rss_parser():
     return RSSParser()
-    
+
 # In code that needs an RSSParser
 from local_newsifier.di.providers import get_rss_parser
 parser = get_rss_parser()
@@ -144,7 +144,7 @@ class ServiceWithExplicitDependencies:
 class StatefulService:
     def __init__(self):
         self.state = {}
-        
+
     def process(self, item):
         # Modifies internal state
         self.state[item.id] = item
@@ -188,7 +188,7 @@ model = load_large_model()
 
 **Correct approach:**
 - Lazy initialization
-- Use factories or providers 
+- Use factories or providers
 - Defer expensive operations to runtime
 
 ```python
@@ -241,7 +241,7 @@ class ServiceC:  # Intermediate service with common functionality
 class ServiceA:
     def __init__(self, service_c: ServiceC):
         self.service_c = service_c
-        
+
 @injectable(use_cache=False)
 class ServiceB:
     def __init__(self, service_c: ServiceC):
