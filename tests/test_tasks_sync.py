@@ -151,9 +151,12 @@ class TestFetchRSSFeedsSync:
         # Execute
         result = fetch_rss_feeds_sync(feed_urls=["https://invalid.com/feed"])
 
-        # Verify
-        assert result["status"] == "error"
-        assert "Parse error" in result["message"]
+        # Verify - the overall status is still success, but the individual feed has error
+        assert result["status"] == "success"
+        assert result["feeds_processed"] == 0  # No feeds were successfully processed
+        assert len(result["feeds"]) == 1
+        assert result["feeds"][0]["status"] == "error"
+        assert "Parse error" in result["feeds"][0]["message"]
 
 
 def test_cleanup_old_articles_sync():

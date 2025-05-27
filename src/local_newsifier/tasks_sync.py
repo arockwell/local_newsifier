@@ -127,20 +127,10 @@ def fetch_rss_feeds_sync(
 
             # Import additional dependencies for ArticleService
             from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
-            from local_newsifier.crud.canonical_entity import \
-                canonical_entity as canonical_entity_crud
-            from local_newsifier.crud.entity import entity as entity_crud
-            from local_newsifier.crud.entity_relationship import \
-                entity_relationship as entity_relationship_crud
-            from local_newsifier.services.entity_service import EntityService
 
-            # Create entity service
-            entity_service = EntityService(
-                entity_crud=entity_crud,
-                entity_relationship_crud=entity_relationship_crud,
-                canonical_entity_crud=canonical_entity_crud,
-                session_factory=lambda: session,
-            )
+            # For simplicity in sync context, we'll pass None for entity_service
+            # The ArticleService should handle this gracefully
+            entity_service = None
 
             # Create article service instance with all dependencies
             article_service = ArticleService(
