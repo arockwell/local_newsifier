@@ -30,14 +30,14 @@ The API uses **fastapi-injectable** for all dependencies. Provider functions exp
 ```python
 from typing import Annotated
 from fastapi import Depends
-from fastapi_injectable import injectable
-from local_newsifier.di.providers import get_session
+from local_newsifier.di.providers import get_session, get_entity_service
+from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
 async def get_entity(
     entity_id: int,
     request: Request,
-    entity_service: Annotated[EntityService, Depends()]
+    entity_service: Annotated[EntityService, Depends(get_entity_service)]
 ):
     entity = entity_service.get_entity(entity_id)
     return templates.TemplateResponse(...)
@@ -95,8 +95,8 @@ The API includes exception handlers for common errors:
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(
-        "404.html", 
-        {"request": request, "detail": exc.detail}, 
+        "404.html",
+        {"request": request, "detail": exc.detail},
         status_code=404
     )
 ```
@@ -124,65 +124,179 @@ async def not_found_handler(request: Request, exc: HTTPException):
 4. Transform response data as needed
 5. Return appropriate response (HTML or JSON)
 
-## Injectable Endpoints
+## Async Endpoints (Deprecated)
 
-The project is migrating to fastapi-injectable for dependency injection. This section describes how to create FastAPI endpoints using the new pattern.
+> **IMPORTANT**: The project is moving away from async patterns to synchronous-only implementations. The async endpoints shown below are being phased out and should not be used for new development. All new endpoints should use synchronous patterns only.
 
-### Injectable Dependency Resolution
+### Legacy Async Webhook Handling
 
-With fastapi-injectable, dependencies are automatically resolved:
+The following shows the deprecated async pattern that is being replaced:
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from local_newsifier.database.async_engine import get_async_session
+from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
+
+@router.post("/webhooks/apify", status_code=202)
+async def apify_webhook(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    apify_webhook_signature: Annotated[str | None, Header()] = None
+):
+    # Get raw body for signature validation
+    body = await request.body()
+    data = await request.json()
+
+    # Create async service
+    service = ApifyWebhookServiceAsync(
+        session=session,
+        webhook_secret=settings.APIFY_WEBHOOK_SECRET
+    )
+
+    # Validate signature if provided
+    if apify_webhook_signature:
+        if not service.validate_signature(body.decode(), apify_webhook_signature):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+    # Process webhook asynchronously
+    result = await service.process_webhook(data)
+
+    return {"status": "accepted", "webhook_id": result["webhook_id"]}
+```
+
+### Legacy Async Database Operations
+
+The following shows deprecated async database patterns:
+
+```python
+@router.get("/articles/{article_id}")
+async def get_article_async(
+    article_id: int,
+    session: Annotated[AsyncSession, Depends(get_async_session)]
+):
+    # Use async query syntax
+    stmt = select(Article).where(Article.id == article_id)
+    result = await session.execute(stmt)
+    article = result.scalar_one_or_none()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    return article.model_dump()
+```
+
+### Migration to Sync-Only Patterns
+
+**Important**: Do NOT create new async endpoints. Instead, use synchronous patterns:
+
+1. Replace `async def` with `def`
+2. Use regular `Session` instead of `AsyncSession`
+3. Use `requests` instead of `httpx.AsyncClient`
+4. Use synchronous database queries
+5. Remove all `await` keywords
+
+All existing async endpoints will be migrated to sync patterns as part of the ongoing simplification effort.
+
+## Preferred Sync Pattern
+
+Here's the correct way to implement endpoints using synchronous patterns:
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from local_newsifier.di.providers import get_session
+from local_newsifier.models.article import Article
+
+@router.post("/webhooks/apify", status_code=202)
+def apify_webhook(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    apify_webhook_signature: Annotated[str | None, Header()] = None
+):
+    # Get body for signature validation
+    body = request.body()
+    data = request.json()
+
+    # Use sync service
+    from local_newsifier.services.apify_webhook_service import ApifyWebhookService
+    service = ApifyWebhookService(
+        session=session,
+        webhook_secret=settings.APIFY_WEBHOOK_SECRET
+    )
+
+    # Process webhook synchronously
+    result = service.process_webhook(data)
+    return {"status": "accepted", "webhook_id": result["webhook_id"]}
+
+@router.get("/articles/{article_id}")
+def get_article(
+    article_id: int,
+    session: Annotated[Session, Depends(get_session)]
+):
+    # Use sync query
+    stmt = select(Article).where(Article.id == article_id)
+    article = session.exec(stmt).first()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    return article.model_dump()
+```
+
+## Injectable Services in Endpoints
+
+All endpoints now use fastapi-injectable for dependency injection:
+
+### Service Injection Pattern
 
 ```python
 from typing import Annotated
 from fastapi import Depends
-from fastapi_injectable import injectable
-from local_newsifier.services.injectable_entity_service import InjectableEntityService
+from local_newsifier.di.providers import get_entity_service
+from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
 async def get_entity(
     entity_id: int,
-    request: Request,
-    entity_service: Annotated[InjectableEntityService, Depends()]
+    entity_service: Annotated[EntityService, Depends(get_entity_service)]
 ):
     entity = entity_service.get_entity(entity_id)
-    return templates.TemplateResponse(
-        "entity_detail.html",
-        {"request": request, "entity": entity}
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return entity
+```
+
+### Testing Endpoints
+
+Test endpoints by overriding dependencies:
+
+```python
+from fastapi.testclient import TestClient
+
+def test_webhook_endpoint(test_client: TestClient):
+    # Mock the async session dependency
+    async def mock_session():
+        return MagicMock()
+
+    app.dependency_overrides[get_async_session] = mock_session
+
+    # Test the endpoint
+    response = test_client.post(
+        "/webhooks/apify",
+        json={"eventType": "ACTOR.RUN.SUCCEEDED"}
     )
+    assert response.status_code == 202
 ```
 
-### API Endpoint with Injectable Dependencies
+## Best Practices for Async Endpoints
 
-For JSON API endpoints:
+1. **Always await async operations**: Forgetting `await` will return a coroutine instead of a result
+2. **Use async context managers**: For database sessions and other resources
+3. **Handle exceptions properly**: Use try/except with proper error responses
+4. **Avoid blocking operations**: Don't use sync I/O in async endpoints
+5. **Consider timeouts**: For external API calls and long operations
 
-```python
-from typing import Annotated
-from fastapi import Depends
-from pydantic import BaseModel
-from local_newsifier.services.injectable_entity_service import InjectableEntityService
-
-class EntityResponse(BaseModel):
-    id: int
-    name: str
-    entity_type: str
-    
-@router.get("/api/entities/{entity_id}", response_model=EntityResponse)
-async def get_entity_api(
-    entity_id: int,
-    entity_service: Annotated[InjectableEntityService, Depends()]
-):
-    return entity_service.get_entity(entity_id)
-```
-
-### Testing Injectable Endpoints
-
-Testing endpoints with injectable dependencies:
-
-```python
-def test_get_entity_endpoint(test_client_with_mocks):
-    # The client has all dependencies mocked via dependency overrides
-    response = test_client_with_mocks.get("/entities/1")
-    assert response.status_code == 200
-```
-
-For more information on fastapi-injectable usage, see `docs/fastapi_injectable.md`.
+For more information on dependency injection patterns, see `docs/dependency_injection.md`.

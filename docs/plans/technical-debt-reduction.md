@@ -127,64 +127,25 @@ def check_version_conflicts():
 
 ### 2. Test Infrastructure
 
-#### Event Loop Issues
-**Problem**: Async tests fail in CI due to event loop conflicts
+#### Async/Sync Pattern Issues ✅ (Being Resolved)
+**Problem**: Mixed async/sync patterns causing complexity and production crashes
 
-**Root Cause Analysis**:
-```python
-# Event loop conflict scenario
-# 1. pytest-asyncio creates an event loop
-# 2. fastapi-injectable tries to access it from different thread
-# 3. Tests fail with "attached to different loop" error
-```
+**Status**: Decision made to migrate to sync-only implementation
 
-**Comprehensive Fix**:
-```python
-# tests/fixtures/async_fixtures.py
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, patch
+**What's Being Done**:
+1. ✅ Decision made to use synchronous patterns exclusively
+2. 🔄 Migration plan created in [async-to-sync-migration.md](async-to-sync-migration.md)
+3. 🔄 Removing all async code from FastAPI routes
+4. 🔄 Simplifying codebase to eliminate event loop issues
 
-@pytest.fixture(scope="function")
-def event_loop():
-    """Create an event loop for each test function."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
+**Benefits of Sync-Only**:
+- Eliminates event loop complexity
+- Simplifies testing (no pytest-asyncio needed)
+- Reduces cognitive overhead
+- No performance loss (we were calling sync code anyway)
+- Better developer experience
 
-    # Clean up
-    try:
-        _cancel_all_tasks(loop)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.run_until_complete(loop.shutdown_default_executor())
-    finally:
-        loop.close()
-
-def _cancel_all_tasks(loop):
-    """Cancel all pending tasks."""
-    tasks = asyncio.all_tasks(loop)
-    for task in tasks:
-        task.cancel()
-
-    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-
-# Async test helper
-class AsyncTestHelper:
-    @staticmethod
-    def mock_async_dependency(return_value):
-        """Create a properly mocked async dependency."""
-        mock = AsyncMock(return_value=return_value)
-        mock._is_coroutine = lambda: True
-        return mock
-
-    @staticmethod
-    async def run_with_timeout(coro, timeout=5):
-        """Run coroutine with timeout."""
-        try:
-            return await asyncio.wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
-            pytest.fail(f"Test timed out after {timeout} seconds")
-```
+**📋 See migration plan**: [async-to-sync-migration.md](async-to-sync-migration.md)
 
 #### Slow Test Execution
 **Problem**: Test suite takes too long to run
@@ -678,7 +639,7 @@ class CircuitBreaker:
 
 ### Phase 1: Critical Fixes (2 weeks)
 - [ ] Fix offline installation
-- [ ] Resolve event loop issues
+- [ ] Complete async-to-sync migration (🔄 In progress)
 - [ ] Optimize critical queries
 
 ### Phase 2: Quality Improvements (4 weeks)

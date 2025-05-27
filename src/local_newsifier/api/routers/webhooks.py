@@ -2,40 +2,26 @@
 API router for webhook endpoints.
 
 This module provides endpoints for receiving webhook notifications from
-external services like Apify, validating payloads, and logging events.
+external services like Apify, validating payloads, and processing data.
 """
 
+import json
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlmodel import Session
 
+from local_newsifier.api.dependencies import get_session
 from local_newsifier.config.settings import settings
-from local_newsifier.models.webhook import ApifyWebhookPayload, ApifyWebhookResponse
+from local_newsifier.models.webhook import ApifyWebhookResponse
+from local_newsifier.services.apify_webhook_service import ApifyWebhookService
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # Setup logger
 logger = logging.getLogger(__name__)
-
-
-def validate_webhook_secret(payload: ApifyWebhookPayload) -> bool:
-    """Validate webhook secret if configured.
-
-    Args:
-        payload: The webhook payload from Apify
-
-    Returns:
-        bool: True if validation passes or no secret configured
-    """
-    if not settings.APIFY_WEBHOOK_SECRET:
-        logger.warning("No webhook secret configured - accepting all webhooks")
-        return True
-
-    # Check if webhook includes the expected secret
-    # This is a basic validation - in production you might want HMAC validation
-    webhook_secret = getattr(payload, "secret", None)
-    return webhook_secret == settings.APIFY_WEBHOOK_SECRET
 
 
 @router.post(
@@ -45,46 +31,64 @@ def validate_webhook_secret(payload: ApifyWebhookPayload) -> bool:
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
-async def apify_webhook(payload: ApifyWebhookPayload) -> ApifyWebhookResponse:
+async def apify_webhook(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    apify_webhook_signature: Annotated[str | None, Header()] = None,
+) -> ApifyWebhookResponse:
     """Handle webhook notifications from Apify.
 
-    This endpoint validates webhook payloads and logs events but does not
-    process the data. Data processing will be added in a future enhancement.
+    This endpoint validates webhook payloads and creates articles from successful runs.
 
     Args:
-        payload: The webhook payload from Apify
+        request: FastAPI request object containing raw body
+        session: Database session
+        apify_webhook_signature: Optional signature header for validation
 
     Returns:
         ApifyWebhookResponse: Response acknowledging the webhook
 
     Raises:
-        HTTPException: If webhook validation fails or event type is not supported
+        HTTPException: If webhook validation fails
     """
-    logger.info(f"Received Apify webhook: {payload.eventType} for actor {payload.actorId}")
+    try:
+        # Get raw payload for signature validation
+        raw_payload = await request.body()
+        raw_payload_str = raw_payload.decode("utf-8")
 
-    # Validate webhook secret
-    if not validate_webhook_secret(payload):
-        logger.warning(f"Invalid webhook secret for actor {payload.actorId}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid webhook secret",
+        # Parse payload
+        payload_dict = json.loads(raw_payload_str)
+
+        # Initialize sync webhook service
+        webhook_service = ApifyWebhookService(
+            session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
-    # Log webhook details for debugging
-    logger.info(
-        f"Webhook details - Actor: {payload.actorId}, "
-        f"Run: {payload.actorRunId}, Event: {payload.eventType}, "
-        f"Dataset: {getattr(payload, 'defaultDatasetId', 'N/A')}"
-    )
+        # Handle webhook using sync method
+        result = webhook_service.handle_webhook(
+            payload=payload_dict,
+            raw_payload=raw_payload_str,
+            signature=apify_webhook_signature,
+        )
 
-    # For now, just acknowledge receipt
-    # TODO: Add data processing in future enhancement
-    message = f"Webhook received and validated for {payload.eventType}"
+        # Check if there was an error
+        if result["status"] == "error":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
 
-    return ApifyWebhookResponse(
-        status="accepted",
-        message=message,
-        actor_id=payload.actorId,
-        dataset_id=getattr(payload, "defaultDatasetId", None),
-        processing_status="webhook_recorded",
-    )
+        # Return response
+        return ApifyWebhookResponse(
+            status="accepted",
+            message=result["message"],
+            actor_id=payload_dict.get("actorId"),
+            dataset_id=payload_dict.get("defaultDatasetId"),
+            processing_status="completed",
+        )
+
+    except HTTPException:
+        # Re-raise HTTPException so FastAPI handles it properly
+        raise
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return ApifyWebhookResponse(
+            status="error", message=f"Error processing webhook: {str(e)}", error=str(e)
+        )
