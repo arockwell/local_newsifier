@@ -1,4 +1,8 @@
-"""Async Apify webhook service for handling webhook notifications."""
+"""Sync Apify webhook service for handling webhook notifications.
+
+This is a duplicate of the existing sync ApifyWebhookService but renamed
+to clearly distinguish it from the async version during the transition.
+"""
 
 import hashlib
 import hmac
@@ -6,30 +10,29 @@ import logging
 from datetime import UTC, datetime
 from typing import Dict, Optional
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session, select
 
-from local_newsifier.crud.async_article import async_article
+from local_newsifier.crud.article import article
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
-from local_newsifier.services.apify_service_async import ApifyServiceAsync
+from local_newsifier.services.apify_service import ApifyService
 
 logger = logging.getLogger(__name__)
 
 
-class ApifyWebhookServiceAsync:
-    """Async service for handling Apify webhooks."""
+class ApifyWebhookServiceSync:
+    """Sync service for handling Apify webhooks."""
 
-    def __init__(self, session: AsyncSession, webhook_secret: Optional[str] = None):
+    def __init__(self, session: Session, webhook_secret: Optional[str] = None):
         """Initialize webhook service.
 
         Args:
-            session: Async database session
+            session: Database session
             webhook_secret: Optional webhook secret for signature validation
         """
         self.session = session
         self.webhook_secret = webhook_secret
-        self.apify_service = ApifyServiceAsync()
+        self.apify_service = ApifyService()
 
     def validate_signature(self, payload: str, signature: str) -> bool:
         """Validate webhook signature.
@@ -50,7 +53,7 @@ class ApifyWebhookServiceAsync:
 
         return hmac.compare_digest(expected_signature, signature)
 
-    async def handle_webhook(
+    def handle_webhook(
         self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None
     ) -> Dict[str, any]:
         """Handle incoming webhook notification.
@@ -78,10 +81,9 @@ class ApifyWebhookServiceAsync:
             return {"status": "error", "message": "Missing required fields"}
 
         # Check for duplicate
-        result = await self.session.execute(
+        existing = self.session.exec(
             select(ApifyWebhookRaw).where(ApifyWebhookRaw.run_id == run_id)
-        )
-        existing = result.scalar_one_or_none()
+        ).first()
 
         if existing:
             logger.info(f"Duplicate webhook for run_id: {run_id}")
@@ -108,15 +110,12 @@ class ApifyWebhookServiceAsync:
             try:
                 dataset_id = payload.get("defaultDatasetId")
                 if dataset_id:
-                    articles_created = await self._create_articles_from_dataset(dataset_id)
+                    articles_created = self._create_articles_from_dataset(dataset_id)
             except Exception as e:
                 logger.error(f"Error creating articles from webhook: {e}")
                 # Don't fail the webhook - just log the error
-            finally:
-                # Always close the async client
-                await self.apify_service.close()
 
-        await self.session.commit()
+        self.session.commit()
 
         return {
             "status": "ok",
@@ -125,7 +124,7 @@ class ApifyWebhookServiceAsync:
             "articles_created": articles_created,
         }
 
-    async def _create_articles_from_dataset(self, dataset_id: str) -> int:
+    def _create_articles_from_dataset(self, dataset_id: str) -> int:
         """Create articles from Apify dataset.
 
         Args:
@@ -135,10 +134,8 @@ class ApifyWebhookServiceAsync:
             Number of articles created
         """
         try:
-            # Fetch dataset items using async client
-            dataset_client = self.apify_service.client.dataset(dataset_id)
-            items_result = await dataset_client.list_items()
-            dataset_items = items_result.items
+            # Fetch dataset items
+            dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
 
             articles_created = 0
             for item in dataset_items:
@@ -156,7 +153,7 @@ class ApifyWebhookServiceAsync:
                     continue
 
                 # Check if article already exists
-                existing = await async_article.get_by_url(self.session, url=url)
+                existing = article.get_by_url(self.session, url=url)
                 if existing:
                     continue
 
