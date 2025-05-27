@@ -32,6 +32,7 @@ The dependency injection system follows this workflow:
 - **Lazy Loading**: Dependencies are imported inside provider functions to avoid circular imports
 - **Session Scope**: Database sessions are request-scoped, not shared between requests
 - **Explicit Dependencies**: All dependencies must be explicitly declared
+- **Sync-Only**: All code is synchronous - no async/await patterns
 
 ## Core Concepts
 
@@ -76,6 +77,55 @@ class MyService:
     ):
         self.session = session
         self.crud = crud
+```
+
+## Sync-Only Architecture
+
+> **IMPORTANT**: This project uses ONLY synchronous patterns. No async/await code is allowed.
+
+### Why Sync-Only?
+
+1. **Simplicity**: Easier to understand and debug
+2. **Compatibility**: Works seamlessly with all tools and libraries
+3. **Testing**: Simpler test setup without async fixtures
+4. **Error Handling**: More straightforward exception handling
+
+### Sync-Only Rules
+
+1. **All FastAPI routes must be synchronous**:
+```python
+# CORRECT - Sync route
+@router.get("/items/{item_id}")
+def get_item(item_id: int):
+    return {"item_id": item_id}
+
+# WRONG - Async route
+@router.get("/items/{item_id}")
+async def get_item(item_id: int):
+    return {"item_id": item_id}
+```
+
+2. **Use synchronous HTTP clients**:
+```python
+# CORRECT - Sync HTTP client
+import requests
+response = requests.get(url)
+
+# WRONG - Async HTTP client
+import httpx
+async with httpx.AsyncClient() as client:
+    response = await client.get(url)
+```
+
+3. **Database operations are synchronous**:
+```python
+# CORRECT - Sync database operations
+with self.session_factory() as session:
+    result = session.exec(query).all()
+
+# WRONG - Async database operations
+async with self.session_factory() as session:
+    result = await session.execute(query)
 ```
 
 ## Provider Functions
@@ -151,7 +201,7 @@ from local_newsifier.di.providers import get_article_service
 router = APIRouter()
 
 @router.get("/articles/{article_id}")
-async def get_article(
+def get_article(
     article_id: int,
     service: Annotated[ArticleService, Depends(get_article_service)]
 ):
@@ -165,7 +215,7 @@ async def get_article(
 
 ```python
 @router.post("/articles/{article_id}/analyze")
-async def analyze_article(
+def analyze_article(
     article_id: int,
     article_service: Annotated[ArticleService, Depends(get_article_service)],
     entity_service: Annotated[EntityService, Depends(get_entity_service)],
