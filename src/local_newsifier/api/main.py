@@ -16,7 +16,7 @@ import local_newsifier.models  # noqa: F401
 from local_newsifier.api.dependencies import get_templates
 from local_newsifier.api.routers import auth, system, tasks, webhooks
 from local_newsifier.config.settings import get_settings, settings
-from local_newsifier.database.engine import create_db_and_tables
+from local_newsifier.database.engine import get_engine
 
 # Configure logging
 logging.basicConfig(
@@ -35,9 +35,12 @@ async def lifespan(app: FastAPI):
     # Startup logic
     logger.info("Application startup initiated")
     try:
-        # Initialize database tables
-        create_db_and_tables()
-        logger.info("Database initialization completed")
+        # Verify database connection
+        engine = get_engine()
+        if engine:
+            logger.info("Database connection verified")
+        else:
+            logger.warning("Database connection could not be established")
 
         # Initialize fastapi-injectable
         logger.info("Initializing fastapi-injectable")

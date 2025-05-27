@@ -36,9 +36,9 @@ def client():
         mock_articles.append(mock_article)
 
     # Setup any required mocks for database operations to avoid actual DB connections
-    with patch("local_newsifier.database.engine.create_db_and_tables"), patch(
-        "local_newsifier.database.engine.get_engine"
-    ), patch("local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles):
+    with patch("local_newsifier.database.engine.get_engine"), patch(
+        "local_newsifier.crud.article.article.get_by_date_range", return_value=mock_articles
+    ):
 
         # Create a TestClient with proper event loop handling
         client = TestClient(app)
@@ -139,28 +139,28 @@ class TestLifespan:
 
         assert callable(lifespan), "lifespan should be a callable function"
 
-    def test_create_db_called_in_lifespan(self):
-        """Test that create_db_and_tables is called during lifespan startup."""
+    def test_get_engine_called_in_lifespan(self):
+        """Test that get_engine is called during lifespan startup."""
         import inspect
 
         # Get the source code of the lifespan function
         source = inspect.getsource(lifespan)
 
-        # Verify the function contains a call to create_db_and_tables
-        assert "create_db_and_tables" in source, "create_db_and_tables should be called in lifespan"
+        # Verify the function contains a call to get_engine
+        assert "get_engine" in source, "get_engine should be called in lifespan"
 
     def test_lifespan_startup_success(self, mock_logger):
         """Test successful startup in lifespan context manager."""
         # Create a completely mocked version of the lifespan function to test the flow
         # This avoids any actual database connection attempts
 
-        # Create a mock of the create_db_and_tables function
-        create_db_mock = MagicMock()
+        # Create a mock of the get_engine function
+        get_engine_mock = MagicMock(return_value=MagicMock())
         # Use AsyncMock for async functions
         register_app_mock = AsyncMock()
 
         # Use multiple patches to mock all external dependencies
-        with patch("local_newsifier.database.engine.create_db_and_tables", create_db_mock), patch(
+        with patch("local_newsifier.database.engine.get_engine", get_engine_mock), patch(
             "local_newsifier.api.main.register_app", register_app_mock
         ):
 
@@ -169,7 +169,7 @@ class TestLifespan:
             @asynccontextmanager
             async def test_lifespan(app: FastAPI):
                 # Startup logic - mimics the real lifespan but with mocked functions
-                create_db_mock()  # Call our mock instead of the real function
+                get_engine_mock()  # Call our mock instead of the real function
                 await register_app_mock(app)  # Call our mock instead of the real function
                 yield  # This is where FastAPI serves requests
                 # No shutdown logic needed for this test
@@ -185,7 +185,7 @@ class TestLifespan:
             asyncio.run(run_lifespan())
 
             # Verify our mocks were called as expected
-            create_db_mock.assert_called_once()
+            get_engine_mock.assert_called_once()
             register_app_mock.assert_called_once_with(app)
 
     def test_lifespan_startup_error(self, mock_logger):
@@ -195,10 +195,10 @@ class TestLifespan:
 
         # Setup the error to be raised
         error_message = "Database connection error"
-        create_db_mock = MagicMock(side_effect=Exception(error_message))
+        get_engine_mock = MagicMock(side_effect=Exception(error_message))
 
         # Use patches to mock all external dependencies
-        with patch("local_newsifier.api.main.create_db_and_tables", create_db_mock), patch(
+        with patch("local_newsifier.api.main.get_engine", get_engine_mock), patch(
             "local_newsifier.api.main.logger", mock_logger
         ):
 
@@ -208,7 +208,7 @@ class TestLifespan:
             async def test_lifespan(app: FastAPI):
                 # Startup logic with error handling
                 try:
-                    create_db_mock()  # This will raise our mocked exception
+                    get_engine_mock()  # This will raise our mocked exception
                 except Exception as e:
                     mock_logger.exception(f"Error during startup: {str(e)}")
                 yield  # This is where FastAPI serves requests
@@ -224,7 +224,7 @@ class TestLifespan:
             asyncio.run(run_lifespan())
 
             # Verify our mocks were called as expected
-            create_db_mock.assert_called_once()
+            get_engine_mock.assert_called_once()
             mock_logger.exception.assert_called_with(f"Error during startup: {error_message}")
 
 

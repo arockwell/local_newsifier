@@ -18,19 +18,21 @@ from tests.ci_skip_config import ci_skip_async
 @pytest.fixture(scope="module", autouse=True)
 def mock_db():
     """Mock database calls for testing."""
-    # Save original create_db_and_tables function
+    # Save original get_engine function
+    from unittest.mock import MagicMock
+
     from local_newsifier.database import engine
 
-    original_create_db = engine.create_db_and_tables
+    original_get_engine = engine.get_engine
 
-    # Replace with no-op function
-    engine.create_db_and_tables = lambda: None
+    # Replace with mock function
+    engine.get_engine = lambda: MagicMock()
 
     # Yield control back to test
     yield
 
     # Restore original function after tests
-    engine.create_db_and_tables = original_create_db
+    engine.get_engine = original_get_engine
 
 
 class TestApifyWebhookInfrastructure:
