@@ -73,7 +73,8 @@
 - Focuses on entity tracking, sentiment analysis, and headline trend detection
 - Uses NLP for entity recognition and relationship mapping
 - Supports multiple content acquisition methods (RSS feeds, Apify web scraping)
-- Moving from Celery to FastAPI Background Tasks for simpler task processing
+- Uses synchronous processing throughout the entire application
+- No async/await patterns - all code is sync-only for simplicity
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Environment Setup
@@ -139,9 +140,9 @@ make format            # Auto-format code (isort + black)
 
 # Running services
 make run-api           # Run FastAPI server
-make run-worker        # Run Celery worker
-make run-beat          # Run Celery beat scheduler
-make run-all           # Run all services (API, worker, beat)
+make run-worker        # Run background worker (if applicable)
+make run-scheduler     # Run task scheduler (if applicable)
+make run-all           # Run all services
 
 # Database management
 make db-init           # Initialize cursor-specific database
@@ -162,7 +163,7 @@ make build-wheels-linux # Build Linux wheels using Docker
 - Uses SQLModel (combines SQLAlchemy ORM and Pydantic validation)
 - PostgreSQL backend with cursor-specific database instances
 - Key models: Article, Entity, AnalysisResult, CanonicalEntity, ApifySourceConfig, RSSFeed
-- Database sessions should be managed with the `with_session` decorator
+- Database sessions are managed through dependency injection or context managers
 
 ### Project Structure
 ```
@@ -182,7 +183,7 @@ src/
 │   │   └── apify.py    # Apify integration models
 │   ├── services/       # Business logic services
 │   │   └── apify_service.py  # Apify API integration
-│   ├── tasks.py        # Celery tasks
+│   ├── tasks.py        # Background tasks (sync-only)
 │   └── tools/          # Processing tools
 │       ├── analysis/   # Analysis tools
 │       ├── extraction/ # Entity extraction tools
@@ -212,7 +213,7 @@ class Article(SQLModel, table=True):
 - CRUD operations are in `src/local_newsifier/crud/`
 - Use the CRUDBase class for common operations
 - Extend with model-specific operations
-- Use the `with_session` decorator for session management
+- Use dependency injection or context managers for session management
 
 ### Dependency Injection
 
@@ -362,13 +363,12 @@ def test_component_success(mock_component):
 
 ### Railway Configuration
 - Railway.json configures multiple processes:
-  - web: FastAPI web interface
-  - worker: Celery worker for task processing
-  - beat: Celery beat for scheduled tasks
+  - web: FastAPI web interface (sync-only)
+  - worker: Background task processor (sync-only)
+  - scheduler: Task scheduler (sync-only)
 - Required environment variables:
   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB
-  - CELERY_BROKER_URL (Redis URL for Celery broker)
-  - CELERY_RESULT_BACKEND (Redis URL for Celery results)
+  - REDIS_URL (Redis URL for caching and task queuing if needed)
   - APIFY_TOKEN (for Apify web scraping)
   - APIFY_WEBHOOK_SECRET (optional, for webhook validation)
 
@@ -385,17 +385,41 @@ def test_component_success(mock_component):
 - SQLModel.exec() only takes one parameter - bind params to the query before calling
 - Avoid passing SQLModel objects between sessions - use IDs instead
 - Use runtime imports to break circular dependencies
-- Redis is required for Celery - PostgreSQL is no longer supported as a broker
+- All processing is synchronous - no message brokers required for basic operation
 
 
-### Sync-Only Implementation
+## Sync-Only Architecture
 
-> **IMPORTANT**: The project is moving to sync-only implementations. Do not use async patterns in any new code. All code should use synchronous patterns:
-> - Use `def` instead of `async def`
-> - Use `Session` instead of `AsyncSession`
-> - Use `session.exec()` instead of `await session.execute()`
-> - Use `requests` instead of `httpx.AsyncClient`
-> - Remove all `await` keywords
+> **CRITICAL**: This project uses ONLY synchronous patterns. No async/await code is allowed.
+
+### Why Sync-Only?
+- Simpler debugging and error handling
+- Easier to understand execution flow
+- Better compatibility with existing tools
+- Reduced complexity in testing
+
+### Sync-Only Rules
+1. **Function Definitions**: Always use `def`, never `async def`
+2. **Database Sessions**: Use `Session`, never `AsyncSession`
+3. **HTTP Clients**: Use `requests` or `httpx` sync client, never async clients
+4. **No await keywords**: If you see `await`, it's wrong
+5. **FastAPI Routes**: All routes must be synchronous (`def`, not `async def`)
+6. **Background Tasks**: Use threading or multiprocessing, not asyncio
+
+### Converting Async to Sync
+If you encounter async code:
+```python
+# WRONG - Async pattern
+async def get_data():
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+    return response.json()
+
+# CORRECT - Sync pattern
+def get_data():
+    response = requests.get(url)
+    return response.json()
+```
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.
