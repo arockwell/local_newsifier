@@ -1,14 +1,12 @@
 # FastAPI-Injectable Migration Implementation Roadmap
 
-This document provides a detailed implementation plan for migrating away from FastAPI-Injectable, coordinated with the async and CLI-to-HTTP migrations.
+This document provides a detailed implementation plan for migrating away from FastAPI-Injectable, coordinated with the CLI-to-HTTP migration.
 
 ## Overview
 
-The migration away from FastAPI-Injectable is intertwined with two other major architectural changes:
-1. **Async Migration**: Converting the codebase to fully async operations
+The migration away from FastAPI-Injectable focuses on:
+1. **Sync-Only Implementation**: The project is moving to sync-only patterns
 2. **CLI-to-HTTP Migration**: Moving CLI from direct DI to HTTP-based architecture
-
-These migrations are synergistic - each makes the others easier and more beneficial.
 
 ## Implementation Phases
 
@@ -19,14 +17,12 @@ These migrations are synergistic - each makes the others easier and more benefic
 1. **Create Migration Branches**
    ```bash
    git checkout -b feature/remove-fastapi-injectable
-   git checkout -b feature/async-migration
    git checkout -b feature/cli-to-http
    ```
 
 2. **Set Up Test Infrastructure**
-   - Install async testing dependencies
-   - Create async test database fixtures
    - Set up performance benchmarks
+   - Create test fixtures
 
 3. **Document Current State**
    - Inventory all uses of `@injectable`
@@ -35,55 +31,37 @@ These migrations are synergistic - each makes the others easier and more benefic
 
 #### Deliverables:
 - [ ] Migration branches created
-- [ ] Async test infrastructure ready
+- [ ] Test infrastructure ready
 - [ ] Complete inventory of injectable usage
 
 ### Phase 1: Database Layer (Week 1)
-**Goal**: Convert database layer to async
+**Goal**: Migrate database provider functions
 
 #### Tasks:
-1. **Install Async Database Driver**
-   ```toml
-   [tool.poetry.dependencies]
-   asyncpg = "^0.29.0"  # For PostgreSQL
-   aiosqlite = "^0.19.0"  # For SQLite testing
-   ```
-
-2. **Create Async Engine**
-   ```python
-   # database/engine.py
-   from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-
-   async_engine = create_async_engine(
-       settings.async_database_url,
-       echo=settings.debug
-   )
-   ```
-
-3. **Update CRUD Base**
-   - Create `AsyncCRUDBase` class
-   - Convert all CRUD operations to async
-
-4. **Migrate Provider Functions**
+1. **Migrate Provider Functions**
    ```python
    # From: di/providers.py
    @injectable(use_cache=False)
    def get_session():
-       # Sync session
+       # Session with injectable
 
    # To: api/dependencies.py
-   async def get_session() -> AsyncSession:
-       # Async session
+   def get_session():
+       # Session without injectable
    ```
 
+2. **Update CRUD Providers**
+   - Remove `@injectable` decorators
+   - Update import statements
+   - Ensure proper session management
+
 #### Deliverables:
-- [ ] Async database engine configured
-- [ ] AsyncCRUDBase implemented
-- [ ] All CRUD classes converted
 - [ ] Session provider migrated
+- [ ] CRUD providers updated
+- [ ] Tests updated
 
 ### Phase 2: Service Layer - Part 1 (Week 2)
-**Goal**: Convert external API services to async
+**Goal**: Migrate external API services
 
 #### Priority Services:
 1. **ApifyService** (Heavy HTTP I/O)
@@ -93,7 +71,7 @@ These migrations are synergistic - each makes the others easier and more benefic
 #### For Each Service:
 1. Remove `@injectable` decorator
 2. Update constructor to accept explicit dependencies
-3. Convert methods to async
+3. Update methods as needed
 4. Create FastAPI dependency function
 5. Update tests
 
@@ -106,16 +84,15 @@ class ApifyService:
         self.token = token
 
     def run_actor(self, actor_id: str):
-        # Sync implementation
+        # Implementation
 
 # After
 class ApifyService:
     def __init__(self, token: str):
         self.token = token
-        self.client = httpx.AsyncClient()
 
-    async def run_actor(self, actor_id: str):
-        # Async implementation
+    def run_actor(self, actor_id: str):
+        # Implementation without injectable
 ```
 
 #### Deliverables:
@@ -129,14 +106,14 @@ class ApifyService:
 
 #### Tasks:
 1. **Create CLI HTTP Client**
-   - Implement sync client for simple operations
-   - Implement async client for batch operations
+   - Implement sync client for all operations
+   - Add progress indicators
 
 2. **Create API Endpoints for CLI**
    ```python
    # api/routers/cli.py
    @router.post("/cli/process-feed/{feed_id}")
-   async def process_feed_cli(feed_id: int, ...):
+   def process_feed_cli(feed_id: int, ...):
        # Implementation for CLI
    ```
 
@@ -170,7 +147,7 @@ class ApifyService:
 3. Add transaction management
 
 #### Deliverables:
-- [ ] All services migrated to async
+- [ ] All services migrated
 - [ ] Service dependencies updated
 - [ ] Transaction handling implemented
 - [ ] Error handling standardized
@@ -188,8 +165,7 @@ class ApifyService:
    from local_newsifier.api.dependencies import get_service
    ```
 
-2. **Convert Endpoints to Async**
-   - Add `await` for all async operations
+2. **Update Endpoints**
    - Update error handling
    - Handle transactions properly
 
@@ -208,13 +184,11 @@ class ApifyService:
 
 #### Tasks:
 1. **Update All Tests**
-   - Remove `event_loop_fixture`
-   - Remove `@ci_skip_async`
    - Update mocking patterns
+   - Remove injectable-specific test fixtures
 
 2. **Performance Testing**
-   - Benchmark async vs sync performance
-   - Validate concurrency benefits
+   - Benchmark performance
    - Check resource usage
 
 3. **Code Cleanup**
@@ -233,7 +207,7 @@ class ApifyService:
 ### Phase-Based Rollback
 Each phase can be rolled back independently:
 
-1. **Database Layer**: Keep sync and async engines side-by-side
+1. **Database Layer**: Keep both provider styles during transition
 2. **Services**: Maintain dual-mode services during transition
 3. **CLI**: Keep both DI and HTTP modes available
 4. **Endpoints**: Use feature flags to switch between old/new
@@ -242,7 +216,6 @@ Each phase can be rolled back independently:
 ```python
 # Feature flags for gradual rollout
 class FeatureFlags:
-    USE_ASYNC_DB = os.getenv("USE_ASYNC_DB", "false") == "true"
     USE_HTTP_CLI = os.getenv("USE_HTTP_CLI", "false") == "true"
     USE_NATIVE_DI = os.getenv("USE_NATIVE_DI", "false") == "true"
 ```
@@ -250,14 +223,12 @@ class FeatureFlags:
 ## Success Metrics
 
 ### Performance Metrics
-- [ ] API response time improved by 30%+
-- [ ] Concurrent request handling 3x better
+- [ ] API response time maintained or improved
 - [ ] Database connection pool usage optimized
 
 ### Quality Metrics
-- [ ] All tests pass without event loop fixtures
-- [ ] No `@ci_skip_async` decorators needed
-- [ ] Test execution time reduced by 25%+
+- [ ] All tests pass
+- [ ] Test execution time reduced
 
 ### Code Metrics
 - [ ] Zero imports from `fastapi_injectable`
@@ -297,8 +268,7 @@ class FeatureFlags:
 - [ ] No `@injectable` decorators
 - [ ] No `use_cache` parameters
 - [ ] Explicit dependency injection
-- [ ] Async patterns used correctly
-- [ ] Tests don't use event loop fixtures
+- [ ] Sync patterns used correctly
 
 ## Communication Plan
 
@@ -335,4 +305,4 @@ class FeatureFlags:
 
 ## Conclusion
 
-This roadmap provides a structured approach to migrating away from FastAPI-Injectable while simultaneously improving the architecture through async operations and CLI-to-HTTP migration. The phased approach minimizes risk while delivering incremental value throughout the migration process.
+This roadmap provides a structured approach to migrating away from FastAPI-Injectable while improving the architecture through CLI-to-HTTP migration. The phased approach minimizes risk while delivering incremental value throughout the migration process.
