@@ -670,41 +670,6 @@ Break the components into smaller, more focused ones to eliminate circular depen
 2. Use IDs instead of objects when crossing session boundaries
 3. Ensure session is properly managed in provider functions
 4. Make sure to use `use_cache=False` for database-interacting components
-
-#### Issue 3: Asyncio Event Loop Errors
-
-**Symptoms**:
-- "Event loop is closed" errors
-- "No running event loop" errors
-
-**Solution**:
-1. Use `@pytest.mark.asyncio` for async tests
-2. Mock async dependencies properly with `AsyncMock`
-3. Avoid mixing sync and async patterns
-
-```python
-@pytest.mark.asyncio
-async def test_async_function():
-    """Test an async function properly."""
-    result = await async_function()
-    assert result == expected
-```
-
-## Testing Async Components
-
-When testing components with async code, use pytest-asyncio:
-
-```python
-@pytest.mark.asyncio
-async def test_async_component():
-    """Test an async component."""
-    component = MyAsyncComponent()
-    result = await component.process()
-    assert result == expected
-```
-
-For more details on handling async patterns and avoiding event loop issues, see `docs/plans/event-loop-stabilization.md`.
-
 ### Performance Considerations
 
 1. **Session Management**: Avoid carrying SQLModel objects between sessions

@@ -22,6 +22,12 @@ This directory contains comprehensive knowledge documentation consolidated from 
 - Testing strategies
 - Migration checklist
 
+#### [Async to Sync Migration](./async-to-sync-migration.md)
+- Rationale for moving from async to sync routes
+- Migration scope and steps
+- Implementation plan and checklist
+- Benefits and risk mitigation
+
 ### Development Practices
 
 #### [Documentation Strategy](./documentation-strategy.md)

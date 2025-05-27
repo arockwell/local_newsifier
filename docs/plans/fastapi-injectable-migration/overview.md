@@ -3,10 +3,10 @@
 ## Executive Summary
 
 This document outlines the plan to migrate away from FastAPI-Injectable as part of our broader transition to:
-1. Fully async architecture (see [convert_to_async.md](../convert_to_async.md))
+1. Simplified synchronous architecture (see [async-to-sync-migration.md](../async-to-sync-migration.md))
 2. CLI-to-HTTP migration (see [cli-to-fastapi-overview.md](../cli_to_http/cli-to-fastapi-overview.md))
 
-The migration from FastAPI-Injectable is a natural consequence of these architectural changes and will simplify our dependency management while enabling better async support.
+The migration from FastAPI-Injectable is a natural consequence of these architectural changes and will simplify our dependency management.
 
 ## Why Migrate Away from FastAPI-Injectable?
 
@@ -20,9 +20,9 @@ The migration from FastAPI-Injectable is a natural consequence of these architec
 - FastAPI's built-in `Depends()` is sufficient for HTTP endpoints
 - The extra abstraction layer adds complexity without proportional benefits
 
-### 3. Async Migration Impediments
-- FastAPI-Injectable's caching mechanisms complicate async session management
-- The framework wasn't designed with full async stack in mind
+### 3. Synchronous Architecture Alignment
+- With the decision to keep routes synchronous, FastAPI-Injectable adds unnecessary complexity
+- The framework's async-first design doesn't align with our synchronous approach
 - Provider functions with `use_cache=False` everywhere indicate we're fighting the framework
 
 ### 4. Testing Complexity
