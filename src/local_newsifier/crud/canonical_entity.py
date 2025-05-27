@@ -13,9 +13,7 @@ from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentio
 class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
     """CRUD operations for canonical entities."""
 
-    def get_by_name(
-        self, db: Session, *, name: str, entity_type: str
-    ) -> Optional[CanonicalEntity]:
+    def get_by_name(self, db: Session, *, name: str, entity_type: str) -> Optional[CanonicalEntity]:
         """Get a canonical entity by name and type.
 
         Args:
@@ -26,15 +24,14 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             Canonical entity if found, None otherwise
         """
-        result = db.execute(select(CanonicalEntity).where(
-            CanonicalEntity.name == name,
-            CanonicalEntity.entity_type == entity_type
-        )).first()
+        result = db.execute(
+            select(CanonicalEntity).where(
+                CanonicalEntity.name == name, CanonicalEntity.entity_type == entity_type
+            )
+        ).first()
         return result[0] if result else None
 
-    def get_by_type(
-        self, db: Session, *, entity_type: str
-    ) -> List[CanonicalEntity]:
+    def get_by_type(self, db: Session, *, entity_type: str) -> List[CanonicalEntity]:
         """Get all canonical entities of a specific type.
 
         Args:
@@ -44,14 +41,12 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of canonical entities
         """
-        results = db.execute(select(CanonicalEntity).where(
-            CanonicalEntity.entity_type == entity_type
-        )).all()
+        results = db.execute(
+            select(CanonicalEntity).where(CanonicalEntity.entity_type == entity_type)
+        ).all()
         return [row[0] for row in results]
 
-    def get_all(
-        self, db: Session, *, entity_type: Optional[str] = None
-    ) -> List[CanonicalEntity]:
+    def get_all(self, db: Session, *, entity_type: Optional[str] = None) -> List[CanonicalEntity]:
         """Get all canonical entities, optionally filtered by type.
 
         Args:
@@ -84,12 +79,7 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         return result.one_or_none()[0] or 0
 
     def get_entity_timeline(
-        self,
-        db: Session,
-        *,
-        entity_id: int,
-        start_date: datetime,
-        end_date: datetime
+        self, db: Session, *, entity_id: int, start_date: datetime, end_date: datetime
     ) -> List[dict]:
         """Get the timeline of entity mentions.
 
@@ -102,23 +92,20 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of timeline entries
         """
-        statement = select(
-            Article.published_at,
-            func.count(EntityMention.id).label("mention_count")
-        ).join(
-            EntityMention, Article.id == EntityMention.article_id
-        ).where(
-            EntityMention.canonical_entity_id == entity_id,
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
-        ).group_by(
-            Article.published_at
-        ).order_by(
-            Article.published_at
+        statement = (
+            select(Article.published_at, func.count(EntityMention.id).label("mention_count"))
+            .join(EntityMention, Article.id == EntityMention.article_id)
+            .where(
+                EntityMention.canonical_entity_id == entity_id,
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+            .group_by(Article.published_at)
+            .order_by(Article.published_at)
         )
-        
+
         results = db.execute(statement)
-        
+
         return [
             {
                 "date": date,
@@ -128,12 +115,7 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         ]
 
     def get_articles_mentioning_entity(
-        self,
-        db: Session,
-        *,
-        entity_id: int,
-        start_date: datetime,
-        end_date: datetime
+        self, db: Session, *, entity_id: int, start_date: datetime, end_date: datetime
     ) -> List[Article]:
         """Get all articles mentioning an entity within a date range.
 
@@ -146,13 +128,15 @@ class CRUDCanonicalEntity(CRUDBase[CanonicalEntity]):
         Returns:
             List of articles mentioning the entity
         """
-        results = db.execute(select(Article).join(
-            EntityMention, Article.id == EntityMention.article_id
-        ).where(
-            EntityMention.canonical_entity_id == entity_id,
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
-        )).all()
+        results = db.execute(
+            select(Article)
+            .join(EntityMention, Article.id == EntityMention.article_id)
+            .where(
+                EntityMention.canonical_entity_id == entity_id,
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+        ).all()
         return [row[0] for row in results]
 
 

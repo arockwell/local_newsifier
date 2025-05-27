@@ -24,7 +24,7 @@ templates = Jinja2Templates(directory=templates_dir)
 
 def get_templates() -> Jinja2Templates:
     """Get the Jinja2 templates.
-    
+
     Returns:
         Jinja2Templates: The templates object for HTML rendering
     """

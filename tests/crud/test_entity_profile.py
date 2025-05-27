@@ -11,14 +11,10 @@ from local_newsifier.models.entity_tracking import EntityProfile
 class TestEntityProfileCRUD:
     """Tests for EntityProfileCRUD class."""
 
-    def test_create(
-        self, db_session, create_canonical_entity, sample_entity_profile_data
-    ):
+    def test_create(self, db_session, create_canonical_entity, sample_entity_profile_data):
         """Test creating a new entity profile."""
         # Ensure the canonical_entity_id matches the one we created
-        sample_entity_profile_data["canonical_entity_id"] = (
-            create_canonical_entity.id
-        )
+        sample_entity_profile_data["canonical_entity_id"] = create_canonical_entity.id
 
         obj_in = sample_entity_profile_data
         profile = entity_profile_crud.create(db_session, obj_in=obj_in)
@@ -44,29 +40,20 @@ class TestEntityProfileCRUD:
     ):
         """Test creating a duplicate entity profile raises ValueError."""
         # Ensure the canonical_entity_id matches the one we created
-        sample_entity_profile_data["canonical_entity_id"] = (
-            create_canonical_entity.id
-        )
+        sample_entity_profile_data["canonical_entity_id"] = create_canonical_entity.id
 
         # Create the first profile
         obj_in = sample_entity_profile_data
         entity_profile_crud.create(db_session, obj_in=obj_in)
 
         # Attempt to create a duplicate profile
-        with pytest.raises(
-            ValueError,
-            match="Profile already exists for entity"
-        ):
+        with pytest.raises(ValueError, match="Profile already exists for entity"):
             entity_profile_crud.create(db_session, obj_in=obj_in)
 
-    def test_get(
-        self, db_session, create_canonical_entity, sample_entity_profile_data
-    ):
+    def test_get(self, db_session, create_canonical_entity, sample_entity_profile_data):
         """Test getting an entity profile by ID."""
         # Ensure the canonical_entity_id matches the one we created
-        sample_entity_profile_data["canonical_entity_id"] = (
-            create_canonical_entity.id
-        )
+        sample_entity_profile_data["canonical_entity_id"] = create_canonical_entity.id
 
         # Create a profile
         db_profile = EntityProfile(**sample_entity_profile_data)
@@ -83,14 +70,10 @@ class TestEntityProfileCRUD:
         assert profile.content == db_profile.content
         assert profile.profile_metadata == db_profile.profile_metadata
 
-    def test_get_by_entity(
-        self, db_session, create_canonical_entity, sample_entity_profile_data
-    ):
+    def test_get_by_entity(self, db_session, create_canonical_entity, sample_entity_profile_data):
         """Test getting a profile by entity ID."""
         # Ensure the canonical_entity_id matches the one we created
-        sample_entity_profile_data["canonical_entity_id"] = (
-            create_canonical_entity.id
-        )
+        sample_entity_profile_data["canonical_entity_id"] = create_canonical_entity.id
 
         # Create a profile
         db_profile = EntityProfile(**sample_entity_profile_data)
@@ -155,9 +138,7 @@ class TestEntityProfileCRUD:
         assert profile.content == "This is a background profile."
         assert profile.profile_metadata == {"key2": "value2"}
 
-    def test_get_by_entity_and_type_not_found(
-        self, db_session, create_canonical_entity
-    ):
+    def test_get_by_entity_and_type_not_found(self, db_session, create_canonical_entity):
         """Test getting a non-existent profile by entity ID and type."""
         profile = entity_profile_crud.get_by_entity_and_type(
             db_session,
@@ -172,9 +153,7 @@ class TestEntityProfileCRUD:
     ):
         """Test updating an existing entity profile with update_or_create."""
         # Ensure the canonical_entity_id matches the one we created
-        sample_entity_profile_data["canonical_entity_id"] = (
-            create_canonical_entity.id
-        )
+        sample_entity_profile_data["canonical_entity_id"] = create_canonical_entity.id
         sample_entity_profile_data["profile_type"] = "summary"
 
         # Create a profile first
@@ -193,21 +172,15 @@ class TestEntityProfileCRUD:
             "profile_metadata": {"updated": True},
         }
         obj_in = update_data
-        updated_profile = entity_profile_crud.update_or_create(
-            db_session, obj_in=obj_in
-        )
+        updated_profile = entity_profile_crud.update_or_create(db_session, obj_in=obj_in)
 
         assert updated_profile is not None
         assert updated_profile.id == db_profile.id  # Same ID as before
-        assert (
-            updated_profile.canonical_entity_id == create_canonical_entity.id
-        )
+        assert updated_profile.canonical_entity_id == create_canonical_entity.id
         assert updated_profile.profile_type == "summary"
         assert updated_profile.content == "Updated profile content."
         assert updated_profile.profile_metadata == {"updated": True}
-        assert (
-            updated_profile.content != original_content
-        )  # Content should have changed
+        assert updated_profile.content != original_content  # Content should have changed
 
         # Verify it was updated in the database
         statement = select(EntityProfile).where(EntityProfile.id == db_profile.id)
@@ -215,9 +188,7 @@ class TestEntityProfileCRUD:
         assert db_updated.content == "Updated profile content."
         assert db_updated.profile_metadata == {"updated": True}
 
-    def test_update_or_create_create(
-        self, db_session, create_canonical_entity
-    ):
+    def test_update_or_create_create(self, db_session, create_canonical_entity):
         """Test creating profile with update_or_create if none exists."""
         profile_data = {
             "canonical_entity_id": create_canonical_entity.id,
@@ -226,31 +197,23 @@ class TestEntityProfileCRUD:
             "profile_metadata": {"new": True},
         }
         obj_in = profile_data
-        profile = entity_profile_crud.update_or_create(
-            db_session, obj_in=obj_in
-        )
+        profile = entity_profile_crud.update_or_create(db_session, obj_in=obj_in)
 
         assert profile is not None
         assert profile.id is not None
         assert profile.canonical_entity_id == create_canonical_entity.id
         assert profile.profile_type == "new_type"
-        assert (
-            profile.content
-            == "This is a new profile that didn't exist before."
-        )
+        assert profile.content == "This is a new profile that didn't exist before."
         assert profile.profile_metadata == {"new": True}
 
         # Verify it was saved to the database
         statement = select(EntityProfile).where(
             EntityProfile.canonical_entity_id == create_canonical_entity.id,
-            EntityProfile.profile_type == "new_type"
+            EntityProfile.profile_type == "new_type",
         )
         db_profile = db_session.exec(statement).first()
         assert db_profile is not None
-        assert (
-            db_profile.content
-            == "This is a new profile that didn't exist before."
-        )
+        assert db_profile.content == "This is a new profile that didn't exist before."
 
     def test_singleton_instance(self):
         """Test singleton instance behavior."""

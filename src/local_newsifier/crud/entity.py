@@ -39,16 +39,16 @@ class CRUDEntity(CRUDBase[Entity]):
         Returns:
             Entity if found, None otherwise
         """
-        result = db.execute(select(Entity).where(
-            Entity.text == text, Entity.article_id == article_id
-        )).first()
+        result = db.execute(
+            select(Entity).where(Entity.text == text, Entity.article_id == article_id)
+        ).first()
         return result[0] if result else None
-        
+
     def get_by_date_range_and_types(
-        self, 
-        db: Session, 
-        *, 
-        start_date: datetime, 
+        self,
+        db: Session,
+        *,
+        start_date: datetime,
         end_date: datetime,
         entity_types: List[str] = None
     ) -> List[Entity]:
@@ -64,17 +64,16 @@ class CRUDEntity(CRUDBase[Entity]):
             List of entities within the date range and with the specified types
         """
         # Join with Article to filter by published_at
-        query = select(Entity).join(
-            Article, Entity.article_id == Article.id
-        ).where(
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
+        query = (
+            select(Entity)
+            .join(Article, Entity.article_id == Article.id)
+            .where(Article.published_at >= start_date, Article.published_at <= end_date)
         )
-        
+
         # Add entity type filter if provided
         if entity_types:
             query = query.where(Entity.entity_type.in_(entity_types))
-            
+
         results = db.execute(query).all()
         return [row[0] for row in results]
 

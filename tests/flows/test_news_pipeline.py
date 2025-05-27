@@ -28,21 +28,20 @@ def mock_scraper():
 @pytest.fixture(scope="session")
 def mock_article_service():
     """Create a mock article service that returns successful results."""
-    
+
     article_service = Mock()
-    article_service.process_article = Mock(return_value={
-        "article_id": 1,
-        "title": "Test Article",
-        "url": "https://example.com/test",
-        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-        "analysis_result": {
+    article_service.process_article = Mock(
+        return_value={
+            "article_id": 1,
+            "title": "Test Article",
+            "url": "https://example.com/test",
             "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-            "statistics": {
-                "entity_counts": {"PERSON": 1},
-                "total_entities": 1
-            }
+            "analysis_result": {
+                "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+                "statistics": {"entity_counts": {"PERSON": 1}, "total_entities": 1},
+            },
         }
-    })
+    )
     return article_service
 
 
@@ -64,19 +63,18 @@ def mock_file_writer():
 def mock_pipeline_service():
     """Create a mock pipeline service that returns successful results."""
     pipeline_service = Mock()
-    pipeline_service.process_url = Mock(return_value={
-        "article_id": 1,
-        "title": "Test Article",
-        "url": "https://example.com/test",
-        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-        "analysis_result": {
+    pipeline_service.process_url = Mock(
+        return_value={
+            "article_id": 1,
+            "title": "Test Article",
+            "url": "https://example.com/test",
             "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-            "statistics": {
-                "entity_counts": {"PERSON": 1},
-                "total_entities": 1
-            }
+            "analysis_result": {
+                "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+                "statistics": {"entity_counts": {"PERSON": 1}, "total_entities": 1},
+            },
         }
-    })
+    )
     return pipeline_service
 
 
@@ -88,12 +86,12 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
     mock_entity_extractor = Mock()
     mock_context_analyzer = Mock()
     mock_entity_resolver = Mock()
-    
+
     # Set up function to fix session_factory access
     mock_session_factory_fn = lambda: Mock()
-    
+
     # Disable the injectable decorator and mock directly
-    with patch('fastapi_injectable.decorator.run_coroutine_sync'):
+    with patch("fastapi_injectable.decorator.run_coroutine_sync"):
         # Import locally to avoid top-level import issues
         from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 
@@ -108,7 +106,7 @@ def pipeline(mock_scraper, mock_article_service, mock_file_writer, mock_pipeline
             context_analyzer=mock_context_analyzer,
             entity_resolver=mock_entity_resolver,
             session_factory=mock_session_factory_fn,
-            output_dir="test_output"
+            output_dir="test_output",
         )
     return pipeline
 
@@ -132,7 +130,9 @@ def reset_mocks(pipeline):
     # Restore original side effects if they exist
     if scraper_effect is not None and isinstance(pipeline.scraper.scrape, Mock):
         pipeline.scraper.scrape.side_effect = scraper_effect
-    if article_service_effect is not None and isinstance(pipeline.article_service.process_article, Mock):
+    if article_service_effect is not None and isinstance(
+        pipeline.article_service.process_article, Mock
+    ):
         pipeline.article_service.process_article.side_effect = article_service_effect
     if writer_effect is not None and isinstance(pipeline.writer.save, Mock):
         pipeline.writer.save.side_effect = writer_effect
@@ -285,7 +285,7 @@ def test_pipeline_analysis_failure(pipeline):
     # Mock article service to fail
     def process_article_failure(*args, **kwargs):
         raise Exception("Analysis error")
-        
+
     pipeline.article_service.process_article = Mock(side_effect=process_article_failure)
 
     # Start pipeline
@@ -316,19 +316,18 @@ def test_pipeline_save_failure(pipeline):
     pipeline.scraper.scrape = Mock(side_effect=successful_scrape)
 
     # Mock article service to succeed
-    pipeline.article_service.process_article = Mock(return_value={
-        "article_id": 1,
-        "title": "Test Article",
-        "url": "https://example.com/test",
-        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-        "analysis_result": {
+    pipeline.article_service.process_article = Mock(
+        return_value={
+            "article_id": 1,
+            "title": "Test Article",
+            "url": "https://example.com/test",
             "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-            "statistics": {
-                "entity_counts": {"PERSON": 1},
-                "total_entities": 1
-            }
+            "analysis_result": {
+                "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+                "statistics": {"entity_counts": {"PERSON": 1}, "total_entities": 1},
+            },
         }
-    })
+    )
 
     # Mock writer to fail
     def save_failure(state):
@@ -380,19 +379,18 @@ def test_pipeline_retry_attempts(pipeline):
     pipeline.scraper = mock_scraper
 
     # Mock article service to succeed
-    pipeline.article_service.process_article = Mock(return_value={
-        "article_id": 1,
-        "title": "Test Article",
-        "url": "https://example.com/test",
-        "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-        "analysis_result": {
+    pipeline.article_service.process_article = Mock(
+        return_value={
+            "article_id": 1,
+            "title": "Test Article",
+            "url": "https://example.com/test",
             "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
-            "statistics": {
-                "entity_counts": {"PERSON": 1},
-                "total_entities": 1
-            }
+            "analysis_result": {
+                "entities": [{"original_text": "John Doe", "canonical_name": "John Doe"}],
+                "statistics": {"entity_counts": {"PERSON": 1}, "total_entities": 1},
+            },
         }
-    })
+    )
 
     # Mock writer to succeed
     def successful_save(state):

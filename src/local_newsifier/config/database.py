@@ -83,7 +83,7 @@ def get_database_settings() -> DatabaseSettings:
 
 def get_db_session() -> Session:
     """Get a new database session.
-    
+
     Returns:
         Session: Database session
     """
@@ -96,32 +96,32 @@ def get_database_url_from_components(
     password: Optional[str] = None,
     host: Optional[str] = None,
     port: Optional[str] = None,
-    db_name: Optional[str] = None
+    db_name: Optional[str] = None,
 ) -> str:
     """Get a database URL from components or settings.
-    
+
     If any component is None, it will be fetched from settings.
-    
+
     Args:
         user: PostgreSQL username
         password: PostgreSQL password
         host: PostgreSQL host
         port: PostgreSQL port
         db_name: PostgreSQL database name
-        
+
     Returns:
         Database URL string
     """
     # Import settings here to avoid circular imports
     from local_newsifier.config.settings import get_settings
-    
+
     settings = get_settings()
-    
+
     # Use provided values or defaults from settings
     user = user or settings.POSTGRES_USER
     password = password or settings.POSTGRES_PASSWORD
     host = host or settings.POSTGRES_HOST
     port = port or settings.POSTGRES_PORT
     db_name = db_name or settings.POSTGRES_DB
-    
+
     return build_database_url(user, password, host, port, db_name)

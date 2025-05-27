@@ -83,43 +83,43 @@ def original_token():
 class TestApifyCommands:
     """Test the Apify CLI commands."""
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_with_env_var(self, mock_environ_get, original_token):
         """Test ensuring the token with the env var."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': 'test_token'
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": "test_token",
         }.get(key, default)
-        
+
         # Ensure token is set for the test
         os.environ["APIFY_TOKEN"] = "test_token"
         assert _ensure_token() is True
         assert settings.APIFY_TOKEN == "test_token"
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_with_settings(self, mock_environ_get, original_token):
         """Test ensuring the token with settings."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': None 
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": None,
         }.get(key, default)
-        
+
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = "settings_token"
         assert _ensure_token() is True
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_missing(self, mock_environ_get, runner, original_token):
         """Test ensuring the token when it's missing."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': None
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": None,
         }.get(key, default)
-        
+
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = None
@@ -141,7 +141,7 @@ class TestApifyCommands:
         assert result.exit_code == 0
         assert "Connection to Apify API successful" in result.output
         assert "Connected as: test_user" in result.output
-        
+
         # Verify the lambda function was called with the token
         # Since we can't directly check the lambda, we check that get_injected_obj was called
 
@@ -161,18 +161,14 @@ class TestApifyCommands:
         assert "Connection to Apify API successful" in result.output
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_run_actor(
-        self, mock_get_injected_obj, mock_apify_service, runner, original_token
-    ):
+    def test_run_actor(self, mock_get_injected_obj, mock_apify_service, runner, original_token):
         """Test the run actor command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
         os.environ["APIFY_TOKEN"] = "test_token"
 
         # Run the command
-        result = runner.invoke(
-            run_actor, ["test_actor", "--input", '{"param":"value"}']
-        )
+        result = runner.invoke(run_actor, ["test_actor", "--input", '{"param":"value"}'])
 
         # Verify
         assert result.exit_code == 0
@@ -238,9 +234,7 @@ class TestApifyCommands:
             os.unlink(output_file)
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_get_dataset(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_get_dataset(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the get dataset command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -274,9 +268,7 @@ class TestApifyCommands:
         assert "title" in result.output
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_get_actor(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_get_actor(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the get actor command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -326,9 +318,7 @@ class TestApifyCommands:
 
         try:
             # Run the command
-            result = runner.invoke(
-                scrape_content, ["https://example.com", "--output", output_file]
-            )
+            result = runner.invoke(scrape_content, ["https://example.com", "--output", output_file])
 
             # Verify
             assert result.exit_code == 0
@@ -344,9 +334,7 @@ class TestApifyCommands:
             os.unlink(output_file)
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_web_scraper(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_web_scraper(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the web-scraper command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -405,9 +393,7 @@ class TestApifyCommands:
 
         try:
             # Run the command
-            result = runner.invoke(
-                web_scraper, ["https://example.com", "--output", output_file]
-            )
+            result = runner.invoke(web_scraper, ["https://example.com", "--output", output_file])
 
             # Verify
             assert result.exit_code == 0

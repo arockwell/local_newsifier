@@ -40,12 +40,7 @@ class TestLoginSubmission:
 
         # Make the login request without specifying next_url
         response = client.post(
-            "/login",
-            data={
-                "username": "admin",
-                "password": "password"
-            },
-            follow_redirects=False
+            "/login", data={"username": "admin", "password": "password"}, follow_redirects=False
         )
 
         # Verify redirect to default URL
@@ -61,10 +56,10 @@ class TestRequireAdmin:
         # Create a mock request with authenticated session
         mock_request = MagicMock(spec=Request)
         mock_request.session = {"authenticated": True}
-        
+
         # Call the dependency
         result = require_admin(mock_request)
-        
+
         # Verify result
         assert result is True
 
@@ -74,11 +69,11 @@ class TestRequireAdmin:
         mock_request = MagicMock(spec=Request)
         mock_request.session = {}
         mock_request.url.path = "/protected/path"
-        
+
         # Call the dependency and expect exception
         with pytest.raises(Exception) as excinfo:
             require_admin(mock_request)
-        
+
         # Verify exception details
         assert excinfo.value.status_code == 302
         assert excinfo.value.headers["Location"] == "/login?next=/protected/path"
