@@ -69,7 +69,7 @@ def list_configs(active_only, json_output, limit, skip, source_type):
             if isinstance(last_run, str):
                 try:
                     last_run = datetime.fromisoformat(last_run).strftime("%Y-%m-%d %H:%M")
-                except:
+                except (ValueError, TypeError):
                     # Handle potential format issues
                     pass
 

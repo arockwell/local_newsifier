@@ -27,7 +27,7 @@ with patch("fastapi_injectable.injectable", mock_injectable):
 from sqlmodel import Session
 
 # Import testing utilities
-from tests.conftest_injectable import create_mock_service, mock_injectable_dependencies
+from tests.conftest_injectable import create_mock_service
 
 
 # Define a simple injectable service for demonstration purposes

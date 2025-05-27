@@ -25,8 +25,7 @@ with patch("fastapi_injectable.injectable", mock_injectable):
     from fastapi_injectable import injectable
 
 # Import testing utilities
-from tests.conftest_injectable import (common_injectable_mocks, create_mock_service,
-                                       mock_injectable_dependencies)
+from tests.conftest_injectable import common_injectable_mocks, create_mock_service
 
 
 # Define a simple injectable flow for demonstration purposes

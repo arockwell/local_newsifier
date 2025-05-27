@@ -204,8 +204,8 @@ class NewsTrendAnalysisFlow(Flow):
                 max_trends=state.config.topic_limit,
             )
 
-            # Detect anomalous patterns
-            anomaly_trends = self.trend_detector.detect_anomalous_patterns()
+            # Detect anomalous patterns (not used yet but available for future implementation)
+            # anomaly_trends = self.trend_detector.detect_anomalous_patterns()
 
             # Store the trends
             state.detected_trends = entity_trends
