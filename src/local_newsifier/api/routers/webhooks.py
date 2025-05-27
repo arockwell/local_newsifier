@@ -5,16 +5,17 @@ This module provides endpoints for receiving webhook notifications from
 external services like Apify, validating payloads, and processing data.
 """
 
+import json
 import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
+from local_newsifier.api.dependencies import get_session
 from local_newsifier.config.settings import settings
-from local_newsifier.database.async_engine import get_async_session
 from local_newsifier.models.webhook import ApifyWebhookResponse
-from local_newsifier.services.apify_webhook_service_async import ApifyWebhookServiceAsync
+from local_newsifier.services.apify_webhook_service import ApifyWebhookService
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 )
 async def apify_webhook(
     request: Request,
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    session: Annotated[Session, Depends(get_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
     """Handle webhook notifications from Apify.
@@ -41,7 +42,7 @@ async def apify_webhook(
 
     Args:
         request: FastAPI request object containing raw body
-        session: Async database session
+        session: Database session
         apify_webhook_signature: Optional signature header for validation
 
     Returns:
@@ -56,15 +57,15 @@ async def apify_webhook(
         raw_payload_str = raw_payload.decode("utf-8")
 
         # Parse payload
-        payload_dict = await request.json()
+        payload_dict = json.loads(raw_payload_str)
 
-        # Initialize async webhook service
-        webhook_service = ApifyWebhookServiceAsync(
+        # Initialize sync webhook service
+        webhook_service = ApifyWebhookService(
             session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
-        # Handle webhook using async method
-        result = await webhook_service.handle_webhook(
+        # Handle webhook using sync method
+        result = webhook_service.handle_webhook(
             payload=payload_dict,
             raw_payload=raw_payload_str,
             signature=apify_webhook_signature,

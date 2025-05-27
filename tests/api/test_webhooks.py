@@ -8,7 +8,7 @@ and logging. Data processing functionality will be tested separately.
 
 import datetime
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -58,10 +58,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return error for invalid signature
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return error for invalid signature
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Invalid signature"}
             )
 
@@ -96,10 +96,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return success
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={
                     "status": "ok",
                     "message": "Webhook processed. Articles created: 0",
@@ -140,10 +140,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return success
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={
                     "status": "ok",
                     "message": "Webhook processed. Articles created: 0",
@@ -170,10 +170,10 @@ class TestApifyWebhookInfrastructure:
             # Missing required fields like actorId, actorRunId, etc.
         }
 
-        # Mock the async webhook service to return error for missing fields
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return error for missing fields
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Missing required fields"}
             )
 
