@@ -6,10 +6,8 @@ This module handles:
 3. Session and transaction management for tests
 """
 
-import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Generator
-import uuid
 
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, text, select

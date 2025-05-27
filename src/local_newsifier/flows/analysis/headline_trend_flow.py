@@ -41,15 +41,15 @@ class HeadlineTrendFlow(Flow):
             analysis_service: Optional AnalysisService instance
         """
         super().__init__()
-        
+
         self.session = session
-        
+
         # Store analysis service
         self.analysis_service = analysis_service
 
     def __del__(self):
         """Clean up resources when the object is deleted."""
-        if hasattr(self, 'session') and self.session is not None:
+        if hasattr(self, "session") and self.session is not None:
             try:
                 self.session.close()
             except Exception:
@@ -75,10 +75,7 @@ class HeadlineTrendFlow(Flow):
         logger.info(f"Analyzing headline trends from {start_date} to {end_date}")
 
         results = self.analysis_service.analyze_headline_trends(
-            start_date=start_date,
-            end_date=end_date,
-            time_interval=interval,
-            top_n=top_n
+            start_date=start_date, end_date=end_date, time_interval=interval, top_n=top_n
         )
 
         return results
@@ -105,17 +102,12 @@ class HeadlineTrendFlow(Flow):
         logger.info(f"Analyzing headline trends from {start_date} to {end_date}")
 
         results = self.analysis_service.analyze_headline_trends(
-            start_date=start_date,
-            end_date=end_date,
-            time_interval=interval,
-            top_n=top_n
+            start_date=start_date, end_date=end_date, time_interval=interval, top_n=top_n
         )
 
         return results
 
-    def generate_report(
-        self, results: Dict[str, Any], format_type: str = "text"
-    ) -> str:
+    def generate_report(self, results: Dict[str, Any], format_type: str = "text") -> str:
         """
         Generate a formatted report from trend analysis results.
 
@@ -145,7 +137,9 @@ class HeadlineTrendFlow(Flow):
         report += "TOP TRENDING TERMS:\n"
         for i, term in enumerate(results.get("trending_terms", [])[:10], 1):
             growth = term["growth_rate"] * 100
-            report += f"{i}. {term['term']} (Growth: {growth:.1f}%, Mentions: {term['total_mentions']})\n"
+            report += (
+                f"{i}. {term['term']} (Growth: {growth:.1f}%, Mentions: {term['total_mentions']})\n"
+            )
 
         report += "\nOVERALL TOP TERMS:\n"
         for i, (term, count) in enumerate(results.get("overall_top_terms", [])[:10], 1):
@@ -181,9 +175,7 @@ class HeadlineTrendFlow(Flow):
 
     def _generate_html_report(self, results: Dict[str, Any]) -> str:
         """Generate an HTML report."""
-        report = (
-            "<html><head><title>Headline Trend Analysis Report</title></head><body>\n"
-        )
+        report = "<html><head><title>Headline Trend Analysis Report</title></head><body>\n"
         report += "<h1>Headline Trend Analysis Report</h1>\n"
 
         # Add trending terms
@@ -206,4 +198,3 @@ class HeadlineTrendFlow(Flow):
 
         report += "</body></html>"
         return report
-        

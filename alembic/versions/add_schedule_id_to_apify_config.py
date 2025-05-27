@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import sqlmodel
 
 
 # revision identifiers, used by Alembic.
@@ -20,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add the schedule_id column to the apify_source_configs table
+    """Add schedule_id column to apify_source_configs table."""
     op.add_column('apify_source_configs', sa.Column('schedule_id', sa.String(), nullable=True))
 
 

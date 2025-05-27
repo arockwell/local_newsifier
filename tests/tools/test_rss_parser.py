@@ -152,12 +152,15 @@ UNUSUAL_DATES_XML = """<?xml version="1.0" encoding="UTF-8"?>
     </channel>
 </rss>
 """
+
+
 @pytest.fixture
 def mock_response():
     """Create a mock HTTP response."""
     response = Mock()
     response.raise_for_status = Mock()
     return response
+
 
 # Import event loop fixture for handling async code with @injectable decorator
 from tests.fixtures.event_loop import event_loop_fixture  # noqa
@@ -198,10 +201,10 @@ class TestRSSParser:
         """Test initialization with cache file in nonexistent directory."""
         nonexistent_dir = tmp_path / "nonexistent"
         cache_file = nonexistent_dir / "cache.json"
-        
+
         # Directory doesn't exist yet
         assert not nonexistent_dir.exists()
-        
+
         # Should not raise an error
         parser = RSSParser(str(cache_file))
         assert parser.cache_file == str(cache_file)
@@ -261,7 +264,7 @@ class TestRSSParser:
             </entry>
         </feed>
         """
-        
+
         mock_response = Mock()
         mock_response.content = atom_with_multiple_links.encode("utf-8")
         mock_get.return_value = mock_response
@@ -302,11 +305,11 @@ class TestRSSParser:
         mock_get.return_value = mock_response
 
         items = self.parser.parse_feed("http://example.com/incomplete")
-        
+
         # Should still parse items with missing elements
         # Note: The parser may skip items with missing required elements
         assert len(items) > 0
-        
+
         # Check the first item that was successfully parsed
         item = items[0]
         # It should have either a default title or the actual title
@@ -329,16 +332,16 @@ class TestRSSParser:
         mock_get.return_value = mock_response
 
         items = self.parser.parse_feed("http://example.com/incomplete-atom")
-        
+
         # Should still parse items with missing elements
         # Note: The parser may skip items with missing required elements
         assert len(items) > 0
-        
+
         # Check the first item that was successfully parsed
         item = items[0]
         # It should have either a default title or the actual title
         assert item.title in ["No title", "Incomplete Atom Article 2"]
-        
+
         # Check specific attributes based on which item was parsed
         if item.title == "No title":
             assert item.url == "http://example.com/incomplete1"
@@ -357,19 +360,19 @@ class TestRSSParser:
         mock_get.return_value = mock_response
 
         items = self.parser.parse_feed("http://example.com/unusual-dates")
-        
+
         assert len(items) == 3
-        
+
         # ISO date format
         assert items[0].title == "Article with ISO Date"
         assert items[0].published is not None
         assert items[0].published.strftime("%Y-%m-%d") == "2024-04-12"
-        
+
         # RFC822 date format
         assert items[1].title == "Article with RFC822 Date"
         assert items[1].published is not None
         assert items[1].published.strftime("%Y-%m-%d") == "2024-04-12"
-        
+
         # Invalid date format
         assert items[2].title == "Article with Invalid Date"
         assert items[2].published is None
@@ -381,12 +384,12 @@ class TestRSSParser:
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
         items = self.parser.parse_feed("http://example.com/connection-error")
         assert len(items) == 0
-        
+
         # Test timeout error
         mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
         items = self.parser.parse_feed("http://example.com/timeout")
         assert len(items) == 0
-        
+
         # Test HTTP error
         mock_get.side_effect = requests.exceptions.HTTPError("404 Client Error")
         items = self.parser.parse_feed("http://example.com/http-error")
@@ -411,9 +414,11 @@ class TestRSSParser:
         # Second call should return no items (all URLs cached)
         items = self.parser.get_new_urls("http://example.com/feed")
         assert len(items) == 0
-        
+
         # Add a new item to the feed
-        updated_rss = SAMPLE_RSS_XML.replace("</channel>", """
+        updated_rss = SAMPLE_RSS_XML.replace(
+            "</channel>",
+            """
         <item>
             <title>Test Article 3</title>
             <link>http://example.com/3</link>
@@ -421,10 +426,11 @@ class TestRSSParser:
             <pubDate>Fri, 12 Apr 2024 12:30:00 GMT</pubDate>
         </item>
         </channel>
-        """)
-        
+        """,
+        )
+
         mock_response.content = updated_rss.encode("utf-8")
-        
+
         # Third call should return only the new item
         items = self.parser.get_new_urls("http://example.com/feed")
         assert len(items) == 1
@@ -453,19 +459,19 @@ class TestRSSParser:
             "http://example.com/1",
             "http://example.com/2",
         }
-        
+
     def test_cache_save_error_handling(self, tmp_path, event_loop_fixture):
         """Test error handling when saving cache fails."""
         # Create a directory where a file is expected (to cause an error)
         cache_path = tmp_path / "cache_dir"
         cache_path.mkdir()
-        
+
         parser = RSSParser(str(cache_path))
         parser.processed_urls.add("http://example.com/test")
-        
+
         # Should not raise an exception
         parser._save_cache()
-        
+
         # The processed_urls should still be in memory
         assert "http://example.com/test" in parser.processed_urls
 
@@ -473,44 +479,56 @@ class TestRSSParser:
     def test_cache_load_permission_error(self, mock_open, tmp_path, event_loop_fixture):
         """Test error handling when loading cache fails due to permissions."""
         cache_file = tmp_path / "permission_denied.json"
-        
+
         # Should not raise an exception
         parser = RSSParser(str(cache_file))
-        
+
         # Should have empty processed_urls
         assert parser.processed_urls == set()
 
     @patch("local_newsifier.tools.rss_parser.get_parser_instance")
     @patch("requests.get")
-    def test_global_parse_rss_feed_function(self, mock_get, mock_get_parser, mock_response, event_loop_fixture):
+    def test_global_parse_rss_feed_function(
+        self, mock_get, mock_get_parser, mock_response, event_loop_fixture
+    ):
         """Test the global parse_rss_feed function."""
         # Setup mock parser and response
         mock_response.content = SAMPLE_RSS_XML.encode("utf-8")
         mock_get.return_value = mock_response
         mock_parser = Mock()
         mock_parser.parse_feed.return_value = [
-            RSSItem(title="Test Article 1", url="http://example.com/1", description="Test description 1", published=datetime(2024, 4, 12, 10, 30, 0)),
-            RSSItem(title="Test Article 2", url="http://example.com/2", description="Test description 2", published=datetime(2024, 4, 12, 11, 30, 0))
+            RSSItem(
+                title="Test Article 1",
+                url="http://example.com/1",
+                description="Test description 1",
+                published=datetime(2024, 4, 12, 10, 30, 0),
+            ),
+            RSSItem(
+                title="Test Article 2",
+                url="http://example.com/2",
+                description="Test description 2",
+                published=datetime(2024, 4, 12, 11, 30, 0),
+            ),
         ]
         mock_get_parser.return_value = mock_parser
-        
+
         result = parse_rss_feed("http://example.com/feed")
-        
+
         assert isinstance(result, dict)
         assert "title" in result
         assert "feed_url" in result
         assert "entries" in result
-        
+
         assert result["feed_url"] == "http://example.com/feed"
         assert len(result["entries"]) == 2
-        
+
         # Check entry format
         entry = result["entries"][0]
         assert "title" in entry
         assert "link" in entry
         assert "description" in entry
         assert "published" in entry
-        
+
         assert entry["title"] == "Test Article 1"
         assert entry["link"] == "http://example.com/1"
 
@@ -518,14 +536,14 @@ class TestRSSParser:
     def test_global_parse_rss_feed_error_handling(self, mock_get, event_loop_fixture):
         """Test error handling in the global parse_rss_feed function."""
         mock_get.side_effect = Exception("Test error")
-        
+
         result = parse_rss_feed("http://example.com/error")
-        
+
         assert isinstance(result, dict)
         assert "title" in result
         assert "feed_url" in result
         assert "entries" in result
-        
+
         # The implementation might not include an error field, but should have empty entries
         assert len(result["entries"]) == 0
         assert result["feed_url"] == "http://example.com/error"

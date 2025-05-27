@@ -5,11 +5,10 @@ This module provides endpoints for receiving webhook notifications from
 external services like Apify, validating payloads, and processing data.
 """
 
-import json
 import logging
-from typing import Annotated
+from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
 from sqlmodel import Session
 
 from local_newsifier.api.dependencies import get_session
@@ -31,8 +30,9 @@ logger = logging.getLogger(__name__)
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
-def apify_webhook(
+async def apify_webhook(
     request: Request,
+    payload: Annotated[Dict[str, Any], Body()],
     session: Annotated[Session, Depends(get_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
@@ -41,7 +41,8 @@ def apify_webhook(
     This endpoint validates webhook payloads and creates articles from successful runs.
 
     Args:
-        request: FastAPI request object containing raw body
+        request: FastAPI request object
+        payload: The webhook payload as parsed JSON
         session: Database session
         apify_webhook_signature: Optional signature header for validation
 
@@ -53,11 +54,11 @@ def apify_webhook(
     """
     try:
         # Get raw payload for signature validation
-        raw_payload = request.body()
+        raw_payload = await request.body()
         raw_payload_str = raw_payload.decode("utf-8")
 
-        # Parse payload
-        payload_dict = json.loads(raw_payload_str)
+        # Use the already parsed payload
+        payload_dict = payload
 
         # Initialize sync webhook service
         webhook_service = ApifyWebhookService(

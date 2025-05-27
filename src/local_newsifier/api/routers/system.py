@@ -24,7 +24,7 @@ MINIMAL_MODE = False  # Permanently disabled
 
 
 @router.get("/tables", response_class=HTMLResponse)
-async def get_tables(
+def get_tables(
     request: Request,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
@@ -79,7 +79,7 @@ async def get_tables(
 
 
 @router.get("/tables/api", response_model=List[Dict])
-async def get_tables_api(
+def get_tables_api(
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),
 ):
@@ -109,7 +109,7 @@ async def get_tables_api(
 
 
 @router.get("/tables/{table_name}", response_class=HTMLResponse)
-async def get_table_details(
+def get_table_details(
     request: Request,
     table_name: str,
     _: bool = Depends(require_admin),
@@ -205,7 +205,7 @@ async def get_table_details(
 
 
 @router.get("/tables/{table_name}/api")
-async def get_table_details_api(
+def get_table_details_api(
     table_name: str,
     _: bool = Depends(require_admin),
     session: Session = Depends(get_session),

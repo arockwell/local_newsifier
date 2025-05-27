@@ -12,9 +12,7 @@ from local_newsifier.models.entity_tracking import EntityProfile
 class CRUDEntityProfile(CRUDBase[EntityProfile]):
     """CRUD operations for entity profiles."""
 
-    def get_by_entity(
-        self, db: Session, *, entity_id: int
-    ) -> Optional[EntityProfile]:
+    def get_by_entity(self, db: Session, *, entity_id: int) -> Optional[EntityProfile]:
         """Get the profile for an entity.
 
         Args:
@@ -24,9 +22,9 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         Returns:
             Entity profile if found, None otherwise
         """
-        result = db.execute(select(EntityProfile).where(
-            EntityProfile.canonical_entity_id == entity_id
-        )).first()
+        result = db.execute(
+            select(EntityProfile).where(EntityProfile.canonical_entity_id == entity_id)
+        ).first()
         return result[0] if result else None
 
     def get_by_entity_and_type(
@@ -42,15 +40,15 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         Returns:
             Entity profile if found, None otherwise
         """
-        result = db.execute(select(EntityProfile).where(
-            EntityProfile.canonical_entity_id == entity_id,
-            EntityProfile.profile_type == profile_type
-        )).first()
+        result = db.execute(
+            select(EntityProfile).where(
+                EntityProfile.canonical_entity_id == entity_id,
+                EntityProfile.profile_type == profile_type,
+            )
+        ).first()
         return result[0] if result else None
 
-    def create(
-        self, db: Session, *, obj_in: Union[Dict[str, Any], EntityProfile]
-    ) -> EntityProfile:
+    def create(self, db: Session, *, obj_in: Union[Dict[str, Any], EntityProfile]) -> EntityProfile:
         """Create a new entity profile.
 
         Args:
@@ -65,7 +63,7 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
             canonical_entity_id = obj_in["canonical_entity_id"]
         else:
             canonical_entity_id = obj_in.canonical_entity_id
-            
+
         # Check if profile already exists
         statement = select(EntityProfile).where(
             EntityProfile.canonical_entity_id == canonical_entity_id
@@ -98,11 +96,11 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
         else:
             canonical_entity_id = obj_in.canonical_entity_id
             profile_type = obj_in.profile_type
-            
+
         # Get existing profile
         statement = select(EntityProfile).where(
             EntityProfile.canonical_entity_id == canonical_entity_id,
-            EntityProfile.profile_type == profile_type
+            EntityProfile.profile_type == profile_type,
         )
         result = db.execute(statement).first()
         db_profile = result[0] if result else None
@@ -113,7 +111,7 @@ class CRUDEntityProfile(CRUDBase[EntityProfile]):
                 update_data = obj_in.copy()
             else:
                 update_data = obj_in.model_dump(exclude_unset=True)
-                
+
             update_data["updated_at"] = datetime.now(timezone.utc)
 
             for field, value in update_data.items():

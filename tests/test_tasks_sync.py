@@ -10,11 +10,11 @@ class TestProcessArticleSync:
     """Test cases for process_article_sync function."""
 
     @patch("local_newsifier.tasks_sync.get_session")
-    @patch("local_newsifier.tasks_sync.get_article_crud")
-    @patch("local_newsifier.tasks_sync.get_news_pipeline_flow")
-    @patch("local_newsifier.tasks_sync.get_entity_tracking_flow")
+    @patch("local_newsifier.crud.article.article")
+    @patch("local_newsifier.flows.news_pipeline.NewsPipelineFlow")
+    @patch("local_newsifier.flows.entity_tracking_flow.EntityTrackingFlow")
     def test_process_article_success(
-        self, mock_entity_flow, mock_news_pipeline, mock_article_crud, mock_get_session
+        self, mock_entity_flow_class, mock_news_pipeline_class, mock_article_crud, mock_get_session
     ):
         """Test successful article processing."""
         # Setup mocks
@@ -24,9 +24,15 @@ class TestProcessArticleSync:
         mock_get_session.return_value = iter([mock_session])
 
         mock_article = Mock(id=1, title="Test Article", url="https://example.com/article")
-        mock_article_crud.return_value.get.return_value = mock_article
+        mock_article_crud.get.return_value = mock_article
 
-        mock_entity_flow.return_value.process_article.return_value = [
+        # Setup flow class mocks
+        mock_news_pipeline = Mock()
+        mock_entity_flow = Mock()
+        mock_news_pipeline_class.return_value = mock_news_pipeline
+        mock_entity_flow_class.return_value = mock_entity_flow
+
+        mock_entity_flow.process_article.return_value = [
             {"name": "Entity1"},
             {"name": "Entity2"},
         ]
@@ -42,14 +48,14 @@ class TestProcessArticleSync:
         assert result["article_title"] == "Test Article"
 
         # Verify calls
-        mock_article_crud.return_value.get.assert_called_once_with(mock_session, id=1)
-        mock_news_pipeline.return_value.process_url_directly.assert_called_once_with(
+        mock_article_crud.get.assert_called_once_with(mock_session, id=1)
+        mock_news_pipeline.process_url_directly.assert_called_once_with(
             "https://example.com/article"
         )
-        mock_entity_flow.return_value.process_article.assert_called_once_with(1)
+        mock_entity_flow.process_article.assert_called_once_with(1)
 
     @patch("local_newsifier.tasks_sync.get_session")
-    @patch("local_newsifier.tasks_sync.get_article_crud")
+    @patch("local_newsifier.crud.article.article")
     def test_process_article_not_found(self, mock_article_crud, mock_get_session):
         """Test processing non-existent article."""
         # Setup mocks
@@ -58,7 +64,7 @@ class TestProcessArticleSync:
         mock_session.__exit__ = Mock(return_value=None)
         mock_get_session.return_value = iter([mock_session])
 
-        mock_article_crud.return_value.get.return_value = None
+        mock_article_crud.get.return_value = None
 
         # Execute
         result = process_article_sync(999)
@@ -88,11 +94,11 @@ class TestFetchRSSFeedsSync:
     """Test cases for fetch_rss_feeds_sync function."""
 
     @patch("local_newsifier.tasks_sync.get_session")
-    @patch("local_newsifier.tasks_sync.get_article_crud")
-    @patch("local_newsifier.tasks_sync.get_article_service")
+    @patch("local_newsifier.crud.article.article")
+    @patch("local_newsifier.services.article_service.ArticleService")
     @patch("local_newsifier.tasks_sync.parse_rss_feed")
     def test_fetch_rss_feeds_success(
-        self, mock_parse_rss, mock_article_service, mock_article_crud, mock_get_session
+        self, mock_parse_rss, mock_article_service_class, mock_article_crud, mock_get_session
     ):
         """Test successful RSS feed fetching."""
         # Setup mocks
@@ -109,8 +115,12 @@ class TestFetchRSSFeedsSync:
             ],
         }
 
-        mock_article_crud.return_value.get_by_url.return_value = None
-        mock_article_service.return_value.create_article_from_rss_entry.side_effect = [1, 2]
+        mock_article_crud.get_by_url.return_value = None
+
+        # Setup article service mock
+        mock_article_service = Mock()
+        mock_article_service_class.return_value = mock_article_service
+        mock_article_service.create_article_from_rss_entry.side_effect = [1, 2]
 
         # Execute
         result = fetch_rss_feeds_sync(
@@ -127,11 +137,16 @@ class TestFetchRSSFeedsSync:
         assert result["feeds"][0]["articles_found"] == 2
         assert result["feeds"][0]["articles_added"] == 2
 
+    @patch("local_newsifier.tasks_sync.get_session")
     @patch("local_newsifier.tasks_sync.parse_rss_feed")
-    def test_fetch_rss_feeds_parse_error(self, mock_parse_rss):
+    def test_fetch_rss_feeds_parse_error(self, mock_parse_rss, mock_get_session):
         """Test handling of RSS parse errors."""
         # Setup mock to raise exception
         mock_parse_rss.side_effect = Exception("Parse error")
+
+        # Mock session
+        mock_session = Mock()
+        mock_get_session.return_value = iter([mock_session])
 
         # Execute
         result = fetch_rss_feeds_sync(feed_urls=["https://invalid.com/feed"])

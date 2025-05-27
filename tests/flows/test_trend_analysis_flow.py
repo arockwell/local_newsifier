@@ -43,16 +43,26 @@ def mock_dependencies():
     mock_analysis_result_crud = MagicMock()
     mock_article_crud = MagicMock()
     mock_entity_crud = MagicMock()
-    
+
     # Mock the core services and DI providers
-    with patch("local_newsifier.services.analysis_service.AnalysisService", return_value=mock_analysis_service), \
-         patch("local_newsifier.tools.trend_reporter.TrendReporter", return_value=mock_reporter), \
-         patch("local_newsifier.di.providers.get_analysis_result_crud", return_value=mock_analysis_result_crud), \
-         patch("local_newsifier.di.providers.get_article_crud", return_value=mock_article_crud), \
-         patch("local_newsifier.di.providers.get_entity_crud", return_value=mock_entity_crud), \
-         patch("local_newsifier.di.providers.get_trend_analyzer_tool", return_value=mock_trend_analyzer), \
-         patch("local_newsifier.di.providers.get_session", return_value=iter([mock_session])):
-        
+    with patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service,
+    ), patch(
+        "local_newsifier.tools.trend_reporter.TrendReporter", return_value=mock_reporter
+    ), patch(
+        "local_newsifier.di.providers.get_analysis_result_crud",
+        return_value=mock_analysis_result_crud,
+    ), patch(
+        "local_newsifier.di.providers.get_article_crud", return_value=mock_article_crud
+    ), patch(
+        "local_newsifier.di.providers.get_entity_crud", return_value=mock_entity_crud
+    ), patch(
+        "local_newsifier.di.providers.get_trend_analyzer_tool", return_value=mock_trend_analyzer
+    ), patch(
+        "local_newsifier.di.providers.get_session", return_value=iter([mock_session])
+    ):
+
         yield {
             "analysis_service": mock_analysis_service,
             "trend_reporter": mock_reporter,
@@ -63,7 +73,7 @@ def mock_dependencies():
             "trend_analyzer": mock_trend_analyzer,
             "analysis_result_crud": mock_analysis_result_crud,
             "article_crud": mock_article_crud,
-            "entity_crud": mock_entity_crud
+            "entity_crud": mock_entity_crud,
         }
 
 
@@ -71,7 +81,7 @@ def mock_dependencies():
 def sample_trends():
     """Fixture providing sample trend data."""
     now = datetime.now(timezone.utc)
-    
+
     # Create trends
     trend1 = TrendAnalysis(
         trend_type=TrendType.EMERGING_TOPIC,
@@ -81,7 +91,7 @@ def sample_trends():
         confidence_score=0.85,
         start_date=now,
     )
-    
+
     trend2 = TrendAnalysis(
         trend_type=TrendType.NOVEL_ENTITY,
         name="New Business Association",
@@ -90,7 +100,7 @@ def sample_trends():
         confidence_score=0.75,
         start_date=now,
     )
-    
+
     return [trend1, trend2]
 
 
@@ -137,16 +147,18 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
     mock_analysis_service = MagicMock()
 
     # Patch the database and async methods, plus analysis service creation
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None), \
-         patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None), patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service,
+    ):
 
         # Test with direct analysis_service injection to avoid DI issues
         flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
     assert isinstance(flow.config, TrendAnalysisConfig)
 
@@ -159,20 +171,22 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
     # Create another mock analysis_service for the custom config test
     mock_analysis_service2 = MagicMock()
 
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None), \
-         patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service2):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None), patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service2,
+    ):
 
         # Use direct injection for the analysis_service
         flow = NewsTrendAnalysisFlow(
             config=custom_config,
             output_dir="custom_output",
-            analysis_service=mock_analysis_service2
+            analysis_service=mock_analysis_service2,
         )
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
 
         assert flow.config == custom_config
@@ -184,26 +198,28 @@ def test_aggregate_historical_data(mock_dependencies, event_loop_fixture):
     mock_analysis_service = MagicMock()
 
     # Patch the database and async methods
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None), \
-         patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None), patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service,
+    ):
 
         # Create flow with direct injected services to avoid DI issues
         flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'aggregate_historical_data_async'):
+        if hasattr(flow, "aggregate_historical_data_async"):
             flow.aggregate_historical_data_async = AsyncMock()
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
 
         state = TrendAnalysisState()
 
     # Test successful data aggregation
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None):
         result = flow.aggregate_historical_data(state)
 
     assert result.status == AnalysisStatus.SCRAPE_SUCCEEDED
@@ -212,21 +228,26 @@ def test_aggregate_historical_data(mock_dependencies, event_loop_fixture):
     # Test month time frame handling
     month_config = TrendAnalysisConfig(time_frame=TimeFrame.MONTH, lookback_periods=3)
     month_state = TrendAnalysisState(config=month_config)
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None):
         result_month = flow.aggregate_historical_data(month_state)
 
     assert result_month.status == AnalysisStatus.SCRAPE_SUCCEEDED
     assert len(result_month.logs) > 0
 
-        # Test exception handling by directly patching the method
-    with patch.object(flow, 'aggregate_historical_data',
-                     side_effect=lambda s: s.set_error("Error during article retrieval: Network error")
-                     or setattr(s, 'status', AnalysisStatus.SCRAPE_FAILED_NETWORK) or s), \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    # Test exception handling by directly patching the method
+    with patch.object(
+        flow,
+        "aggregate_historical_data",
+        side_effect=lambda s: s.set_error("Error during article retrieval: Network error")
+        or setattr(s, "status", AnalysisStatus.SCRAPE_FAILED_NETWORK)
+        or s,
+    ), patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch(
+        "fastapi_injectable.concurrency.run_coroutine_sync", return_value=None
+    ):
 
         error_result = flow.aggregate_historical_data(state)
         assert error_result.status == AnalysisStatus.SCRAPE_FAILED_NETWORK
@@ -240,35 +261,38 @@ def test_detect_trends(mock_dependencies, sample_trends, event_loop_fixture):
     mock_analysis_service.detect_entity_trends.return_value = sample_trends
 
     # Patch the database and async methods
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None), \
-         patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None), patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service,
+    ):
 
         # Create flow with direct injected services to avoid DI issues
         flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service)
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'detect_trends_async'):
+        if hasattr(flow, "detect_trends_async"):
             flow.detect_trends_async = AsyncMock()
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
 
         state = TrendAnalysisState()
 
     # Patch the trend_detector directly for testing
-    with patch.object(flow, 'trend_detector') as mock_detector, \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    with patch.object(flow, "trend_detector") as mock_detector, patch(
+        "local_newsifier.database.engine.get_engine", return_value=MagicMock()
+    ), patch("local_newsifier.database.engine.get_session", return_value=MagicMock()), patch(
+        "fastapi_injectable.concurrency.run_coroutine_sync", return_value=None
+    ):
 
         mock_detector.detect_entity_trends.return_value = sample_trends
         mock_detector.detect_anomalous_patterns.return_value = []
 
         # Mock any async methods on the detector if they exist
-        if hasattr(mock_detector, 'detect_entity_trends_async'):
+        if hasattr(mock_detector, "detect_entity_trends_async"):
             mock_detector.detect_entity_trends_async = AsyncMock(return_value=sample_trends)
-        if hasattr(mock_detector, 'detect_anomalous_patterns_async'):
+        if hasattr(mock_detector, "detect_anomalous_patterns_async"):
             mock_detector.detect_anomalous_patterns_async = AsyncMock(return_value=[])
 
         # Test successful trend detection
@@ -278,12 +302,17 @@ def test_detect_trends(mock_dependencies, sample_trends, event_loop_fixture):
         assert len(result.logs) > 0
 
         # Test exception handling by directly patching the method
-        with patch.object(flow, 'detect_trends',
-                         side_effect=lambda s: s.set_error("Error during trend detection: Analysis error")
-                         or setattr(s, 'status', AnalysisStatus.ANALYSIS_FAILED) or s), \
-             patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-             patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-             patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+        with patch.object(
+            flow,
+            "detect_trends",
+            side_effect=lambda s: s.set_error("Error during trend detection: Analysis error")
+            or setattr(s, "status", AnalysisStatus.ANALYSIS_FAILED)
+            or s,
+        ), patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+            "local_newsifier.database.engine.get_session", return_value=MagicMock()
+        ), patch(
+            "fastapi_injectable.concurrency.run_coroutine_sync", return_value=None
+        ):
 
             error_result = flow.detect_trends(state)
             assert error_result.status == AnalysisStatus.ANALYSIS_FAILED
@@ -307,31 +336,37 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
     mock_reporter.save_report.return_value = "/path/to/report.md"
 
     # Patch the database and async methods
-    with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None), \
-         patch('local_newsifier.services.analysis_service.AnalysisService', return_value=mock_analysis_service), \
-         patch('local_newsifier.tools.trend_reporter.TrendReporter', return_value=mock_reporter):
+    with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None), patch(
+        "local_newsifier.services.analysis_service.AnalysisService",
+        return_value=mock_analysis_service,
+    ), patch(
+        "local_newsifier.tools.trend_reporter.TrendReporter", return_value=mock_reporter
+    ):
 
         # Create flow with direct injected services to avoid DI issues
-        flow = NewsTrendAnalysisFlow(analysis_service=mock_analysis_service, trend_reporter=mock_reporter)
+        flow = NewsTrendAnalysisFlow(
+            analysis_service=mock_analysis_service, trend_reporter=mock_reporter
+        )
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'generate_report_async'):
+        if hasattr(flow, "generate_report_async"):
             flow.generate_report_async = AsyncMock()
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
 
     # Patch the reporter directly
-    with patch.object(flow, 'reporter') as mock_reporter, \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    with patch.object(flow, "reporter") as mock_reporter, patch(
+        "local_newsifier.database.engine.get_engine", return_value=MagicMock()
+    ), patch("local_newsifier.database.engine.get_session", return_value=MagicMock()), patch(
+        "fastapi_injectable.concurrency.run_coroutine_sync", return_value=None
+    ):
 
         mock_reporter.save_report.return_value = "/path/to/report.md"
 
         # Mock any async methods on the reporter if they exist
-        if hasattr(mock_reporter, 'save_report_async'):
+        if hasattr(mock_reporter, "save_report_async"):
             mock_reporter.save_report_async = AsyncMock(return_value="/path/to/report.md")
 
         # Test with trends
@@ -347,9 +382,9 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
         state = TrendAnalysisState()
         state.detected_trends = []
 
-        with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-             patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-             patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+        with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+            "local_newsifier.database.engine.get_session", return_value=MagicMock()
+        ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None):
 
             result = flow.generate_report(state)
 
@@ -360,9 +395,9 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
         mock_reporter.save_report.side_effect = Exception("Report generation error")
         state.detected_trends = sample_trends
 
-        with patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-             patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-             patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+        with patch("local_newsifier.database.engine.get_engine", return_value=MagicMock()), patch(
+            "local_newsifier.database.engine.get_session", return_value=MagicMock()
+        ), patch("fastapi_injectable.concurrency.run_coroutine_sync", return_value=None):
 
             error_result = flow.generate_report(state)
         assert error_result.status == AnalysisStatus.SAVE_FAILED
@@ -381,12 +416,19 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
 
 def test_run_analysis(mock_dependencies, sample_trends, event_loop_fixture):
     """Test running the complete analysis flow."""
-    with patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data") as mock_aggregate, \
-         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.detect_trends") as mock_detect, \
-         patch("local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.generate_report") as mock_generate, \
-         patch('local_newsifier.database.engine.get_engine', return_value=MagicMock()), \
-         patch('local_newsifier.database.engine.get_session', return_value=MagicMock()), \
-         patch('fastapi_injectable.concurrency.run_coroutine_sync', return_value=None):
+    with patch(
+        "local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data"
+    ) as mock_aggregate, patch(
+        "local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.detect_trends"
+    ) as mock_detect, patch(
+        "local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.generate_report"
+    ) as mock_generate, patch(
+        "local_newsifier.database.engine.get_engine", return_value=MagicMock()
+    ), patch(
+        "local_newsifier.database.engine.get_session", return_value=MagicMock()
+    ), patch(
+        "fastapi_injectable.concurrency.run_coroutine_sync", return_value=None
+    ):
 
         # Setup method mock behaviors for success case
         def aggregate_success(state):
@@ -413,14 +455,13 @@ def test_run_analysis(mock_dependencies, sample_trends, event_loop_fixture):
 
         # Create flow with direct injected services to avoid DI issues
         flow = NewsTrendAnalysisFlow(
-            analysis_service=mock_analysis_service,
-            trend_reporter=mock_reporter
+            analysis_service=mock_analysis_service, trend_reporter=mock_reporter
         )
 
         # Mock any async methods if they exist
-        if hasattr(flow, 'run_analysis_async'):
+        if hasattr(flow, "run_analysis_async"):
             flow.run_analysis_async = AsyncMock()
-        if hasattr(flow, 'process_async'):
+        if hasattr(flow, "process_async"):
             flow.process_async = AsyncMock()
 
         # Test successful complete flow

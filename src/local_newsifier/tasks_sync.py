@@ -7,9 +7,7 @@ or other sync task processing systems.
 import logging
 from typing import Dict, List, Optional
 
-from local_newsifier.di.providers import (get_article_crud, get_article_service,
-                                          get_entity_tracking_flow, get_news_pipeline_flow,
-                                          get_session)
+from local_newsifier.database.engine import get_session
 from local_newsifier.tools.rss_parser import parse_rss_feed
 
 logger = logging.getLogger(__name__)
@@ -28,18 +26,29 @@ def process_article_sync(article_id: int) -> Dict:
     logger.info(f"Processing article with ID: {article_id}")
 
     try:
-        # Get dependencies
-        session = next(get_session())
-        article_crud = get_article_crud()
-        news_pipeline = get_news_pipeline_flow()
-        entity_flow = get_entity_tracking_flow()
+        # Import dependencies directly for sync context
+        from local_newsifier.crud.article import article as article_crud
+        from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
+        from local_newsifier.flows.news_pipeline import NewsPipelineFlow
 
-        with session:
+        # Get session from generator
+        for session in get_session():
+            if session is None:
+                logger.error("Failed to create database session")
+                return {
+                    "article_id": article_id,
+                    "status": "error",
+                    "message": "Database connection failed",
+                }
             # Get the article from the database
             article = article_crud.get(session, id=article_id)
             if not article:
                 logger.error(f"Article with ID {article_id} not found")
                 return {"article_id": article_id, "status": "error", "message": "Article not found"}
+
+            # Create flow instances for sync context
+            news_pipeline = NewsPipelineFlow()
+            entity_flow = EntityTrackingFlow()
 
             # Process the article through the news pipeline
             if article.url:
@@ -98,12 +107,49 @@ def fetch_rss_feeds_sync(
     }
 
     try:
-        # Get dependencies
-        session = next(get_session())
-        article_crud = get_article_crud()
-        article_service = get_article_service()
+        # Import dependencies directly for sync context
+        from local_newsifier.crud.article import article as article_crud
+        from local_newsifier.services.article_service import ArticleService
 
-        with session:
+        # Get session from generator
+        for session in get_session():
+            if session is None:
+                logger.error("Failed to create database session")
+                return {
+                    "status": "error",
+                    "message": "Database connection failed",
+                    "feeds_processed": 0,
+                    "articles_found": 0,
+                    "articles_added": 0,
+                    "articles_processed": 0,
+                    "feeds": [],
+                }
+
+            # Import additional dependencies for ArticleService
+            from local_newsifier.crud.analysis_result import analysis_result as analysis_result_crud
+            from local_newsifier.crud.canonical_entity import \
+                canonical_entity as canonical_entity_crud
+            from local_newsifier.crud.entity import entity as entity_crud
+            from local_newsifier.crud.entity_relationship import \
+                entity_relationship as entity_relationship_crud
+            from local_newsifier.services.entity_service import EntityService
+
+            # Create entity service
+            entity_service = EntityService(
+                entity_crud=entity_crud,
+                entity_relationship_crud=entity_relationship_crud,
+                canonical_entity_crud=canonical_entity_crud,
+                session_factory=lambda: session,
+            )
+
+            # Create article service instance with all dependencies
+            article_service = ArticleService(
+                article_crud=article_crud,
+                analysis_result_crud=analysis_result_crud,
+                entity_service=entity_service,
+                session_factory=lambda: session,
+            )
+
             for feed_url in feed_urls:
                 try:
                     # Parse the RSS feed

@@ -61,7 +61,7 @@ class TestRSSScrapingFlow:
         self.flow = RSSScrapingFlow(
             session_factory=mock_session_factory,
             rss_parser=self.mock_parser,
-            web_scraper=self.mock_scraper
+            web_scraper=self.mock_scraper,
         )
 
     def setup_method(self):
@@ -87,8 +87,14 @@ class TestRSSScrapingFlow:
             assert flow.article_service is None
             assert flow.web_scraper is mock_scraper  # Should be the mock instance
 
-    def test_init_with_dependencies(self, mock_rss_feed_service, mock_article_service,
-                                   mock_rss_parser, mock_web_scraper, event_loop_fixture):
+    def test_init_with_dependencies(
+        self,
+        mock_rss_feed_service,
+        mock_article_service,
+        mock_rss_parser,
+        mock_web_scraper,
+        event_loop_fixture,
+    ):
         """Test initialization with provided dependencies."""
         parser_instance = Mock()
         scraper_instance = Mock()
@@ -103,7 +109,7 @@ class TestRSSScrapingFlow:
             rss_parser=parser_instance,
             web_scraper=scraper_instance,
             cache_dir="/tmp/cache",
-            session_factory=mock_session_factory
+            session_factory=mock_session_factory,
         )
 
         # Verify dependencies were used
@@ -126,9 +132,7 @@ class TestRSSScrapingFlow:
         results = self.flow.process_feed("http://example.com/feed")
 
         assert len(results) == 0
-        self.mock_parser.get_new_urls.assert_called_once_with(
-            "http://example.com/feed"
-        )
+        self.mock_parser.get_new_urls.assert_called_once_with("http://example.com/feed")
 
     def test_process_feed_with_new_articles(self, event_loop_fixture):
         """Test processing a feed with new articles."""

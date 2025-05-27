@@ -1,6 +1,6 @@
 """Tests for ApifySourceConfig CRUD operations."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 from sqlmodel import Session
@@ -17,7 +17,7 @@ class TestApifySourceConfigCRUD:
         """Test creating a source configuration."""
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Verify
         assert created.id is not None
         assert created.name == sample_apify_source_config_data["name"]
@@ -32,25 +32,28 @@ class TestApifySourceConfigCRUD:
         """Test creating a source configuration with a duplicate name."""
         # Create the first config
         apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Try to create another with the same name
         with pytest.raises(ServiceError) as excinfo:
             apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Verify the error
         error = excinfo.value
         assert error.service == "apify"
         assert error.error_type == "validation"
-        assert f"Source configuration with name '{sample_apify_source_config_data['name']}' already exists" in str(error)
+        assert (
+            f"Source configuration with name '{sample_apify_source_config_data['name']}' already exists"
+            in str(error)
+        )
 
     def test_get(self, db_session: Session, sample_apify_source_config_data):
         """Test getting a source configuration by ID."""
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Get by ID
         fetched = apify_source_config.get(db_session, id=created.id)
-        
+
         # Verify
         assert fetched is not None
         assert fetched.id == created.id
@@ -60,10 +63,10 @@ class TestApifySourceConfigCRUD:
         """Test getting a source configuration by name."""
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Get by name
         fetched = apify_source_config.get_by_name(db_session, name=created.name)
-        
+
         # Verify
         assert fetched is not None
         assert fetched.id == created.id
@@ -73,15 +76,15 @@ class TestApifySourceConfigCRUD:
         """Test getting source configurations by actor ID."""
         # Create the first config
         created1 = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Create another config with the same actor ID
         config_data2 = sample_apify_source_config_data.copy()
         config_data2["name"] = "Another Test Source"
         created2 = apify_source_config.create(db_session, obj_in=config_data2)
-        
+
         # Get by actor ID
         fetched = apify_source_config.get_by_actor_id(db_session, actor_id=created1.actor_id)
-        
+
         # Verify
         assert len(fetched) == 2
         assert created1.id in [f.id for f in fetched]
@@ -90,17 +93,19 @@ class TestApifySourceConfigCRUD:
     def test_get_active_configs(self, db_session: Session, sample_apify_source_config_data):
         """Test getting active configurations."""
         # Create an active config
-        active_config = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+        active_config = apify_source_config.create(
+            db_session, obj_in=sample_apify_source_config_data
+        )
+
         # Create an inactive config
         inactive_data = sample_apify_source_config_data.copy()
         inactive_data["name"] = "Inactive Source"
         inactive_data["is_active"] = False
         inactive_config = apify_source_config.create(db_session, obj_in=inactive_data)
-        
+
         # Get active configs
         active_configs = apify_source_config.get_active_configs(db_session)
-        
+
         # Verify
         assert len(active_configs) == 1
         assert active_configs[0].id == active_config.id
@@ -110,40 +115,42 @@ class TestApifySourceConfigCRUD:
         """Test getting configurations by source type."""
         # Create a news source
         news_config = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Create a blog source
         blog_data = sample_apify_source_config_data.copy()
         blog_data["name"] = "Blog Source"
         blog_data["source_type"] = "blog"
         blog_config = apify_source_config.create(db_session, obj_in=blog_data)
-        
+
         # Get news sources
         news_sources = apify_source_config.get_by_source_type(db_session, source_type="news")
-        
+
         # Get blog sources
         blog_sources = apify_source_config.get_by_source_type(db_session, source_type="blog")
-        
+
         # Verify
         assert len(news_sources) == 1
         assert news_sources[0].id == news_config.id
-        
+
         assert len(blog_sources) == 1
         assert blog_sources[0].id == blog_config.id
 
     def test_get_scheduled_configs(self, db_session: Session, sample_apify_source_config_data):
         """Test getting scheduled configurations."""
         # Create a scheduled config
-        scheduled_config = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+        scheduled_config = apify_source_config.create(
+            db_session, obj_in=sample_apify_source_config_data
+        )
+
         # Create an unscheduled config
         unscheduled_data = sample_apify_source_config_data.copy()
         unscheduled_data["name"] = "Unscheduled Source"
         unscheduled_data["schedule"] = None
         unscheduled_config = apify_source_config.create(db_session, obj_in=unscheduled_data)
-        
+
         # Get scheduled configs
         scheduled_configs = apify_source_config.get_scheduled_configs(db_session)
-        
+
         # Verify
         assert len(scheduled_configs) == 1
         assert scheduled_configs[0].id == scheduled_config.id
@@ -153,20 +160,20 @@ class TestApifySourceConfigCRUD:
         """Test updating a source configuration."""
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Update data
         update_data = {
             "name": "Updated Source",
             "schedule": "0 0 * * *",  # Run daily
             "input_configuration": {
                 "startUrls": [{"url": "https://example.com/updated"}],
-                "maxPagesPerCrawl": 20
-            }
+                "maxPagesPerCrawl": 20,
+            },
         }
-        
+
         # Update the config
         updated = apify_source_config.update(db_session, db_obj=created, obj_in=update_data)
-        
+
         # Verify
         assert updated.id == created.id
         assert updated.name == update_data["name"]
@@ -179,21 +186,21 @@ class TestApifySourceConfigCRUD:
     def test_update_duplicate_name(self, db_session: Session, sample_apify_source_config_data):
         """Test updating a source configuration with a duplicate name."""
         # Create the first config
-        first_config = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+        first_config = apify_source_config.create(
+            db_session, obj_in=sample_apify_source_config_data
+        )
+
         # Create another config
         second_data = sample_apify_source_config_data.copy()
         second_data["name"] = "Second Source"
         second_config = apify_source_config.create(db_session, obj_in=second_data)
-        
+
         # Try to update second config with the first config's name
         with pytest.raises(ServiceError) as excinfo:
             apify_source_config.update(
-                db_session, 
-                db_obj=second_config, 
-                obj_in={"name": first_config.name}
+                db_session, db_obj=second_config, obj_in={"name": first_config.name}
             )
-        
+
         # Verify the error
         error = excinfo.value
         assert error.service == "apify"
@@ -205,27 +212,25 @@ class TestApifySourceConfigCRUD:
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
         assert created.last_run_at is None
-        
+
         # Update with a simple date/time for comparison since SQLModel might not preserve timezone info
         now = datetime.now()
         specific_date = datetime(now.year, now.month, now.day, 15, 30, 0)  # 3:30 PM today
-        
+
         updated = apify_source_config.update_last_run(
-            db_session, 
-            config_id=created.id, 
-            timestamp=specific_date
+            db_session, config_id=created.id, timestamp=specific_date
         )
-        
+
         # Verify basic update worked
         assert updated is not None
         assert updated.id == created.id
         assert updated.last_run_at is not None
-        
+
         # Verify the time components match even if timezone info is lost
         assert updated.last_run_at.hour == specific_date.hour
         assert updated.last_run_at.minute == specific_date.minute
         assert updated.last_run_at.second == specific_date.second
-        
+
         # Manually check it was updated in the database by fetching fresh
         fetched = apify_source_config.get(db_session, id=created.id)
         assert fetched.last_run_at is not None
@@ -235,26 +240,22 @@ class TestApifySourceConfigCRUD:
         # Create an active config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
         assert created.is_active is True
-        
+
         # Deactivate it
         deactivated = apify_source_config.toggle_active(
-            db_session, 
-            config_id=created.id, 
-            is_active=False
+            db_session, config_id=created.id, is_active=False
         )
-        
+
         # Verify
         assert deactivated is not None
         assert deactivated.id == created.id
         assert deactivated.is_active is False
-        
+
         # Activate it again
         activated = apify_source_config.toggle_active(
-            db_session, 
-            config_id=created.id, 
-            is_active=True
+            db_session, config_id=created.id, is_active=True
         )
-        
+
         # Verify
         assert activated is not None
         assert activated.id == created.id
@@ -264,14 +265,14 @@ class TestApifySourceConfigCRUD:
         """Test removing a source configuration."""
         # Create the config
         created = apify_source_config.create(db_session, obj_in=sample_apify_source_config_data)
-        
+
         # Remove it
         removed = apify_source_config.remove(db_session, id=created.id)
-        
+
         # Verify
         assert removed is not None
         assert removed.id == created.id
-        
+
         # Verify it's gone
         not_found = apify_source_config.get(db_session, id=created.id)
         assert not_found is None
@@ -281,15 +282,15 @@ class TestApifySourceConfigCRUD:
         # Try to get a non-existent config
         not_found = apify_source_config.get(db_session, id=999)
         assert not_found is None
-        
+
         # Try to update last_run
         not_updated = apify_source_config.update_last_run(db_session, config_id=999)
         assert not_updated is None
-        
+
         # Try to toggle active
         not_toggled = apify_source_config.toggle_active(db_session, config_id=999, is_active=True)
         assert not_toggled is None
-        
+
         # Try to remove
         not_removed = apify_source_config.remove(db_session, id=999)
         assert not_removed is None

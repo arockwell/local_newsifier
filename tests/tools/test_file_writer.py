@@ -56,22 +56,15 @@ def complex_state():
         scraped_text="This is a complex article with various data types.",
     )
     state.analysis_results = {
-        "entities": [
-            {"name": "John Doe", "type": "PERSON"},
-            {"name": "Acme Corp", "type": "ORG"}
-        ],
-        "sentiment": {
-            "score": 0.75,
-            "magnitude": 0.9,
-            "label": "positive"
-        },
+        "entities": [{"name": "John Doe", "type": "PERSON"}, {"name": "Acme Corp", "type": "ORG"}],
+        "sentiment": {"score": 0.75, "magnitude": 0.9, "label": "positive"},
         "keywords": ["technology", "innovation", "research"],
         "summary": "This is a summary of the article content.",
         "metadata": {
             "word_count": 150,
             "language": "en",
-            "processed_at": datetime.now(timezone.utc).isoformat()
-        }
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        },
     }
     return state
 
@@ -110,6 +103,7 @@ def create_file_writer_tool(output_dir=None):
 
     return FileWriterTool(output_dir=output_dir)
 
+
 def test_file_writer_with_errors(tmp_path, error_state, event_loop_fixture):
     """Test file writing with error details using event loop fixture."""
     # Use helper function to create FileWriterTool (approach ii)
@@ -142,6 +136,7 @@ def file_writer_tool(tmp_path):
         A FileWriterTool instance configured with the temporary path
     """
     return FileWriterTool(output_dir=str(tmp_path))
+
 
 def test_file_writer_permission_error(tmp_path, sample_state, event_loop_fixture):
     """Test file writing with permission error."""
@@ -250,9 +245,7 @@ def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
     writer = create_file_writer_tool(output_dir=str(output_dir))
 
     # Create state with test content
-    state = NewsAnalysisState(
-        target_url="https://example.com/atomic-test"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/atomic-test")
     state.analysis_results = test_content
 
     # Create a real temporary file for testing
@@ -260,13 +253,13 @@ def test_file_writer_atomic_write(tmp_path, event_loop_fixture):
         temp_path = temp_file.name
 
     # Mock json.dump to avoid actual writing
-    with patch('json.dump') as mock_dump:
+    with patch("json.dump") as mock_dump:
         # Mock os.replace to avoid actual file operations
-        with patch('os.replace') as mock_replace:
+        with patch("os.replace") as mock_replace:
             # Mock os.fsync to avoid file operations
-            with patch('os.fsync') as mock_fsync:
+            with patch("os.fsync") as mock_fsync:
                 # Mock tempfile.NamedTemporaryFile to return our controlled file
-                with patch('tempfile.NamedTemporaryFile') as mock_temp_file:
+                with patch("tempfile.NamedTemporaryFile") as mock_temp_file:
                     # Setup the mock to return a file-like object with proper methods
                     mock_file = MagicMock()
                     mock_file.name = temp_path
@@ -301,8 +294,7 @@ def test_file_system_full_error(tmp_path, sample_state, event_loop_fixture):
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Mock tempfile.NamedTemporaryFile to raise OSError for disk full
-    with patch("tempfile.NamedTemporaryFile",
-               side_effect=OSError(28, "No space left on device")):
+    with patch("tempfile.NamedTemporaryFile", side_effect=OSError(28, "No space left on device")):
         with pytest.raises(OSError) as exc_info:
             writer.save(sample_state)
 
@@ -348,11 +340,7 @@ def test_prepare_output_format(tmp_path, sample_state, event_loop_fixture):
     writer = create_file_writer_tool(output_dir=str(tmp_path))
 
     # Add some analysis results
-    sample_state.analysis_results = {
-        "key1": "value1",
-        "key2": 123,
-        "nested": {"a": 1, "b": 2}
-    }
+    sample_state.analysis_results = {"key1": "value1", "key2": 123, "nested": {"a": 1, "b": 2}}
 
     # Set some timestamps
     now = datetime.now(timezone.utc)
@@ -400,9 +388,7 @@ def test_concurrent_writing(tmp_path, event_loop_fixture):
 
     def write_file(index):
         try:
-            state = NewsAnalysisState(
-                target_url=f"https://example.com/concurrent/{index}"
-            )
+            state = NewsAnalysisState(target_url=f"https://example.com/concurrent/{index}")
             state.analysis_results = {"index": index, "data": f"Test data {index}"}
             result_state = writer.save(state)
             results.append(result_state.save_path)
@@ -448,9 +434,7 @@ def test_special_character_handling_in_paths(tmp_path, event_loop_fixture):
     assert special_path.exists()
 
     # Save a file
-    state = NewsAnalysisState(
-        target_url="https://example.com/special"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/special")
     result_state = writer.save(state)
 
     # Verify file was saved
@@ -492,9 +476,7 @@ def test_filename_generation(tmp_path, event_loop_fixture):
     writer = FileWriterTool(output_dir=str(tmp_path))
 
     # Test with standard URL
-    state = NewsAnalysisState(
-        target_url="https://example.com/article"
-    )
+    state = NewsAnalysisState(target_url="https://example.com/article")
     filename = writer._generate_filename(state)
     assert "example.com" in filename
     assert str(state.run_id) in filename

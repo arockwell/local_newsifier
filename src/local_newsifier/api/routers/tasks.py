@@ -22,7 +22,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.get("/", response_class=HTMLResponse)
-async def tasks_dashboard(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+def tasks_dashboard(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """
     Task management dashboard.
 
@@ -39,7 +39,7 @@ async def tasks_dashboard(request: Request, templates: Jinja2Templates = Depends
 
 
 @router.post("/process-article/{article_id}")
-async def process_article_endpoint(
+def process_article_endpoint(
     article_id: int = Path(..., title="Article ID", description="ID of the article to process"),
     article_service: ArticleService = Depends(get_article_service),
 ):
@@ -70,7 +70,7 @@ async def process_article_endpoint(
 
 
 @router.post("/fetch-rss-feeds")
-async def fetch_rss_feeds_endpoint(
+def fetch_rss_feeds_endpoint(
     feed_urls: Optional[List[str]] = Query(None, description="List of RSS feed URLs to process"),
     rss_feed_service: RSSFeedService = Depends(get_rss_feed_service),
 ):
@@ -99,7 +99,7 @@ async def fetch_rss_feeds_endpoint(
 
 
 @router.get("/status/{task_id}")
-async def get_task_status(
+def get_task_status(
     task_id: str = Path(..., title="Task ID", description="ID of the task to check status for")
 ):
     """
@@ -130,9 +130,7 @@ async def get_task_status(
 
 
 @router.delete("/cancel/{task_id}")
-async def cancel_task(
-    task_id: str = Path(..., title="Task ID", description="ID of the task to cancel")
-):
+def cancel_task(task_id: str = Path(..., title="Task ID", description="ID of the task to cancel")):
     """
     Cancel a running task.
 

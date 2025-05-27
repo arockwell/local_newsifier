@@ -13,7 +13,7 @@ router = APIRouter(
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+def login_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Render the login page.
 
     Args:
@@ -30,7 +30,7 @@ async def login_page(request: Request, templates: Jinja2Templates = Depends(get_
 
 
 @router.post("/login", response_class=HTMLResponse)
-async def login(
+def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
@@ -66,7 +66,7 @@ async def login(
 
 
 @router.get("/logout")
-async def logout(request: Request):
+def logout(request: Request):
     """Log out the current user by clearing the session.
 
     Args:

@@ -90,7 +90,7 @@ app.include_router(background_tasks.router)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+def root(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Root endpoint serving home page with recent headlines."""
     # Get recent articles from the last 30 days
     end_date = datetime.now()
@@ -131,13 +131,13 @@ async def root(request: Request, templates: Jinja2Templates = Depends(get_templa
 
 
 @app.get("/health")
-async def health_check():
+def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "message": "API is running"}
 
 
 @app.get("/config")
-async def get_config():
+def get_config():
     """Get application configuration."""
     settings = get_settings()
     # Only return safe configuration values
@@ -151,7 +151,7 @@ async def get_config():
 
 
 @app.exception_handler(404)
-async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
     templates = get_templates()
     if request.url.path.startswith("/api"):
