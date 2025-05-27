@@ -2,8 +2,6 @@
 
 import inspect
 
-import pytest  # noqa: F401
-
 
 def test_get_rss_parser_config():
     """Test that the get_rss_parser_config function returns the expected config."""

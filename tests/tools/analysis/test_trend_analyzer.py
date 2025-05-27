@@ -1,20 +1,13 @@
 """Tests for the trend_analyzer module."""
 
-import importlib
-import os
-import sys
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
-import numpy as np
 import pytest
 
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TimeFrame, TrendType
-from tests.fixtures.event_loop import event_loop_fixture
-
-pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
 
 # Create a mock TrendAnalyzer class that works without dependency injection

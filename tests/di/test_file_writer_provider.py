@@ -2,8 +2,6 @@
 
 import inspect
 
-import pytest  # noqa: F401
-
 
 def test_get_file_writer_config():
     """Test that the get_file_writer_config function returns the expected config."""

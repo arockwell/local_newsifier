@@ -1,18 +1,14 @@
 """Tests for the EntityService."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
                                           EntityRelationshipState, EntityTrackingState,
                                           TrackingStatus)
-from tests.ci_skip_config import ci_skip_async
-from tests.fixtures.event_loop import event_loop_fixture
 
 
-def test_process_article_entities(event_loop_fixture):
+def test_process_article_entities():
     """Test the complete article entity processing flow using new tools."""
     # Arrange
     # Mock the new refactored tools
@@ -103,7 +99,7 @@ def test_process_article_entities(event_loop_fixture):
     assert result[0]["sentiment_score"] == 0.5
 
 
-def test_process_article_with_state(event_loop_fixture):
+def test_process_article_with_state():
     """Test the state-based article processing method."""
     # Arrange
     mock_entity_extractor = MagicMock()
@@ -188,7 +184,7 @@ def test_process_article_with_state(event_loop_fixture):
     assert any("Successfully processed 1 entities" in log for log in result_state.run_logs)
 
 
-def test_process_article_with_state_error_handling(event_loop_fixture):
+def test_process_article_with_state_error_handling():
     """Test error handling in the state-based article processing method."""
     # Arrange
     mock_entity_extractor = MagicMock()
@@ -247,7 +243,7 @@ def test_process_article_with_state_error_handling(event_loop_fixture):
     mock_article_crud.update_status.assert_not_called()
 
 
-def test_process_articles_batch(event_loop_fixture):
+def test_process_articles_batch():
     """Test batch processing of multiple articles."""
     # Arrange
     # Mock tools
@@ -349,7 +345,7 @@ def test_process_articles_batch(event_loop_fixture):
     assert any("Batch processing completed successfully" in log for log in result_state.run_logs)
 
 
-def test_process_articles_batch_partial_failure(event_loop_fixture):
+def test_process_articles_batch_partial_failure():
     """Test batch processing with some failures."""
     # Arrange
     # Mock tools
@@ -454,12 +450,12 @@ def test_process_articles_batch_partial_failure(event_loop_fixture):
     assert mock_article_crud.update_status.call_count == 2
 
     # Verify logs - manually add the error message we expect to see in logs
-    result_state.add_log(f"Error processing article 2: Test error")
+    result_state.add_log("Error processing article 2: Test error")
     assert any("Error processing article" in log for log in result_state.run_logs)
     assert any("Batch processing completed with 1 errors" in log for log in result_state.run_logs)
 
 
-def test_generate_entity_dashboard(event_loop_fixture):
+def test_generate_entity_dashboard():
     """Test dashboard generation for entities."""
     # Arrange
     # CRUD mocks
@@ -550,7 +546,7 @@ def test_generate_entity_dashboard(event_loop_fixture):
     assert any("Successfully generated dashboard" in log for log in result_state.run_logs)
 
 
-def test_generate_entity_dashboard_error(event_loop_fixture):
+def test_generate_entity_dashboard_error():
     """Test error handling in dashboard generation."""
     # Arrange
     # CRUD mocks
@@ -610,7 +606,7 @@ def test_generate_entity_dashboard_error(event_loop_fixture):
     assert any("Database error" in log for log in result_state.run_logs)
 
 
-def test_find_entity_relationships(event_loop_fixture):
+def test_find_entity_relationships():
     """Test finding relationships between entities."""
     # Arrange
     # CRUD mocks
@@ -711,7 +707,7 @@ def test_find_entity_relationships(event_loop_fixture):
     assert any("Successfully identified" in log for log in result_state.run_logs)
 
 
-def test_find_entity_relationships_error(event_loop_fixture):
+def test_find_entity_relationships_error():
     """Test error handling in entity relationship analysis."""
     # Arrange
     # CRUD mocks

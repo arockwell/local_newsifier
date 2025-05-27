@@ -10,10 +10,8 @@ This test suite covers:
 """
 
 import json
-import xml.etree.ElementTree as ET
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -163,23 +161,25 @@ def mock_response():
 
 
 # Import event loop fixture for handling async code with @injectable decorator
-from tests.fixtures.event_loop import event_loop_fixture  # noqa
 
 
 class TestRSSParser:
+    """Tests for the RSS parser."""
+
     @pytest.fixture(autouse=True)
-    def setup_method(self, event_loop_fixture):
+    def setup_method(self):
+        """Initialize parser for each test."""
         # Use the fixture to handle potential event loop issues
         # Create parser in each test using event_loop_fixture to properly handle @injectable
         self.parser = RSSParser()
 
-    def test_init_without_cache(self, event_loop_fixture):
+    def test_init_without_cache(self):
         """Test initialization without cache file."""
         parser = RSSParser()
         assert parser.cache_file is None
         assert parser.processed_urls == set()
 
-    def test_init_with_cache(self, tmp_path, event_loop_fixture):
+    def test_init_with_cache(self, tmp_path):
         """Test initialization with cache file."""
         cache_file = tmp_path / "test_cache.json"
         urls = ["http://example.com/1", "http://example.com/2"]
@@ -189,7 +189,7 @@ class TestRSSParser:
         assert parser.cache_file == str(cache_file)
         assert parser.processed_urls == set(urls)
 
-    def test_init_with_invalid_cache(self, tmp_path, event_loop_fixture):
+    def test_init_with_invalid_cache(self, tmp_path):
         """Test initialization with invalid cache file."""
         cache_file = tmp_path / "invalid_cache.json"
         cache_file.write_text("invalid json")
@@ -197,7 +197,7 @@ class TestRSSParser:
         parser = RSSParser(str(cache_file))
         assert parser.processed_urls == set()
 
-    def test_init_with_nonexistent_cache_dir(self, tmp_path, event_loop_fixture):
+    def test_init_with_nonexistent_cache_dir(self, tmp_path):
         """Test initialization with cache file in nonexistent directory."""
         nonexistent_dir = tmp_path / "nonexistent"
         cache_file = nonexistent_dir / "cache.json"
@@ -211,7 +211,7 @@ class TestRSSParser:
         assert parser.processed_urls == set()
 
     @patch("requests.get")
-    def test_parse_rss_feed(self, mock_get, event_loop_fixture):
+    def test_parse_rss_feed(self, mock_get):
         """Test parsing an RSS feed."""
         # Setup mock response
         mock_response = Mock()
@@ -229,7 +229,7 @@ class TestRSSParser:
         assert items[0].published.strftime("%Y-%m-%d %H:%M:%S") == "2024-04-12 10:30:00"
 
     @patch("requests.get")
-    def test_parse_atom_feed(self, mock_get, event_loop_fixture):
+    def test_parse_atom_feed(self, mock_get):
         """Test parsing an Atom feed."""
         # Setup mock response
         mock_response = Mock()
@@ -247,7 +247,7 @@ class TestRSSParser:
         assert items[0].published.strftime("%Y-%m-%d %H:%M:%S") == "2024-04-12 10:30:00"
 
     @patch("requests.get")
-    def test_parse_atom_feed_with_multiple_links(self, mock_get, event_loop_fixture):
+    def test_parse_atom_feed_with_multiple_links(self, mock_get):
         """Test parsing an Atom feed with multiple link elements."""
         # Atom feed with multiple links per entry
         atom_with_multiple_links = """<?xml version="1.0" encoding="UTF-8"?>
@@ -279,7 +279,7 @@ class TestRSSParser:
         assert items[0].description == "Test description"
 
     @patch("requests.get")
-    def test_parse_feed_error(self, mock_get, event_loop_fixture):
+    def test_parse_feed_error(self, mock_get):
         """Test parsing a feed with error."""
         mock_get.side_effect = Exception("Failed to fetch feed")
 
@@ -287,7 +287,7 @@ class TestRSSParser:
         assert len(items) == 0
 
     @patch("requests.get")
-    def test_parse_malformed_xml(self, mock_get, event_loop_fixture):
+    def test_parse_malformed_xml(self, mock_get):
         """Test parsing malformed XML."""
         mock_response = Mock()
         mock_response.content = MALFORMED_XML.encode("utf-8")
@@ -298,7 +298,7 @@ class TestRSSParser:
         assert len(items) == 0
 
     @patch("requests.get")
-    def test_parse_incomplete_rss(self, mock_get, event_loop_fixture):
+    def test_parse_incomplete_rss(self, mock_get):
         """Test parsing RSS with missing elements."""
         mock_response = Mock()
         mock_response.content = INCOMPLETE_RSS_XML.encode("utf-8")
@@ -325,7 +325,7 @@ class TestRSSParser:
             assert item.published is not None
 
     @patch("requests.get")
-    def test_parse_incomplete_atom(self, mock_get, event_loop_fixture):
+    def test_parse_incomplete_atom(self, mock_get):
         """Test parsing Atom feed with missing elements."""
         mock_response = Mock()
         mock_response.content = INCOMPLETE_ATOM_XML.encode("utf-8")
@@ -353,7 +353,7 @@ class TestRSSParser:
             assert item.published is None
 
     @patch("requests.get")
-    def test_parse_unusual_dates(self, mock_get, event_loop_fixture):
+    def test_parse_unusual_dates(self, mock_get):
         """Test parsing feeds with unusual date formats."""
         mock_response = Mock()
         mock_response.content = UNUSUAL_DATES_XML.encode("utf-8")
@@ -378,7 +378,7 @@ class TestRSSParser:
         assert items[2].published is None
 
     @patch("requests.get")
-    def test_network_error_handling(self, mock_get, mock_response, event_loop_fixture):
+    def test_network_error_handling(self, mock_get, mock_response):
         """Test handling of network errors."""
         # Test connection error
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
@@ -396,7 +396,7 @@ class TestRSSParser:
         assert len(items) == 0
 
     @patch("requests.get")
-    def test_get_new_urls(self, mock_get, event_loop_fixture):
+    def test_get_new_urls(self, mock_get):
         """Test getting new URLs from feed."""
         # Setup mock response
         mock_response = Mock()
@@ -437,7 +437,7 @@ class TestRSSParser:
         assert items[0].url == "http://example.com/3"
         assert items[0].title == "Test Article 3"
 
-    def test_cache_persistence(self, tmp_path, event_loop_fixture):
+    def test_cache_persistence(self, tmp_path):
         """Test that processed URLs are persisted to cache file."""
         cache_file = tmp_path / "cache.json"
         parser = RSSParser(str(cache_file))
@@ -460,7 +460,7 @@ class TestRSSParser:
             "http://example.com/2",
         }
 
-    def test_cache_save_error_handling(self, tmp_path, event_loop_fixture):
+    def test_cache_save_error_handling(self, tmp_path):
         """Test error handling when saving cache fails."""
         # Create a directory where a file is expected (to cause an error)
         cache_path = tmp_path / "cache_dir"
@@ -476,7 +476,7 @@ class TestRSSParser:
         assert "http://example.com/test" in parser.processed_urls
 
     @patch("builtins.open", side_effect=PermissionError("Permission denied"))
-    def test_cache_load_permission_error(self, mock_open, tmp_path, event_loop_fixture):
+    def test_cache_load_permission_error(self, mock_builtin_open, tmp_path):
         """Test error handling when loading cache fails due to permissions."""
         cache_file = tmp_path / "permission_denied.json"
 
@@ -488,9 +488,7 @@ class TestRSSParser:
 
     @patch("local_newsifier.tools.rss_parser.get_parser_instance")
     @patch("requests.get")
-    def test_global_parse_rss_feed_function(
-        self, mock_get, mock_get_parser, mock_response, event_loop_fixture
-    ):
+    def test_global_parse_rss_feed_function(self, mock_get, mock_get_parser, mock_response):
         """Test the global parse_rss_feed function."""
         # Setup mock parser and response
         mock_response.content = SAMPLE_RSS_XML.encode("utf-8")
@@ -533,7 +531,7 @@ class TestRSSParser:
         assert entry["link"] == "http://example.com/1"
 
     @patch("requests.get")
-    def test_global_parse_rss_feed_error_handling(self, mock_get, event_loop_fixture):
+    def test_global_parse_rss_feed_error_handling(self, mock_get):
         """Test error handling in the global parse_rss_feed function."""
         mock_get.side_effect = Exception("Test error")
 

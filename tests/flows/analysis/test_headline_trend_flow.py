@@ -1,14 +1,11 @@
 """Tests for HeadlineTrendFlow."""
 
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from local_newsifier.flows.analysis.headline_trend_flow import HeadlineTrendFlow
-from local_newsifier.models.article import Article
-from tests.ci_skip_config import ci_skip
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture

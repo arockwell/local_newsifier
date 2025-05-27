@@ -4,17 +4,16 @@ This test file verifies that the TrendReporter works correctly with fastapi-inje
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from local_newsifier.models.trend import TrendAnalysis, TrendStatus, TrendType
 from local_newsifier.tools.trend_reporter import ReportFormat, TrendReporter
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.mark.skip(reason="Known issue with event loop in CI - Fixed in parallel PR")
-def test_injectable_trend_reporter_with_event_loop(event_loop_fixture):
+def test_injectable_trend_reporter_with_event_loop():
     """Test that trend reporter works with event loop integration."""
     # Create a reporter
     with patch("os.makedirs") as mock_makedirs:

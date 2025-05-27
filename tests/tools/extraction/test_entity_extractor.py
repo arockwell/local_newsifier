@@ -9,15 +9,11 @@ This test suite covers:
 5. Error handling
 """
 
-import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
-from tests.fixtures.event_loop import event_loop_fixture
-
-pytestmark = pytest.mark.usefixtures("event_loop_fixture")
 
 
 class MockSpacyDoc:
@@ -326,4 +322,4 @@ class TestEntityExtractor:
             # This test verifies that the code gracefully handles exceptions, but since our
             # implementation doesn't have that error handling yet, we'll expect the exception
             with pytest.raises(ValueError):
-                entities = entity_extractor.extract_entities("This is malformed text.")
+                entity_extractor.extract_entities("This is malformed text.")

@@ -4,10 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Import event loop fixture
-pytest.importorskip("tests.fixtures.event_loop")
-from tests.fixtures.event_loop import event_loop_fixture  # noqa
-
 
 @pytest.fixture
 def mock_nlp():
@@ -23,12 +19,8 @@ def mock_container(mock_nlp):
         yield None
 
 
-@patch("fastapi_injectable.decorator.run_coroutine_sync")
-def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
+def test_get_sentiment_analyzer_config():
     """Test the sentiment analyzer configuration provider."""
-    # Set up the mock to use our event loop
-    mock_run_sync.side_effect = lambda x: event_loop_fixture.run_until_complete(x)
-
     # Import here to avoid circular imports
     from local_newsifier.di.providers import get_sentiment_analyzer_config
 
@@ -41,12 +33,8 @@ def test_get_sentiment_analyzer_config(mock_run_sync, event_loop_fixture):
     assert config["model_name"] == "en_core_web_sm"
 
 
-@patch("fastapi_injectable.decorator.run_coroutine_sync")
-def test_get_sentiment_analyzer_tool(mock_run_sync, mock_container, mock_nlp, event_loop_fixture):
+def test_get_sentiment_analyzer_tool(mock_container, mock_nlp):
     """Test the sentiment analyzer tool provider."""
-    # Set up the mock to use our event loop
-    mock_run_sync.side_effect = lambda x: event_loop_fixture.run_until_complete(x)
-
     # Import here to avoid circular imports
     from local_newsifier.di.providers import get_sentiment_analyzer_tool
 

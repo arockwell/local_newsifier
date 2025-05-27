@@ -1,6 +1,5 @@
 """Tests for the Entity Tracking flow."""
 
-import asyncio
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
@@ -14,10 +13,8 @@ patch("spacy.language.Language", MagicMock()).start()
 
 from local_newsifier.flows.entity_tracking_flow import EntityTrackingFlow
 from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
-                                          EntityRelationshipState, EntityTrackingState,
-                                          TrackingStatus)
+                                          EntityRelationshipState, EntityTrackingState)
 from local_newsifier.services.entity_service import EntityService
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
@@ -103,11 +100,7 @@ def test_entity_tracking_flow_init_with_dependencies(
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 def test_process_method(
-    mock_tracker_class,
-    mock_resolver_class,
-    mock_context_analyzer_class,
-    mock_extractor_class,
-    event_loop_fixture,
+    mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class
 ):
     """Test the process method."""
     # Setup mocks
@@ -147,20 +140,13 @@ def test_process_method(
     mock_entity_service.process_article_with_state.assert_called_once_with(mock_state)
     assert result is mock_result_state
 
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))
-
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 def test_process_new_articles_method(
-    mock_tracker_class,
-    mock_resolver_class,
-    mock_context_analyzer_class,
-    mock_extractor_class,
-    event_loop_fixture,
+    mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class
 ):
     """Test the process_new_articles method."""
     # Setup mocks
@@ -187,14 +173,11 @@ def test_process_new_articles_method(
 
     # Verify service method was called with correct state
     mock_entity_service.process_articles_batch.assert_called_once()
-    # Verify the state passed to process_articles_batch is EntityBatchTrackingState with status_filter="analyzed"
+    # Verify state passed to process_articles_batch has status_filter="analyzed"
     called_state = mock_entity_service.process_articles_batch.call_args[0][0]
     assert isinstance(called_state, EntityBatchTrackingState)
     assert called_state.status_filter == "analyzed"
     assert result is mock_result_state
-
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))
 
 
 @patch("local_newsifier.flows.entity_tracking_flow.article_crud")
@@ -208,7 +191,6 @@ def test_process_article_method(
     mock_context_analyzer_class,
     mock_extractor_class,
     mock_article_crud,
-    event_loop_fixture,
 ):
     """Test the process_article method (legacy)."""
     # Setup mocks
@@ -263,20 +245,13 @@ def test_process_article_method(
     # Verify result
     assert result == [{"entity": "test"}]
 
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))
-
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 def test_get_entity_dashboard_method(
-    mock_tracker_class,
-    mock_resolver_class,
-    mock_context_analyzer_class,
-    mock_extractor_class,
-    event_loop_fixture,
+    mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class
 ):
     """Test the get_entity_dashboard method."""
     # Setup mocks
@@ -312,20 +287,13 @@ def test_get_entity_dashboard_method(
     # Verify result
     assert result == {"dashboard": "data"}
 
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))
-
 
 @patch("local_newsifier.flows.entity_tracking_flow.EntityExtractor")
 @patch("local_newsifier.flows.entity_tracking_flow.ContextAnalyzer")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityResolver")
 @patch("local_newsifier.flows.entity_tracking_flow.EntityTracker")
 def test_find_entity_relationships_method(
-    mock_tracker_class,
-    mock_resolver_class,
-    mock_context_analyzer_class,
-    mock_extractor_class,
-    event_loop_fixture,
+    mock_tracker_class, mock_resolver_class, mock_context_analyzer_class, mock_extractor_class
 ):
     """Test the find_entity_relationships method."""
     # Setup mocks
@@ -360,6 +328,3 @@ def test_find_entity_relationships_method(
 
     # Verify result
     assert result == {"relationship": "data"}
-
-    # Ensure event loop cleanup
-    event_loop_fixture.run_until_complete(asyncio.sleep(0))

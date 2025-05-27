@@ -5,6 +5,7 @@ This module provides endpoints for receiving webhook notifications from
 external services like Apify, validating payloads, and processing data.
 """
 
+import json
 import logging
 from typing import Annotated, Any, Dict
 
@@ -14,7 +15,7 @@ from sqlmodel import Session
 from local_newsifier.api.dependencies import get_session
 from local_newsifier.config.settings import settings
 from local_newsifier.models.webhook import ApifyWebhookResponse
-from local_newsifier.services.apify_webhook_service import ApifyWebhookService
+from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
-async def apify_webhook(
+def apify_webhook(
     request: Request,
     payload: Annotated[Dict[str, Any], Body()],
     session: Annotated[Session, Depends(get_session)],
@@ -42,7 +43,7 @@ async def apify_webhook(
 
     Args:
         request: FastAPI request object
-        payload: The webhook payload as parsed JSON
+        payload: Parsed JSON payload
         session: Database session
         apify_webhook_signature: Optional signature header for validation
 
@@ -53,21 +54,17 @@ async def apify_webhook(
         HTTPException: If webhook validation fails
     """
     try:
-        # Get raw payload for signature validation
-        raw_payload = await request.body()
-        raw_payload_str = raw_payload.decode("utf-8")
-
-        # Use the already parsed payload
-        payload_dict = payload
+        # Convert payload dict back to string for signature validation
+        raw_payload_str = json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
         # Initialize sync webhook service
-        webhook_service = ApifyWebhookService(
+        webhook_service = ApifyWebhookServiceSync(
             session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
         )
 
         # Handle webhook using sync method
         result = webhook_service.handle_webhook(
-            payload=payload_dict,
+            payload=payload,
             raw_payload=raw_payload_str,
             signature=apify_webhook_signature,
         )
@@ -80,8 +77,8 @@ async def apify_webhook(
         return ApifyWebhookResponse(
             status="accepted",
             message=result["message"],
-            actor_id=payload_dict.get("actorId"),
-            dataset_id=payload_dict.get("defaultDatasetId"),
+            actor_id=payload.get("actorId"),
+            dataset_id=payload.get("defaultDatasetId"),
             processing_status="completed",
         )
 

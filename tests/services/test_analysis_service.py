@@ -10,8 +10,6 @@ from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
 from local_newsifier.models.trend import TrendAnalysis, TrendType
 from local_newsifier.services.analysis_service import AnalysisService
-from tests.ci_skip_config import ci_skip, ci_skip_async
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 class TestAnalysisService:
@@ -58,7 +56,6 @@ class TestAnalysisService:
         mock_entity_crud,
         mock_trend_analyzer,
         mock_session_factory,
-        event_loop_fixture,
     ):
         """Return an AnalysisService with mock dependencies."""
         with patch("fastapi_injectable.concurrency.run_coroutine_sync") as mock_run_coroutine:

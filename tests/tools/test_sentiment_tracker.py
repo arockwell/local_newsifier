@@ -1,14 +1,11 @@
 """Tests for the SentimentTracker."""
 
-import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest_mock import MockFixture
 
 # Import event loop fixture to handle fastapi-injectable async operations
-from tests.fixtures.event_loop import event_loop_fixture
 
 # Mock imports
 patch("spacy.load", MagicMock(return_value=MagicMock())).start()
@@ -29,11 +26,6 @@ with patch("spacy.language.Language", MagicMock()):
 
 class TestSentimentTracker:
     """Test class for SentimentTracker."""
-
-    @pytest.fixture(autouse=True)
-    def setup_event_loop(self, event_loop_fixture):
-        """Ensure every test in this class has access to the event loop fixture."""
-        return event_loop_fixture
 
     @pytest.fixture
     def mock_session(self):
@@ -278,16 +270,15 @@ class TestSentimentTracker:
             try:
                 # Create a new mock session for the test
                 test_mock_session = MagicMock()
-                test_mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = (
-                    []
-                )
+                result = test_mock_session.query.return_value.filter.return_value
+                result.order_by.return_value.all.return_value = []
 
                 articles = tracker._get_articles_in_range(
                     start_date, end_date, session=test_mock_session
                 )
                 assert isinstance(articles, list)
             except Exception:
-                pytest.fail("_get_articles_in_range raised an exception with provided session")
+                pytest.fail("_get_articles_in_range raised exception with session")
             finally:
                 tracker.session = original_session
 

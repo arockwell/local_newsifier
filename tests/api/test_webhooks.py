@@ -18,19 +18,21 @@ from tests.ci_skip_config import ci_skip_async
 @pytest.fixture(scope="module", autouse=True)
 def mock_db():
     """Mock database calls for testing."""
-    # Save original create_db_and_tables function
+    # Save original get_engine function
+    from unittest.mock import MagicMock
+
     from local_newsifier.database import engine
 
-    original_create_db = engine.create_db_and_tables
+    original_get_engine = engine.get_engine
 
-    # Replace with no-op function
-    engine.create_db_and_tables = lambda: None
+    # Replace with mock function
+    engine.get_engine = lambda: MagicMock()
 
     # Yield control back to test
     yield
 
     # Restore original function after tests
-    engine.create_db_and_tables = original_create_db
+    engine.get_engine = original_get_engine
 
 
 class TestApifyWebhookInfrastructure:
@@ -59,7 +61,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service to return error for invalid signature
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Invalid signature"}
@@ -97,7 +99,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(
                 return_value={
@@ -141,7 +143,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(
                 return_value={
@@ -171,7 +173,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service to return error for missing fields
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Missing required fields"}
@@ -206,7 +208,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(
                 return_value={
@@ -249,7 +251,7 @@ class TestApifyWebhookInfrastructure:
         }
 
         # Mock the sync webhook service to raise an exception
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookService") as MockService:
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
             mock_instance.handle_webhook = Mock(side_effect=Exception("Database error"))
 

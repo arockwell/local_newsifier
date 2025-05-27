@@ -10,26 +10,23 @@ This test suite covers:
 """
 
 import time
-from datetime import datetime
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from bs4 import BeautifulSoup
 from requests.exceptions import HTTPError, RequestException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from local_newsifier.di.providers import get_web_scraper_tool
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 # Import the class for tests
 from local_newsifier.tools.web_scraper import WebScraperTool as WebScraperToolClass
+
 # Import event_loop_fixture for handling async code
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture(scope="session")
@@ -235,7 +232,6 @@ def web_scraper(
     mock_webdriver,
     mock_webdriver_wait,
     mock_http_response,
-    event_loop_fixture,
 ):
     """Create a session-scoped WebScraperTool instance with all dependencies mocked."""
     # Configure mocks
@@ -261,7 +257,7 @@ class TestWebScraper:
     """Test suite for WebScraperTool."""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self, monkeypatch, mock_webdriver, event_loop_fixture):
+    def setup_method(self, monkeypatch, mock_webdriver):
         """Set up test environment before each test with event loop fixture."""
         # Disable sleep calls
         monkeypatch.setattr(time, "sleep", lambda x: None)
@@ -767,7 +763,7 @@ class TestWebScraper:
             assert result is not None
             assert result["title"] == "Article Title | News Site"
 
-    def test_injectable_dependencies(self, event_loop_fixture):
+    def test_injectable_dependencies(self):
         """Test that the WebScraperTool correctly uses injected dependencies.
 
         Uses event_loop_fixture to handle async operations required by the injectable pattern.
@@ -810,7 +806,7 @@ class TestWebScraper:
                 pass
 
     @pytest.mark.skip(reason="Provider test has issues with event loop")
-    def test_provider_function(self, event_loop_fixture):
+    def test_provider_function(self):
         """Test that the provider function correctly creates WebScraperTool instances.
 
         This test uses the event_loop_fixture to properly handle async operations
@@ -825,7 +821,6 @@ class TestWebScraper:
             assert scraper.session is not None
             assert scraper.driver is None  # WebDriver should be None until needed
             assert "Mozilla" in scraper.user_agent  # Should have a default user agent
-        except:
+        except Exception:
             # If the test still fails, we can skip it for now
             pytest.skip("Still having issues with event loop or injection")
-            pass

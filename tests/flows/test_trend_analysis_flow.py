@@ -1,6 +1,6 @@
 """Tests for the NewsTrendAnalysisFlow."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,7 +10,6 @@ from local_newsifier.flows.trend_analysis_flow import (NewsTrendAnalysisFlow, Re
 from local_newsifier.models.state import AnalysisStatus
 from local_newsifier.models.trend import (TimeFrame, TrendAnalysis, TrendAnalysisConfig,
                                           TrendStatus, TrendType)
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture
@@ -104,7 +103,7 @@ def sample_trends():
     return [trend1, trend2]
 
 
-def test_trend_analysis_state_init(event_loop_fixture):
+def test_trend_analysis_state_init():
     """Test TrendAnalysisState initialization."""
     # Test with default config
     state = TrendAnalysisState()
@@ -116,16 +115,13 @@ def test_trend_analysis_state_init(event_loop_fixture):
     assert isinstance(state.config, TrendAnalysisConfig)
 
     # Test with custom config
-    config = TrendAnalysisConfig(
-        time_frame=TimeFrame.MONTH,
-        min_articles=5,
-    )
+    config = TrendAnalysisConfig(time_frame=TimeFrame.MONTH, min_articles=5)
     state = TrendAnalysisState(config=config)
     assert state.config.time_frame == TimeFrame.MONTH
     assert state.config.min_articles == 5
 
 
-def test_trend_analysis_state_methods(event_loop_fixture):
+def test_trend_analysis_state_methods():
     """Test TrendAnalysisState methods."""
     state = TrendAnalysisState()
 
@@ -141,7 +137,7 @@ def test_trend_analysis_state_methods(event_loop_fixture):
     assert "ERROR: Test error message" in state.logs[1]
 
 
-def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
+def test_news_trend_analysis_flow_init(mock_dependencies):
     """Test NewsTrendAnalysisFlow initialization."""
     # Create a mock analysis_service
     mock_analysis_service = MagicMock()
@@ -163,10 +159,7 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
     assert isinstance(flow.config, TrendAnalysisConfig)
 
     # Test with custom parameters
-    custom_config = TrendAnalysisConfig(
-        time_frame=TimeFrame.MONTH,
-        min_articles=5,
-    )
+    custom_config = TrendAnalysisConfig(time_frame=TimeFrame.MONTH, min_articles=5)
 
     # Create another mock analysis_service for the custom config test
     mock_analysis_service2 = MagicMock()
@@ -192,7 +185,7 @@ def test_news_trend_analysis_flow_init(mock_dependencies, event_loop_fixture):
         assert flow.config == custom_config
 
 
-def test_aggregate_historical_data(mock_dependencies, event_loop_fixture):
+def test_aggregate_historical_data(mock_dependencies):
     """Test historical data aggregation in the flow."""
     # Create a mock analysis_service
     mock_analysis_service = MagicMock()
@@ -254,7 +247,7 @@ def test_aggregate_historical_data(mock_dependencies, event_loop_fixture):
         assert "Network error" in error_result.error
 
 
-def test_detect_trends(mock_dependencies, sample_trends, event_loop_fixture):
+def test_detect_trends(mock_dependencies, sample_trends):
     """Test trend detection in the flow."""
     # Create a mock analysis_service
     mock_analysis_service = MagicMock()
@@ -328,7 +321,7 @@ def test_detect_trends(mock_dependencies, sample_trends, event_loop_fixture):
         assert "Test error" in error_state.error
 
 
-def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
+def test_generate_report(mock_dependencies, sample_trends):
     """Test report generation in the flow."""
     # Create mock services
     mock_analysis_service = MagicMock()
@@ -414,7 +407,7 @@ def test_generate_report(mock_dependencies, sample_trends, event_loop_fixture):
         assert "Test error" in error_state.error
 
 
-def test_run_analysis(mock_dependencies, sample_trends, event_loop_fixture):
+def test_run_analysis(mock_dependencies, sample_trends):
     """Test running the complete analysis flow."""
     with patch(
         "local_newsifier.flows.trend_analysis_flow.NewsTrendAnalysisFlow.aggregate_historical_data"

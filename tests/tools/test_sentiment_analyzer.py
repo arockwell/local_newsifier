@@ -1,11 +1,8 @@
-from datetime import datetime
+"""Tests for the sentiment analyzer."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Import event loop fixture
-pytest.importorskip("tests.fixtures.event_loop")
-from tests.fixtures.event_loop import event_loop_fixture  # noqa
 
 # Mock spaCy and TextBlob before imports
 patch("spacy.load", MagicMock(return_value=MagicMock())).start()
@@ -59,28 +56,18 @@ def mock_spacy_nlp():
 
 
 @pytest.fixture
-def sentiment_analyzer(mock_session, mock_spacy_nlp, event_loop_fixture):
+def sentiment_analyzer(mock_session, mock_spacy_nlp):
     """Create a SentimentAnalyzer instance with mocked dependencies."""
-    # Patch the fastapi-injectable decorator to use our event loop
-    with patch(
-        "fastapi_injectable.decorator.run_coroutine_sync",
-        lambda x: event_loop_fixture.run_until_complete(x),
-    ):
-        return SentimentAnalyzer(nlp_model=mock_spacy_nlp, session=mock_session)
+    return SentimentAnalyzer(nlp_model=mock_spacy_nlp, session=mock_session)
 
 
 @pytest.fixture
-def sentiment_analyzer_no_model(mock_session, event_loop_fixture):
+def sentiment_analyzer_no_model(mock_session):
     """Create a SentimentAnalyzer instance with no NLP model (tests fallback logic)."""
     with patch("spacy.load", return_value=MagicMock()) as mock_load:
-        # Patch the fastapi-injectable decorator to use our event loop
-        with patch(
-            "fastapi_injectable.decorator.run_coroutine_sync",
-            lambda x: event_loop_fixture.run_until_complete(x),
-        ):
-            analyzer = SentimentAnalyzer(nlp_model=None, session=mock_session)
-            mock_load.assert_called_once()
-            return analyzer
+        analyzer = SentimentAnalyzer(nlp_model=None, session=mock_session)
+        mock_load.assert_called_once()
+        return analyzer
 
 
 @pytest.fixture
@@ -88,16 +75,14 @@ def sample_state():
     """Create a sample NewsAnalysisState for testing."""
     return NewsAnalysisState(
         target_url="http://example.com",
-        scraped_text="The new downtown cafe is thriving. Customers love the atmosphere and service.",
+        scraped_text="The new downtown cafe is thriving. Customers love the atmosphere.",
         status=AnalysisStatus.ANALYSIS_SUCCEEDED,
         analysis_results={},
     )
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_document_sentiment(
-    mock_textblob, sentiment_analyzer, sample_state, event_loop_fixture
-):
+def test_analyze_document_sentiment(mock_textblob, sentiment_analyzer, sample_state):
     """Test document-level sentiment analysis."""
     # Setup TextBlob mock
     mock_blob = MagicMock()
@@ -117,9 +102,7 @@ def test_analyze_document_sentiment(
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyzer_with_fallback_model(
-    mock_textblob, sentiment_analyzer_no_model, sample_state, event_loop_fixture
-):
+def test_analyzer_with_fallback_model(mock_textblob, sentiment_analyzer_no_model, sample_state):
     """Test that the fallback NLP model works correctly."""
     # Setup TextBlob mock
     mock_blob = MagicMock()
@@ -138,9 +121,7 @@ def test_analyzer_with_fallback_model(
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_entity_sentiment(
-    mock_textblob, sentiment_analyzer, sample_state, event_loop_fixture
-):
+def test_analyze_entity_sentiment(mock_textblob, sentiment_analyzer, sample_state):
     """Test entity-level sentiment analysis."""
     # Add some entities to the state in the correct format
     sample_state.analysis_results["entities"] = {
@@ -175,9 +156,7 @@ def test_analyze_entity_sentiment(
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_topic_sentiment(
-    mock_textblob, sentiment_analyzer, sample_state, event_loop_fixture
-):
+def test_analyze_topic_sentiment(mock_textblob, sentiment_analyzer, sample_state):
     """Test topic-level sentiment analysis."""
     # Add some topics to the state
     sample_state.analysis_results["topics"] = ["local business", "customer satisfaction"]
@@ -202,7 +181,7 @@ def test_analyze_topic_sentiment(
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_empty_text(mock_textblob, sentiment_analyzer, event_loop_fixture):
+def test_analyze_empty_text(mock_textblob, sentiment_analyzer):
     """Test sentiment analysis with empty text."""
     empty_state = NewsAnalysisState(
         target_url="http://example.com",
@@ -219,7 +198,7 @@ def test_analyze_empty_text(mock_textblob, sentiment_analyzer, event_loop_fixtur
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_negative_sentiment(mock_textblob, sentiment_analyzer, event_loop_fixture):
+def test_analyze_negative_sentiment(mock_textblob, sentiment_analyzer):
     """Test sentiment analysis with negative text."""
     # Mock a negative sentiment TextBlob result
     mock_blob = MagicMock()
@@ -244,7 +223,7 @@ def test_analyze_negative_sentiment(mock_textblob, sentiment_analyzer, event_loo
 
 
 @patch("local_newsifier.tools.sentiment_analyzer.TextBlob")
-def test_analyze_mixed_sentiment(mock_textblob, sentiment_analyzer, event_loop_fixture):
+def test_analyze_mixed_sentiment(mock_textblob, sentiment_analyzer):
     """Test sentiment analysis with mixed sentiment text."""
     # Mock a mixed sentiment TextBlob result
     mock_blob = MagicMock()
