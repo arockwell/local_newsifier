@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
-def apify_webhook(
+async def apify_webhook(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
@@ -53,7 +53,7 @@ def apify_webhook(
     """
     try:
         # Get raw payload for signature validation
-        raw_payload = request.body()
+        raw_payload = await request.body()
         raw_payload_str = raw_payload.decode("utf-8")
 
         # Parse payload
