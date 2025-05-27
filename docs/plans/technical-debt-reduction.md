@@ -127,56 +127,25 @@ def check_version_conflicts():
 
 ### 2. Test Infrastructure
 
-#### Event Loop Issues ✅ (Partially Resolved)
-**Problem**: Async tests fail in CI due to event loop conflicts
+#### Async/Sync Pattern Issues ✅ (Being Resolved)
+**Problem**: Mixed async/sync patterns causing complexity and production crashes
 
-**Status**: Critical issues resolved in Phase 1-3 of event loop stabilization. CI tests now pass reliably.
+**Status**: Decision made to migrate to sync-only implementation
 
-**What Was Fixed**:
-1. ✅ Removed problematic thread-local event loop fixture
-2. ✅ Eliminated flaky CI skip decorators (@ci_skip_async, @ci_skip_injectable)
-3. ✅ Simplified event loop management to use standard pytest-asyncio patterns
-4. ✅ Updated documentation to reflect best practices
+**What's Being Done**:
+1. ✅ Decision made to use synchronous patterns exclusively
+2. 🔄 Migration plan created in [async-to-sync-migration.md](async-to-sync-migration.md)
+3. 🔄 Removing all async code from FastAPI routes
+4. 🔄 Simplifying codebase to eliminate event loop issues
 
-**Remaining Work**:
-- 28 test files still import old event_loop_fixture
-- Only 1 test file uses @pytest.mark.asyncio properly
-- Mixed sync/async patterns throughout codebase
+**Benefits of Sync-Only**:
+- Eliminates event loop complexity
+- Simplifies testing (no pytest-asyncio needed)
+- Reduces cognitive overhead
+- No performance loss (we were calling sync code anyway)
+- Better developer experience
 
-**📋 See detailed plan**: [event-loop-stabilization.md](event-loop-stabilization.md) and [event-loop-remaining-work.md](event-loop-remaining-work.md)
-
-**🔍 Related Async Documentation**:
-- [async-migration/async-sync-crash-analysis.md](async-migration/async-sync-crash-analysis.md) - Root cause analysis of production crashes
-- [async-migration/async-sync-fix-plan.md](async-migration/async-sync-fix-plan.md) - Immediate fix strategies
-- [async-migration/async-migration-patterns.md](async-migration/async-migration-patterns.md) - Correct async/sync patterns
-- [async-migration/async-antipatterns-catalog.md](async-migration/async-antipatterns-catalog.md) - Common mistakes to avoid
-- [async-migration/async-migration-guide.md](async-migration/async-migration-guide.md) - Comprehensive migration guide
-- [async-migration/async-patterns-analysis.md](async-migration/async-patterns-analysis.md) - Architectural analysis
-
-**Current Best Practice**:
-```python
-# For async tests - use pytest-asyncio
-import pytest
-
-@pytest.mark.asyncio
-async def test_async_functionality():
-    result = await async_function()
-    assert result == expected
-
-# For mocking async dependencies
-from unittest.mock import AsyncMock
-
-mock_service = MagicMock()
-mock_service.async_method = AsyncMock(return_value=result)
-
-    @staticmethod
-    async def run_with_timeout(coro, timeout=5):
-        """Run coroutine with timeout."""
-        try:
-            return await asyncio.wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
-            pytest.fail(f"Test timed out after {timeout} seconds")
-```
+**📋 See migration plan**: [async-to-sync-migration.md](async-to-sync-migration.md)
 
 #### Slow Test Execution
 **Problem**: Test suite takes too long to run
@@ -670,7 +639,7 @@ class CircuitBreaker:
 
 ### Phase 1: Critical Fixes (2 weeks)
 - [ ] Fix offline installation
-- [x] Resolve event loop issues (✅ Critical issues fixed, 28 files remain)
+- [ ] Complete async-to-sync migration (🔄 In progress)
 - [ ] Optimize critical queries
 
 ### Phase 2: Quality Improvements (4 weeks)

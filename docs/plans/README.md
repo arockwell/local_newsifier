@@ -65,35 +65,22 @@ This directory contains comprehensive knowledge documentation consolidated from 
 - Prioritization matrix
 - Remediation roadmap
 
-#### [Event Loop Stabilization](./event-loop-stabilization.md) ✅ (Partially Complete)
-- Event loop conflict resolution (✅ Critical issues fixed)
-- Removal of problematic fixtures (✅ CI skip decorators removed)
-- Async/await pattern standardization (🔄 28 files remaining)
-- Test stability improvements (✅ CI now passes reliably)
-- Migration from custom event loop management
-- Best practices for async testing
+#### [Event Loop Cleanup](./event-loop-stabilization.md) ✅ (No longer needed)
+- This work is superseded by the sync-only migration
+- Event loop issues will be eliminated by removing all async code
+- See [Async to Sync Migration](./async-to-sync-migration.md) for current approach
 
-Related documents:
-- [Remaining Work Detail](./event-loop-remaining-work.md) - Specific files and changes needed
-- [Next Steps](./event-loop-next-steps.md) - Actionable plan for completion
+### Architecture Decision: Sync-Only Implementation
 
-### Async Migration
+The project has made a deliberate decision to use **synchronous patterns exclusively** throughout the codebase. This decision was made to:
+- Prioritize development simplicity and maintainability
+- Avoid complexity of mixed async/sync patterns that caused production crashes
+- Reduce cognitive overhead for developers
+- Eliminate event loop and async testing issues
 
-#### [Async Migration Documentation](./async-migration/)
-Comprehensive documentation for migrating from mixed async/sync to consistent architecture:
+See [Async to Sync Migration](./async-to-sync-migration.md) for the migration plan and rationale.
 
-- **[Crash Analysis](./async-migration/async-sync-crash-analysis.md)** - Root cause analysis of production crashes
-- **[Fix Plan](./async-migration/async-sync-fix-plan.md)** - Immediate and long-term fix strategies
-- **[Migration Patterns](./async-migration/async-migration-patterns.md)** - Correct async/sync patterns with examples
-- **[Antipatterns Catalog](./async-migration/async-antipatterns-catalog.md)** - Common mistakes to avoid
-- **[Migration Guide](./async-migration/async-migration-guide.md)** - Step-by-step implementation guide
-- **[Patterns Analysis](./async-migration/async-patterns-analysis.md)** - Architectural analysis of current state
-
-Key insights:
-- Production crashes caused by async endpoints using sync database sessions
-- FastAPI's `contextmanager_in_threadpool` fails with mixed async/sync
-- Two fix options: Quick sync conversion or full async migration
-- Comprehensive patterns for database, service, and API layers
+**Important**: Do not introduce async patterns in new code. All new development should follow synchronous patterns as documented in CLAUDE.md.
 
 ## How to Use This Knowledge Base
 
@@ -178,12 +165,11 @@ def command(service: Annotated[Service, Depends(get_service)]):
 
 | Issue | Document | Section |
 |-------|----------|---------|
-| Event loop errors | Event Loop Stabilization | Problem Statement (✅ Fixed) |
 | Circular imports | Technical Debt | Circular Dependencies |
 | Offline install fails | Technical Debt | Offline Installation Issues |
 | DI migration | Dependency Injection | Migration Strategy |
 | Webhook testing | Apify Integration | Testing Strategies |
-| Async test failures | Event Loop Stabilization | Best Practices (✅ Fixed) |
+| Sync migration | Async to Sync Migration | Implementation Plan |
 
 ## Related Documentation
 
