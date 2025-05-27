@@ -79,10 +79,10 @@ When writing tests that involve `ApifyService`, you can simply instantiate the s
 def test_some_apify_functionality():
     # No token needed, test mode is auto-detected
     service = ApifyService()
-    
+
     # Will return mock data, not make a real API call
     result = service.run_actor("some_actor", {"param": "value"})
-    
+
     # Assert against the mock response structure
     assert result["status"] == "SUCCEEDED"
     assert "defaultDatasetId" in result

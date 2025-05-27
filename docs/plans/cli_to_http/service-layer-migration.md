@@ -12,8 +12,8 @@ All service classes will have the `@injectable` decorator removed, transitioning
 ### 2. Update Constructor Patterns
 Services will accept optional session factories to maintain backward compatibility while supporting new patterns.
 
-### 3. Add Async Wrappers
-For CPU-intensive operations, add async wrappers that use thread pools for non-blocking execution.
+### 3. Sync-Only Implementation
+All services will use synchronous patterns only. The project is moving away from async implementations to simplify the codebase and improve maintainability.
 
 ## Migration Examples
 
@@ -38,10 +38,9 @@ class ArticleService:
         return self.article_crud.create(self.session, url=url)
 ```
 
-### After (FastAPI Compatible)
+### After (Sync-Only Pattern)
 ```python
 from typing import Optional
-import asyncio
 from sqlmodel import Session
 
 class ArticleService:
@@ -49,32 +48,15 @@ class ArticleService:
         # Make session_factory optional for flexibility
         self.session_factory = session_factory
 
-    # Sync method accepts session as parameter
+    # All methods are synchronous and accept session as parameter
     def process_article(self, session: Session, url: str):
         from crud.article import ArticleCRUD
         article_crud = ArticleCRUD()
         return article_crud.create(session, url=url)
 
-    # Async wrapper for FastAPI endpoints
-    async def process_article_async(
-        self,
-        session: Session,
-        url: str,
-        content: Optional[str] = None
-    ):
-        """Async wrapper for process_article."""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            self._process_article_sync,
-            session,
-            url,
-            content
-        )
-
-    def _process_article_sync(self, session: Session, url: str, content: Optional[str]):
-        """Original sync implementation."""
-        # Existing business logic here
+    def process_article_with_content(self, session: Session, url: str, content: Optional[str]):
+        """Process article with optional content."""
+        # Business logic here
         pass
 
 # FastAPI dependency function
@@ -121,10 +103,10 @@ Helper services with minimal dependencies:
 2. Remove references to `self.session`
 3. Update method signatures consistently
 
-### Step 3: Create Async Wrappers
-1. Identify CPU-intensive operations
-2. Add async wrapper methods
-3. Use `run_in_executor` for thread pool execution
+### Step 3: Ensure Sync-Only Implementation
+1. Remove any existing async methods
+2. Convert async operations to sync equivalents
+3. Use synchronous libraries and clients
 
 ### Step 4: Update FastAPI Dependencies
 1. Create simple factory functions
@@ -164,18 +146,20 @@ def get_complex_service() -> ComplexService:
     return ComplexService(config)
 ```
 
-### Pattern 3: Async-Ready Service
+### Pattern 3: External API Service
 ```python
-class AsyncService:
-    async def async_operation(self, session: Session, param: str):
-        # Native async implementation
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"https://api.example.com/{param}")
+import requests
+
+class ExternalAPIService:
+    def fetch_data(self, session: Session, param: str):
+        # Use synchronous HTTP client
+        response = requests.get(f"https://api.example.com/{param}")
+        response.raise_for_status()
         return response.json()
 
-    def sync_operation(self, session: Session, param: str):
-        # Sync version for compatibility
-        return asyncio.run(self.async_operation(session, param))
+    def process_external_data(self, session: Session, data: dict):
+        # Process data synchronously
+        pass
 ```
 
 ## Testing Considerations

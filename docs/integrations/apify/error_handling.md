@@ -10,11 +10,11 @@ from local_newsifier.errors import handle_apify
 
 class ApifyService:
     """Service for interacting with the Apify API."""
-    
+
     def __init__(self, token=None):
         self._token = token
         self._client = None
-    
+
     @property
     def client(self):
         if self._client is None:
@@ -22,16 +22,16 @@ class ApifyService:
                 raise ValueError("Apify token is required")
             self._client = ApifyClient(self._token)
         return self._client
-    
+
     @handle_apify
     def run_actor(self, actor_id, run_input):
         """Run an Apify actor with error handling, retry and timing.
-        
-        All errors will be transformed into ServiceError with 
+
+        All errors will be transformed into ServiceError with
         contextual information and automatic retry for transient errors.
         """
         return self.client.actor(actor_id).call(run_input=run_input)
-    
+
     @handle_apify
     def get_dataset_items(self, dataset_id):
         """Get items from an Apify dataset with error handling."""
