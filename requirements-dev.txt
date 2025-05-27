@@ -1,11 +1,10 @@
-pytest
-pytest-mock
-pytest-cov
-pytest-asyncio
-pre-commit
 black
-isort
 flake8
 flake8-docstrings
+isort
+pre-commit
+pytest
+pytest-cov
+pytest-mock
 pytest-profiling
 pytest-xdist

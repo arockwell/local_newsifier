@@ -35,22 +35,22 @@ This document outlines the systematic approach to convert all FastAPI routes and
 ## Phase 3: Convert Route Handlers
 
 ### 3.1 Authentication Routes (`routers/auth.py`)
-- [ ] Convert `login_page()` to sync
-- [ ] Convert `login()` to sync
-- [ ] Convert `logout()` to sync
+- [x] Convert `login_page()` to sync
+- [x] Convert `login()` to sync
+- [x] Convert `logout()` to sync
 
 ### 3.2 System Routes (`routers/system.py`)
-- [ ] Convert `get_tables()` to sync
-- [ ] Convert `get_tables_api()` to sync
-- [ ] Convert `get_table_details()` to sync
-- [ ] Convert `get_table_details_api()` to sync
+- [x] Convert `get_tables()` to sync
+- [x] Convert `get_tables_api()` to sync
+- [x] Convert `get_table_details()` to sync
+- [x] Convert `get_table_details_api()` to sync
 
 ### 3.3 Task Routes (`routers/tasks.py`)
-- [ ] Convert `tasks_dashboard()` to sync
-- [ ] Convert `process_article_endpoint()` to sync
-- [ ] Convert `fetch_rss_feeds_endpoint()` to sync
-- [ ] Convert `get_task_status()` to sync
-- [ ] Convert `cancel_task()` to sync
+- [x] Convert `tasks_dashboard()` to sync
+- [x] Convert `process_article_endpoint()` to sync
+- [x] Convert `fetch_rss_feeds_endpoint()` to sync
+- [x] Convert `get_task_status()` to sync
+- [x] Convert `cancel_task()` to sync
 
 ### 3.4 Webhook Routes (`routers/webhooks.py`)
 - [x] Keep `apify_webhook()` as async (required for `await request.body()`)
@@ -58,34 +58,34 @@ This document outlines the systematic approach to convert all FastAPI routes and
 - [x] Update webhook service calls to use sync version
 
 ### 3.5 Main Routes (`api/main.py`)
-- [ ] Convert `root()` to sync
-- [ ] Convert `health_check()` to sync
-- [ ] Convert `get_config()` to sync
+- [x] Convert `root()` to sync
+- [x] Convert `health_check()` to sync
+- [x] Convert `get_config()` to sync
 
 ## Phase 4: Update Tests
 
 ### 4.1 API Tests
-- [ ] Update `tests/api/test_auth.py` to remove async patterns
-- [ ] Update `tests/api/test_system.py` to remove async patterns
-- [ ] Update `tests/api/test_tasks.py` to remove async patterns
-- [ ] Update `tests/api/test_webhooks.py` to remove async patterns
-- [ ] Update `tests/api/test_main.py` to remove async patterns
+- [x] Update `tests/api/test_auth.py` to remove async patterns
+- [x] Update `tests/api/test_system.py` to remove async patterns
+- [x] Update `tests/api/test_tasks.py` to remove async patterns
+- [x] Update `tests/api/test_webhooks.py` to remove async patterns
+- [x] Update `tests/api/test_main.py` to remove async patterns
 
 ### 4.2 Service Tests
-- [ ] Update tests for converted async services
-- [ ] Remove any async test fixtures
+- [x] Update tests for converted async services (all async services removed)
+- [x] Remove any async test fixtures (removed event_loop fixture)
 
 ## Phase 5: Cleanup and Optimization
 
 ### 5.1 Remove Async Dependencies
-- [ ] Remove `httpx` async client usage (switch to `requests`)
-- [ ] Remove `asyncio` imports
-- [ ] Update `requirements.txt` if needed
+- [x] Remove `httpx` async client usage (no httpx usage found)
+- [x] Remove `asyncio` imports (only in main.py lifespan, which is required)
+- [x] Update `requirements.txt` if needed (removed pytest-asyncio, aiosqlite, asyncpg)
 
 ### 5.2 Update Documentation
-- [ ] Update API documentation to reflect sync patterns
-- [ ] Update CLAUDE.md files in affected directories
-- [ ] Update any example code in docs
+- [x] Update API documentation to reflect sync patterns (already sync-only)
+- [x] Update CLAUDE.md files in affected directories (removed async references)
+- [x] Update any example code in docs (already shows async as WRONG examples)
 
 ## Implementation Order
 
@@ -112,8 +112,8 @@ After each phase:
 
 ## Success Criteria
 
-- [ ] All `async def` converted to `def` in API routes
-- [ ] No `await` keywords in API code
+- [x] All `async def` converted to `def` in API routes (except lifespan which is required)
+- [x] No `await` keywords in API code (except in lifespan and webhook body reading)
 - [ ] All tests passing
 - [ ] No async runtime warnings
 - [ ] API performance maintained or improved

@@ -12,13 +12,8 @@ The database module manages database connections, sessions, and transaction hand
 
 ### Session Utilities
 - Legacy `session_utils.py` module has been removed
-- Use the `get_session` provider via FastAPI-Injectable for sync session management
-- Use the `get_async_session` provider for async session management
-
-### Async Engine
-- **async_engine.py**: Creates and manages async database engines
-- Handles async connection pools and session creation
-- Automatically converts sync PostgreSQL URLs to async format (postgresql+asyncpg://)
+- Use the `get_session` provider via FastAPI-Injectable for session management
+- All sessions are synchronous - no async patterns
 
 ## Database Connection Patterns
 
@@ -262,97 +257,6 @@ with Session(engine) as session:
         # Test operations are rolled back automatically
 ```
 
-## Async Database Patterns
-
-The database module now supports both sync and async patterns. Choose based on your use case:
-- **Sync**: Use for CLI commands, background tasks, and simple operations
-- **Async**: Use for web endpoints, concurrent operations, and I/O-heavy workloads
-
-### Async Engine Creation
-The async engine is managed by `AsyncDatabaseManager`:
-
-```python
-from local_newsifier.database.async_engine import get_async_db_manager
-
-manager = get_async_db_manager()
-async with manager.get_session() as session:
-    # Async database operations
-```
-
-### Async Session Management
-Use the async context manager for session handling:
-
-```python
-from local_newsifier.database.async_engine import get_async_session
-
-async with get_async_session() as session:
-    # Session is automatically committed on success
-    # or rolled back on exception
-```
-
-### FastAPI-Injectable Async Provider
-For FastAPI endpoints, use the async provider:
-
-```python
-from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from local_newsifier.di.async_providers import get_async_db_session
-
-@router.post("/webhook")
-async def handle_webhook(
-    data: dict,
-    session: Annotated[AsyncSession, Depends(get_async_db_session)]
-):
-    # Use async session for database operations
-    result = await session.execute(query)
-```
-
-### Async Query Patterns
-Async queries require different syntax:
-
-```python
-# Sync pattern
-result = session.exec(select(Article).where(Article.id == id)).first()
-
-# Async pattern
-from sqlalchemy import select
-result = await session.execute(select(Article).where(Article.id == id))
-article = result.scalar_one_or_none()
-```
-
-### When to Use Sync vs Async
-
-**Use Sync Sessions When:**
-- Working in CLI commands
-- Processing background tasks with Celery
-- Simple sequential operations
-- Legacy code that doesn't support async
-
-**Use Async Sessions When:**
-- Handling web requests in FastAPI
-- Processing webhooks
-- Concurrent database operations
-- I/O-heavy operations that benefit from concurrency
-
-### Async Transaction Management
-Explicit transaction control in async context:
-
-```python
-async with get_async_session() as session:
-    async with session.begin():
-        # All operations in this block are in a transaction
-        await session.execute(query1)
-        await session.execute(query2)
-        # Transaction commits automatically or rolls back on exception
-```
-
-### Async Connection Pooling
-Async engine uses similar pooling configuration:
-- `pool_size=5`: Default pool size
-- `max_overflow=10`: Maximum overflow connections
-- `pool_pre_ping=True`: Check connection validity
-- `pool_recycle=300`: Recycle connections every 5 minutes
 
 ## Common Issues and Solutions
 
@@ -389,26 +293,3 @@ This occurs when all connections in the pool are in use.
 2. Increase pool size for high-concurrency scenarios
 3. Use shorter-lived sessions
 4. Look for connection leaks in background tasks
-
-### Async/Await Missing Errors
-Forgetting to use `await` with async database operations.
-
-**Solution:**
-Always use `await` with async operations:
-```python
-# Incorrect
-result = session.execute(query)  # Returns coroutine, not result
-
-# Correct
-result = await session.execute(query)
-```
-
-### Mixing Sync and Async Sessions
-Using sync models with async sessions or vice versa.
-
-**Solution:**
-Keep sync and async patterns separate:
-```python
-# Don't mix patterns
-# Use either all sync or all async in a single operation
-```
