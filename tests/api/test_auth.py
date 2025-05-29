@@ -1,6 +1,5 @@
 """Tests for the authentication router."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest

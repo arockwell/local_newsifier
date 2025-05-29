@@ -5,7 +5,6 @@ This module provides a service for managing Apify source configurations, includi
 creating, updating, listing, and running configurations.
 """
 
-import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union

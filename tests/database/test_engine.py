@@ -1,6 +1,5 @@
 """Tests for the database engine module."""
 
-import logging
 from unittest.mock import MagicMock, call, patch
 
 import pytest

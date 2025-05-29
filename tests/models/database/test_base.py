@@ -3,7 +3,6 @@
 import datetime
 from typing import Optional
 
-import pytest
 from sqlmodel import Field, Session, SQLModel
 
 from local_newsifier.models.base import TableBase

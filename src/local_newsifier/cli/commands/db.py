@@ -56,7 +56,7 @@ def db_stats(json_output: bool):
     # RSS Feed stats
     feed_count = session.exec(select(func.count()).select_from(RSSFeed)).one()
     active_feed_count = session.exec(
-        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active == True)
+        select(func.count()).select_from(RSSFeed).where(RSSFeed.is_active)
     ).one()
 
     # RSSFeedProcessingLog stats

@@ -2,7 +2,6 @@
 
 import datetime
 
-import pytest
 from sqlmodel import Session, inspect
 
 from local_newsifier.models.article import Article

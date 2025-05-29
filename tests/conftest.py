@@ -4,7 +4,6 @@ This module provides common test fixtures like sample data.
 Database configuration is handled in the root conftest.py.
 """
 
-import os
 from datetime import datetime, timezone
 from typing import Dict, Generator, List
 

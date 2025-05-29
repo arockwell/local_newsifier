@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 
-import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from local_newsifier.models.analysis_result import AnalysisResult

@@ -1,7 +1,6 @@
 """Consolidated trend analysis tool for news articles."""
 
 import logging
-import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional, Set, Tuple, Union

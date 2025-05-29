@@ -4,7 +4,6 @@ This file contains tests that directly test the implementation of EntityService
 methods rather than using mocks, to improve code coverage.
 """
 
-import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch

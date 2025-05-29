@@ -1,6 +1,5 @@
 """Tests for the entity relationship CRUD module using model inputs."""
 
-import pytest
 from sqlmodel import select
 
 from local_newsifier.crud.entity_relationship import entity_relationship as entity_relationship_crud

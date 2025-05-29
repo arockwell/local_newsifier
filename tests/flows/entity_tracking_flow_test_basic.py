@@ -3,8 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, Mock, call, patch
 
-import pytest
-
 # Mock spaCy and TextBlob before imports
 patch("spacy.load", MagicMock(return_value=MagicMock())).start()
 patch(

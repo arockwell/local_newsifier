@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from sqlmodel import Session, select
 
 from local_newsifier.crud.feed_processing_log import CRUDFeedProcessingLog, feed_processing_log

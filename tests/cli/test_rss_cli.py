@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 import click
-import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors

@@ -43,14 +43,15 @@ def _skip_if_ci(func, reason):
 
 
 # Specialized decorators with descriptive reasons
-ci_skip_async = lambda func=None: (
-    ci_skip("Skipped in CI due to async event loop issues")(func)
-    if func
-    else ci_skip("Skipped in CI due to async event loop issues")
-)
+def ci_skip_async(func=None):
+    if func:
+        return ci_skip("Skipped in CI due to async event loop issues")(func)
+    else:
+        return ci_skip("Skipped in CI due to async event loop issues")
 
-ci_skip_injectable = lambda func=None: (
-    ci_skip("Skipped in CI due to fastapi-injectable issues")(func)
-    if func
-    else ci_skip("Skipped in CI due to fastapi-injectable issues")
-)
+
+def ci_skip_injectable(func=None):
+    if func:
+        return ci_skip("Skipped in CI due to fastapi-injectable issues")(func)
+    else:
+        return ci_skip("Skipped in CI due to fastapi-injectable issues")
