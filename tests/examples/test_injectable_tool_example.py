@@ -3,7 +3,6 @@
 from typing import Annotated, Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi import Depends
 
 # Create a mock injectable decorator for testing

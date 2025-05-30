@@ -3,7 +3,6 @@ Configuration for services tests.
 This file sets up mocks to avoid the SQLite dependency chain.
 """
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest

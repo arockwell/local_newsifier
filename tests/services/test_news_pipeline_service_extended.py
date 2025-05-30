@@ -3,8 +3,6 @@
 from datetime import datetime
 from unittest.mock import MagicMock, call, patch
 
-import pytest
-
 
 def test_pipeline_initialization_with_custom_config():
     """Test initializing pipeline with custom configuration."""

@@ -1,6 +1,5 @@
 """Tests for RSS feeds CLI commands using injectable provider functions."""
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
