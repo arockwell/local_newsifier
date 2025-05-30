@@ -73,7 +73,6 @@ def _make_simple_provider(obj_path: str):
 # Database providers
 
 
-@injectable(use_cache=False)
 def get_session() -> Generator[Session, None, None]:
     """Provide a database session.
 
