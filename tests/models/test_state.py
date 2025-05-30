@@ -2,8 +2,6 @@
 
 from datetime import datetime
 
-import pytest
-
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 
 

@@ -24,7 +24,7 @@ templates = Jinja2Templates(directory=templates_dir)
 
 def get_templates() -> Jinja2Templates:
     """Get the Jinja2 templates.
-    
+
     Returns:
         Jinja2Templates: The templates object for HTML rendering
     """
@@ -63,10 +63,10 @@ def get_session() -> Generator[Session, None, None]:
     Yields:
         Session: SQLModel session
     """
-    from local_newsifier.di.providers import get_session as get_injectable_session
+    from local_newsifier.database.engine import get_session as get_db_session
 
-    # Use injectable provider directly
-    yield from get_injectable_session()
+    # Use the database engine's get_session directly
+    yield from get_db_session()
 
 
 def get_article_service() -> ArticleService:

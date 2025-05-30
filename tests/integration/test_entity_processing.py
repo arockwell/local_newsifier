@@ -15,9 +15,10 @@ def test_entity_processing_integration():
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
     session_factory = sessionmaker(engine)
-    
+
     # Create test article
     from local_newsifier.models.article import Article
+
     with session_factory() as session:
         article = Article(
             title="Test Article",
@@ -26,13 +27,13 @@ def test_entity_processing_integration():
             source="test_source",
             published_at=datetime(2025, 1, 1),
             status="new",
-            scraped_at=datetime.now()
+            scraped_at=datetime.now(),
         )
         session.add(article)
         session.commit()
         session.refresh(article)
         article_id = article.id
-    
+
     # Create real components
     from local_newsifier.crud.article import article as article_crud
     from local_newsifier.crud.canonical_entity import canonical_entity as canonical_entity_crud
@@ -57,40 +58,40 @@ def test_entity_processing_integration():
         entity_extractor=EntityExtractor(),
         context_analyzer=ContextAnalyzer(),
         entity_resolver=EntityResolver(),
-        session_factory=session_factory
+        session_factory=session_factory,
     )
-    
+
     # Create flow with service
     flow = EntityTrackingFlow(entity_service=service)
-    
+
     # Create state
     state = EntityTrackingState(
         article_id=article_id,
         content=article.content,
         title=article.title,
-        published_at=article.published_at
+        published_at=article.published_at,
     )
-    
+
     # Process state
     result_state = flow.process(state)
-    
+
     # In a real environment with NLP models, this should succeed
     # But we don't want to fail CI/CD pipelines if NLP models aren't loaded
     # so we're skipping the test instead
-    
+
     # Verify results - not asserting SUCCESS because it depends on environment setup
     if result_state.status == "SUCCESS":
         assert len(result_state.entities) > 0
-        
+
         # Verify database state
         with session_factory() as session:
             entities = entity_crud.get_by_article(session, article_id=article_id)
             assert len(entities) > 0
-            
+
             # Should find at least John Doe and Acme Corp
             person_entities = [e for e in entities if e.entity_type == "PERSON"]
             org_entities = [e for e in entities if e.entity_type == "ORG"]
-            
+
             assert len(person_entities) > 0
             assert any(e.text == "John Doe" for e in person_entities)
             assert len(org_entities) > 0

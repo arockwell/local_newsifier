@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-import pytest
 from sqlmodel import Session, select
 
 from local_newsifier.crud.rss_feed import CRUDRSSFeed, rss_feed
@@ -19,7 +18,7 @@ def test_get_by_url(db_session):
         description="A test feed",
         is_active=True,
         created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        updated_at=datetime.now(timezone.utc),
     )
     db_session.add(feed)
     db_session.commit()
@@ -45,7 +44,7 @@ def test_get_active_feeds(db_session):
             description="An active feed",
             is_active=True,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         ),
         RSSFeed(
             url="https://example.com/feed2.xml",
@@ -53,7 +52,7 @@ def test_get_active_feeds(db_session):
             description="Another active feed",
             is_active=True,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         ),
         RSSFeed(
             url="https://example.com/feed3.xml",
@@ -61,8 +60,8 @@ def test_get_active_feeds(db_session):
             description="An inactive feed",
             is_active=False,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
+            updated_at=datetime.now(timezone.utc),
+        ),
     ]
 
     for feed in feeds:
@@ -93,7 +92,7 @@ def test_update_last_fetched(db_session):
         is_active=True,
         created_at=old_time,
         updated_at=old_time,
-        last_fetched_at=old_time
+        last_fetched_at=old_time,
     )
     db_session.add(feed)
     db_session.commit()
@@ -105,14 +104,15 @@ def test_update_last_fetched(db_session):
     # Store the initial values
     initial_last_fetched = feed.last_fetched_at
     initial_updated_at = feed.updated_at
-    
+
     # Force a small delay to ensure timestamps will be different
     import time
+
     time.sleep(0.01)
-    
+
     # Update the feed
     updated_feed = rss_feed.update_last_fetched(db_session, id=feed_id)
-    
+
     # Verify the feed was updated
     assert updated_feed is not None
     assert updated_feed.last_fetched_at > initial_last_fetched
@@ -120,14 +120,14 @@ def test_update_last_fetched(db_session):
 
     # Verify in the database
     db_feed = db_session.get(RSSFeed, feed_id)
-    
+
     # Handle timezone-awareness for comparison
     if db_feed.last_fetched_at.tzinfo is None:
         # If the database returns naive datetime, convert it to aware
         last_fetched_aware = db_feed.last_fetched_at.replace(tzinfo=timezone.utc)
     else:
         last_fetched_aware = db_feed.last_fetched_at
-        
+
     assert last_fetched_aware > old_time
 
 

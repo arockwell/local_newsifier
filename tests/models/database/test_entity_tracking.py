@@ -1,6 +1,5 @@
 """Integration tests for the entity tracking database functionality."""
 
-import time
 from datetime import UTC, datetime, timedelta
 from typing import Generator
 
@@ -31,7 +30,7 @@ def sample_article(db_session: Session):
         published_at=datetime.now(UTC),
         source="example.com",
         status=AnalysisStatus.INITIALIZED.value,
-        scraped_at=datetime.now(UTC)
+        scraped_at=datetime.now(UTC),
     )
     return article_crud.create(db_session, obj_in=article)
 
@@ -154,16 +153,13 @@ def test_entity_timeline_and_sentiment_trend(db_session: Session):
         published_at=datetime.now(UTC),
         source="example.com",
         status=AnalysisStatus.INITIALIZED.value,
-        scraped_at=datetime.now(UTC)
+        scraped_at=datetime.now(UTC),
     )
 
     created_article = article_crud.create(db_session, obj_in=article)
 
     # Create canonical entity
-    entity_data = CanonicalEntity(
-        name="Joe Biden", 
-        entity_type="PERSON"
-    )
+    entity_data = CanonicalEntity(name="Joe Biden", entity_type="PERSON")
 
     canonical_entity = canonical_entity_crud.create(db_session, obj_in=entity_data)
 
@@ -192,7 +188,7 @@ def test_entity_timeline_and_sentiment_trend(db_session: Session):
         canonical_entity_id=canonical_entity.id,
         entity_id=created_entity.id,
         article_id=created_article.id,
-        confidence=0.95
+        confidence=0.95,
     )
     db_session.add(entity_mention)
     db_session.commit()

@@ -1,6 +1,5 @@
 """Tests for the CLI application."""
 
-import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli
@@ -13,7 +12,7 @@ def test_cli_loads_without_error():
     assert result.exit_code == 0
     assert "feeds" in result.output
     assert "db" in result.output
-    
+
 
 def test_cli_version():
     """Test that the CLI has a version."""

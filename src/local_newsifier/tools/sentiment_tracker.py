@@ -65,7 +65,7 @@ class SentimentTracker:
         time_interval: str = "day",
         topics: Optional[List[str]] = None,
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> Dict[str, Dict]:
         """
         Get sentiment data grouped by time periods.
@@ -100,16 +100,12 @@ class SentimentTracker:
 
             # Calculate overall sentiment for period
             if sentiment_data:
-                period_results["overall"] = self._calculate_period_sentiment(
-                    sentiment_data
-                )
+                period_results["overall"] = self._calculate_period_sentiment(sentiment_data)
 
             # Calculate topic-specific sentiment if topics provided
             if topics:
                 for topic in topics:
-                    topic_sentiment = self._calculate_topic_sentiment(
-                        sentiment_data, topic
-                    )
+                    topic_sentiment = self._calculate_topic_sentiment(sentiment_data, topic)
                     if topic_sentiment:
                         period_results[topic] = topic_sentiment
 
@@ -125,7 +121,7 @@ class SentimentTracker:
         end_date: datetime,
         time_interval: str = "day",
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> Dict[str, Dict]:
         """
         Get sentiment trends for a specific entity over time.
@@ -157,9 +153,7 @@ class SentimentTracker:
             sentiment_data = self._get_sentiment_data_for_articles(article_ids, session=session)
 
             # Extract entity sentiment
-            entity_sentiment = self._calculate_entity_sentiment(
-                sentiment_data, entity_name
-            )
+            entity_sentiment = self._calculate_entity_sentiment(sentiment_data, entity_name)
 
             if entity_sentiment:
                 results[period] = entity_sentiment
@@ -175,7 +169,7 @@ class SentimentTracker:
         time_interval: str = "day",
         shift_threshold: float = 0.3,
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> List[Dict]:
         """
         Detect significant shifts in sentiment.
@@ -202,9 +196,7 @@ class SentimentTracker:
         shifts = []
 
         for topic in topics:
-            topic_shifts = self._detect_topic_shifts(
-                topic, sentiment_by_period, shift_threshold
-            )
+            topic_shifts = self._detect_topic_shifts(topic, sentiment_by_period, shift_threshold)
             shifts.extend(topic_shifts)
 
         return shifts
@@ -218,7 +210,7 @@ class SentimentTracker:
         end_date: datetime,
         time_interval: str = "day",
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> Dict:
         """
         Calculate correlation between sentiment trends of two topics.
@@ -266,9 +258,7 @@ class SentimentTracker:
             "periods": periods,
         }
 
-    def _calculate_correlation(
-        self, values1: List[float], values2: List[float]
-    ) -> float:
+    def _calculate_correlation(self, values1: List[float], values2: List[float]) -> float:
         """Calculate Pearson correlation coefficient between two lists of values."""
         if len(values1) != len(values2) or len(values1) < 2:
             return 0.0
@@ -293,7 +283,9 @@ class SentimentTracker:
         return correlation
 
     @with_session
-    def _get_articles_in_range(self, start_date: datetime, end_date: datetime, *, session: Optional[Session] = None) -> List:
+    def _get_articles_in_range(
+        self, start_date: datetime, end_date: datetime, *, session: Optional[Session] = None
+    ) -> List:
         """
         Get all articles published within the date range.
 
@@ -309,19 +301,21 @@ class SentimentTracker:
         session = self._get_session(session)
 
         # Use SQLModel query syntax with select
-        statement = select(Article).where(
-            Article.published_at >= start_date,
-            Article.published_at <= end_date,
-            Article.status.in_(["analyzed", "entity_tracked"])
-        ).order_by(Article.published_at)
+        statement = (
+            select(Article)
+            .where(
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+                Article.status.in_(["analyzed", "entity_tracked"]),
+            )
+            .order_by(Article.published_at)
+        )
 
         results = session.execute(statement)
         articles = results.all()
         return articles
 
-    def _group_articles_by_period(
-        self, articles: List, time_interval: str
-    ) -> Dict[str, List]:
+    def _group_articles_by_period(self, articles: List, time_interval: str) -> Dict[str, List]:
         """Group articles by time period."""
         period_groups = defaultdict(list)
 
@@ -349,7 +343,9 @@ class SentimentTracker:
             return date.strftime("%Y-%m-%d")  # Default to day
 
     @with_session
-    def _get_sentiment_data_for_articles(self, article_ids: List[int], *, session: Optional[Session] = None) -> List[Dict]:
+    def _get_sentiment_data_for_articles(
+        self, article_ids: List[int], *, session: Optional[Session] = None
+    ) -> List[Dict]:
         """
         Get sentiment analysis results for articles.
 
@@ -368,8 +364,7 @@ class SentimentTracker:
         for article_id in article_ids:
             # Query analysis results using SQLModel syntax
             statement = select(AnalysisResult).where(
-                AnalysisResult.article_id == article_id,
-                AnalysisResult.analysis_type == "sentiment"
+                AnalysisResult.article_id == article_id, AnalysisResult.analysis_type == "sentiment"
             )
             results = session.exec(statement).all()
 
@@ -377,25 +372,17 @@ class SentimentTracker:
                 if result.analysis_type == "sentiment":
                     data = {
                         "article_id": article_id,
-                        "document_sentiment": result.results.get(
-                            "document_sentiment", 0.0
-                        ),
-                        "document_magnitude": result.results.get(
-                            "document_magnitude", 0.0
-                        ),
+                        "document_sentiment": result.results.get("document_sentiment", 0.0),
+                        "document_magnitude": result.results.get("document_magnitude", 0.0),
                         "topic_sentiments": result.results.get("topic_sentiments", {}),
-                        "entity_sentiments": result.results.get(
-                            "entity_sentiments", {}
-                        ),
+                        "entity_sentiments": result.results.get("entity_sentiments", {}),
                     }
                     sentiment_data.append(data)
                     break
 
         return sentiment_data
 
-    def _calculate_sentiment_distribution(
-        self, sentiment_data: List[Dict]
-    ) -> Dict[str, int]:
+    def _calculate_sentiment_distribution(self, sentiment_data: List[Dict]) -> Dict[str, int]:
         """Calculate distribution of sentiment across articles."""
         distribution = {"positive": 0, "neutral": 0, "negative": 0}
 
@@ -410,9 +397,7 @@ class SentimentTracker:
 
         return distribution
 
-    def _calculate_topic_sentiment(
-        self, sentiment_data: List[Dict], topic: str
-    ) -> Dict:
+    def _calculate_topic_sentiment(self, sentiment_data: List[Dict], topic: str) -> Dict:
         """Calculate sentiment for a specific topic."""
         topic_lower = topic.lower()
         relevant_data = []
@@ -430,9 +415,9 @@ class SentimentTracker:
 
             if matched_topics:
                 # Average sentiment for all matched topics
-                topic_sentiment = sum(
-                    topic_sentiments[t] for t in matched_topics
-                ) / len(matched_topics)
+                topic_sentiment = sum(topic_sentiments[t] for t in matched_topics) / len(
+                    matched_topics
+                )
 
                 relevant_data.append(
                     {"article_id": data.get("article_id"), "sentiment": topic_sentiment}
@@ -464,9 +449,7 @@ class SentimentTracker:
             "article_ids": [d["article_id"] for d in relevant_data],
         }
 
-    def _calculate_entity_sentiment(
-        self, sentiment_data: List[Dict], entity_name: str
-    ) -> Dict:
+    def _calculate_entity_sentiment(self, sentiment_data: List[Dict], entity_name: str) -> Dict:
         """Calculate sentiment for a specific entity."""
         entity_lower = entity_name.lower()
         relevant_data = []
@@ -484,9 +467,9 @@ class SentimentTracker:
 
             if matched_entities:
                 # Average sentiment for all matched entities
-                entity_sentiment = sum(
-                    entity_sentiments[e] for e in matched_entities
-                ) / len(matched_entities)
+                entity_sentiment = sum(entity_sentiments[e] for e in matched_entities) / len(
+                    matched_entities
+                )
 
                 relevant_data.append(
                     {
@@ -601,10 +584,7 @@ class SentimentTracker:
 
         for period, period_data in sentiment_by_period.items():
             for topic in topics:
-                if (
-                    topic in period_data
-                    and period_data[topic].get("article_count", 0) > 0
-                ):
+                if topic in period_data and period_data[topic].get("article_count", 0) > 0:
                     topic_data = period_data[topic]
 
                     # Create trend record with SQLModel
@@ -680,9 +660,7 @@ class SentimentTracker:
 
         # Calculate average sentiment and magnitude
         total_sentiment = sum(data["document_sentiment"] for data in sentiment_data)
-        total_magnitude = sum(
-            data.get("document_magnitude", 0.0) for data in sentiment_data
-        )
+        total_magnitude = sum(data.get("document_magnitude", 0.0) for data in sentiment_data)
 
         avg_sentiment = total_sentiment / len(sentiment_data)
         avg_magnitude = total_magnitude / len(sentiment_data)

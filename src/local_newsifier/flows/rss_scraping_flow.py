@@ -22,13 +22,13 @@ class RSSScrapingFlow(Flow):
     """Flow for processing RSS feeds and scraping their content."""
 
     def __init__(
-        self, 
+        self,
         rss_feed_service: Optional[RSSFeedService] = None,
         article_service: Optional[ArticleService] = None,
         rss_parser: Optional[RSSParser] = None,
         web_scraper: Optional[WebScraperTool] = None,
         cache_dir: Optional[str] = None,
-        session_factory: Optional[Callable] = None
+        session_factory: Optional[Callable] = None,
     ):
         """
         Initialize the RSS scraping flow.
@@ -54,7 +54,7 @@ class RSSScrapingFlow(Flow):
             cache_file = self.cache_dir / "rss_urls.json" if self.cache_dir else None
             self.rss_parser = RSSParser(
                 cache_file=str(cache_file) if cache_file else None,
-                cache_dir=str(self.cache_dir) if self.cache_dir else None
+                cache_dir=str(self.cache_dir) if self.cache_dir else None,
             )
 
         self.web_scraper = web_scraper or WebScraperTool()
@@ -113,4 +113,3 @@ class RSSScrapingFlow(Flow):
                 results.append(state)
 
         return results
-        

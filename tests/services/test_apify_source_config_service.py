@@ -1,6 +1,5 @@
 """Tests for ApifySourceConfigService."""
 
-import json
 from datetime import datetime
 from unittest.mock import Mock, patch
 
@@ -62,11 +61,7 @@ class TestApifySourceConfigService:
         # Setup mock
         mock_configs = [
             ApifySourceConfig(
-                id=1, 
-                name="Test Config", 
-                actor_id="test-actor",
-                source_type="news",
-                is_active=True
+                id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
             )
         ]
         mock_crud.get_multi.return_value = mock_configs
@@ -86,11 +81,7 @@ class TestApifySourceConfigService:
         # Setup mock
         mock_configs = [
             ApifySourceConfig(
-                id=1, 
-                name="Test Config", 
-                actor_id="test-actor",
-                source_type="news",
-                is_active=True
+                id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
             )
         ]
         mock_crud.get_active_configs.return_value = mock_configs
@@ -100,22 +91,18 @@ class TestApifySourceConfigService:
 
         # Verify
         mock_session_factory.assert_called_once()
-        mock_crud.get_active_configs.assert_called_once_with(
-            mock_session, skip=0, limit=100
-        )
+        mock_crud.get_active_configs.assert_called_once_with(mock_session, skip=0, limit=100)
         assert len(result) == 1
         assert result[0]["name"] == "Test Config"
 
-    def test_list_configs_by_source_type(self, service, mock_crud, mock_session_factory, mock_session):
+    def test_list_configs_by_source_type(
+        self, service, mock_crud, mock_session_factory, mock_session
+    ):
         """Test listing configs by source type."""
         # Setup mock
         mock_configs = [
             ApifySourceConfig(
-                id=1, 
-                name="Test Config", 
-                actor_id="test-actor",
-                source_type="news",
-                is_active=True
+                id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
             )
         ]
         mock_crud.get_by_source_type.return_value = mock_configs
@@ -125,9 +112,7 @@ class TestApifySourceConfigService:
 
         # Verify
         mock_session_factory.assert_called_once()
-        mock_crud.get_by_source_type.assert_called_once_with(
-            mock_session, source_type="news"
-        )
+        mock_crud.get_by_source_type.assert_called_once_with(mock_session, source_type="news")
         assert len(result) == 1
         assert result[0]["source_type"] == "news"
 
@@ -135,11 +120,7 @@ class TestApifySourceConfigService:
         """Test getting a specific config."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=True
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
         )
         mock_crud.get.return_value = mock_config
 
@@ -169,19 +150,13 @@ class TestApifySourceConfigService:
         """Test creating a new config."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=True
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
         )
         mock_crud.create.return_value = mock_config
 
         # Call function
         result = service.create_config(
-            name="Test Config",
-            actor_id="test-actor",
-            source_type="news"
+            name="Test Config", actor_id="test-actor", source_type="news"
         )
 
         # Verify
@@ -199,17 +174,13 @@ class TestApifySourceConfigService:
             service="apify",
             error_type="validation",
             message="Config with this name already exists",
-            context={"name": "Test Config"}
+            context={"name": "Test Config"},
         )
 
         # Call function and verify exception
         with pytest.raises(ServiceError) as exc_info:
-            service.create_config(
-                name="Test Config",
-                actor_id="test-actor",
-                source_type="news"
-            )
-        
+            service.create_config(name="Test Config", actor_id="test-actor", source_type="news")
+
         # Verify
         assert "Config with this name already exists" in str(exc_info.value)
         mock_session_factory.assert_called_once()
@@ -218,27 +189,16 @@ class TestApifySourceConfigService:
         """Test updating a config."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=True
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
         )
         updated_config = ApifySourceConfig(
-            id=1, 
-            name="Updated Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=True
+            id=1, name="Updated Config", actor_id="test-actor", source_type="news", is_active=True
         )
         mock_crud.get.return_value = mock_config
         mock_crud.update.return_value = updated_config
 
         # Call function
-        result = service.update_config(
-            config_id=1,
-            name="Updated Config"
-        )
+        result = service.update_config(config_id=1, name="Updated Config")
 
         # Verify
         mock_session_factory.assert_called_once()
@@ -253,10 +213,7 @@ class TestApifySourceConfigService:
         mock_crud.get.return_value = None
 
         # Call function
-        result = service.update_config(
-            config_id=999,
-            name="Updated Config"
-        )
+        result = service.update_config(config_id=999, name="Updated Config")
 
         # Verify
         mock_session_factory.assert_called_once()
@@ -267,11 +224,7 @@ class TestApifySourceConfigService:
         """Test removing a config."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=True
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=True
         )
         mock_crud.get.return_value = mock_config
         mock_crud.remove.return_value = mock_config
@@ -288,11 +241,7 @@ class TestApifySourceConfigService:
         """Test toggling active status."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=False
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=False
         )
         mock_crud.toggle_active.return_value = mock_config
 
@@ -301,26 +250,26 @@ class TestApifySourceConfigService:
 
         # Verify
         mock_session_factory.assert_called_once()
-        mock_crud.toggle_active.assert_called_once_with(
-            mock_session, config_id=1, is_active=False
-        )
+        mock_crud.toggle_active.assert_called_once_with(mock_session, config_id=1, is_active=False)
         assert result["is_active"] is False
 
-    def test_run_configuration(self, service, mock_crud, mock_apify_service, mock_session_factory, mock_session):
+    def test_run_configuration(
+        self, service, mock_crud, mock_apify_service, mock_session_factory, mock_session
+    ):
         """Test running a configuration."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
+            id=1,
+            name="Test Config",
             actor_id="test-actor",
             source_type="news",
             is_active=True,
-            input_configuration={"url": "https://example.com"}
+            input_configuration={"url": "https://example.com"},
         )
         mock_crud.get.return_value = mock_config
         mock_apify_service.run_actor.return_value = {
             "id": "run123",
-            "defaultDatasetId": "dataset123"
+            "defaultDatasetId": "dataset123",
         }
 
         # Call function
@@ -331,8 +280,7 @@ class TestApifySourceConfigService:
         mock_crud.get.assert_called_once_with(mock_session, id=1)
         mock_crud.update_last_run.assert_called_once()
         mock_apify_service.run_actor.assert_called_once_with(
-            actor_id="test-actor",
-            run_input={"url": "https://example.com"}
+            actor_id="test-actor", run_input={"url": "https://example.com"}
         )
         assert result["status"] == "success"
         assert result["config_id"] == 1
@@ -341,7 +289,9 @@ class TestApifySourceConfigService:
         assert result["run_id"] == "run123"
         assert result["dataset_id"] == "dataset123"
 
-    def test_run_configuration_not_found(self, service, mock_crud, mock_session_factory, mock_session):
+    def test_run_configuration_not_found(
+        self, service, mock_crud, mock_session_factory, mock_session
+    ):
         """Test running a non-existent configuration."""
         # Setup mock
         mock_crud.get.return_value = None
@@ -349,28 +299,26 @@ class TestApifySourceConfigService:
         # Call function and verify exception
         with pytest.raises(ServiceError) as exc_info:
             service.run_configuration(config_id=999)
-        
+
         # Verify
         assert "Configuration with ID 999 not found" in str(exc_info.value)
         mock_session_factory.assert_called_once()
         mock_crud.get.assert_called_once_with(mock_session, id=999)
 
-    def test_run_configuration_inactive(self, service, mock_crud, mock_session_factory, mock_session):
+    def test_run_configuration_inactive(
+        self, service, mock_crud, mock_session_factory, mock_session
+    ):
         """Test running an inactive configuration."""
         # Setup mock
         mock_config = ApifySourceConfig(
-            id=1, 
-            name="Test Config", 
-            actor_id="test-actor",
-            source_type="news",
-            is_active=False
+            id=1, name="Test Config", actor_id="test-actor", source_type="news", is_active=False
         )
         mock_crud.get.return_value = mock_config
 
         # Call function and verify exception
         with pytest.raises(ServiceError) as exc_info:
             service.run_configuration(config_id=1)
-        
+
         # Verify
         assert "Configuration 'Test Config' is not active" in str(exc_info.value)
         mock_session_factory.assert_called_once()
@@ -381,12 +329,12 @@ class TestApifySourceConfigService:
         # Setup mock
         mock_configs = [
             ApifySourceConfig(
-                id=1, 
-                name="Test Config", 
+                id=1,
+                name="Test Config",
                 actor_id="test-actor",
                 source_type="news",
                 is_active=True,
-                schedule="0 * * * *"
+                schedule="0 * * * *",
             )
         ]
         mock_crud.get_scheduled_configs.return_value = mock_configs
@@ -396,8 +344,6 @@ class TestApifySourceConfigService:
 
         # Verify
         mock_session_factory.assert_called_once()
-        mock_crud.get_scheduled_configs.assert_called_once_with(
-            mock_session, enabled_only=True
-        )
+        mock_crud.get_scheduled_configs.assert_called_once_with(mock_session, enabled_only=True)
         assert len(result) == 1
         assert result[0]["schedule"] == "0 * * * *"

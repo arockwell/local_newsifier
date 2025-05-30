@@ -26,9 +26,7 @@ class CRUDArticle(CRUDBase[Article]):
         results = db.exec(statement)
         return results.first()
 
-    def create(
-        self, db: Session, *, obj_in: Union[Dict[str, Any], Article]
-    ) -> Article:
+    def create(self, db: Session, *, obj_in: Union[Dict[str, Any], Article]) -> Article:
         """Create a new article.
 
         Args:
@@ -43,7 +41,7 @@ class CRUDArticle(CRUDBase[Article]):
             article_data = obj_in
         else:
             article_data = obj_in.model_dump(exclude_unset=True)
-            
+
         # Add scraped_at if not provided
         if "scraped_at" not in article_data or article_data["scraped_at"] is None:
             article_data["scraped_at"] = datetime.now(timezone.utc)
@@ -54,9 +52,7 @@ class CRUDArticle(CRUDBase[Article]):
         db.refresh(db_article)
         return db_article
 
-    def update_status(
-        self, db: Session, *, article_id: int, status: str
-    ) -> Optional[Article]:
+    def update_status(self, db: Session, *, article_id: int, status: str) -> Optional[Article]:
         """Update an article's status.
 
         Args:
@@ -68,7 +64,7 @@ class CRUDArticle(CRUDBase[Article]):
             Updated article if found, None otherwise
         """
         db_article = db.exec(select(Article).where(Article.id == article_id)).first()
-        
+
         if db_article:
             db_article.status = status
             db.add(db_article)
@@ -88,14 +84,9 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles with the specified status
         """
         return db.exec(select(Article).where(Article.status == status)).all()
-        
+
     def get_by_date_range(
-        self, 
-        db: Session, 
-        *, 
-        start_date: datetime, 
-        end_date: datetime,
-        source: Optional[str] = None
+        self, db: Session, *, start_date: datetime, end_date: datetime, source: Optional[str] = None
     ) -> List[Article]:
         """Get articles within a date range.
 
@@ -109,17 +100,16 @@ class CRUDArticle(CRUDBase[Article]):
             List of articles within the date range
         """
         query = select(Article).where(
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
+            Article.published_at >= start_date, Article.published_at <= end_date
         )
-        
+
         # Add source filter if provided
         if source:
             query = query.where(Article.source == source)
-            
+
         # Order by published date
         query = query.order_by(Article.published_at)
-        
+
         return db.exec(query).all()
 
 

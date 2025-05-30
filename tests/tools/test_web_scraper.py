@@ -10,26 +10,23 @@ This test suite covers:
 """
 
 import time
-from datetime import datetime
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from bs4 import BeautifulSoup
 from requests.exceptions import HTTPError, RequestException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from local_newsifier.di.providers import get_web_scraper_tool
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
 # Import the class for tests
 from local_newsifier.tools.web_scraper import WebScraperTool as WebScraperToolClass
+
 # Import event_loop_fixture for handling async code
-from tests.fixtures.event_loop import event_loop_fixture
 
 
 @pytest.fixture(scope="session")
@@ -235,7 +232,6 @@ def web_scraper(
     mock_webdriver,
     mock_webdriver_wait,
     mock_http_response,
-    event_loop_fixture,
 ):
     """Create a session-scoped WebScraperTool instance with all dependencies mocked."""
     # Configure mocks
@@ -251,9 +247,7 @@ def web_scraper(
 
     # Create the scraper with injectable dependencies
     scraper = WebScraperToolClass(
-        session=mock_session,
-        web_driver=mock_webdriver,
-        user_agent="Test User Agent"
+        session=mock_session, web_driver=mock_webdriver, user_agent="Test User Agent"
     )
     return scraper
 
@@ -263,7 +257,7 @@ class TestWebScraper:
     """Test suite for WebScraperTool."""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self, monkeypatch, mock_webdriver, event_loop_fixture):
+    def setup_method(self, monkeypatch, mock_webdriver):
         """Set up test environment before each test with event loop fixture."""
         # Disable sleep calls
         monkeypatch.setattr(time, "sleep", lambda x: None)
@@ -295,9 +289,7 @@ class TestWebScraper:
 
             # Create scraper with injectable dependencies
             self.scraper = WebScraperToolClass(
-                session=mock_session,
-                web_driver=mock_webdriver,
-                user_agent="Test User Agent"
+                session=mock_session, web_driver=mock_webdriver, user_agent="Test User Agent"
             )
 
     def test_extract_article(self, sample_html):
@@ -354,9 +346,7 @@ class TestWebScraper:
     @patch("requests.Session.get")
     def test_fetch_url_404(self, mock_get):
         """Test URL fetching with 404 error."""
-        mock_get.side_effect = HTTPError(
-            "404 Not Found", response=MagicMock(status_code=404)
-        )
+        mock_get.side_effect = HTTPError("404 Not Found", response=MagicMock(status_code=404))
 
         with pytest.raises(ValueError, match="Article not found"):
             self.scraper._fetch_url("https://example.com/404")
@@ -365,9 +355,7 @@ class TestWebScraper:
     @patch("requests.Session.get")
     def test_fetch_url_403(self, mock_get):
         """Test URL fetching with 403 error."""
-        mock_get.side_effect = HTTPError(
-            "403 Forbidden", response=MagicMock(status_code=403)
-        )
+        mock_get.side_effect = HTTPError("403 Forbidden", response=MagicMock(status_code=403))
 
         with pytest.raises(ValueError, match="Access denied"):
             self.scraper._fetch_url("https://example.com/403")
@@ -376,9 +364,7 @@ class TestWebScraper:
     @patch("requests.Session.get")
     def test_fetch_url_401(self, mock_get):
         """Test URL fetching with 401 error."""
-        mock_get.side_effect = HTTPError(
-            "401 Unauthorized", response=MagicMock(status_code=401)
-        )
+        mock_get.side_effect = HTTPError("401 Unauthorized", response=MagicMock(status_code=401))
 
         with pytest.raises(ValueError, match="Authentication required"):
             self.scraper._fetch_url("https://example.com/401")
@@ -511,8 +497,7 @@ class TestWebScraper:
             mock_manager.assert_called_once()
             mock_service.assert_called_once()
             mock_chrome.assert_called_once_with(
-                service=mock_service_instance,
-                options=scraper.chrome_options
+                service=mock_service_instance, options=scraper.chrome_options
             )
 
     def test_extract_article_strategy_2(self):
@@ -573,18 +558,22 @@ class TestWebScraper:
         assert "article content in a div that should be extracted" in text
         assert "second paragraph that contains more detailed information" in text
         assert "third paragraph that provides additional context" in text
-    
+
     def test_extract_article_complex_layout(self, sample_html_complex_layout):
         """Test article extraction from complex layout."""
         # Patch the extract_article_text method to handle the complex layout
-        with patch.object(self.scraper, 'extract_article_text', return_value="This is a complex article with multiple sections and formatting.\n\nIt contains important information about recent political developments.\n\n\"This is a quote from an important person,\" said the official.\n\nThe article continues with more detailed analysis and background information."):
+        with patch.object(
+            self.scraper,
+            "extract_article_text",
+            return_value='This is a complex article with multiple sections and formatting.\n\nIt contains important information about recent political developments.\n\n"This is a quote from an important person," said the official.\n\nThe article continues with more detailed analysis and background information.',
+        ):
             text = self.scraper.extract_article_text(sample_html_complex_layout)
-            
+
             # Should extract main article content
             assert "complex article with multiple sections" in text
             assert "important information about recent political developments" in text
             assert "quote from an important person" in text
-            
+
             # Should not include navigation, comments, etc.
             assert "Site Navigation" not in text
             assert "Related Articles" not in text
@@ -592,19 +581,19 @@ class TestWebScraper:
             assert "Advertisement" not in text
             assert "Sign up for our newsletter" not in text
             assert "Copyright 2025" not in text
-    
+
     def test_extract_article_with_paywall(self, sample_html_paywall):
         """Test article extraction with paywall content."""
         text = self.scraper.extract_article_text(sample_html_paywall)
-        
+
         # Should extract visible content before paywall
         assert "first paragraph of the article" in text
-        
+
         # Should not include paywall messaging
         assert "Continue Reading" not in text
         assert "Subscribe Now" not in text
         assert "Log In" not in text
-    
+
     @patch("requests.Session.get")
     @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     def test_fetch_url_paywall_detection(self, mock_get, mock_http_response):
@@ -624,14 +613,17 @@ class TestWebScraper:
             </body>
         </html>
         """
-        
+
         mock_http_response.text = paywall_html
         mock_get.return_value = mock_http_response
-        
+
         # Should detect paywall content and raise ValueError
-        with pytest.raises(ValueError, match="HTTP error occurred: Page appears to be a 404 or requires subscription"):
+        with pytest.raises(
+            ValueError,
+            match="HTTP error occurred: Page appears to be a 404 or requires subscription",
+        ):
             self.scraper._fetch_url("https://example.com/premium")
-    
+
     @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
     def test_fetch_url_with_retry(self, mock_get):
@@ -639,38 +631,39 @@ class TestWebScraper:
         # First call fails, second succeeds
         mock_response_success = MagicMock()
         mock_response_success.text = "<html><body>Success content</body></html>"
-        
+
         # Set side_effect to simulate a request that fails once then succeeds
         # This test still passes even with retry disabled because we're using
         # selenium as a fallback when requests fails
         mock_get.side_effect = RequestException("Connection error")
-        
+
         # Mock the selenium driver to return success content
         self.scraper.driver.page_source = "<html><body>Success content</body></html>"
-        
+
         # The test should succeed by falling back to selenium
         html = self.scraper._fetch_url("https://example.com/retry")
         assert "Success content" in html
-    
+
     @pytest.mark.skip(reason="Test currently failing due to injectable pattern changes")
     @patch("requests.Session.get")
-    def test_fetch_url_with_dynamic_content(self, mock_get, mock_webdriver, sample_html_dynamic_content):
+    def test_fetch_url_with_dynamic_content(
+        self, mock_get, mock_webdriver, sample_html_dynamic_content
+    ):
         """Test fetching URL with dynamic content using Selenium."""
         # Requests fails to get dynamic content
         mock_get.side_effect = RequestException("Network error")
-        
+
         # Selenium gets content after it's dynamically loaded
         mock_webdriver.page_source = sample_html_dynamic_content.replace(
-            "Loading content...",
-            "This content was dynamically loaded via JavaScript."
+            "Loading content...", "This content was dynamically loaded via JavaScript."
         )
-        
+
         html = self.scraper._fetch_url("https://example.com/dynamic")
-        
+
         # Should contain the dynamically loaded content
         assert "This content was dynamically loaded via JavaScript" in html
         assert "Loading content" not in html
-    
+
     def test_extract_article_with_minimal_content(self):
         """Test article extraction with minimal content."""
         html = """
@@ -682,12 +675,12 @@ class TestWebScraper:
             </body>
         </html>
         """
-        
+
         # The current implementation requires an article tag or a div with article-like class
         # So we expect it to raise a ValueError
         with pytest.raises(ValueError, match="No article content found"):
             self.scraper.extract_article_text(html)
-    
+
     def test_extract_article_with_nested_content(self):
         """Test article extraction with deeply nested content."""
         html = """
@@ -710,37 +703,39 @@ class TestWebScraper:
             </body>
         </html>
         """
-        
+
         text = self.scraper.extract_article_text(html)
         assert "deeply nested article paragraph" in text
         assert "Second paragraph with more content" in text
-    
+
     def test_scrape_url_method(self):
         """Test the scrape_url method."""
         with patch.object(self.scraper, "_fetch_url") as mock_fetch, patch.object(
             self.scraper, "extract_article_text"
         ) as mock_extract:
-            
-            mock_fetch.return_value = "<html><body><title>Test Article</title><article>Content</article></body></html>"
+
+            mock_fetch.return_value = (
+                "<html><body><title>Test Article</title><article>Content</article></body></html>"
+            )
             mock_extract.return_value = "Extracted article text"
-            
+
             result = self.scraper.scrape_url("https://example.com/article")
-            
+
             assert result is not None
             assert result["title"] == "Test Article"
             assert result["content"] == "Extracted article text"
             assert result["url"] == "https://example.com/article"
             assert "published_at" in result
-    
+
     def test_scrape_url_failure(self):
         """Test the scrape_url method with failure."""
         with patch.object(self.scraper, "_fetch_url") as mock_fetch:
             mock_fetch.side_effect = ValueError("Failed to fetch URL")
-            
+
             result = self.scraper.scrape_url("https://example.com/error")
-            
+
             assert result is None
-    
+
     def test_extract_title_from_html(self):
         """Test title extraction from HTML."""
         html = """
@@ -768,7 +763,7 @@ class TestWebScraper:
             assert result is not None
             assert result["title"] == "Article Title | News Site"
 
-    def test_injectable_dependencies(self, event_loop_fixture):
+    def test_injectable_dependencies(self):
         """Test that the WebScraperTool correctly uses injected dependencies.
 
         Uses event_loop_fixture to handle async operations required by the injectable pattern.
@@ -786,9 +781,7 @@ class TestWebScraper:
 
         # Create scraper with injected dependencies
         scraper = WebScraperToolClass(
-            session=mock_session,
-            web_driver=mock_driver,
-            user_agent="Injectable Test Agent"
+            session=mock_session, web_driver=mock_driver, user_agent="Injectable Test Agent"
         )
 
         # Test that injected session is used
@@ -805,13 +798,15 @@ class TestWebScraper:
                 scraper._fetch_url("https://example.com/injectable-test-driver")
 
                 # Verify driver was used
-                mock_driver.get.assert_called_once_with("https://example.com/injectable-test-driver")
+                mock_driver.get.assert_called_once_with(
+                    "https://example.com/injectable-test-driver"
+                )
             except ValueError:
                 # Expected when using mocks without full configuration
                 pass
 
     @pytest.mark.skip(reason="Provider test has issues with event loop")
-    def test_provider_function(self, event_loop_fixture):
+    def test_provider_function(self):
         """Test that the provider function correctly creates WebScraperTool instances.
 
         This test uses the event_loop_fixture to properly handle async operations
@@ -826,7 +821,6 @@ class TestWebScraper:
             assert scraper.session is not None
             assert scraper.driver is None  # WebDriver should be None until needed
             assert "Mozilla" in scraper.user_agent  # Should have a default user agent
-        except:
+        except Exception:
             # If the test still fails, we can skip it for now
             pytest.skip("Still having issues with event loop or injection")
-            pass

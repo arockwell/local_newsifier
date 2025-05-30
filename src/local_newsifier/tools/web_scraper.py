@@ -36,10 +36,7 @@ class WebScraperTool:
     """Tool for scraping web content with robust error handling."""
 
     def __init__(
-        self,
-        session: Any = None,
-        web_driver: Any = None,
-        user_agent: Optional[str] = None
+        self, session: Any = None, web_driver: Any = None, user_agent: Optional[str] = None
     ):
         """Initialize the scraper with injectable dependencies.
 
@@ -117,9 +114,7 @@ class WebScraperTool:
             if e.response is not None and e.response.status_code == 404:
                 raise ValueError(f"Article not found (404): {url}")
             elif e.response is not None and e.response.status_code == 403:
-                raise ValueError(
-                    f"Access denied (403) - may require subscription: {url}"
-                )
+                raise ValueError(f"Access denied (403) - may require subscription: {url}")
             elif e.response is not None and e.response.status_code == 401:
                 raise ValueError(f"Authentication required (401): {url}")
             raise ValueError(f"HTTP error occurred: {str(e)}")
@@ -133,9 +128,7 @@ class WebScraperTool:
 
                 # Wait for article content to load
                 wait = WebDriverWait(driver, 10)
-                article = wait.until(
-                    EC.presence_of_element_located((By.TAG_NAME, "article"))
-                )
+                article = wait.until(EC.presence_of_element_located((By.TAG_NAME, "article")))
 
                 # Wait a bit more for dynamic content
                 time.sleep(2)
@@ -144,9 +137,7 @@ class WebScraperTool:
                 page_text = driver.page_source.lower()
                 if any(term in page_text for term in NOT_FOUND_PHRASES):
                     print("Found 404-like content in Selenium response")
-                    raise ValueError(
-                        "Page appears to be a 404 or requires subscription"
-                    )
+                    raise ValueError("Page appears to be a 404 or requires subscription")
 
                 print("Successfully fetched with Selenium")
                 return driver.page_source
@@ -166,9 +157,9 @@ class WebScraperTool:
 
         # Strategy 1: Look for article tag with story class or data attribute
         print("Trying strategy 1: article tag with story class...")
-        content = soup.find(
-            "article", class_=lambda x: x and "story" in x.lower()
-        ) or soup.find("article", attrs={"data-testid": "story"})
+        content = soup.find("article", class_=lambda x: x and "story" in x.lower()) or soup.find(
+            "article", attrs={"data-testid": "story"}
+        )
 
         # Strategy 2: Look for article tag with most paragraphs
         if not content:
@@ -274,37 +265,37 @@ class WebScraperTool:
     def scrape_url(self, url: str) -> Optional[Dict[str, Any]]:
         """
         Scrape article content from a URL.
-        
+
         Args:
             url: URL to scrape
-            
+
         Returns:
             Dictionary with scraped content or None if scraping failed
         """
         try:
             print(f"Starting scrape of URL: {url}")
-            
+
             html_content = self._fetch_url(url)
             article_text = self.extract_article_text(html_content)
-            
+
             # Extract title from HTML
             soup = BeautifulSoup(html_content, "html.parser")
             title = soup.title.string if soup.title else "Untitled Article"
-            
+
             # Clean up title
             title = title.replace(" | Latest News", "").replace(" - Breaking News", "")
-            
+
             return {
                 "title": title,
                 "content": article_text,
                 "published_at": datetime.now(UTC),
-                "url": url
+                "url": url,
             }
-            
+
         except Exception as e:
             print(f"Error scraping URL {url}: {str(e)}")
             return None
-    
+
     def scrape(self, state: NewsAnalysisState) -> NewsAnalysisState:
         """
         Scrape article content and update state.

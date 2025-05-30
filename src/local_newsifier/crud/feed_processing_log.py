@@ -73,9 +73,7 @@ class CRUDFeedProcessingLog(CRUDBase[RSSFeedProcessingLog]):
             .limit(limit)
         ).all()
 
-    def create_processing_started(
-        self, db: Session, *, feed_id: int
-    ) -> RSSFeedProcessingLog:
+    def create_processing_started(self, db: Session, *, feed_id: int) -> RSSFeedProcessingLog:
         """Create a new processing log with 'started' status.
 
         Args:

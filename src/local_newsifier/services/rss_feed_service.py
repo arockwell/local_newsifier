@@ -45,8 +45,6 @@ class RSSFeedService:
         self.article_service = article_service
         self.session_factory = session_factory
 
-
-
     @handle_database
     def get_feed(self, feed_id: int) -> Optional[Dict[str, Any]]:
         """Get a feed by ID.
@@ -120,7 +118,7 @@ class RSSFeedService:
             existing = self.rss_feed_crud.get_by_url(session, url=url)
             if existing:
                 raise ValueError(f"Feed with URL '{url}' already exists")
-            
+
             # Create new feed
             new_feed = self.rss_feed_crud.create(
                 session,
@@ -133,7 +131,7 @@ class RSSFeedService:
                     "updated_at": datetime.now(timezone.utc),
                 },
             )
-            
+
             return self._format_feed_dict(new_feed)
 
     @handle_database
@@ -160,7 +158,7 @@ class RSSFeedService:
             feed = self.rss_feed_crud.get(session, id=feed_id)
             if not feed:
                 return None
-            
+
             # Prepare update data
             update_data = {"updated_at": datetime.now(timezone.utc)}
             if name is not None:
@@ -169,7 +167,7 @@ class RSSFeedService:
                 update_data["description"] = description
             if is_active is not None:
                 update_data["is_active"] = is_active
-            
+
             # Update feed
             updated = self.rss_feed_crud.update(session, db_obj=feed, obj_in=update_data)
             return self._format_feed_dict(updated)
@@ -189,14 +187,13 @@ class RSSFeedService:
             feed = self.rss_feed_crud.get(session, id=feed_id)
             if not feed:
                 return None
-            
+
             # Remove feed
             removed = self.rss_feed_crud.remove(session, id=feed_id)
             if not removed:
                 return None
-            
-            return self._format_feed_dict(removed)
 
+            return self._format_feed_dict(removed)
 
     @handle_rss
     @handle_database
@@ -217,36 +214,36 @@ class RSSFeedService:
             feed = self.rss_feed_crud.get(session, id=feed_id)
             if not feed:
                 return {"status": "error", "message": f"Feed with ID {feed_id} not found"}
-            
+
             # Create processing log
-            log = self.feed_processing_log_crud.create_processing_started(
-                session, feed_id=feed_id
-            )
-            
+            log = self.feed_processing_log_crud.create_processing_started(session, feed_id=feed_id)
+
             # Parse the RSS feed
             try:
                 feed_data = parse_rss_feed(feed.url)
-                
+
                 articles_found = len(feed_data.get("entries", []))
                 articles_added = 0
-                
+
                 # Process each article in the feed
                 for entry in feed_data.get("entries", []):
                     try:
                         # Create article using the article_service
                         article_id = self.article_service.create_article_from_rss_entry(entry)
-                        
+
                         if article_id:
                             # Queue article processing if task function provided
                             if task_queue_func:
                                 task_queue_func(article_id)
                             articles_added += 1
                     except Exception as e:
-                        logger.error(f"Error processing article {entry.get('link', 'unknown')}: {str(e)}")
-                
+                        logger.error(
+                            f"Error processing article {entry.get('link', 'unknown')}: {str(e)}"
+                        )
+
                 # Update feed last fetched timestamp
                 self.rss_feed_crud.update_last_fetched(session, id=feed_id)
-                
+
                 # Update processing log
                 self.feed_processing_log_crud.update_processing_completed(
                     session,
@@ -255,7 +252,7 @@ class RSSFeedService:
                     articles_found=articles_found,
                     articles_added=articles_added,
                 )
-                
+
                 return {
                     "status": "success",
                     "feed_id": feed_id,
@@ -263,10 +260,10 @@ class RSSFeedService:
                     "articles_found": articles_found,
                     "articles_added": articles_added,
                 }
-                
+
             except Exception as e:
                 logger.exception(f"Error processing feed {feed_id}: {str(e)}")
-                
+
                 # Update processing log with error
                 self.feed_processing_log_crud.update_processing_completed(
                     session,
@@ -274,7 +271,7 @@ class RSSFeedService:
                     status="error",
                     error_message=str(e),
                 )
-                
+
                 return {
                     "status": "error",
                     "feed_id": feed_id,
@@ -295,7 +292,7 @@ class RSSFeedService:
 
         Returns:
             List of processing logs as dicts
-            
+
         Raises:
             ServiceError: On database errors with appropriate classification
         """
@@ -304,7 +301,7 @@ class RSSFeedService:
             logs = self.feed_processing_log_crud.get_by_feed_id(
                 session, feed_id=feed_id, skip=skip, limit=limit
             )
-            
+
             return [self._format_log_dict(log) for log in logs]
 
     def _format_feed_dict(self, feed: RSSFeed) -> Dict[str, Any]:
