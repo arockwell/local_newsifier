@@ -4,7 +4,7 @@ This test specifically reproduces the "generator didn't stop after throw()" erro
 that occurs when HTTPException is raised inside a database session context manager.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -23,12 +23,13 @@ class TestWebhookSessionErrorHandling:
         # Create test client
         client = TestClient(app)
 
-        # Create a webhook payload
+        # Create a webhook payload - missing the 'status' field to trigger error
         payload = {
             "eventType": "ACTOR.RUN.SUCCEEDED",
             "actorId": "test_actor",
             "actorRunId": "test_run_id",
             "defaultDatasetId": "test_dataset",
+            # Missing 'status' field will trigger "Missing required fields" error
         }
 
         # Mock the database engine to avoid connection errors
@@ -37,19 +38,11 @@ class TestWebhookSessionErrorHandling:
             mock_engine = MagicMock()
             mock_get_engine.return_value = mock_engine
 
-            # Mock the webhook service to simulate validation error
-            with patch(
-                "local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync"
-            ) as MockService:
-                mock_instance = MockService.return_value
-                mock_instance.handle_webhook = Mock(
-                    return_value={"status": "error", "message": "Validation failed"}
-                )
+            # Send request to webhook endpoint
+            # The service will check for missing 'status' field and return error
+            response = client.post("/webhooks/apify", json=payload)
 
-                # Send request to webhook endpoint
-                response = client.post("/webhooks/apify", json=payload)
-
-                # The issue is that HTTPException is raised while session generator is active
-                # This should return 400 without throwing generator errors
-                assert response.status_code == 400
-                assert response.json()["detail"] == "Validation failed"
+            # The issue is that HTTPException is raised while session generator is active
+            # This should return 400 without throwing generator errors
+            assert response.status_code == 400
+            assert response.json()["detail"] == "Missing required fields"
