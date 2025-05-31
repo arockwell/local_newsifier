@@ -19,6 +19,23 @@ First, we need to understand what payload is actually being sent by adding detai
 - Added debug logging for extracted field values
 - Enhanced error messages to show exactly which fields are missing
 - Full payload is logged when validation fails
+- PR #763 created - CI has dependency resolution issue with aiohttp unrelated to these changes
+- All webhook service tests pass locally
+
+**Update 5/31/2025 - After Sync Migration**:
+- Investigated test failures after merging main (async to sync migration)
+- Found that `tests/api/test_webhooks.py` has a test failure not due to async/sync issues
+- The test `test_apify_webhook_valid_payload` expects "processed" in the message but gets "duplicate webhook ignored"
+- Issue: The webhook service is not being properly mocked, and the actual service is detecting duplicates in the database
+- Root cause: Test database persistence between test runs causing duplicate webhook entries
+- Solution needed: Either properly mock the service or ensure test database isolation
+
+**Update 5/31/2025 - Test Fix Completed**:
+- Fixed all webhook tests by properly mocking the webhook service dependency
+- Created a `mock_webhook_service` pytest fixture that uses `app.dependency_overrides` to override the DI properly
+- Updated all test methods to use the new fixture
+- All 6 webhook tests now pass successfully
+- The fix ensures proper test isolation by overriding the service dependency instead of patching imports
 
 ```python
 def handle_webhook(self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None) -> Dict[str, any]:
