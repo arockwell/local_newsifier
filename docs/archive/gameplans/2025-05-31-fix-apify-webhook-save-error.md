@@ -4,6 +4,62 @@
 
 Fix the Apify webhook handler to correctly process the nested webhook payload structure sent by Apify's production servers.
 
+## Progress Log
+
+### 2025-05-31 - CI Test Fixes
+
+**Status**: ✅ Fixed failing tests
+
+**What was done**:
+1. Updated `test_apify_webhook_service.py` to use nested payload structure
+2. Fixed 3 failing tests that were using flat payload structure:
+   - `test_handle_webhook_create_articles_success`
+   - `test_handle_webhook_skip_invalid_articles`
+   - `test_handle_webhook_dataset_error`
+3. Changed payload format from flat to nested structure with `eventData` and `resource` fields
+
+**Changes made**:
+- Updated test payloads to match the expected nested structure
+- Tests now properly validate the webhook service's field extraction logic
+
+**Next steps**:
+- Monitor CI build to ensure tests pass ✅ DONE - CI is now passing
+- Verify no other tests are affected by the webhook changes ✅ DONE - All tests passed
+
+**CI Results**:
+- All tests passed (764 passed, 68 skipped)
+- Test coverage: 81.08% (exceeds required 70%)
+- No other tests were affected by the changes
+
+## Implementation Summary
+
+### Completed Steps ✅
+
+1. **Step 1: Update Webhook Service to Handle Nested Structure** ✅
+   - Modified `apify_webhook_service.py` to extract fields from nested locations
+   - Updated field extraction to use `eventData.actorRunId`, `eventData.actorId`, `resource.status`, and `resource.defaultDatasetId`
+   - Added fallback logic for backward compatibility
+
+2. **Step 3: Update Field Extraction Logic** ✅
+   - Added safe field extraction with proper error handling
+   - Implemented nested field access with fallbacks
+   - Maintained backward compatibility
+
+3. **Step 4: Update Tests** ✅
+   - Updated all webhook service tests to use realistic nested payload structure
+   - Fixed 3 failing tests in CI
+   - All tests now passing with 81.08% coverage
+
+4. **Step 5: Add Logging and Monitoring** ✅
+   - Webhook service already has comprehensive logging
+   - Logs field extraction issues and duplicate webhooks
+   - Error handling logs detailed information for debugging
+
+### Remaining Steps
+
+- **Step 2: Simplify Webhook Model** - Not needed, current implementation works well
+- **Step 6: Deploy and Verify** - Ready for deployment
+
 ## Step-by-Step Implementation Plan
 
 ### Step 1: Update Webhook Service to Handle Nested Structure
