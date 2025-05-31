@@ -2,19 +2,39 @@
 
 ## Overview
 
-This guide covers all aspects of testing in Local Newsifier, including test execution, dependency injection testing, Apify integration testing, and performance optimization.
+This guide covers all aspects of testing in Local Newsifier, including test execution, dependency injection testing, Apify webhook testing, and performance optimization.
 
 ## Table of Contents
+- [Quick Start](#quick-start)
 - [Running Tests](#running-tests)
 - [Test Organization](#test-organization)
 - [Test Markers](#test-markers)
 - [Parallel Test Execution](#parallel-test-execution)
 - [Database Testing](#database-testing)
 - [Dependency Injection Testing](#dependency-injection-testing)
-- [Apify Integration Testing](#apify-integration-testing)
+- [Apify Webhook Testing](#apify-webhook-testing)
 - [Performance Optimization](#performance-optimization)
 - [Common Patterns](#common-patterns)
 - [Troubleshooting](#troubleshooting)
+
+## Quick Start
+
+```bash
+# Run all tests in parallel (fastest)
+make test
+
+# Run tests serially (for debugging)
+make test-serial
+
+# Run with coverage report
+make test-coverage
+
+# Run specific test file
+poetry run pytest tests/services/test_article_service.py
+
+# Run tests matching pattern
+poetry run pytest -k "article"
+```
 
 ## Running Tests
 
@@ -79,7 +99,7 @@ tests/
 ├── integration/      # Integration tests
 ├── models/           # Data model tests
 ├── services/         # Service layer tests
-├── tasks/            # Celery task tests
+├── tasks/            # Background task tests
 └── tools/            # Tool tests (NLP, scraping, etc.)
 ```
 
@@ -253,7 +273,36 @@ def test_create_article(db_session, article_crud):
 
 ## Dependency Injection Testing
 
-### Basic Mocking Pattern
+### FastAPI Native DI Testing
+
+The API uses FastAPI's native dependency injection. Here's how to test it:
+
+```python
+from fastapi.testclient import TestClient
+from unittest.mock import Mock
+
+def test_api_endpoint(app):
+    # Mock dependencies
+    mock_session = Mock()
+    mock_service = Mock()
+    mock_service.get.return_value = {"id": 1, "title": "Test Article"}
+
+    # Override dependencies
+    app.dependency_overrides[get_session] = lambda: mock_session
+    app.dependency_overrides[get_article_service] = lambda: mock_service
+
+    # Test the endpoint
+    client = TestClient(app)
+    response = client.get("/articles/1")
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Test Article"
+    mock_service.get.assert_called_once_with(1)
+```
+
+### CLI Testing (Injectable Pattern)
+
+The CLI currently uses fastapi-injectable (being migrated to HTTP calls):
 
 ```python
 from injectable import injectable_factory, clear_injectables
@@ -266,7 +315,7 @@ def reset_injection():
     yield
     clear_injectables()
 
-def test_service_with_mocked_dependencies():
+def test_cli_command_with_mocks():
     # Create mocks
     mock_crud = Mock()
     mock_crud.get.return_value = {"id": 1, "title": "Test"}
@@ -276,107 +325,106 @@ def test_service_with_mocked_dependencies():
         factory.register(get_article_crud, mock_crud)
 
         # Test the service
-        service = get_article_service()
-        result = service.get(1)
+        runner = CliRunner()
+        result = runner.invoke(cli, ["articles", "get", "1"])
 
         # Verify
-        assert result["title"] == "Test"
+        assert result.exit_code == 0
+        assert "Test" in result.output
         mock_crud.get.assert_called_once_with(1)
 ```
 
-### Testing Utilities
+### Testing Services
 
 ```python
-from local_newsifier.tests.conftest_injectable import (
-    mock_providers,
-    create_mock_with_spec
-)
+class TestArticleService:
+    @pytest.fixture
+    def service(self, db_session):
+        """Provide service with real database session"""
+        return ArticleService(
+            article_crud=CRUDArticle(),
+            session_factory=lambda: db_session
+        )
 
-@pytest.fixture
-def mock_deps():
-    """Auto-mock all dependencies"""
-    return mock_providers()
+    def test_create_article(self, service):
+        # Act
+        article = service.create({
+            "title": "Test",
+            "content": "Content",
+            "url": "https://example.com"
+        })
 
-def test_with_auto_mocks(mock_deps):
-    # All providers automatically mocked
-    service = get_article_service()
-
-    # Configure specific behavior
-    mock_deps[get_article_crud].get.return_value = {"id": 1}
-
-    # Test
-    result = service.get(1)
-    assert result["id"] == 1
+        # Assert
+        assert article.id is not None
+        assert article.title == "Test"
 ```
 
-### Testing FastAPI Endpoints
+## Apify Webhook Testing
 
-```python
-from fastapi.testclient import TestClient
-from local_newsifier.api.main import app
+### Overview
 
-def test_api_endpoint(mock_deps):
-    # Configure mocks
-    mock_deps[get_article_service].get.return_value = {
-        "id": 1,
-        "title": "Test Article"
-    }
+The Apify webhook endpoint at `/webhooks/apify` is fully functional with sync-only implementation.
 
-    # Test endpoint
-    with injectable_factory() as factory:
-        # Register all mocks
-        for provider, mock in mock_deps.items():
-            factory.register(provider, mock)
+### Required Webhook Fields
 
-        client = TestClient(app)
-        response = client.get("/articles/1")
+All webhook requests must include:
+- `eventType` (e.g., "ACTOR.RUN.SUCCEEDED")
+- `actorId`
+- `actorRunId`
+- `userId`
+- `webhookId`
+- `createdAt`
+- `defaultKeyValueStoreId`
+- `defaultDatasetId`
+- `startedAt`
+- `status`
 
-        assert response.status_code == 200
-        assert response.json()["title"] == "Test Article"
+### Fish Shell Testing Functions
+
+```bash
+# Test successful webhook
+test_webhook_success
+
+# Test failed webhook
+test_webhook_failure
+
+# Test all scenarios
+test_webhook_batch
+
+# Custom parameters
+test_webhook --event ACTOR.RUN.FAILED --status FAILED --actor my_actor
 ```
 
-### Testing CLI Commands
+### HTTPie Testing (Correct Syntax)
 
-```python
-from click.testing import CliRunner
-from local_newsifier.cli.main import cli
+```bash
+# ✅ Correct - sends JSON
+echo '{
+    "eventType": "ACTOR.RUN.SUCCEEDED",
+    "actorId": "tom_cruise",
+    "actorRunId": "test-run-123",
+    "webhookId": "webhook-456",
+    "createdAt": "2025-01-25T12:00:00Z",
+    "userId": "test_user",
+    "defaultKeyValueStoreId": "test_kvs",
+    "defaultDatasetId": "test_dataset",
+    "startedAt": "2025-01-25T12:00:00Z",
+    "status": "SUCCEEDED"
+}' | http POST http://localhost:8000/webhooks/apify Content-Type:application/json
 
-def test_cli_command(mock_deps):
-    # Configure mocks
-    mock_deps[get_feed_service].list_feeds.return_value = [
-        {"id": 1, "url": "https://example.com/feed"}
-    ]
-
-    # Test command
-    with injectable_factory() as factory:
-        for provider, mock in mock_deps.items():
-            factory.register(provider, mock)
-
-        runner = CliRunner()
-        result = runner.invoke(cli, ["feeds", "list"])
-
-        assert result.exit_code == 0
-        assert "https://example.com/feed" in result.output
+# ❌ Incorrect - sends form data
+http POST http://localhost:8000/webhooks/apify \
+    eventType=ACTOR.RUN.SUCCEEDED \
+    actorId=tom_cruise
 ```
 
-## Apify Integration Testing
+### Testing Apify Service
 
-### Automatic Test Mode
-
-The ApifyService automatically detects test environments and uses mock data:
-
-```python
-class ApifyService:
-    def __init__(self, token=None):
-        # No token = test mode with mock data
-        self._test_mode = token is None
-```
-
-### Writing Apify Tests
+The ApifyService automatically detects test environments:
 
 ```python
 def test_apify_run_actor():
-    # No token needed - uses mock data automatically
+    # No token = test mode with mock data
     service = ApifyService()
 
     result = service.run_actor(
@@ -386,60 +434,18 @@ def test_apify_run_actor():
 
     assert result["status"] == "SUCCEEDED"
     assert len(result["items"]) == 2  # Mock returns 2 items
-
-def test_apify_with_real_token():
-    # Use real token for integration tests
-    service = ApifyService(token="real-token-here")
-
-    # This would make real API calls
-    result = service.get_actor("apify/web-scraper")
-    assert result["id"] == "apify/web-scraper"
-```
-
-### Mock Data Examples
-
-The test mode provides realistic mock data:
-
-```python
-# Actor run response
-{
-    "id": "test-run-123",
-    "status": "SUCCEEDED",
-    "startedAt": "2024-01-10T10:00:00.000Z",
-    "finishedAt": "2024-01-10T10:05:00.000Z"
-}
-
-# Dataset items
-[
-    {
-        "url": "https://example.com/article1",
-        "title": "Test Article 1",
-        "text": "Mock article content..."
-    },
-    {
-        "url": "https://example.com/article2",
-        "title": "Test Article 2",
-        "text": "Another mock article..."
-    }
-]
 ```
 
 ## Performance Optimization
 
 ### Identifying Slow Tests
 
-Use the provided script to find slow tests:
-
 ```bash
+# Find slow tests
 python scripts/identify_slow_tests.py
 
-# Output:
-# Analyzing test performance...
-#
-# Top 10 slowest tests:
-# 1. test_complex_flow: 5.23s
-# 2. test_database_migration: 3.45s
-# ...
+# Profile test execution time
+poetry run pytest --durations=10
 ```
 
 ### Optimizing Test Performance
@@ -483,55 +489,6 @@ def test_full_pipeline():
 
 ## Common Patterns
 
-### Testing Services
-
-```python
-class TestArticleService:
-    @pytest.fixture
-    def service(self, mock_deps):
-        """Provide service with mocked dependencies"""
-        with injectable_factory() as factory:
-            for provider, mock in mock_deps.items():
-                factory.register(provider, mock)
-            yield get_article_service()
-
-    def test_create_article(self, service, mock_deps):
-        # Arrange
-        mock_deps[get_article_crud].create.return_value = Mock(id=1)
-
-        # Act
-        article_id = service.create({
-            "title": "Test",
-            "content": "Content"
-        })
-
-        # Assert
-        assert article_id == 1
-        mock_deps[get_article_crud].create.assert_called_once()
-```
-
-### Testing Error Handling
-
-```python
-def test_service_handles_not_found(service, mock_deps):
-    # Arrange
-    mock_deps[get_article_crud].get.return_value = None
-
-    # Act & Assert
-    with pytest.raises(ArticleNotFoundError):
-        service.get(999)
-
-def test_api_returns_404(client, mock_deps):
-    # Arrange
-    mock_deps[get_article_service].get.side_effect = ArticleNotFoundError()
-
-    # Act
-    response = client.get("/articles/999")
-
-    # Assert
-    assert response.status_code == 404
-```
-
 ### Testing Sync-Only Code
 
 **Important:** Local Newsifier uses sync-only patterns. All tests should follow sync patterns:
@@ -552,7 +509,7 @@ def test_webhook_endpoint(client):
 # Testing sync services
 def test_sync_service(db_session):
     service = ArticleService(
-        article_crud=article_crud,
+        article_crud=CRUDArticle(),
         session_factory=lambda: db_session
     )
 
@@ -563,27 +520,25 @@ def test_sync_service(db_session):
     assert article.id is not None
 ```
 
-### Testing FastAPI Sync Endpoints
+### Testing Error Handling
 
 ```python
-from fastapi.testclient import TestClient
-from unittest.mock import Mock
+def test_service_handles_not_found(service):
+    # Act & Assert
+    with pytest.raises(ArticleNotFoundError):
+        service.get(999)
 
-def test_sync_endpoint_with_dependencies(app):
-    # Mock dependencies
-    mock_session = Mock()
-    mock_service = Mock()
+def test_api_returns_404(client):
+    # Mock service to raise error
+    app.dependency_overrides[get_article_service] = lambda: Mock(
+        get=Mock(side_effect=ArticleNotFoundError())
+    )
 
-    # Override dependencies
-    app.dependency_overrides[get_session] = lambda: mock_session
-    app.dependency_overrides[get_article_service] = lambda: mock_service
+    # Act
+    response = client.get("/articles/999")
 
-    # Test the endpoint
-    client = TestClient(app)
-    response = client.get("/articles/1")
-
-    assert response.status_code == 200
-    mock_service.get.assert_called_once_with(1)
+    # Assert
+    assert response.status_code == 404
 ```
 
 ### Session Management in Tests
@@ -673,17 +628,49 @@ poetry run pytest --lf
 poetry run pytest --ff  # Failed first
 ```
 
-### Performance Profiling
+## CI/CD Integration
 
-```bash
-# Profile test execution time
-poetry run pytest --durations=10
+### GitHub Actions Configuration
 
-# Generate detailed performance report
-poetry run pytest --profile
+```yaml
+# .github/workflows/tests.yml
+name: Tests
+on: [push, pull_request]
 
-# Memory profiling
-poetry run pytest --memray
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+```
+
+### Test Categories in CI
+
+```makefile
+# Makefile
+test-unit:
+	pytest tests/api tests/cli tests/services -v
+
+test-integration:
+	pytest tests/integration -v
+
+test-all:
+	pytest tests/ -v --cov=src
+
+test-fast:
+	pytest tests/ -v -m "not slow"
 ```
 
 ## Best Practices
@@ -696,9 +683,11 @@ poetry run pytest --memray
 6. **Test Edge Cases**: Empty data, None values, errors
 7. **Keep Tests Fast**: Mock expensive operations
 8. **Descriptive Names**: Test names should explain what they test
+9. **Sync-Only**: Follow the project's sync-only pattern
+10. **Session Management**: Return IDs not objects across session boundaries
 
 ## See Also
 
 - [Dependency Injection Guide](dependency_injection.md) - DI patterns and testing
-- [Development Setup](python_setup.md) - Environment configuration
-- [CI/CD Documentation](../ci_pr_chains.md) - Continuous integration setup
+- [CLI Usage Guide](cli_usage.md) - CLI commands and usage
+- [Python Setup Guide](python_setup.md) - Environment configuration

@@ -19,7 +19,14 @@ This document helps Codex locate developer guides and explains how to work with 
   - tests/api/CLAUDE.md
   - tests/crud/CLAUDE.md
   - tests/services/CLAUDE.md
-- Additional docs: all Markdown files under `docs/`, plus `FastAPI-Injectable-Migration-Plan.md`, `README.md`, and `README_CLI.md`.
+- Documentation structure:
+  - docs/README.md - Documentation index
+  - docs/architecture/overview.md - System architecture
+  - docs/guides/ - Developer guides (CLI, DI, testing, etc.)
+  - docs/integrations/ - External service integrations
+  - docs/operations/ - Deployment and database management
+  - docs/migration-plans/ - Active migration efforts
+- Additional docs: `README.md` and `README_CLI.md` in root directory.
 
 If a `CLAUDE.md` file is added or removed, update this list.
 
