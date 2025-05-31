@@ -9,7 +9,8 @@ import json
 import logging
 from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
+from fastapi import status as http_status
 
 from local_newsifier.api.dependencies import get_apify_webhook_service
 from local_newsifier.models.webhook import ApifyWebhookResponse
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 @router.post(
     "/apify",
     response_model=ApifyWebhookResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=http_status.HTTP_202_ACCEPTED,
     summary="Receive Apify webhook notifications",
     description="Endpoint for receiving webhook notifications from Apify when runs complete",
 )
@@ -91,7 +92,9 @@ def apify_webhook(
         # Check if there was an error
         if result["status"] == "error":
             logger.error(f"Webhook processing error: run_id={run_id}, error={result['message']}")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail=result["message"]
+            )
 
         # Log successful response
         articles_created = result.get("articles_created", 0)
