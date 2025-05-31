@@ -66,6 +66,9 @@ class ApifyWebhookServiceSync:
         Returns:
             Dict with status and any error information
         """
+        # Add debug logging
+        logger.debug(f"Received webhook payload: {payload}")
+
         # Validate signature if provided
         if signature and not self.validate_signature(raw_payload, signature):
             logger.warning("Invalid webhook signature")
@@ -76,9 +79,26 @@ class ApifyWebhookServiceSync:
         actor_id = payload.get("actorId", "")
         status = payload.get("status", "")
 
+        # Log extracted values
+        logger.debug(
+            f"Extracted fields - run_id: '{run_id}', actor_id: '{actor_id}', status: '{status}'"
+        )
+
         if not all([run_id, actor_id, status]):
-            logger.warning("Missing required webhook fields")
-            return {"status": "error", "message": "Missing required fields"}
+            missing_fields = []
+            if not run_id:
+                missing_fields.append("actorRunId")
+            if not actor_id:
+                missing_fields.append("actorId")
+            if not status:
+                missing_fields.append("status")
+
+            logger.warning(f"Missing required webhook fields: {missing_fields}")
+            logger.warning(f"Full payload: {payload}")
+            return {
+                "status": "error",
+                "message": f"Missing required fields: {', '.join(missing_fields)}",
+            }
 
         # Check for duplicate
         existing = self.session.exec(
