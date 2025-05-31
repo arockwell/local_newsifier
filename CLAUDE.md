@@ -36,7 +36,8 @@
 
 ### 4. Code Patterns to Follow
 - Use SQLModel for all database models
-- Use native FastAPI DI for API, fastapi-injectable for CLI
+- Use native FastAPI DI for API endpoints
+- CLI will use HTTP calls to FastAPI endpoints (migration in progress)
 - Return IDs not objects across session boundaries
 - Mock external dependencies in tests
 - Add newline at end of every file
@@ -63,7 +64,7 @@
 - Don't catch generic Exception - catch specific exceptions
 - Don't modify mutable default arguments
 - Don't forget to close resources (use context managers)
-- Don't use async patterns - the project is moving to sync-only
+- Don't use async patterns - the project is fully sync-only
 - Don't forget to add files to git before committing
 
 # Local Newsifier Development Guide
@@ -75,7 +76,7 @@
 - Supports multiple content acquisition methods (RSS feeds, Apify web scraping)
 - Uses synchronous processing throughout the entire application
 - No async/await patterns - all code is sync-only for simplicity
-- Deployed on Railway with web, worker, and scheduler processes
+- Deployed on Railway (moving to single web process, no Celery workers)
 
 ## Environment Setup
 
@@ -217,7 +218,7 @@ class Article(SQLModel, table=True):
 
 ### Dependency Injection
 
-> **Note:** The API module now uses FastAPI's native dependency injection (migrated from fastapi-injectable). The CLI still uses fastapi-injectable. See the [Dependency Injection Guide](docs/dependency_injection.md) for details.
+> **Note:** The API uses FastAPI's native dependency injection. The CLI currently uses fastapi-injectable but is being migrated to use HTTP calls to the API instead.
 
 #### API: Native FastAPI DI
 - API endpoints use FastAPI's native dependency injection
@@ -234,10 +235,10 @@ def get_article_service(
     )
 ```
 
-#### CLI: FastAPI-Injectable
-- CLI commands still use the fastapi-injectable framework
-- Provider functions are defined in `src/local_newsifier/di/providers.py`
-- All providers use `use_cache=False` to create fresh instances
+#### CLI: Migration in Progress
+- CLI currently uses fastapi-injectable (being phased out)
+- Target: CLI will make HTTP calls to FastAPI endpoints
+- See migration plan: `docs/plans/cli-to-fastapi-overview.md`
 
 ### Service Layer
 - Services coordinate business logic between CRUD operations and tools
@@ -363,15 +364,15 @@ def test_component_success(mock_component):
 ## Deployment
 
 ### Railway Configuration
-- Railway.json configures multiple processes:
-  - web: FastAPI web interface (sync-only)
-  - worker: Background task processor (sync-only)
-  - scheduler: Task scheduler (sync-only)
+- Moving to single web process deployment:
+  - web: FastAPI web interface handles everything
+  - Background tasks: Use FastAPI BackgroundTasks
+  - No separate worker/scheduler processes (Celery being removed)
 - Required environment variables:
   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB
-  - REDIS_URL (Redis URL for caching and task queuing if needed)
   - APIFY_TOKEN (for Apify web scraping)
   - APIFY_WEBHOOK_SECRET (optional, for webhook validation)
+  - REDIS_URL (only if needed for caching, not for Celery)
 
 ### Webhook Configuration
 - The `/webhooks/apify` endpoint accepts Apify webhook notifications
@@ -405,7 +406,7 @@ def apify_webhook(
 - SQLModel.exec() only takes one parameter - bind params to the query before calling
 - Avoid passing SQLModel objects between sessions - use IDs instead
 - Use runtime imports to break circular dependencies
-- All processing is synchronous - no message brokers required for basic operation
+- All processing is synchronous - no Celery or message brokers needed
 
 
 ## Sync-Only Architecture
@@ -424,7 +425,7 @@ def apify_webhook(
 3. **HTTP Clients**: Use `requests` or `httpx` sync client, never async clients
 4. **No await keywords**: If you see `await`, it's wrong
 5. **FastAPI Routes**: All routes must be synchronous (`def`, not `async def`)
-6. **Background Tasks**: Use threading or multiprocessing, not asyncio
+6. **Background Tasks**: Use FastAPI BackgroundTasks (no Celery, no asyncio)
 
 ### Converting Async to Sync
 If you encounter async code:
