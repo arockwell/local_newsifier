@@ -1,129 +1,110 @@
-# FastAPI Async to Sync Conversion Gameplan
+# Gameplan: Fix Webhook Async Error
 
-## Overview
-This document outlines the systematic approach to convert all FastAPI routes and dependencies from async to sync patterns. The conversion will be done in phases to ensure stability and testability at each step.
+## Objective
+Fix the webhook endpoint crash that occurs when raising HTTPException within a session context, preventing proper error responses and causing session cleanup failures.
 
-## Phase 1: Remove Async Services and Dependencies
+## Root Cause
+The webhook endpoint raises HTTPException inside a database session context manager, which causes FastAPI's async-to-sync adapter to fail during cleanup with "generator didn't stop after throw()".
 
-### 1.1 Convert Async Service Classes
-- [x] ~~Convert `apify_webhook_service_async.py` to sync~~ (Removed - sync version already exists)
-  - ~~Remove all `async/await` keywords~~
-  - ~~Replace `AsyncSession` with `Session`~~
-  - ~~Update method signatures~~
-- [x] ~~Convert `apify_service_async.py` to sync~~ (Removed - sync version already exists)
-- [x] ~~Remove/convert `async_article.py` CRUD module~~ (Removed - sync version already exists)
-- [x] ~~Update `async_base.py` if still in use~~ (Removed - no longer needed)
+## Implementation Steps
 
-### 1.2 Update Async Providers
-- [x] ~~Check `di/async_providers.py` and convert any async providers to sync~~ (Removed - no longer needed)
-- [x] ~~Update provider functions to return sync instances~~ (Not applicable - async providers removed)
+### 1. Fix Session Exception Handling in engine.py
+- Modify `get_session()` to properly handle exceptions during yield
+- Ensure the generator can be properly closed even when exceptions occur
+- Add explicit exception handling that doesn't interfere with context manager cleanup
 
-### 1.3 Database Engine Updates
-- [x] ~~Review `database/async_engine.py` and ensure all async patterns are removed~~ (Removed - no longer needed)
-- [x] ~~Update any async session factories to sync~~ (Not applicable - async engine removed)
+### 2. Refactor Webhook Error Handling
+- Move HTTPException raises outside of the session context
+- Store error information and raise after session is closed
+- Ensure proper error responses without breaking session management
 
-## Phase 2: Convert Application Lifecycle
+### 3. Alternative: Use Try/Finally Pattern
+- Replace context manager yield with explicit try/finally blocks
+- Ensure session cleanup happens regardless of exceptions
+- Maintain compatibility with FastAPI's dependency injection
 
-### 2.1 Main Application File (`api/main.py`)
-- [x] Keep `lifespan` context manager as async (FastAPI requirement)
-  - FastAPI requires lifespan to be async
-  - Keep `await register_app(app)` call
-- [x] Update exception handler (`not_found_handler`) to sync
-- [x] Convert main route handlers (`root`, `health_check`, `get_config`) to sync
-- [x] Update tests to handle async lifespan properly
+## Specific Changes
 
-## Phase 3: Convert Route Handlers
+### Option A: Fix Context Manager (Preferred)
+```python
+# In database/engine.py
+@contextmanager
+def get_session():
+    engine = get_engine()
+    if engine is None:
+        logger.warning("Cannot create session - database engine is None")
+        yield None
+        return
 
-### 3.1 Authentication Routes (`routers/auth.py`)
-- [x] Convert `login_page()` to sync
-- [x] Convert `login()` to sync
-- [x] Convert `logout()` to sync
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+```
 
-### 3.2 System Routes (`routers/system.py`)
-- [x] Convert `get_tables()` to sync
-- [x] Convert `get_tables_api()` to sync
-- [x] Convert `get_table_details()` to sync
-- [x] Convert `get_table_details_api()` to sync
+### Option B: Refactor Webhook Endpoint
+```python
+# In webhooks.py
+def apify_webhook(...):
+    error_to_raise = None
 
-### 3.3 Task Routes (`routers/tasks.py`)
-- [x] Convert `tasks_dashboard()` to sync
-- [x] Convert `process_article_endpoint()` to sync
-- [x] Convert `fetch_rss_feeds_endpoint()` to sync
-- [x] Convert `get_task_status()` to sync
-- [x] Convert `cancel_task()` to sync
+    try:
+        # Process webhook
+        result = webhook_service.handle_webhook(...)
 
-### 3.4 Webhook Routes (`routers/webhooks.py`)
-- [x] Keep `apify_webhook()` as async (required for `await request.body()`)
-- [x] Keep `await request.body()` (FastAPI requirement)
-- [x] Update webhook service calls to use sync version
+        # Store error for later if needed
+        if result["status"] == "error":
+            error_to_raise = HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["message"]
+            )
 
-### 3.5 Main Routes (`api/main.py`)
-- [x] Convert `root()` to sync
-- [x] Convert `health_check()` to sync
-- [x] Convert `get_config()` to sync
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        error_to_raise = HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
-## Phase 4: Update Tests
+    # Raise error outside of session context
+    if error_to_raise:
+        raise error_to_raise
 
-### 4.1 API Tests
-- [x] Update `tests/api/test_auth.py` to remove async patterns
-- [x] Update `tests/api/test_system.py` to remove async patterns
-- [x] Update `tests/api/test_tasks.py` to remove async patterns
-- [x] Update `tests/api/test_webhooks.py` to remove async patterns
-- [x] Update `tests/api/test_main.py` to remove async patterns
+    return ApifyWebhookResponse(...)
+```
 
-### 4.2 Service Tests
-- [x] Update tests for converted async services (all async services removed)
-- [x] Remove any async test fixtures (removed event_loop fixture)
+## Testing Plan
 
-## Phase 5: Cleanup and Optimization
+1. Create test that reproduces the error:
+   - Send webhook request with missing fields
+   - Verify 400 response (not 500)
+   - Check session cleanup
 
-### 5.1 Remove Async Dependencies
-- [x] Remove `httpx` async client usage (no httpx usage found)
-- [x] Remove `asyncio` imports (only in main.py lifespan, which is required)
-- [x] Update `requirements.txt` if needed (removed pytest-asyncio, aiosqlite, asyncpg)
+2. Test edge cases:
+   - Multiple concurrent webhook requests
+   - Database connection failures
+   - Webhook validation failures
 
-### 5.2 Update Documentation
-- [x] Update API documentation to reflect sync patterns (already sync-only)
-- [x] Update CLAUDE.md files in affected directories (removed async references)
-- [x] Update any example code in docs (already shows async as WRONG examples)
-
-## Implementation Order
-
-1. **Start with services** (Phase 1) - Convert underlying async services first
-2. **Update lifecycle** (Phase 2) - Convert app startup/shutdown
-3. **Convert routes bottom-up** (Phase 3) - Start with simple routes, move to complex
-4. **Update tests incrementally** (Phase 4) - Test each converted component
-5. **Final cleanup** (Phase 5) - Remove unused async code
-
-## Testing Strategy
-
-After each phase:
-1. Run the full test suite: `make test`
-2. Test the API manually with key endpoints
-3. Check for any deprecation warnings
-4. Verify no async runtime errors
-
-## Rollback Plan
-
-- Create a new branch for this work: `convert-fastapi-to-sync`
-- Commit after each successful phase
-- Tag stable points for easy rollback
-- Keep async versions temporarily with `_async` suffix until fully migrated
+3. Verify no session leaks:
+   - Monitor database connections
+   - Stress test with many failed requests
 
 ## Success Criteria
 
-- [x] All `async def` converted to `def` in API routes (except lifespan which is required)
-- [x] No `await` keywords in API code (except in lifespan and webhook body reading)
-- [ ] All tests passing
-- [ ] No async runtime warnings
-- [ ] API performance maintained or improved
-- [ ] Code coverage maintained at >90%
+- Webhook returns proper 400 Bad Request for validation errors
+- No "generator didn't stop after throw()" errors in logs
+- Database sessions properly cleaned up on all code paths
+- All existing tests continue to pass
 
-## Notes
+## Implementation Order
 
-- FastAPI supports both sync and async handlers natively
-- Sync handlers may be more performant for I/O-bound database operations
-- This aligns with the project's move away from async patterns
-- Celery tasks remain unaffected as they're already sync
-- During transition, duplicate sync services are created with "_sync" suffix to avoid conflicts:
-  - `apify_webhook_service_sync.py` (duplicate of `apify_webhook_service.py` for clarity)
+1. First implement the context manager fix (Option A)
+2. Test thoroughly
+3. If issues persist, implement webhook refactoring (Option B)
+4. Add comprehensive error handling tests
+5. Update documentation if API behavior changes

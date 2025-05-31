@@ -16,14 +16,20 @@ class TestSessionDependency:
     """Tests for the database session dependency."""
 
     def test_get_session_from_database_engine(self):
-        """Test that get_session uses the database engine's get_session."""
-        # Create a mock session
+        """Test that get_session creates a session from the engine."""
+        # Create a mock engine
+        from unittest.mock import MagicMock
+
+        mock_engine = MagicMock()
         mock_session = Mock(spec=Session)
 
-        # Mock the database engine's get_session
-        with patch("local_newsifier.database.engine.get_session") as mock_get_db_session:
-            # Set up the session provider to yield our mock session
-            mock_get_db_session.return_value = iter([mock_session])
+        # Mock the Session class to return our mock session
+        with patch("local_newsifier.database.engine.get_engine") as mock_get_engine, patch(
+            "local_newsifier.api.dependencies.Session"
+        ) as MockSession:
+            # Set up the engine mock
+            mock_get_engine.return_value = mock_engine
+            MockSession.return_value = mock_session
 
             # Get the session from the generator
             session_generator = get_session()
@@ -31,7 +37,18 @@ class TestSessionDependency:
 
             # Verify the session is what we expect
             assert session is mock_session
-            assert mock_get_db_session.called
+            assert mock_get_engine.called
+            MockSession.assert_called_once_with(mock_engine)
+
+            # Test cleanup
+            try:
+                next(session_generator)
+            except StopIteration:
+                pass
+
+            # Verify cleanup methods were called
+            mock_session.commit.assert_called_once()
+            mock_session.close.assert_called_once()
 
 
 class TestServiceDependencies:
