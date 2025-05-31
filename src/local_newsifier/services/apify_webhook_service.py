@@ -67,10 +67,14 @@ class ApifyWebhookService:
             logger.warning("Invalid webhook signature")
             return {"status": "error", "message": "Invalid signature"}
 
-        # Extract key fields
-        run_id = payload.get("actorRunId", "")
-        actor_id = payload.get("actorId", "")
-        status = payload.get("status", "")
+        # Extract from nested structure
+        event_data = payload.get("eventData", {})
+        resource = payload.get("resource", {})
+
+        # Extract key fields from nested locations with fallbacks
+        run_id = event_data.get("actorRunId", "") or resource.get("id", "")
+        actor_id = event_data.get("actorId", "") or resource.get("actId", "")
+        status = resource.get("status", "")
 
         if not all([run_id, actor_id, status]):
             logger.warning("Missing required webhook fields")
@@ -113,7 +117,8 @@ class ApifyWebhookService:
         articles_created = 0
         if status == "SUCCEEDED":
             try:
-                dataset_id = payload.get("defaultDatasetId")
+                # Extract dataset ID from resource section
+                dataset_id = resource.get("defaultDatasetId", "")
                 if dataset_id:
                     articles_created = self._create_articles_from_dataset(dataset_id)
             except Exception as e:

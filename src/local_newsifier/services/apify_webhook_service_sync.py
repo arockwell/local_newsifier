@@ -74,15 +74,21 @@ class ApifyWebhookServiceSync:
             logger.warning("Invalid webhook signature")
             return {"status": "error", "message": "Invalid signature"}
 
-        # Extract key fields
-        run_id = payload.get("actorRunId", "")
-        actor_id = payload.get("actorId", "")
-        status = payload.get("status", "")
+        # Extract from nested structure
+        event_data = payload.get("eventData", {})
+        resource = payload.get("resource", {})
+
+        # Extract key fields from nested locations with fallbacks
+        run_id = event_data.get("actorRunId", "") or resource.get("id", "")
+        actor_id = event_data.get("actorId", "") or resource.get("actId", "")
+        status = resource.get("status", "")
 
         # Log extracted values
         logger.debug(
             f"Extracted fields - run_id: '{run_id}', actor_id: '{actor_id}', status: '{status}'"
         )
+        logger.debug(f"Event data: {event_data}")
+        logger.debug(f"Resource: {resource}")
 
         if not all([run_id, actor_id, status]):
             missing_fields = []
@@ -128,7 +134,8 @@ class ApifyWebhookServiceSync:
         articles_created = 0
         if status == "SUCCEEDED":
             try:
-                dataset_id = payload.get("defaultDatasetId")
+                # Extract dataset ID from resource section
+                dataset_id = resource.get("defaultDatasetId", "")
                 if dataset_id:
                     articles_created = self._create_articles_from_dataset(dataset_id)
             except Exception as e:
@@ -141,6 +148,8 @@ class ApifyWebhookServiceSync:
             "status": "ok",
             "message": f"Webhook processed. Articles created: {articles_created}",
             "run_id": run_id,
+            "actor_id": actor_id,
+            "dataset_id": resource.get("defaultDatasetId", ""),
             "articles_created": articles_created,
         }
 
