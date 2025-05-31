@@ -1,7 +1,7 @@
 # Plan: Remove Celery from Local Newsifier Stack
 
 ## Overview
-This document outlines a plan to remove Celery from the Local Newsifier stack and replace it with alternative approaches for asynchronous task processing.
+This document outlines the plan to remove Celery from the Local Newsifier stack and replace it with FastAPI BackgroundTasks for all asynchronous processing needs.
 
 ## Current Celery Usage
 
@@ -22,81 +22,83 @@ This document outlines a plan to remove Celery from the Local Newsifier stack an
 - Celery worker process for task execution
 - Celery beat process for scheduled tasks
 
-## Proposed Alternatives
+## Recommended Solution: FastAPI BackgroundTasks
 
-### Option 1: FastAPI Background Tasks (Recommended for Simple Cases)
+### Why FastAPI BackgroundTasks?
 **Pros:**
 - Built into FastAPI, no additional dependencies
-- Simple to implement for short-running tasks
-- Works well for fire-and-forget operations
+- Simple to implement and maintain
+- Works well for the project's task requirements
+- Integrates seamlessly with sync code
+- No separate worker processes needed
 
-**Cons:**
-- Not suitable for long-running tasks
-- No built-in retry mechanism
-- Limited monitoring capabilities
-- Tasks don't survive server restarts
+**Limitations & Mitigations:**
+- **Tasks don't survive restarts**: Acceptable for our use cases (article processing, feed fetching)
+- **No built-in retry**: Can implement simple retry logic if needed
+- **Not for long-running tasks**: Our tasks are typically short (< 1 minute)
 
-**Implementation:**
+### Implementation Pattern:
 ```python
 from fastapi import BackgroundTasks
 
 @router.post("/process-article/{article_id}")
-async def process_article_endpoint(
+def process_article_endpoint(
     article_id: int,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    article_service: Annotated[ArticleService, Depends(get_article_service)]
 ):
-    background_tasks.add_task(process_article_sync, article_id)
-    return {"status": "processing"}
+    # Queue the task
+    background_tasks.add_task(
+        article_service.process_article_background,
+        article_id
+    )
+    return {"status": "processing", "article_id": article_id}
 ```
 
-### Option 2: Native Async with asyncio (Recommended)
-**Pros:**
-- No external dependencies
-- Leverages Python's native async capabilities
-- Good for I/O-bound operations
-- Can use asyncio.create_task for concurrent operations
-
-**Cons:**
-- Tasks don't survive process restarts
-- No built-in distribution across workers
-- Need custom implementation for retries/scheduling
-
-**Implementation:**
+### Service Method Pattern:
 ```python
-import asyncio
-from typing import Dict, Set
-
-# In-memory task tracking
-active_tasks: Dict[str, asyncio.Task] = {}
-
-@router.post("/process-article/{article_id}")
-async def process_article_endpoint(article_id: int):
-    task_id = str(uuid.uuid4())
-    task = asyncio.create_task(process_article_async(article_id))
-    active_tasks[task_id] = task
-    return {"task_id": task_id, "status": "processing"}
+class ArticleService:
+    def process_article_background(self, article_id: int):
+        """Background task for article processing."""
+        try:
+            # Process the article
+            with self.session_factory() as session:
+                article = self.article_crud.get(session, article_id)
+                if article:
+                    # Perform processing...
+                    logger.info(f"Processed article {article_id}")
+        except Exception as e:
+            logger.error(f"Failed to process article {article_id}: {e}")
 ```
 
-### Option 3: Lightweight Task Queue (e.g., Huey, RQ)
-**Pros:**
-- Simpler than Celery
-- Still provides distributed task processing
-- Built-in retry mechanisms
+### Handling Scheduled Tasks
 
-**Cons:**
-- Still requires external dependency
-- Still needs Redis or similar backend
+For scheduled tasks (replacing Celery Beat), we have several options:
 
-### Option 4: Database-Backed Job Queue
-**Pros:**
-- No additional infrastructure (uses existing PostgreSQL)
-- Tasks persist across restarts
-- Can implement custom retry logic
+1. **Simple Cron Jobs**: Use system cron to call API endpoints
+   ```bash
+   # crontab entry to fetch RSS feeds every hour
+   0 * * * * curl -X POST http://localhost:8000/api/feeds/fetch-all
+   ```
 
-**Cons:**
-- More complex to implement
-- Potential database load concerns
-- Need to implement worker processes
+2. **FastAPI + APScheduler** (if more control needed):
+   ```python
+   from apscheduler.schedulers.background import BackgroundScheduler
+
+   scheduler = BackgroundScheduler()
+
+   @app.on_event("startup")
+   def start_scheduler():
+       scheduler.add_job(
+           fetch_all_feeds,
+           'interval',
+           hours=1,
+           id='fetch_feeds'
+       )
+       scheduler.start()
+   ```
+
+3. **Railway Cron Jobs**: Use Railway's built-in cron job support
 
 ## Migration Plan
 
@@ -112,147 +114,58 @@ async def process_article_endpoint(article_id: int):
    - Identify tasks that need async processing
    - Plan for scheduled task replacement
 
-### Phase 2: Implement Alternative Solutions
+### Phase 2: Implement FastAPI BackgroundTasks
 
-#### 2.1 Replace Simple Tasks with BackgroundTasks
+#### 2.1 Convert Celery Tasks to Background Methods
 ```python
-# Convert simple fire-and-forget tasks
-from fastapi import BackgroundTasks
+# Before (Celery task)
+@app.task(bind=True, base=BaseTask)
+def process_article(self, article_id: int) -> Dict:
+    # Task implementation
+    pass
 
-async def process_article_background(article_id: int):
-    """Background task for article processing"""
-    # Use async service methods
-    async with get_async_session() as session:
-        service = ArticleService(session)
-        await service.process_article(article_id)
+# After (Service method for BackgroundTasks)
+class ArticleService:
+    def process_article_background(self, article_id: int) -> Dict:
+        """Process article in background (sync)."""
+        with self.session_factory() as session:
+            # Implementation here
+            pass
+```
 
+#### 2.2 Update API Endpoints
+```python
+# Before (using Celery)
 @router.post("/process-article/{article_id}")
-async def process_article_endpoint(
+def process_article_endpoint(article_id: int):
+    task = process_article.delay(article_id)
+    return {"task_id": task.id}
+
+# After (using BackgroundTasks)
+@router.post("/process-article/{article_id}")
+def process_article_endpoint(
     article_id: int,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    article_service: Annotated[ArticleService, Depends(get_article_service)]
 ):
-    background_tasks.add_task(process_article_background, article_id)
-    return {"status": "queued", "article_id": article_id}
+    background_tasks.add_task(
+        article_service.process_article_background,
+        article_id
+    )
+    return {"status": "processing", "article_id": article_id}
 ```
 
-#### 2.2 Implement Async Task Manager
+#### 2.3 Handle Scheduled Tasks
 ```python
-# src/local_newsifier/services/task_manager.py
-import asyncio
-import uuid
-from typing import Dict, Optional, Any
-from datetime import datetime
-from enum import Enum
-
-class TaskStatus(Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-class TaskInfo:
-    def __init__(self, task_id: str, name: str):
-        self.id = task_id
-        self.name = name
-        self.status = TaskStatus.PENDING
-        self.created_at = datetime.utcnow()
-        self.started_at: Optional[datetime] = None
-        self.completed_at: Optional[datetime] = None
-        self.result: Optional[Any] = None
-        self.error: Optional[str] = None
-
-class AsyncTaskManager:
-    def __init__(self):
-        self._tasks: Dict[str, TaskInfo] = {}
-        self._running_tasks: Dict[str, asyncio.Task] = {}
-
-    async def submit_task(self, name: str, func, *args, **kwargs) -> str:
-        task_id = str(uuid.uuid4())
-        task_info = TaskInfo(task_id, name)
-        self._tasks[task_id] = task_info
-
-        task = asyncio.create_task(self._run_task(task_id, func, *args, **kwargs))
-        self._running_tasks[task_id] = task
-
-        return task_id
-
-    async def _run_task(self, task_id: str, func, *args, **kwargs):
-        task_info = self._tasks[task_id]
-        task_info.status = TaskStatus.RUNNING
-        task_info.started_at = datetime.utcnow()
-
-        try:
-            result = await func(*args, **kwargs)
-            task_info.result = result
-            task_info.status = TaskStatus.COMPLETED
-        except Exception as e:
-            task_info.error = str(e)
-            task_info.status = TaskStatus.FAILED
-        finally:
-            task_info.completed_at = datetime.utcnow()
-            self._running_tasks.pop(task_id, None)
-
-    def get_task_status(self, task_id: str) -> Optional[TaskInfo]:
-        return self._tasks.get(task_id)
-```
-
-#### 2.3 Replace Scheduled Tasks
-```python
-# src/local_newsifier/services/scheduler.py
-import asyncio
-from datetime import datetime, timedelta
-from typing import Callable, Optional
-
-class AsyncScheduler:
-    def __init__(self):
-        self._scheduled_tasks = []
-        self._running = False
-
-    def schedule_periodic(
-        self,
-        func: Callable,
-        interval: timedelta,
-        name: str
-    ):
-        """Schedule a function to run periodically"""
-        self._scheduled_tasks.append({
-            'func': func,
-            'interval': interval,
-            'name': name,
-            'next_run': datetime.utcnow()
-        })
-
-    async def start(self):
-        """Start the scheduler"""
-        self._running = True
-        while self._running:
-            now = datetime.utcnow()
-
-            for task in self._scheduled_tasks:
-                if now >= task['next_run']:
-                    asyncio.create_task(task['func']())
-                    task['next_run'] = now + task['interval']
-
-            await asyncio.sleep(60)  # Check every minute
-
-    def stop(self):
-        """Stop the scheduler"""
-        self._running = False
-
-# Usage in main.py
-scheduler = AsyncScheduler()
-
-# Schedule RSS feed fetching
-scheduler.schedule_periodic(
-    fetch_rss_feeds_async,
-    timedelta(hours=1),
-    "fetch_rss_feeds"
-)
-
-# Start scheduler on app startup
-@app.on_event("startup")
-async def start_scheduler():
-    asyncio.create_task(scheduler.start())
+# Create API endpoints for scheduled tasks
+@router.post("/feeds/fetch-all")
+def fetch_all_feeds(
+    background_tasks: BackgroundTasks,
+    feed_service: Annotated[FeedService, Depends(get_feed_service)]
+):
+    """Fetch all RSS feeds - can be called by cron/scheduler."""
+    background_tasks.add_task(feed_service.fetch_all_feeds)
+    return {"status": "fetching feeds"}
 ```
 
 ### Phase 3: Update Infrastructure
@@ -300,46 +213,18 @@ async def process_article(article_id: int) -> Dict:
         return await article_service.process_article(article_id)
 ```
 
-#### 4.2 Update API Endpoints
+### Phase 4: Update CLI Commands
+
+Since the CLI is migrating to HTTP calls, it will simply call the API endpoints:
+
 ```python
-# Before
-@router.post("/process-article/{article_id}")
-async def process_article_endpoint(article_id: int):
-    task = process_article.delay(article_id)
-    return {"task_id": task.id}
-
-# After
-@router.post("/process-article/{article_id}")
-async def process_article_endpoint(
-    article_id: int,
-    task_manager: AsyncTaskManager = Depends(get_task_manager)
-):
-    task_id = await task_manager.submit_task(
-        "process_article",
-        process_article,
-        article_id
-    )
-    return {"task_id": task_id}
-```
-
-#### 4.3 Update CLI Commands
-```python
-# Before
-from local_newsifier.tasks import fetch_rss_feeds
-
+# CLI command using HTTP client
 def process_feeds():
-    task = fetch_rss_feeds.delay()
-    click.echo(f"Task {task.id} submitted")
-
-# After
-import asyncio
-
-async def process_feeds_async():
-    await fetch_rss_feeds()
-
-def process_feeds():
-    asyncio.run(process_feeds_async())
-    click.echo("Feeds processed")
+    response = requests.post(f"{API_URL}/feeds/fetch-all")
+    if response.ok:
+        click.echo("Feed fetching initiated")
+    else:
+        click.echo(f"Error: {response.text}")
 ```
 
 ### Phase 5: Testing and Validation
@@ -382,23 +267,20 @@ def process_feeds():
 
 ## Benefits of Removing Celery
 
-1. **Reduced Complexity**: No need for separate worker processes
-2. **Fewer Dependencies**: Remove Celery and potentially Redis
-3. **Simplified Deployment**: Single process deployment
-4. **Better Integration**: Native FastAPI/async patterns
-5. **Lower Resource Usage**: No separate broker infrastructure
+1. **Reduced Complexity**: No separate worker processes or message broker
+2. **Fewer Dependencies**: Remove Celery and Redis dependencies
+3. **Simplified Deployment**: Single web process handles everything
+4. **Better Integration**: Native FastAPI patterns throughout
+5. **Lower Resource Usage**: No Redis, no worker processes
+6. **Easier Debugging**: All code runs in the same process
 
-## Risks and Mitigation
+## Timeline
 
-1. **Task Persistence**: Tasks won't survive crashes
-   - Mitigation: Implement database-backed queue for critical tasks
-
-2. **Scalability**: Can't distribute tasks across multiple workers
-   - Mitigation: Use load balancer for API instances
-
-3. **Monitoring**: Loss of Celery's built-in monitoring
-   - Mitigation: Implement custom metrics and logging
+- **Week 1**: Implement BackgroundTasks for existing Celery tasks
+- **Week 2**: Update deployment configuration and remove dependencies
+- **Week 3**: Testing and monitoring
+- **Week 4**: Documentation and cleanup
 
 ## Conclusion
 
-Removing Celery is feasible for Local Newsifier given its relatively simple task requirements. The combination of FastAPI BackgroundTasks for simple operations and a custom async task manager for more complex needs provides a good balance of simplicity and functionality. This approach eliminates infrastructure dependencies while maintaining the ability to process tasks asynchronously.
+FastAPI BackgroundTasks provides all the functionality needed for Local Newsifier's task processing requirements. This simpler architecture reduces operational complexity while maintaining all necessary features.
