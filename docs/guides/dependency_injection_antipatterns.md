@@ -19,10 +19,10 @@ _parser = RSSParser()  # This triggers injectable dependency resolution during i
 ```
 
 **Why it's problematic:**
-- Causes `RuntimeError: this event loop is already running` when the module is imported in an async context
 - Triggers dependency resolution before the application is properly initialized
 - Can lead to circular import issues
 - Can create race conditions during application startup
+- May cause unexpected behavior during testing
 
 **Correct approach:**
 - Use provider functions to create instances when needed
@@ -38,7 +38,7 @@ class RSSParser:
 @injectable(use_cache=False)
 def get_rss_parser():
     return RSSParser()
-    
+
 # In code that needs an RSSParser
 from local_newsifier.di.providers import get_rss_parser
 parser = get_rss_parser()
@@ -76,32 +76,39 @@ from local_newsifier.di.providers import get_implementation
 result = get_implementation().process()
 ```
 
-### 3. Synchronous Code in Async Contexts
+### 3. Import-Time Initialization
 
-**Anti-pattern:** Running synchronous code that triggers async operations at module level.
+**Anti-pattern:** Performing complex initialization at module import time.
 
 ```python
 # BAD PRACTICE
 # At module level
-async_thing = AsyncThing()  # This might internally trigger async operations
+complex_thing = ComplexThing()  # This might trigger network calls or database connections
+database_connection = DatabaseConnection()  # Opens connection at import time
 ```
 
 **Why it's problematic:**
-- Can trigger `RuntimeError: this event loop is already running` errors
-- May cause deadlocks or race conditions
+- Can cause import errors if resources aren't available
+- Slows down application startup
+- May create connection leaks
 - Can break application startup sequences
 
 **Correct approach:**
-- Defer instantiation of components with async behavior
-- Use proper async initialization patterns
-- Keep module-level code simple and purely synchronous
+- Defer instantiation until runtime
+- Use lazy initialization patterns
+- Keep module-level code simple
 
 ```python
 # GOOD PRACTICE
-async def get_async_thing():
-    if not hasattr(get_async_thing, "_instance"):
-        get_async_thing._instance = await AsyncThing.create()
-    return get_async_thing._instance
+def get_complex_thing():
+    if not hasattr(get_complex_thing, "_instance"):
+        get_complex_thing._instance = ComplexThing()
+    return get_complex_thing._instance
+
+# Or use dependency injection
+@injectable(use_cache=False)
+def get_database_connection():
+    return DatabaseConnection()
 ```
 
 ### 4. Hidden Dependencies
@@ -144,7 +151,7 @@ class ServiceWithExplicitDependencies:
 class StatefulService:
     def __init__(self):
         self.state = {}
-        
+
     def process(self, item):
         # Modifies internal state
         self.state[item.id] = item
@@ -188,7 +195,7 @@ model = load_large_model()
 
 **Correct approach:**
 - Lazy initialization
-- Use factories or providers 
+- Use factories or providers
 - Defer expensive operations to runtime
 
 ```python
@@ -241,7 +248,7 @@ class ServiceC:  # Intermediate service with common functionality
 class ServiceA:
     def __init__(self, service_c: ServiceC):
         self.service_c = service_c
-        
+
 @injectable(use_cache=False)
 class ServiceB:
     def __init__(self, service_c: ServiceC):

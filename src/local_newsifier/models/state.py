@@ -29,13 +29,11 @@ class AnalysisStatus(str, Enum):
 
 class TrackingStatus(str, Enum):
     """Status of the entity tracking process."""
-    
+
     INITIALIZED = "INITIALIZED"
     PROCESSING = "PROCESSING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
-
-
 
 
 class NewsAnalysisState(BaseState):
@@ -67,10 +65,9 @@ class NewsAnalysisState(BaseState):
     )
 
 
-
 class EntityTrackingState(BaseState):
     """State model for the entity tracking process."""
-    
+
     article_id: int
     content: str
     title: str
@@ -78,7 +75,7 @@ class EntityTrackingState(BaseState):
     entities: List[Dict[str, Any]] = Field(default_factory=list)
     status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
     failure_status: TrackingStatus = TrackingStatus.FAILED
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -92,12 +89,11 @@ class EntityTrackingState(BaseState):
             }
         }
     )
-    
 
 
 class EntityBatchTrackingState(BaseState):
     """State model for batch entity tracking process."""
-    
+
     status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
     failure_status: TrackingStatus = TrackingStatus.FAILED
     status_filter: str = Field(default="analyzed")
@@ -106,7 +102,7 @@ class EntityBatchTrackingState(BaseState):
     processed_count: int = 0
     error_count: int = 0
     error_details: Optional[ErrorDetails] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -121,8 +117,7 @@ class EntityBatchTrackingState(BaseState):
             }
         }
     )
-    
-    
+
     def add_processed_article(self, article_data: Dict[str, Any], success: bool = True) -> None:
         """Add a processed article to the state."""
         self.processed_articles.append(article_data)
@@ -134,7 +129,7 @@ class EntityBatchTrackingState(BaseState):
 
 class EntityDashboardState(BaseState):
     """State model for entity dashboard generation."""
-    
+
     status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
     failure_status: TrackingStatus = TrackingStatus.FAILED
     days: int = Field(default=30)
@@ -143,7 +138,7 @@ class EntityDashboardState(BaseState):
     end_date: Optional[datetime] = None
     dashboard_data: Dict[str, Any] = Field(default_factory=dict)
     error_details: Optional[ErrorDetails] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -156,12 +151,11 @@ class EntityDashboardState(BaseState):
             }
         }
     )
-    
 
 
 class EntityRelationshipState(BaseState):
     """State model for entity relationship analysis."""
-    
+
     status: TrackingStatus = Field(default=TrackingStatus.INITIALIZED)
     failure_status: TrackingStatus = TrackingStatus.FAILED
     entity_id: int
@@ -170,7 +164,7 @@ class EntityRelationshipState(BaseState):
     end_date: Optional[datetime] = None
     relationship_data: Dict[str, Any] = Field(default_factory=dict)
     error_details: Optional[ErrorDetails] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -183,4 +177,3 @@ class EntityRelationshipState(BaseState):
             }
         }
     )
-    

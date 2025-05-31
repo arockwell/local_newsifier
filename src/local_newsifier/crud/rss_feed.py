@@ -36,10 +36,7 @@ class CRUDRSSFeed(CRUDBase[RSSFeed]):
             List of active feeds
         """
         return db.exec(
-            select(RSSFeed)
-            .where(RSSFeed.is_active == True)
-            .offset(skip)
-            .limit(limit)
+            select(RSSFeed).where(RSSFeed.is_active == True).offset(skip).limit(limit)
         ).all()
 
     def update_last_fetched(self, db: Session, *, id: int) -> Optional[RSSFeed]:

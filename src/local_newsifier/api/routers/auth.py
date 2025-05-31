@@ -1,8 +1,6 @@
 """Authentication router for admin access."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -15,10 +13,7 @@ router = APIRouter(
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(
-    request: Request,
-    templates: Jinja2Templates = Depends(get_templates)
-):
+def login_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Render the login page.
 
     Args:
@@ -35,7 +30,7 @@ async def login_page(
 
 
 @router.post("/login", response_class=HTMLResponse)
-async def login(
+def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
@@ -71,7 +66,7 @@ async def login(
 
 
 @router.get("/logout")
-async def logout(request: Request):
+def logout(request: Request):
     """Log out the current user by clearing the session.
 
     Args:

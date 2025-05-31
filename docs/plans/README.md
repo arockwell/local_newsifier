@@ -22,6 +22,12 @@ This directory contains comprehensive knowledge documentation consolidated from 
 - Testing strategies
 - Migration checklist
 
+#### [Async to Sync Migration](./async-to-sync-migration.md)
+- Rationale for moving from async to sync routes
+- Migration scope and steps
+- Implementation plan and checklist
+- Benefits and risk mitigation
+
 ### Development Practices
 
 #### [Documentation Strategy](./documentation-strategy.md)
@@ -59,17 +65,18 @@ This directory contains comprehensive knowledge documentation consolidated from 
 - Prioritization matrix
 - Remediation roadmap
 
-#### [Event Loop Stabilization](./event-loop-stabilization.md) ✅ (Partially Complete)
-- Event loop conflict resolution (✅ Critical issues fixed)
-- Removal of problematic fixtures (✅ CI skip decorators removed)
-- Async/await pattern standardization (🔄 28 files remaining)
-- Test stability improvements (✅ CI now passes reliably)
-- Migration from custom event loop management
-- Best practices for async testing
 
-Related documents:
-- [Remaining Work Detail](./event-loop-remaining-work.md) - Specific files and changes needed
-- [Next Steps](./event-loop-next-steps.md) - Actionable plan for completion
+### Architecture Decision: Sync-Only Implementation
+
+The project has made a deliberate decision to use **synchronous patterns exclusively** throughout the codebase. This decision was made to:
+- Prioritize development simplicity and maintainability
+- Avoid complexity of mixed async/sync patterns that caused production crashes
+- Reduce cognitive overhead for developers
+- Eliminate event loop and async testing issues
+
+See [Async to Sync Migration](./async-to-sync-migration.md) for the migration plan and rationale.
+
+**Important**: Do not introduce async patterns in new code. All new development should follow synchronous patterns as documented in CLAUDE.md.
 
 ## How to Use This Knowledge Base
 
@@ -154,12 +161,11 @@ def command(service: Annotated[Service, Depends(get_service)]):
 
 | Issue | Document | Section |
 |-------|----------|---------|
-| Event loop errors | Event Loop Stabilization | Problem Statement (✅ Fixed) |
 | Circular imports | Technical Debt | Circular Dependencies |
 | Offline install fails | Technical Debt | Offline Installation Issues |
 | DI migration | Dependency Injection | Migration Strategy |
 | Webhook testing | Apify Integration | Testing Strategies |
-| Async test failures | Event Loop Stabilization | Best Practices (✅ Fixed) |
+| Sync migration | Async to Sync Migration | Implementation Plan |
 
 ## Related Documentation
 

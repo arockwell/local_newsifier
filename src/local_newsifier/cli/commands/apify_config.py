@@ -46,23 +46,20 @@ def list_configs(active_only, json_output, limit, skip, source_type):
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     # Get configs based on filters
     configs_dict = apify_source_config_service.list_configs(
-        skip=skip, 
-        limit=limit, 
-        active_only=active_only, 
-        source_type=source_type
+        skip=skip, limit=limit, active_only=active_only, source_type=source_type
     )
-    
+
     if json_output:
         click.echo(json.dumps(configs_dict, indent=2, default=str))
         return
-    
+
     if not configs_dict:
         click.echo("No Apify source configurations found.")
         return
-    
+
     # Format data for table
     table_data = []
     for config in configs_dict:
@@ -72,25 +69,27 @@ def list_configs(active_only, json_output, limit, skip, source_type):
             if isinstance(last_run, str):
                 try:
                     last_run = datetime.fromisoformat(last_run).strftime("%Y-%m-%d %H:%M")
-                except:
+                except (ValueError, TypeError):
                     # Handle potential format issues
                     pass
-        
+
         # Truncate input_configuration if it's too long
         input_config = str(config.get("input_configuration", {}))
         if len(input_config) > 30:
             input_config = input_config[:27] + "..."
-        
-        table_data.append([
-            config["id"],
-            config["name"],
-            config["actor_id"],
-            config["source_type"],
-            "✓" if config["is_active"] else "✗",
-            last_run or "Never",
-            input_config
-        ])
-    
+
+        table_data.append(
+            [
+                config["id"],
+                config["name"],
+                config["actor_id"],
+                config["source_type"],
+                "✓" if config["is_active"] else "✗",
+                last_run or "Never",
+                input_config,
+            ]
+        )
+
     # Display table
     headers = ["ID", "Name", "Actor ID", "Type", "Active", "Last Run", "Config"]
     click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
@@ -114,7 +113,7 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     # Parse input configuration if provided
     input_configuration = None
     if input:
@@ -136,7 +135,7 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
                     err=True,
                 )
                 return
-    
+
     try:
         config = apify_source_config_service.create_config(
             name=name,
@@ -144,9 +143,9 @@ def add_config(name, actor_id, source_type, source_url, schedule, input):
             source_type=source_type,
             source_url=source_url,
             schedule=schedule,
-            input_configuration=input_configuration
+            input_configuration=input_configuration,
         )
-        
+
         click.echo(f"Apify source configuration added successfully with ID: {config['id']}")
         click.echo(f"Name: {config['name']}")
         click.echo(f"Actor ID: {config['actor_id']}")
@@ -169,38 +168,42 @@ def show_config(id, json_output):
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     try:
         config = apify_source_config_service.get_config(id)
         if not config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
+            click.echo(
+                click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True
+            )
             return
-        
+
         if json_output:
             click.echo(json.dumps(config, indent=2, default=str))
             return
-        
+
         # Display config details
-        click.echo(click.style(f"Configuration #{config['id']}: {config['name']}", fg="green", bold=True))
+        click.echo(
+            click.style(f"Configuration #{config['id']}: {config['name']}", fg="green", bold=True)
+        )
         click.echo(f"Actor ID: {config['actor_id']}")
         click.echo(f"Source Type: {config['source_type']}")
-        if config['source_url']:
+        if config["source_url"]:
             click.echo(f"Source URL: {config['source_url']}")
         click.echo(f"Active: {'Yes' if config['is_active'] else 'No'}")
-        
-        if config['schedule']:
+
+        if config["schedule"]:
             click.echo(f"Schedule: {config['schedule']}")
-        
-        last_run = config['last_run_at']
+
+        last_run = config["last_run_at"]
         if last_run:
             click.echo(f"Last Run: {last_run}")
         else:
             click.echo("Last Run: Never")
-        
+
         click.echo("\nInput Configuration:")
-        click.echo(json.dumps(config['input_configuration'], indent=2))
-        
-        created_at = config['created_at']
+        click.echo(json.dumps(config["input_configuration"], indent=2))
+
+        created_at = config["created_at"]
         click.echo(f"\nCreated At: {created_at}")
     except Exception as e:
         click.echo(click.style(f"Error retrieving configuration: {str(e)}", fg="red"), err=True)
@@ -220,23 +223,29 @@ def remove_config(id, force):
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     try:
         config = apify_source_config_service.get_config(id)
         if not config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
+            click.echo(
+                click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True
+            )
             return
-        
+
         if not force:
-            if not click.confirm(f"Are you sure you want to remove configuration '{config['name']}' (ID: {id})?"):
+            if not click.confirm(
+                f"Are you sure you want to remove configuration '{config['name']}' (ID: {id})?"
+            ):
                 click.echo("Operation canceled.")
                 return
-        
+
         result = apify_source_config_service.remove_config(id)
         if result:
             click.echo(f"Configuration '{config['name']}' (ID: {id}) removed successfully.")
         else:
-            click.echo(click.style(f"Error removing configuration with ID {id}", fg="red"), err=True)
+            click.echo(
+                click.style(f"Error removing configuration with ID {id}", fg="red"), err=True
+            )
     except Exception as e:
         click.echo(click.style(f"Error removing configuration: {str(e)}", fg="red"), err=True)
 
@@ -261,13 +270,15 @@ def update_config(id, name, actor_id, source_type, source_url, schedule, active,
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     try:
         # Check if at least one property to update was provided
-        if all(v is None for v in [name, actor_id, source_type, source_url, schedule, active, input]):
+        if all(
+            v is None for v in [name, actor_id, source_type, source_url, schedule, active, input]
+        ):
             click.echo("No properties specified for update. Use --name, --actor-id, etc.")
             return
-        
+
         # Parse input configuration if provided
         input_configuration = None
         if input:
@@ -289,7 +300,7 @@ def update_config(id, name, actor_id, source_type, source_url, schedule, active,
                         err=True,
                     )
                     return
-        
+
         # Update config
         updated_config = apify_source_config_service.update_config(
             config_id=id,
@@ -299,13 +310,15 @@ def update_config(id, name, actor_id, source_type, source_url, schedule, active,
             source_url=source_url,
             schedule=schedule,
             is_active=active,
-            input_configuration=input_configuration
+            input_configuration=input_configuration,
         )
-        
+
         if not updated_config:
-            click.echo(click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True)
+            click.echo(
+                click.style(f"Error: Configuration with ID {id} not found", fg="red"), err=True
+            )
             return
-            
+
         click.echo(f"Configuration '{updated_config['name']}' (ID: {id}) updated successfully.")
     except Exception as e:
         click.echo(click.style(f"Error updating configuration: {str(e)}", fg="red"), err=True)
@@ -316,12 +329,12 @@ def update_config(id, name, actor_id, source_type, source_url, schedule, active,
 @click.option("--output", "-o", help="Save output to file")
 def run_config(id, output):
     """Run an Apify actor based on a source configuration.
-    
+
     This command will execute the Apify actor associated with the configuration
     using the stored input parameters.
-    
+
     ID is the ID of the configuration to run.
-    
+
     Examples:
         nf apify-config run 1
         nf apify-config run 2 --output result.json
@@ -335,22 +348,22 @@ def run_config(id, output):
         apify_source_config_crud=apify_source_config_crud,
         session=session,
     )
-    
+
     try:
         # Run the configuration
         result = apify_source_config_service.run_configuration(id)
-        
+
         if result["status"] == "success":
             click.echo(click.style("✓ Actor run completed successfully!", fg="green"))
             click.echo(f"Configuration: {result['config_name']} (ID: {result['config_id']})")
             click.echo(f"Actor ID: {result['actor_id']}")
             click.echo(f"Run ID: {result['run_id']}")
-            
+
             # Output dataset info if available
             if "dataset_id" in result and result["dataset_id"]:
                 click.echo(f"Dataset ID: {result['dataset_id']}")
                 click.echo(f"To retrieve the data: nf apify get-dataset {result['dataset_id']}")
-            
+
             # Save or display the results
             if output:
                 with open(output, "w") as f:
@@ -358,7 +371,9 @@ def run_config(id, output):
                 click.echo(f"Output saved to {output}")
         else:
             click.echo(click.style("✗ Actor run failed.", fg="red"), err=True)
-            click.echo(click.style(f"Error: {result.get('message', 'Unknown error')}", fg="red"), err=True)
-            
+            click.echo(
+                click.style(f"Error: {result.get('message', 'Unknown error')}", fg="red"), err=True
+            )
+
     except Exception as e:
         click.echo(click.style(f"Error running configuration: {str(e)}", fg="red"), err=True)

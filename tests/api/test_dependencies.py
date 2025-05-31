@@ -15,15 +15,15 @@ from local_newsifier.services.rss_feed_service import RSSFeedService
 class TestSessionDependency:
     """Tests for the database session dependency."""
 
-    def test_get_session_from_injectable(self):
-        """Test that get_session uses the injectable provider."""
+    def test_get_session_from_database_engine(self):
+        """Test that get_session uses the database engine's get_session."""
         # Create a mock session
         mock_session = Mock(spec=Session)
 
-        # Mock the injectable provider
-        with patch("local_newsifier.di.providers.get_session") as mock_get_session:
+        # Mock the database engine's get_session
+        with patch("local_newsifier.database.engine.get_session") as mock_get_db_session:
             # Set up the session provider to yield our mock session
-            mock_get_session.return_value = iter([mock_session])
+            mock_get_db_session.return_value = iter([mock_session])
 
             # Get the session from the generator
             session_generator = get_session()
@@ -31,7 +31,7 @@ class TestSessionDependency:
 
             # Verify the session is what we expect
             assert session is mock_session
-            assert mock_get_session.called
+            assert mock_get_db_session.called
 
 
 class TestServiceDependencies:

@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 import click
-import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
@@ -12,6 +11,7 @@ from local_newsifier.errors.rss_error import RSSError
 
 def test_handle_rss_cli_errors_with_rss_error():
     """Test the handle_rss_cli_errors decorator with RSSError."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -27,6 +27,7 @@ def test_handle_rss_cli_errors_with_rss_error():
 
 def test_handle_rss_cli_errors_with_timeout_error():
     """Test the handle_rss_cli_errors decorator with timeout error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -42,6 +43,7 @@ def test_handle_rss_cli_errors_with_timeout_error():
 
 def test_handle_rss_cli_errors_with_connection_error():
     """Test the handle_rss_cli_errors decorator with connection error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -57,6 +59,7 @@ def test_handle_rss_cli_errors_with_connection_error():
 
 def test_handle_rss_cli_errors_with_not_found_error():
     """Test the handle_rss_cli_errors decorator with not found error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -72,6 +75,7 @@ def test_handle_rss_cli_errors_with_not_found_error():
 
 def test_handle_rss_cli_errors_with_format_error():
     """Test the handle_rss_cli_errors decorator with format error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -87,6 +91,7 @@ def test_handle_rss_cli_errors_with_format_error():
 
 def test_handle_rss_cli_errors_with_exists_error():
     """Test the handle_rss_cli_errors decorator with exists error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -102,6 +107,7 @@ def test_handle_rss_cli_errors_with_exists_error():
 
 def test_handle_rss_cli_errors_with_generic_error():
     """Test the handle_rss_cli_errors decorator with generic error."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():
@@ -117,6 +123,7 @@ def test_handle_rss_cli_errors_with_generic_error():
 
 def test_handle_rss_cli_errors_with_verbose_mode():
     """Test the handle_rss_cli_errors decorator with verbose mode."""
+
     @click.command()
     @click.option("--verbose", is_flag=True)
     @handle_rss_cli_errors
@@ -137,6 +144,7 @@ def test_handle_rss_cli_errors_with_verbose_mode():
 
 def test_handle_rss_cli_errors_with_other_exception_verbose():
     """Test the handle_rss_cli_errors decorator with other exceptions in verbose mode."""
+
     @click.command()
     @click.option("--verbose", is_flag=True)
     @handle_rss_cli_errors
@@ -155,6 +163,7 @@ def test_handle_rss_cli_errors_with_other_exception_verbose():
 
 def test_handle_rss_cli_errors_with_other_exception():
     """Test the handle_rss_cli_errors decorator with other exceptions."""
+
     @click.command()
     @handle_rss_cli_errors
     def test_command():

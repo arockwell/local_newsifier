@@ -3,8 +3,6 @@ Celery application configuration for the Local Newsifier project.
 This module sets up the Celery application using PostgreSQL as both the broker and result backend.
 """
 
-import os
-
 from celery import Celery
 
 # Load environment variables for configuration

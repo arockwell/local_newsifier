@@ -63,7 +63,7 @@
 - Don't catch generic Exception - catch specific exceptions
 - Don't modify mutable default arguments
 - Don't forget to close resources (use context managers)
-- Don't mix sync and async code patterns
+- Don't use async patterns - the project is moving to sync-only
 - Don't forget to add files to git before committing
 
 # Local Newsifier Development Guide
@@ -73,7 +73,8 @@
 - Focuses on entity tracking, sentiment analysis, and headline trend detection
 - Uses NLP for entity recognition and relationship mapping
 - Supports multiple content acquisition methods (RSS feeds, Apify web scraping)
-- Uses Celery with Redis for asynchronous task processing
+- Uses synchronous processing throughout the entire application
+- No async/await patterns - all code is sync-only for simplicity
 - Deployed on Railway with web, worker, and scheduler processes
 
 ## Environment Setup
@@ -139,9 +140,9 @@ make format            # Auto-format code (isort + black)
 
 # Running services
 make run-api           # Run FastAPI server
-make run-worker        # Run Celery worker
-make run-beat          # Run Celery beat scheduler
-make run-all           # Run all services (API, worker, beat)
+make run-worker        # Run background worker (if applicable)
+make run-scheduler     # Run task scheduler (if applicable)
+make run-all           # Run all services
 
 # Database management
 make db-init           # Initialize cursor-specific database
@@ -162,7 +163,7 @@ make build-wheels-linux # Build Linux wheels using Docker
 - Uses SQLModel (combines SQLAlchemy ORM and Pydantic validation)
 - PostgreSQL backend with cursor-specific database instances
 - Key models: Article, Entity, AnalysisResult, CanonicalEntity, ApifySourceConfig, RSSFeed
-- Database sessions should be managed with the `with_session` decorator
+- Database sessions are managed through dependency injection or context managers
 
 ### Project Structure
 ```
@@ -182,7 +183,7 @@ src/
 │   │   └── apify.py    # Apify integration models
 │   ├── services/       # Business logic services
 │   │   └── apify_service.py  # Apify API integration
-│   ├── tasks.py        # Celery tasks
+│   ├── tasks.py        # Background tasks (sync-only)
 │   └── tools/          # Processing tools
 │       ├── analysis/   # Analysis tools
 │       ├── extraction/ # Entity extraction tools
@@ -212,7 +213,7 @@ class Article(SQLModel, table=True):
 - CRUD operations are in `src/local_newsifier/crud/`
 - Use the CRUDBase class for common operations
 - Extend with model-specific operations
-- Use the `with_session` decorator for session management
+- Use dependency injection or context managers for session management
 
 ### Dependency Injection
 
@@ -270,13 +271,13 @@ class ApifyService:
 ### Session Management
 Use the `get_session` provider to obtain a database session:
 ```python
-from typing import Annotated, Generator
+from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session
 
 from local_newsifier.di.providers import get_session
 
-async def some_endpoint(
+def some_endpoint(
     session: Annotated[Session, Depends(get_session)]
 ):
     # Database operations here
@@ -362,13 +363,12 @@ def test_component_success(mock_component):
 
 ### Railway Configuration
 - Railway.json configures multiple processes:
-  - web: FastAPI web interface
-  - worker: Celery worker for task processing
-  - beat: Celery beat for scheduled tasks
+  - web: FastAPI web interface (sync-only)
+  - worker: Background task processor (sync-only)
+  - scheduler: Task scheduler (sync-only)
 - Required environment variables:
   - POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB
-  - CELERY_BROKER_URL (Redis URL for Celery broker)
-  - CELERY_RESULT_BACKEND (Redis URL for Celery results)
+  - REDIS_URL (Redis URL for caching and task queuing if needed)
   - APIFY_TOKEN (for Apify web scraping)
   - APIFY_WEBHOOK_SECRET (optional, for webhook validation)
 
@@ -385,123 +385,41 @@ def test_component_success(mock_component):
 - SQLModel.exec() only takes one parameter - bind params to the query before calling
 - Avoid passing SQLModel objects between sessions - use IDs instead
 - Use runtime imports to break circular dependencies
-- Redis is required for Celery - PostgreSQL is no longer supported as a broker
+- All processing is synchronous - no message brokers required for basic operation
 
 
-### Testing Async Code
-When testing async code with FastAPI and fastapi-injectable, use pytest-asyncio's built-in capabilities:
+## Sync-Only Architecture
 
-### Async Development Best Practices
+> **CRITICAL**: This project uses ONLY synchronous patterns. No async/await code is allowed.
 
-#### Async Database Sessions
-When implementing async database operations, follow these patterns:
+### Why Sync-Only?
+- Simpler debugging and error handling
+- Easier to understand execution flow
+- Better compatibility with existing tools
+- Reduced complexity in testing
 
-1. **Async Session Management**:
+### Sync-Only Rules
+1. **Function Definitions**: Always use `def`, never `async def`
+2. **Database Sessions**: Use `Session`, never `AsyncSession`
+3. **HTTP Clients**: Use `requests` or `httpx` sync client, never async clients
+4. **No await keywords**: If you see `await`, it's wrong
+5. **FastAPI Routes**: All routes must be synchronous (`def`, not `async def`)
+6. **Background Tasks**: Use threading or multiprocessing, not asyncio
+
+### Converting Async to Sync
+If you encounter async code:
 ```python
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncGenerator
-from typing import AsyncGenerator
+# WRONG - Async pattern
+async def get_data():
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+    return response.json()
 
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+# CORRECT - Sync pattern
+def get_data():
+    response = requests.get(url)
+    return response.json()
 ```
-
-2. **Async CRUD Operations**:
-```python
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-async def create_async(self, session: AsyncSession, data: dict):
-    obj = self.model(**data)
-    session.add(obj)
-    await session.flush()  # Ensure ID is generated
-    await session.refresh(obj)  # Load relationships
-    return obj
-
-async def get_by_field_async(self, session: AsyncSession, field: str, value: Any):
-    stmt = select(self.model).where(getattr(self.model, field) == value)
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none()
-```
-
-3. **Async Service Pattern**:
-```python
-class AsyncService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.crud = AsyncCRUD()
-
-    async def process_data(self, data: dict):
-        # All database operations use await
-        result = await self.crud.create_async(self.session, data)
-        # Process result...
-        return result
-```
-
-4. **Error Handling in Async Endpoints**:
-```python
-from fastapi import HTTPException
-
-async def webhook_endpoint(data: dict, session: AsyncSession):
-    try:
-        result = await service.process(data)
-        return {"status": "success", "id": result.id}
-    except HTTPException:
-        raise  # Let FastAPI handle HTTP exceptions
-    except Exception as e:
-        logger.error(f"Processing failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-#### Important Async Gotchas
-- **No Implicit Commits**: Unlike sync SQLAlchemy, async sessions require explicit `await session.commit()`
-- **Session Lifecycle**: Always ensure sessions are properly closed with try/finally blocks
-- **Query Execution**: Use `await session.execute(stmt)` not `session.exec(stmt)`
-- **Timezone Handling**: Use timezone-naive datetime in database, handle timezone at API boundaries
-
-### Handling Event Loop Issues in Tests
-When testing async code, especially with FastAPI and fastapi-injectable, you may encounter event loop-related errors. Follow these guidelines to avoid them:
-
-1. Mark async tests with `@pytest.mark.asyncio`:
-```python
-@pytest.mark.asyncio
-async def test_async_functionality():
-    result = await async_function()
-    assert result == expected
-```
-
-2. Mock async dependencies properly:
-```python
-from unittest.mock import AsyncMock, patch
-
-# Mock async dependencies
-with patch("my_module.async_dependency", new_callable=AsyncMock) as mock:
-    mock.return_value = expected_value
-    # Test code here
-```
-
-3. Avoid mixing sync and async patterns:
-```python
-# Good - fully async test
-@pytest.mark.asyncio
-async def test_service():
-    service = await get_service()
-    result = await service.process()
-    assert result == expected
-
-# Bad - mixing patterns
-def test_service():
-    service = asyncio.run(get_service())  # Don't do this
-```
-
-For more details on async testing patterns, see `docs/plans/event-loop-stabilization.md`.
 ## Maintaining AGENTS.md
 
 Whenever you add or remove a `CLAUDE.md` file anywhere in the repository, update the root `AGENTS.md` so Codex can find all of the guides.

@@ -17,7 +17,7 @@ class RSSError(Exception):
 
     def __init__(self, message: str, original: Exception = None):
         """Initialize RSS error.
-        
+
         Args:
             message: Error message
             original: Original exception that was caught
@@ -28,16 +28,17 @@ class RSSError(Exception):
 
 def handle_rss_error(func: Callable) -> Callable:
     """Decorator for handling RSS errors consistently.
-    
+
     Catches errors in RSS operations and transforms them into RSSError
     with appropriate context and logging.
-    
+
     Args:
         func: Function to decorate
-        
+
     Returns:
         Decorated function with error handling
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         """Wrapped function with error handling."""
@@ -53,7 +54,7 @@ def handle_rss_error(func: Callable) -> Callable:
         except Exception as e:
             # Handle other errors
             logger.exception(f"RSS operation failed in {func.__name__}: {str(e)}")
-            
+
             # Determine appropriate error message
             if "timeout" in str(e).lower():
                 message = f"RSS feed request timed out: {str(e)}"
@@ -65,7 +66,7 @@ def handle_rss_error(func: Callable) -> Callable:
                 message = f"Invalid RSS feed format: {str(e)}"
             else:
                 message = f"RSS feed processing error: {str(e)}"
-            
+
             raise RSSError(message, e)
-    
+
     return wrapper

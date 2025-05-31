@@ -8,7 +8,7 @@ and logging. Data processing functionality will be tested separately.
 
 import datetime
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -18,19 +18,21 @@ from tests.ci_skip_config import ci_skip_async
 @pytest.fixture(scope="module", autouse=True)
 def mock_db():
     """Mock database calls for testing."""
-    # Save original create_db_and_tables function
+    # Save original get_engine function
+    from unittest.mock import MagicMock
+
     from local_newsifier.database import engine
 
-    original_create_db = engine.create_db_and_tables
+    original_get_engine = engine.get_engine
 
-    # Replace with no-op function
-    engine.create_db_and_tables = lambda: None
+    # Replace with mock function
+    engine.get_engine = lambda: MagicMock()
 
     # Yield control back to test
     yield
 
     # Restore original function after tests
-    engine.create_db_and_tables = original_create_db
+    engine.get_engine = original_get_engine
 
 
 class TestApifyWebhookInfrastructure:
@@ -58,10 +60,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return error for invalid signature
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return error for invalid signature
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Invalid signature"}
             )
 
@@ -96,10 +98,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return success
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={
                     "status": "ok",
                     "message": "Webhook processed. Articles created: 0",
@@ -140,10 +142,10 @@ class TestApifyWebhookInfrastructure:
             "webhookId": str(uuid.uuid4()),
         }
 
-        # Mock the async webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return success
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={
                     "status": "ok",
                     "message": "Webhook processed. Articles created: 0",
@@ -170,10 +172,10 @@ class TestApifyWebhookInfrastructure:
             # Missing required fields like actorId, actorRunId, etc.
         }
 
-        # Mock the async webhook service to return error for missing fields
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceAsync") as MockService:
+        # Mock the sync webhook service to return error for missing fields
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
             mock_instance = MockService.return_value
-            mock_instance.handle_webhook = AsyncMock(
+            mock_instance.handle_webhook = Mock(
                 return_value={"status": "error", "message": "Missing required fields"}
             )
 
@@ -184,3 +186,80 @@ class TestApifyWebhookInfrastructure:
             assert response.status_code == 400
             response_data = response.json()
             assert "Missing required fields" in response_data["detail"]
+
+    @ci_skip_async
+    def test_apify_webhook_sync_conversion(self, client, monkeypatch):
+        """Test that the webhook endpoint is properly converted to sync (no async/await)."""
+        # Clear webhook secret for this test
+        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
+
+        # Create a sample webhook payload
+        payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            "actorRunId": str(uuid.uuid4()),
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "SUCCEEDED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the sync webhook service
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
+            mock_instance = MockService.return_value
+            mock_instance.handle_webhook = Mock(
+                return_value={
+                    "status": "ok",
+                    "message": "Webhook processed. Articles created: 0",
+                    "run_id": payload["actorRunId"],
+                    "articles_created": 0,
+                }
+            )
+
+            # Send request to webhook endpoint
+            response = client.post("/webhooks/apify", json=payload)
+
+            # Should be accepted
+            assert response.status_code == 202
+            response_data = response.json()
+            assert response_data["status"] == "accepted"
+
+            # Verify that the mock was called with correct parameters
+            mock_instance.handle_webhook.assert_called_once()
+            call_args = mock_instance.handle_webhook.call_args
+            assert call_args[1]["payload"] == payload
+            assert "raw_payload" in call_args[1]
+            assert call_args[1]["signature"] is None  # No signature header sent
+
+    @ci_skip_async
+    def test_apify_webhook_exception_handling(self, client):
+        """Test that the webhook handles exceptions gracefully."""
+        payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            "actorRunId": str(uuid.uuid4()),
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "SUCCEEDED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the sync webhook service to raise an exception
+        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
+            mock_instance = MockService.return_value
+            mock_instance.handle_webhook = Mock(side_effect=Exception("Database error"))
+
+            # Send request to webhook endpoint
+            response = client.post("/webhooks/apify", json=payload)
+
+            # Should return error response
+            assert response.status_code == 202  # Still accepted but with error status
+            response_data = response.json()
+            assert response_data["status"] == "error"
+            assert "Database error" in response_data["message"]

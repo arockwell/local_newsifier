@@ -77,7 +77,7 @@ class NewsTrendAnalysisFlow(Flow):
         trend_detector: Optional[Any] = None,
         session: Optional[Session] = None,
         config: Optional[TrendAnalysisConfig] = None,
-        output_dir: str = "trend_output"
+        output_dir: str = "trend_output",
     ):
         """
         Initialize the trend analysis flow.
@@ -95,10 +95,10 @@ class NewsTrendAnalysisFlow(Flow):
         super().__init__()
         self.config = config or TrendAnalysisConfig()
         self.session = session
-        
+
         # Initialize reporter
         self.reporter = trend_reporter or TrendReporter(output_dir=output_dir)
-        
+
         # Use analysis service for all trend analysis operations
         if analysis_service:
             self.analysis_service = analysis_service
@@ -109,21 +109,21 @@ class NewsTrendAnalysisFlow(Flow):
                                                           get_article_crud, get_entity_crud,
                                                           get_session, get_trend_analyzer_tool)
 
-                # Get the dependencies 
+                # Get the dependencies
                 analysis_result_crud = get_analysis_result_crud()
-                article_crud = get_article_crud() 
+                article_crud = get_article_crud()
                 entity_crud = get_entity_crud()
                 trend_analyzer = get_trend_analyzer_tool()
                 session = next(get_session())
-                
+
                 # Create the service with all required dependencies
                 self.analysis_service = AnalysisService(
                     analysis_result_crud=analysis_result_crud,
                     article_crud=article_crud,
                     entity_crud=entity_crud,
-                    session_factory=lambda: session
+                    session_factory=lambda: session,
                 )
-                
+
                 # Store trend analyzer for later use
                 self.trend_analyzer = trend_analyzer
             except (ImportError, NameError):
@@ -133,15 +133,13 @@ class NewsTrendAnalysisFlow(Flow):
                     "Please provide an analysis_service instance or ensure the required "
                     "dependencies are available via fastapi-injectable providers."
                 )
-        
+
         # For backwards compatibility with tests
         self.data_aggregator = data_aggregator or MagicMock()
         self.topic_analyzer = topic_analyzer or MagicMock()
         self.trend_detector = trend_detector or MagicMock()
-        
-    def aggregate_historical_data(
-        self, state: TrendAnalysisState
-    ) -> TrendAnalysisState:
+
+    def aggregate_historical_data(self, state: TrendAnalysisState) -> TrendAnalysisState:
         """
         Retrieve articles for trend analysis.
 
@@ -172,7 +170,7 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log(
                 f"Analyzing trends from {start_date.isoformat()} to {end_date.isoformat()}"
             )
-            
+
             state.start_date = start_date
             state.end_date = end_date
             state.status = AnalysisStatus.SCRAPE_SUCCEEDED
@@ -203,11 +201,11 @@ class NewsTrendAnalysisFlow(Flow):
                 entity_types=state.config.entity_types,
                 min_significance=state.config.significance_threshold,
                 min_mentions=state.config.min_articles,
-                max_trends=state.config.topic_limit
+                max_trends=state.config.topic_limit,
             )
-            
-            # Detect anomalous patterns
-            anomaly_trends = self.trend_detector.detect_anomalous_patterns()
+
+            # Detect anomalous patterns (not used yet but available for future implementation)
+            # anomaly_trends = self.trend_detector.detect_anomalous_patterns()
 
             # Store the trends
             state.detected_trends = entity_trends
@@ -245,9 +243,7 @@ class NewsTrendAnalysisFlow(Flow):
                 return state
 
             # Generate and save report
-            state.report_path = self.reporter.save_report(
-                state.detected_trends, format=format
-            )
+            state.report_path = self.reporter.save_report(state.detected_trends, format=format)
 
             state.add_log(f"Saved trend report to {state.report_path}")
             state.status = AnalysisStatus.SAVE_SUCCEEDED
@@ -298,4 +294,3 @@ class NewsTrendAnalysisFlow(Flow):
             state.add_log("Completed trend analysis flow with errors")
 
         return state
-        

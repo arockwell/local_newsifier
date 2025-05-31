@@ -6,14 +6,19 @@ This document outlines the testing approach for migrating away from FastAPI-Inje
 
 ### 1. Event Loop Conflicts
 ```python
-# Previous problem: Tests failed with event loop errors (NOW RESOLVED)
-# The custom event_loop_fixture has been removed in favor of pytest-asyncio
+# Current problem: Tests fail with event loop errors
+@pytest.fixture
+def event_loop_fixture():
+    """Complex fixture needed for injectable tests."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
 
-@pytest.mark.asyncio
-async def test_with_injectable():
-    # Tests now work consistently in both local and CI environments
-    result = await async_function()
-    assert result == expected
+@ci_skip_async  # Have to skip in CI!
+def test_with_injectable(event_loop_fixture):
+    # Test that works locally but fails in CI
+    pass
 ```
 
 ### 2. Complex Mocking
@@ -375,8 +380,8 @@ def anyio_backend():
 ## Migration Testing Strategy
 
 ### Phase 1: Prepare Tests
-1. ~~Identify all tests using `event_loop_fixture`~~ (COMPLETED - fixture removed)
-2. ~~Identify all tests with `@ci_skip_async`~~ (COMPLETED - decorators removed)
+1. Identify all tests using `event_loop_fixture`
+2. Identify all tests with `@ci_skip_async`
 3. Create inventory of test patterns used
 
 ### Phase 2: Create New Test Patterns
@@ -398,8 +403,8 @@ def anyio_backend():
 
 For each test file:
 
-- [x] Remove `event_loop_fixture` usage (COMPLETED)
-- [x] Remove `@ci_skip_async` decorators (COMPLETED)
+- [ ] Remove `event_loop_fixture` usage
+- [ ] Remove `@ci_skip_async` decorators
 - [ ] Update to use new async patterns
 - [ ] Remove injectable mocking
 - [ ] Use simple dependency injection
