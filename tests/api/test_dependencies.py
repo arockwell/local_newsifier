@@ -8,8 +8,6 @@ from sqlmodel import Session
 
 from local_newsifier.api.dependencies import (get_article_service, get_rss_feed_service,
                                               get_session, get_templates, require_admin)
-from local_newsifier.services.article_service import ArticleService
-from local_newsifier.services.rss_feed_service import RSSFeedService
 
 
 class TestSessionDependency:
@@ -55,54 +53,54 @@ class TestServiceDependencies:
     """Tests for service dependencies."""
 
     def test_get_article_service(self):
-        """Test that get_article_service returns the service from the injectable provider."""
+        """Test that get_article_service returns an ArticleService instance."""
         # Create mock objects
         mock_session = Mock(spec=Session)
-        mock_session_context = MagicMock()
-        mock_session_context.__enter__.return_value = mock_session
-        mock_service = Mock(spec=ArticleService)
+        mock_article_crud = Mock()
+        mock_analysis_result_crud = Mock()
+        mock_entity_service = Mock()
 
-        # Set up mocks with appropriate patches
-        with patch("local_newsifier.database.engine.get_session") as mock_get_session, patch(
-            "local_newsifier.di.providers.get_article_service"
-        ) as mock_get_injectable_service:
+        # Call the function with mocked dependencies
+        result = get_article_service(
+            session=mock_session,
+            article_crud=mock_article_crud,
+            analysis_result_crud=mock_analysis_result_crud,
+            entity_service=mock_entity_service,
+        )
 
-            # Configure the mocks
-            mock_get_session.return_value = iter([mock_session_context])
-            mock_get_injectable_service.return_value = mock_service
-
-            # Call the function under test
-            result = get_article_service()
-
-            # Verify the result
-            assert result is mock_service
-            assert mock_get_injectable_service.called
-            mock_get_injectable_service.assert_called_with(session=mock_session)
+        # Verify the result
+        assert result is not None
+        assert hasattr(result, "article_crud")
+        assert hasattr(result, "analysis_result_crud")
+        assert hasattr(result, "entity_service")
+        assert result.article_crud is mock_article_crud
+        assert result.analysis_result_crud is mock_analysis_result_crud
+        assert result.entity_service is mock_entity_service
 
     def test_get_rss_feed_service(self):
-        """Test that get_rss_feed_service returns the service from the injectable provider."""
+        """Test that get_rss_feed_service returns an RSSFeedService instance."""
         # Create mock objects
         mock_session = Mock(spec=Session)
-        mock_session_context = MagicMock()
-        mock_session_context.__enter__.return_value = mock_session
-        mock_service = Mock(spec=RSSFeedService)
+        mock_rss_feed_crud = Mock()
+        mock_feed_processing_log_crud = Mock()
+        mock_article_service = Mock()
 
-        # Set up mocks with appropriate patches
-        with patch("local_newsifier.database.engine.get_session") as mock_get_session, patch(
-            "local_newsifier.di.providers.get_rss_feed_service"
-        ) as mock_get_injectable_service:
+        # Call the function with mocked dependencies
+        result = get_rss_feed_service(
+            session=mock_session,
+            rss_feed_crud=mock_rss_feed_crud,
+            feed_processing_log_crud=mock_feed_processing_log_crud,
+            article_service=mock_article_service,
+        )
 
-            # Configure the mocks
-            mock_get_session.return_value = iter([mock_session_context])
-            mock_get_injectable_service.return_value = mock_service
-
-            # Call the function under test
-            result = get_rss_feed_service()
-
-            # Verify the result
-            assert result is mock_service
-            assert mock_get_injectable_service.called
-            mock_get_injectable_service.assert_called_with(session=mock_session)
+        # Verify the result
+        assert result is not None
+        assert hasattr(result, "rss_feed_crud")
+        assert hasattr(result, "feed_processing_log_crud")
+        assert hasattr(result, "article_service")
+        assert result.rss_feed_crud is mock_rss_feed_crud
+        assert result.feed_processing_log_crud is mock_feed_processing_log_crud
+        assert result.article_service is mock_article_service
 
 
 class TestTemplatesDependency:

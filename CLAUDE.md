@@ -36,7 +36,7 @@
 
 ### 4. Code Patterns to Follow
 - Use SQLModel for all database models
-- Use fastapi-injectable for dependency injection
+- Use native FastAPI DI for API, fastapi-injectable for CLI
 - Return IDs not objects across session boundaries
 - Mock external dependencies in tests
 - Add newline at end of every file
@@ -217,26 +217,27 @@ class Article(SQLModel, table=True):
 
 ### Dependency Injection
 
-> **Note:** Local Newsifier now uses the `fastapi-injectable` framework for dependency injection. The old custom container has been removed. See the [Dependency Injection Guide](docs/dependency_injection.md) for provider usage and the [DI Architecture Guide](docs/di_architecture.md) for design details.
+> **Note:** The API module now uses FastAPI's native dependency injection (migrated from fastapi-injectable). The CLI still uses fastapi-injectable. See the [Dependency Injection Guide](docs/dependency_injection.md) for details.
 
-#### FastAPI-Injectable System
-- Newer components use the fastapi-injectable framework
-- Provider functions are defined in `src/local_newsifier/di/providers.py`
-- All providers use `use_cache=False` to create fresh instances on each request
-- Example provider function:
+#### API: Native FastAPI DI
+- API endpoints use FastAPI's native dependency injection
+- Dependencies are defined in `src/local_newsifier/api/dependencies.py`
+- Example dependency function:
 ```python
-@injectable(use_cache=False)
 def get_article_service(
-    article_crud: Annotated[Any, Depends(get_article_crud)],
-    session: Annotated[Session, Depends(get_session)]
-):
-    from local_newsifier.services.article_service import ArticleService
-
+    session: Annotated[Session, Depends(get_session)],
+    article_crud: Annotated[CRUDArticle, Depends(get_article_crud)]
+) -> ArticleService:
     return ArticleService(
         article_crud=article_crud,
         session_factory=lambda: session
     )
 ```
+
+#### CLI: FastAPI-Injectable
+- CLI commands still use the fastapi-injectable framework
+- Provider functions are defined in `src/local_newsifier/di/providers.py`
+- All providers use `use_cache=False` to create fresh instances
 
 ### Service Layer
 - Services coordinate business logic between CRUD operations and tools
@@ -375,7 +376,26 @@ def test_component_success(mock_component):
 ### Webhook Configuration
 - The `/webhooks/apify` endpoint accepts Apify webhook notifications
 - Fish shell functions are available for easy webhook testing
-- See `docs/apify_webhook_testing.md` for comprehensive testing guide
+- See `docs/integrations/apify/webhook_testing.md` for comprehensive testing guide
+- Webhook implementation is sync-only for better reliability
+
+#### Sync Webhook Example
+```python
+# Webhook route (sync-only)
+@router.post("/webhooks/apify", status_code=202)
+def apify_webhook(
+    webhook_data: ApifyWebhook,
+    webhook_service: Annotated[ApifyWebhookService, Depends(get_apify_webhook_service)]
+):
+    """Handle Apify webhooks synchronously."""
+    result = webhook_service.handle_webhook(webhook_data)
+    return {
+        "status": "accepted",
+        "actor_id": result.get("actor_id"),
+        "dataset_id": result.get("dataset_id"),
+        "processing_status": result.get("status")
+    }
+```
 
 ## Known Issues & Gotchas
 - Environment variables must be properly managed in tests

@@ -532,21 +532,82 @@ def test_api_returns_404(client, mock_deps):
     assert response.status_code == 404
 ```
 
-### Testing Async Code
+### Testing Sync-Only Code
+
+**Important:** Local Newsifier uses sync-only patterns. All tests should follow sync patterns:
 
 ```python
-import pytest
-import asyncio
+# Testing sync endpoints
+def test_webhook_endpoint(client):
+    response = client.post(
+        "/webhooks/apify",
+        json={
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            # ... other required fields
+        }
+    )
+    assert response.status_code == 202
 
-@pytest.mark.asyncio
-async def test_async_operation():
-    result = await async_function()
-    assert result == expected
+# Testing sync services
+def test_sync_service(db_session):
+    service = ArticleService(
+        article_crud=article_crud,
+        session_factory=lambda: db_session
+    )
 
-# For mixed async/sync testing
-def test_sync_calling_async():
-    result = asyncio.run(async_function())
-    assert result == expected
+    article = service.create({
+        "title": "Test",
+        "content": "Content"
+    })
+    assert article.id is not None
+```
+
+### Testing FastAPI Sync Endpoints
+
+```python
+from fastapi.testclient import TestClient
+from unittest.mock import Mock
+
+def test_sync_endpoint_with_dependencies(app):
+    # Mock dependencies
+    mock_session = Mock()
+    mock_service = Mock()
+
+    # Override dependencies
+    app.dependency_overrides[get_session] = lambda: mock_session
+    app.dependency_overrides[get_article_service] = lambda: mock_service
+
+    # Test the endpoint
+    client = TestClient(app)
+    response = client.get("/articles/1")
+
+    assert response.status_code == 200
+    mock_service.get.assert_called_once_with(1)
+```
+
+### Session Management in Tests
+
+```python
+@pytest.fixture
+def db_session():
+    """Provide sync database session for tests."""
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        yield session
+        session.rollback()
+
+def test_with_session(db_session):
+    """Test using sync session."""
+    article = Article(title="Test", content="Content")
+    db_session.add(article)
+    db_session.commit()
+
+    # Query using sync session
+    result = db_session.query(Article).first()
+    assert result.title == "Test"
 ```
 
 ## Troubleshooting

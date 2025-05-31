@@ -24,13 +24,13 @@ The API module provides a web interface for the Local Newsifier system using Fas
 ## Key Patterns
 
 ### Dependency Injection
-The API uses **fastapi-injectable** for all dependencies. Provider functions expose the required components and are injected using FastAPI's `Depends()` pattern:
+The API uses **FastAPI's native dependency injection** (migrated from fastapi-injectable). Dependencies are defined in `api/dependencies.py` and injected using FastAPI's `Depends()` pattern:
 
-#### Injectable Pattern
+#### Native FastAPI Pattern
 ```python
 from typing import Annotated
 from fastapi import Depends
-from local_newsifier.di.providers import get_session, get_entity_service
+from local_newsifier.api.dependencies import get_session, get_entity_service
 from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
@@ -181,16 +181,16 @@ def get_article(
     return article.model_dump()
 ```
 
-## Injectable Services in Endpoints
+## Native Dependency Injection in Endpoints
 
-All endpoints now use fastapi-injectable for dependency injection:
+All endpoints now use FastAPI's native dependency injection (migrated from fastapi-injectable):
 
 ### Service Injection Pattern
 
 ```python
 from typing import Annotated
 from fastapi import Depends
-from local_newsifier.di.providers import get_entity_service
+from local_newsifier.api.dependencies import get_entity_service
 from local_newsifier.services.entity_service import EntityService
 
 @router.get("/entities/{entity_id}")
@@ -202,6 +202,29 @@ def get_entity(
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
     return entity
+```
+
+### Session Management Pattern
+
+The new session provider avoids the "generator didn't stop after throw()" error:
+
+```python
+# In api/dependencies.py
+def get_session() -> Session:
+    """Get a database session using FastAPI's native DI."""
+    engine = get_engine()
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database unavailable")
+
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 ```
 
 ### Testing Sync Endpoints
@@ -235,3 +258,49 @@ def test_webhook_endpoint(test_client: TestClient):
 5. **Use appropriate HTTP status codes**: 200 for success, 404 for not found, etc.
 
 For more information on dependency injection patterns, see `docs/dependency_injection.md`.
+
+## Migration from fastapi-injectable
+
+The API has been migrated from fastapi-injectable to FastAPI's native dependency injection system. Here are the key changes:
+
+### Before (fastapi-injectable)
+```python
+# In di/providers.py
+from injectable import injectable
+
+@injectable(use_cache=False)
+def get_article_service(
+    session=Depends(get_session),
+    article_crud=Depends(get_article_crud)
+):
+    return ArticleService(session, article_crud)
+
+# In routers
+from local_newsifier.di.providers import get_article_service
+```
+
+### After (Native FastAPI)
+```python
+# In api/dependencies.py
+from fastapi import Depends
+from typing import Annotated
+
+def get_article_service(
+    session: Annotated[Session, Depends(get_session)],
+    article_crud: Annotated[CRUDArticle, Depends(get_article_crud)]
+) -> ArticleService:
+    return ArticleService(
+        article_crud=article_crud,
+        session_factory=lambda: session
+    )
+
+# In routers
+from local_newsifier.api.dependencies import get_article_service
+```
+
+### Benefits of Native DI
+1. **Simpler**: No additional framework to learn
+2. **Better IDE support**: Type hints work correctly
+3. **Clearer errors**: FastAPI provides better dependency resolution errors
+4. **Standard patterns**: Follows FastAPI best practices
+5. **No magic**: Dependencies are explicit and traceable
