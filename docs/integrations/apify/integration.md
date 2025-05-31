@@ -147,7 +147,24 @@ You can set up Apify to call back to Local Newsifier when scraping jobs complete
 2. Set up the webhook in Apify to trigger when runs complete
 3. Local Newsifier will automatically process new data when notified
 
-For detailed webhook testing instructions, including Fish shell functions, HTTPie examples, and troubleshooting, see the [Apify Webhook Testing Guide](apify_webhook_testing.md).
+#### Webhook Implementation Details
+
+The webhook endpoint at `/webhooks/apify` is implemented with:
+- **Sync-only patterns**: No async/await code for better reliability
+- **Proper error handling**: Validation errors return 422, auth errors return 401
+- **Session management**: Uses FastAPI's native dependency injection
+- **Request validation**: All required fields are validated
+
+#### Setting Up Webhooks in Apify
+
+1. Go to your Apify actor settings
+2. Navigate to the "Webhooks" tab
+3. Add a new webhook with:
+   - Event types: `ACTOR.RUN.SUCCEEDED`, `ACTOR.RUN.FAILED`, `ACTOR.RUN.ABORTED`
+   - URL: `https://your-app.com/webhooks/apify`
+   - Secret: (Optional, set `APIFY_WEBHOOK_SECRET` environment variable if used)
+
+For detailed webhook testing instructions, including Fish shell functions, HTTPie examples, and troubleshooting, see the [Apify Webhook Testing Guide](webhook_testing.md).
 
 ## Common Troubleshooting
 
@@ -182,9 +199,10 @@ Verify your APIFY_TOKEN is:
 
 ## Environment Variables
 
-| Variable      | Description                          | Required | Default |
-|---------------|--------------------------------------|----------|---------|
-| APIFY_TOKEN   | API token for Apify authentication   | Yes      | None    |
+| Variable              | Description                               | Required | Default |
+|-----------------------|-------------------------------------------|----------|---------|
+| APIFY_TOKEN           | API token for Apify authentication        | Yes      | None    |
+| APIFY_WEBHOOK_SECRET  | Secret for webhook signature validation   | No       | None    |
 
 ## Performance Considerations
 

@@ -4,6 +4,8 @@
 
 This document outlines the plan to migrate Local Newsifier's FastAPI routes from async to synchronous functions. Currently, the codebase uses async route handlers that call synchronous services, which provides no real performance benefit and adds unnecessary complexity. This migration will simplify the codebase while maintaining the same functionality.
 
+**Note:** The webhook migration has been successfully completed. See [Async to Sync Webhook Migration Case Study](async-to-sync-webhook-migration.md) for implementation details and lessons learned.
+
 ## Current State
 
 - **FastAPI routes**: All defined as `async def` functions

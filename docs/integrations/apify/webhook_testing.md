@@ -4,6 +4,8 @@
 
 This guide provides comprehensive information about testing Apify webhooks in the Local Newsifier project. It includes corrected HTTPie syntax, working Fish shell functions, and complete testing procedures.
 
+**Important:** All webhook handlers are now implemented using sync-only patterns (no async/await) for better compatibility and simpler error handling.
+
 ## Table of Contents
 1. [Webhook Endpoint Status](#webhook-endpoint-status)
 2. [Required Webhook Fields](#required-webhook-fields)
@@ -21,6 +23,9 @@ The Apify webhook endpoint is fully functional at `/webhooks/apify` with the fol
 - ✅ Handles different event types (SUCCEEDED, FAILED, ABORTED)
 - ✅ Returns proper response with actor_id, dataset_id, and processing_status
 - ✅ Webhook secret validation logic is implemented
+- ✅ Uses sync-only implementation (no async/await)
+- ✅ Proper database session management with error handling
+- ✅ Fixed "generator didn't stop after throw()" errors
 
 ## Required Webhook Fields
 
@@ -346,6 +351,49 @@ echo '{"eventType":"ACTOR.RUN.SUCCEEDED","actorId":"test","actorRunId":"123","we
 curl -sS -X POST http://localhost:8000/webhooks/apify -H "Content-Type: application/json" -d @webhook_payload.json | jq '.'
 ```
 
+## Implementation Details
+
+### Sync-Only Architecture
+The webhook implementation follows the project's sync-only pattern:
+
+1. **Route Handler**: Uses standard `def` (not `async def`)
+   ```python
+   @router.post("/webhooks/apify")
+   def apify_webhook(
+       webhook_data: ApifyWebhook,
+       webhook_service: Annotated[ApifyWebhookService, Depends(get_apify_webhook_service)]
+   ):
+       # Sync processing
+   ```
+
+2. **Database Sessions**: Managed via FastAPI dependency injection
+   - Sessions are created and closed automatically
+   - Proper error handling prevents session leaks
+   - No async context managers used
+
+3. **Error Handling**: Exceptions are properly handled without async complications
+   - Validation errors return 422
+   - Authentication errors return 401
+   - Processing errors return appropriate status codes
+
+### Session Management Pattern
+The webhook uses a simple session provider that avoids the "generator didn't stop after throw()" error:
+```python
+def get_session() -> Session:
+    engine = get_engine()
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+```
+
 ## Summary
 
 The Apify webhook infrastructure is fully functional and ready for use. The Fish shell functions provide the easiest way to test webhooks locally, while HTTPie and curl offer more flexibility for custom testing scenarios. Remember to use the correct JSON syntax with HTTPie to avoid common pitfalls.
+
+The sync-only implementation ensures better reliability and simpler error handling compared to async patterns.
