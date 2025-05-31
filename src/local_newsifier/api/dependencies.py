@@ -55,18 +55,32 @@ def require_admin(request: Request):
 
 
 def get_session() -> Generator[Session, None, None]:
-    """Get a database session.
+    """Get a database session using FastAPI's native DI.
 
     This dependency provides a database session to route handlers.
     The session is automatically closed when the request is complete.
 
     Yields:
         Session: SQLModel session
-    """
-    from local_newsifier.database.engine import get_session as get_db_session
 
-    # Use the database engine's get_session directly
-    yield from get_db_session()
+    Raises:
+        HTTPException: If database is unavailable
+    """
+    from local_newsifier.database.engine import get_engine
+
+    engine = get_engine()
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database unavailable")
+
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def get_article_service() -> ArticleService:
