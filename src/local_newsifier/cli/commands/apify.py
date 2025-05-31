@@ -15,7 +15,6 @@ from typing import Optional
 
 import click
 from fastapi_injectable import get_injected_obj
-from sqlmodel import Session
 from tabulate import tabulate
 
 from local_newsifier.config.settings import settings
@@ -679,7 +678,7 @@ def sync_schedules(token: str):
         results = schedule_manager.sync_schedules()
 
         # Display results
-        click.echo(click.style(f"✓ Schedules synchronized successfully!", fg="green"))
+        click.echo(click.style("✓ Schedules synchronized successfully!", fg="green"))
         click.echo(f"Created: {results['created']}")
         click.echo(f"Updated: {results['updated']}")
         click.echo(f"Deleted: {results['deleted']}")
@@ -714,7 +713,7 @@ def create_schedule(config_id: int, token: str):
         created = schedule_manager.create_schedule_for_config(config_id)
 
         if created:
-            click.echo(click.style(f"✓ Schedule created successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule created successfully!", fg="green"))
         else:
             click.echo("Schedule already exists, no changes made.")
 
@@ -741,7 +740,7 @@ def update_schedule(config_id: int, token: str):
         updated = schedule_manager.update_schedule_for_config(config_id)
 
         if updated:
-            click.echo(click.style(f"✓ Schedule updated successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule updated successfully!", fg="green"))
         else:
             click.echo("Schedule is already up to date, no changes made.")
 
@@ -768,7 +767,7 @@ def delete_schedule(config_id: int, token: str):
         deleted = schedule_manager.delete_schedule_for_config(config_id)
 
         if deleted:
-            click.echo(click.style(f"✓ Schedule deleted successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule deleted successfully!", fg="green"))
         else:
             click.echo("No schedule found to delete.")
 

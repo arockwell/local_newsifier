@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-import pytest
 from sqlmodel import Session, select
 
 from local_newsifier.crud.rss_feed import CRUDRSSFeed, rss_feed

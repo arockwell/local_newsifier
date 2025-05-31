@@ -2,7 +2,6 @@
 Tests for CLI error handling.
 """
 
-import sys
 from unittest.mock import Mock, patch
 
 import click

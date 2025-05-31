@@ -3,8 +3,6 @@
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def test_process_url():
     """Test processing an article from a URL."""

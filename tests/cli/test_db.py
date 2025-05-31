@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from click.testing import CliRunner
 
 from local_newsifier.cli.main import cli

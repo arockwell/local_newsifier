@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from celery import Celery
 
 from local_newsifier.celery_app import app

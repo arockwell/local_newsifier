@@ -3,7 +3,6 @@
 from typing import Annotated, Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi import Depends
 
 # Create a mock injectable decorator for testing
@@ -25,7 +24,7 @@ with patch("fastapi_injectable.injectable", mock_injectable):
     from fastapi_injectable import injectable
 
 # Import testing utilities
-from tests.conftest_injectable import create_mock_service, mock_injectable_dependencies
+from tests.conftest_injectable import create_mock_service
 
 
 # Define a simple injectable tool for demonstration purposes

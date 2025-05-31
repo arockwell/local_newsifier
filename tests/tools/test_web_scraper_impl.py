@@ -4,8 +4,6 @@ This file contains tests that directly test the implementation of WebScraperTool
 to improve code coverage.
 """
 
-import os
-import tempfile
 from unittest.mock import MagicMock, mock_open, patch
 from urllib.error import URLError
 

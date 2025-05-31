@@ -1,6 +1,5 @@
 """Entity tracker tool that uses the EntityService."""
 
-import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 

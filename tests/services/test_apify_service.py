@@ -1,6 +1,5 @@
 """Tests for the Apify service."""
 
-import json
 import os
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
