@@ -10,10 +10,8 @@ import logging
 from typing import Annotated, Any, Dict
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
-from sqlmodel import Session
 
-from local_newsifier.api.dependencies import get_session
-from local_newsifier.config.settings import settings
+from local_newsifier.api.dependencies import get_apify_webhook_service
 from local_newsifier.models.webhook import ApifyWebhookResponse
 from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
 
@@ -34,7 +32,7 @@ logger = logging.getLogger(__name__)
 def apify_webhook(
     request: Request,
     payload: Annotated[Dict[str, Any], Body()],
-    session: Annotated[Session, Depends(get_session)],
+    webhook_service: Annotated[ApifyWebhookServiceSync, Depends(get_apify_webhook_service)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
 ) -> ApifyWebhookResponse:
     """Handle webhook notifications from Apify.
@@ -44,7 +42,7 @@ def apify_webhook(
     Args:
         request: FastAPI request object
         payload: Parsed JSON payload
-        session: Database session
+        webhook_service: Webhook service instance
         apify_webhook_signature: Optional signature header for validation
 
     Returns:
@@ -56,11 +54,6 @@ def apify_webhook(
     try:
         # Convert payload dict back to string for signature validation
         raw_payload_str = json.dumps(payload, separators=(",", ":"), sort_keys=True)
-
-        # Initialize sync webhook service
-        webhook_service = ApifyWebhookServiceSync(
-            session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET
-        )
 
         # Handle webhook using sync method
         result = webhook_service.handle_webhook(
