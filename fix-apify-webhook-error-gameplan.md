@@ -37,6 +37,13 @@ First, we need to understand what payload is actually being sent by adding detai
 - All 6 webhook tests now pass successfully
 - The fix ensures proper test isolation by overriding the service dependency instead of patching imports
 
+**Update 5/31/2025 - CI Fix after Sync Migration**:
+- After merging main branch (which moved from async to sync), discovered one remaining test failure
+- `test_webhook_session_error.py` was expecting old error message format
+- Test expected "Missing required fields" but enhanced logging now returns "Missing required fields: status"
+- Fixed the test to expect the more specific error message format
+- All tests now pass both locally and should pass in CI
+
 ```python
 def handle_webhook(self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None) -> Dict[str, any]:
     # Add debug logging
