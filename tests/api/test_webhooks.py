@@ -126,6 +126,8 @@ class TestApifyWebhookInfrastructure:
                 "message": "Webhook processed. Articles created: 0",
                 "run_id": payload["actorRunId"],
                 "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
             }
         )
 
