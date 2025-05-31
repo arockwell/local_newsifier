@@ -4,16 +4,17 @@ This file demonstrates how to implement the conditional decorator pattern
 to avoid event loop issues when testing components that use the injectable decorator.
 """
 
-import os
+# flake8: noqa
+
 import logging
-from typing import Optional, Dict, List, Any, TYPE_CHECKING
+import os
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlmodel import Session
 
 # Import types only for type checking to avoid circular imports
 if TYPE_CHECKING:
     from fastapi_injectable import injectable
-    from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 
@@ -33,56 +34,52 @@ class DataProcessorTool:
             session: Optional database session for data persistence
         """
         self.session = session
-    
-    def process_data(self, 
-                    data: Dict[str, Any], 
-                    *, 
-                    session: Optional[Session] = None) -> List[Dict]:
+
+    def process_data(
+        self, data: Dict[str, Any], *, session: Optional[Session] = None
+    ) -> List[Dict]:
         """Process the provided data.
-        
+
         Args:
             data: The data to process
             session: Optional session override
-            
+
         Returns:
             Processing results
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Process data...
         results = []
-        
+
         if session:
             # Perform database operations with session
             logger.debug("Processing data with database session")
         else:
             # Process without database session
             logger.debug("Processing data without database session")
-        
+
         # Return results
         return results
-    
-    def save_results(self, 
-                    results: List[Dict], 
-                    *, 
-                    session: Optional[Session] = None) -> bool:
+
+    def save_results(self, results: List[Dict], *, session: Optional[Session] = None) -> bool:
         """Save processing results to the database.
-        
+
         Args:
             results: The processed results to save
             session: Optional session override
-            
+
         Returns:
             True if successful, False otherwise
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         if not session:
             logger.warning("No session available to save results")
             return False
-        
+
         try:
             # Save results to database
             logger.info(f"Saving {len(results)} results to database")
@@ -95,8 +92,9 @@ class DataProcessorTool:
 # Apply injectable decorator conditionally to avoid test issues
 try:
     # Only apply in non-test environments
-    if not os.environ.get('PYTEST_CURRENT_TEST'):
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
         from fastapi_injectable import injectable
+
         DataProcessorTool = injectable(use_cache=False)(DataProcessorTool)
 except (ImportError, Exception):
     pass
@@ -105,15 +103,17 @@ except (ImportError, Exception):
 # Example provider function (would normally be in di/providers.py)
 try:
     # Only define if injectable is available
-    from fastapi_injectable import injectable
-    from fastapi import Depends
     from typing import Annotated
-    
-    @injectable(use_cache=False)
+
+    from fastapi import Depends
+    from fastapi_injectable import injectable as injectable_decorator
+
+    @injectable_decorator(use_cache=False)
     def get_data_processor_tool(
         session: Annotated[Session, Depends("get_session")]
     ) -> DataProcessorTool:
         """Provider for DataProcessorTool."""
         return DataProcessorTool(session=session)
+
 except (ImportError, Exception):
     pass

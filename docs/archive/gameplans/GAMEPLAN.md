@@ -1,110 +1,101 @@
-# Gameplan: Fix Webhook Async Error
+# Documentation Reduction Gameplan
 
-## Objective
-Fix the webhook endpoint crash that occurs when raising HTTPException within a session context, preventing proper error responses and causing session cleanup failures.
+## Overview
+This plan outlines steps to reduce documentation volume by ~70% while improving accuracy and maintainability.
 
-## Root Cause
-The webhook endpoint raises HTTPException inside a database session context manager, which causes FastAPI's async-to-sync adapter to fail during cleanup with "generator didn't stop after throw()".
+## Current State
+- **Total docs**: 35 files (excluding archive)
+- **Major issues**: Outdated DI docs, duplicate content, completed migration plans still present
+- **Target**: Reduce to ~10-12 essential docs
 
-## Implementation Steps
+## Phase 1: Immediate Removals (Day 1) ✅ COMPLETE
+Remove completed/obsolete migration plans:
+- [x] `plans/async-to-sync-migration.md` - Migration is complete
+- [x] `plans/async-to-sync-webhook-migration.md` - Migration is complete
+- [x] `plans/remove-celery.md` - If Celery removal is done
+- [x] `plans/cli-to-fastapi-overview.md` - Outdated approach
+- [x] `plans/deployment-configuration.md` - Duplicate of Railway config
+- [x] `plans/table_creation_analysis.md` - One-time analysis
 
-### 1. Fix Session Exception Handling in engine.py
-- Modify `get_session()` to properly handle exceptions during yield
-- Ensure the generator can be properly closed even when exceptions occur
-- Add explicit exception handling that doesn't interfere with context manager cleanup
+## Phase 2: Consolidation (Day 2-3)
 
-### 2. Refactor Webhook Error Handling
-- Move HTTPException raises outside of the session context
-- Store error information and raise after session is closed
-- Ensure proper error responses without breaking session management
+### 1. Merge CLI Documentation ✅ COMPLETE
+Combined into single `guides/cli_usage.md`:
+- ~~`plans/cli-commands-refactoring.md`~~ (removed)
+- ~~`plans/cli-http-client-design.md`~~ (removed)
+- ~~`plans/cli-router-implementation.md`~~ (removed)
+- ~~All files in `plans/cli_to_http/`~~ (removed)
 
-### 3. Alternative: Use Try/Finally Pattern
-- Replace context manager yield with explicit try/finally blocks
-- Ensure session cleanup happens regardless of exceptions
-- Maintain compatibility with FastAPI's dependency injection
+### 2. Merge Testing Documentation
+Combine into single `guides/testing_guide.md`:
+- `guides/testing_guide.md` (update)
+- `guides/testing_injectable_dependencies.md`
+- `integrations/apify/webhook_testing.md`
+- `plans/testing-strategy.md`
 
-## Specific Changes
+### 3. Merge Dependency Injection Docs
+Create single accurate `guides/dependency_injection.md`:
+- Current hybrid state (API uses native FastAPI, CLI uses injectable)
+- Remove `guides/dependency_injection_antipatterns.md`
+- Remove `guides/injectable_examples.md`
+- Archive all fastapi-injectable migration plans
 
-### Option A: Fix Context Manager (Preferred)
-```python
-# In database/engine.py
-@contextmanager
-def get_session():
-    engine = get_engine()
-    if engine is None:
-        logger.warning("Cannot create session - database engine is None")
-        yield None
-        return
+### 4. Merge Apify Documentation
+Combine into `integrations/apify.md`:
+- `integrations/apify/integration.md`
+- `integrations/apify/error_handling.md`
+- `integrations/apify/webhook_testing.md`
+- `plans/apify-integration.md`
 
-    session = Session(engine)
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+## Phase 3: Restructure (Day 4)
+
+### Final Structure
+```
+docs/
+├── README.md (simplified index)
+├── guides/
+│   ├── getting_started.md (combine setup guides)
+│   ├── dependency_injection.md (accurate hybrid state)
+│   ├── testing.md (all testing info)
+│   ├── cli_usage.md (how to use CLI)
+│   └── error_handling.md (keep as-is)
+├── integrations/
+│   ├── apify.md (all Apify docs)
+│   └── celery.md (if still used)
+├── operations/
+│   ├── deployment.md (Railway + CI/CD)
+│   └── database.md (combine db docs)
+└── architecture/
+    └── overview.md (high-level design)
 ```
 
-### Option B: Refactor Webhook Endpoint
-```python
-# In webhooks.py
-def apify_webhook(...):
-    error_to_raise = None
+## Phase 4: Update Root Docs (Day 5)
 
-    try:
-        # Process webhook
-        result = webhook_service.handle_webhook(...)
+### 1. Update CLAUDE.md
+- Remove references to archived/deleted docs
+- Update DI section to reflect hybrid state
+- Simplify to essential instructions only
 
-        # Store error for later if needed
-        if result["status"] == "error":
-            error_to_raise = HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["message"]
-            )
+### 2. Update README Files
+- Main README.md: Focus on project overview
+- docs/README.md: Simple index of available docs
+- Remove duplicate setup instructions
 
-    except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
-        error_to_raise = HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+## Success Metrics
+- [ ] Documentation reduced from 35 to ~12 files
+- [ ] All remaining docs accurate to current code
+- [ ] No duplicate information
+- [ ] Clear navigation structure
+- [ ] All code examples tested and working
 
-    # Raise error outside of session context
-    if error_to_raise:
-        raise error_to_raise
+## Implementation Notes
+1. Create new branch: `docs-cleanup`
+2. Make incremental commits for each phase
+3. Update AGENTS.md after changes
+4. Run grep/rg to find any broken doc references
+5. Update any code comments pointing to moved docs
 
-    return ApifyWebhookResponse(...)
-```
-
-## Testing Plan
-
-1. Create test that reproduces the error:
-   - Send webhook request with missing fields
-   - Verify 400 response (not 500)
-   - Check session cleanup
-
-2. Test edge cases:
-   - Multiple concurrent webhook requests
-   - Database connection failures
-   - Webhook validation failures
-
-3. Verify no session leaks:
-   - Monitor database connections
-   - Stress test with many failed requests
-
-## Success Criteria
-
-- Webhook returns proper 400 Bad Request for validation errors
-- No "generator didn't stop after throw()" errors in logs
-- Database sessions properly cleaned up on all code paths
-- All existing tests continue to pass
-
-## Implementation Order
-
-1. First implement the context manager fix (Option A)
-2. Test thoroughly
-3. If issues persist, implement webhook refactoring (Option B)
-4. Add comprehensive error handling tests
-5. Update documentation if API behavior changes
+## Timeline
+- Total effort: 5 days
+- Can be done incrementally
+- Priority: Fix DI documentation first (it's causing confusion)
