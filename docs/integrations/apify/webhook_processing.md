@@ -4,11 +4,23 @@
 
 This document describes the complete flow of Apify webhook processing, from receipt to data storage, and how to verify successful processing.
 
+## Webhook Lifecycle
+
+Apify sends multiple webhooks during an actor run lifecycle:
+
+1. **STARTED** - When the actor run begins
+2. **SUCCEEDED** - When the actor run completes successfully
+3. **FAILED** - When the actor run fails
+4. **ABORTED** - When the actor run is manually stopped
+5. **TIMED-OUT** - When the actor run exceeds timeout
+
+Each webhook contains the same `run_id` but different `status` values, allowing us to track the full lifecycle of an actor run.
+
 ## Webhook Processing Flow
 
 ### 1. Webhook Receipt
 
-When an Apify actor run completes, it sends a POST request to `/webhooks/apify`:
+When an Apify actor run changes state, it sends a POST request to `/webhooks/apify`:
 
 ```
 POST /webhooks/apify
@@ -44,9 +56,10 @@ The webhook service extracts these fields from the nested payload:
 - `dataset_id`: ID of the dataset containing results
 
 #### Step 3: Duplicate Check
-- Queries `apify_webhook_raw` table for existing `run_id`
+- Queries `apify_webhook_raw` table for existing `run_id` AND `status` combination
 - If found, returns success without reprocessing
-- Prevents duplicate article creation
+- Allows multiple webhooks per run (STARTED, SUCCEEDED, etc.)
+- Prevents duplicate processing of the same status
 
 #### Step 4: Store Raw Webhook Data
 Creates an `ApifyWebhookRaw` record:
@@ -60,7 +73,7 @@ Creates an `ApifyWebhookRaw` record:
 ```
 
 #### Step 5: Create Articles (Success Only)
-For successful runs:
+**Only processes when status is SUCCEEDED**:
 1. Fetches dataset items from Apify API
 2. For each item:
    - Extracts `url`, `title`, and `content` (with fallbacks)
@@ -68,22 +81,25 @@ For successful runs:
    - Checks for existing article with same URL
    - Creates new `Article` record if not exists
 
+**Other statuses (STARTED, FAILED, etc.) are stored but do not trigger article creation.**
+
 ### 3. Database Records Created
 
 #### ApifyWebhookRaw Table
 - **Always created** for every webhook received
 - Contains raw webhook data for audit trail
-- Unique constraint on `run_id` prevents duplicates
+- Composite unique constraint on `(run_id, status)` allows multiple statuses per run
 
 ```sql
 CREATE TABLE apify_webhook_raw (
     id SERIAL PRIMARY KEY,
-    run_id VARCHAR UNIQUE NOT NULL,
+    run_id VARCHAR NOT NULL,
     actor_id VARCHAR NOT NULL,
     status VARCHAR NOT NULL,
     data JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(run_id, status)  -- Composite constraint
 );
 ```
 
@@ -116,11 +132,19 @@ Verify the webhook was received and stored:
 # Using CLI
 nf db inspect apify_webhook_raw <id>
 
-# Using SQL
+# Using SQL - Check all statuses for a run
 psql $DATABASE_URL -c "
 SELECT id, run_id, actor_id, status, created_at
 FROM apify_webhook_raw
-WHERE run_id = 'your-run-id';
+WHERE run_id = 'your-run-id'
+ORDER BY created_at;
+"
+
+# Check specific status
+psql $DATABASE_URL -c "
+SELECT id, run_id, actor_id, status, created_at
+FROM apify_webhook_raw
+WHERE run_id = 'your-run-id' AND status = 'SUCCEEDED';
 "
 ```
 
@@ -183,9 +207,16 @@ The webhook endpoint returns:
 - Verify required fields in webhook payload
 - Check database connectivity
 
+#### Multiple Webhooks for Same Run
+- Normal behavior - Apify sends webhooks for each status change
+- STARTED webhook stored when run begins
+- SUCCEEDED/FAILED webhook stored when run completes
+- Each status is stored separately with same run_id
+
 #### Duplicate Webhooks
-- Normal behavior - returns success without reprocessing
-- Check logs for "Duplicate webhook" messages
+- Same run_id + status combination is rejected as duplicate
+- Returns success without reprocessing
+- Check logs for "Duplicate webhook" messages with status
 
 ## Testing Webhook Processing
 

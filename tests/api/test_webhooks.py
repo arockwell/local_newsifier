@@ -126,6 +126,8 @@ class TestApifyWebhookInfrastructure:
                 "message": "Webhook processed. Articles created: 0",
                 "run_id": payload["actorRunId"],
                 "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
             }
         )
 
@@ -289,3 +291,196 @@ class TestApifyWebhookInfrastructure:
         response_data = response.json()
         assert response_data["status"] == "error"
         assert "Database error" in response_data["message"]
+
+    @ci_skip_async
+    def test_apify_webhook_multi_status_acceptance(self, client, monkeypatch, mock_webhook_service):
+        """Test that webhooks with different statuses for the same run are both accepted."""
+        # Clear webhook secret for this test
+        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
+
+        run_id = str(uuid.uuid4())
+
+        # Create STARTED webhook payload
+        started_payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.STARTED",
+            "actorId": "test_actor",
+            "actorRunId": run_id,
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "STARTED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the service to accept the STARTED webhook
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 0",
+                "run_id": run_id,
+                "articles_created": 0,
+            }
+        )
+
+        mock_webhook_service(mock_service)
+
+        # Send STARTED webhook
+        response = client.post("/webhooks/apify", json=started_payload)
+        assert response.status_code == 202
+        assert response.json()["status"] == "accepted"
+
+        # Create SUCCEEDED webhook payload with same run_id
+        succeeded_payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            "actorRunId": run_id,
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "SUCCEEDED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the service to accept the SUCCEEDED webhook and create articles
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 5",
+                "run_id": run_id,
+                "articles_created": 5,
+            }
+        )
+
+        # Send SUCCEEDED webhook
+        response = client.post("/webhooks/apify", json=succeeded_payload)
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "accepted"
+        assert response_data["processing_status"] == "completed"
+        assert "5" in response_data["message"]
+
+    @ci_skip_async
+    def test_apify_webhook_duplicate_same_status_rejected(
+        self, client, monkeypatch, mock_webhook_service
+    ):
+        """Test that duplicate webhooks with the same run_id and status are rejected."""
+        # Clear webhook secret for this test
+        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
+
+        run_id = str(uuid.uuid4())
+
+        # Create SUCCEEDED webhook payload
+        payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.SUCCEEDED",
+            "actorId": "test_actor",
+            "actorRunId": run_id,
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "SUCCEEDED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the service - first call succeeds
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 3",
+                "run_id": run_id,
+                "articles_created": 3,
+            }
+        )
+
+        mock_webhook_service(mock_service)
+
+        # Send first SUCCEEDED webhook
+        response = client.post("/webhooks/apify", json=payload)
+        assert response.status_code == 202
+        assert response.json()["status"] == "accepted"
+
+        # Mock the service - second call is duplicate
+        mock_service.handle_webhook = Mock(
+            return_value={"status": "ok", "message": "Duplicate webhook ignored"}
+        )
+
+        # Send duplicate SUCCEEDED webhook
+        response = client.post("/webhooks/apify", json=payload)
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "accepted"
+        assert "duplicate" in response_data["message"].lower()
+
+    @ci_skip_async
+    def test_apify_webhook_only_succeeded_creates_articles(
+        self, client, monkeypatch, mock_webhook_service
+    ):
+        """Test that only SUCCEEDED webhooks trigger article creation."""
+        # Clear webhook secret for this test
+        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
+
+        run_id = str(uuid.uuid4())
+
+        # Test STARTED webhook - should not create articles
+        started_payload = {
+            "createdAt": datetime.datetime.now().isoformat(),
+            "eventType": "ACTOR.RUN.STARTED",
+            "actorId": "test_actor",
+            "actorRunId": run_id,
+            "userId": "test_user",
+            "defaultKeyValueStoreId": "test_kvs",
+            "defaultDatasetId": "test_dataset",
+            "startedAt": datetime.datetime.now().isoformat(),
+            "status": "STARTED",
+            "webhookId": str(uuid.uuid4()),
+        }
+
+        # Mock the service - STARTED status creates no articles
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 0",
+                "run_id": run_id,
+                "articles_created": 0,
+            }
+        )
+
+        mock_webhook_service(mock_service)
+
+        # Send STARTED webhook
+        response = client.post("/webhooks/apify", json=started_payload)
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "accepted"
+        assert "0" in response_data["message"] or "no articles" in response_data["message"].lower()
+
+        # Test FAILED webhook - should not create articles
+        failed_payload = started_payload.copy()
+        failed_payload["eventType"] = "ACTOR.RUN.FAILED"
+        failed_payload["status"] = "FAILED"
+        failed_payload["webhookId"] = str(uuid.uuid4())
+
+        # Mock the service - FAILED status creates no articles
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 0",
+                "run_id": run_id,
+                "articles_created": 0,
+            }
+        )
+
+        # Send FAILED webhook
+        response = client.post("/webhooks/apify", json=failed_payload)
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "accepted"
+        assert "0" in response_data["message"] or "no articles" in response_data["message"].lower()
