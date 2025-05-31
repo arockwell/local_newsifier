@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlmodel import JSON, Field, Relationship
+from sqlmodel import JSON, Field, Relationship, UniqueConstraint
 
 from local_newsifier.models.base import TableBase
 
@@ -132,9 +132,13 @@ class ApifyWebhookRaw(TableBase, table=True):
     __tablename__ = "apify_webhook_raw"
 
     # Handle multiple imports during test collection
-    __table_args__ = {"extend_existing": True}
+    # Composite unique constraint on run_id + status
+    __table_args__ = (
+        UniqueConstraint("run_id", "status", name="uq_apify_webhook_raw_run_status"),
+        {"extend_existing": True},
+    )
 
-    run_id: str = Field(unique=True, index=True)  # Apify run ID (unique constraint)
+    run_id: str = Field(index=True)  # Apify run ID (no longer unique by itself)
     actor_id: str  # Apify actor ID
     status: str  # Run status (SUCCEEDED, FAILED, etc.)
     data: Dict[str, Any] = Field(sa_type=JSON)  # Complete webhook payload

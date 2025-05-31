@@ -116,15 +116,17 @@ class ApifyWebhookServiceSync:
 
         # Check for duplicate with timing
         duplicate_check_start = time.time()
-        logger.info(f"Checking for duplicate webhook: run_id={run_id}")
+        logger.info(f"Checking for duplicate webhook: run_id={run_id}, status={status}")
         existing = self.session.exec(
-            select(ApifyWebhookRaw).where(ApifyWebhookRaw.run_id == run_id)
+            select(ApifyWebhookRaw).where(
+                ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
+            )
         ).first()
         duplicate_check_time = time.time() - duplicate_check_start
         logger.debug(f"Duplicate check completed in {duplicate_check_time:.3f}s")
 
         if existing:
-            logger.info(f"Duplicate webhook detected: run_id={run_id}, ignoring")
+            logger.info(f"Duplicate webhook detected: run_id={run_id}, status={status}, ignoring")
             return {"status": "ok", "message": "Duplicate webhook ignored"}
 
         logger.info(f"Webhook not duplicate, proceeding with processing: run_id={run_id}")
