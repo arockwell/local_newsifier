@@ -156,11 +156,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
@@ -211,11 +216,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
@@ -238,11 +248,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
