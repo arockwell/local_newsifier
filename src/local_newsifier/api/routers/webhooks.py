@@ -66,12 +66,12 @@ def apify_webhook(
         if result["status"] == "error":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
 
-        # Return response
+        # Return response using data from service result
         return ApifyWebhookResponse(
             status="accepted",
             message=result["message"],
-            actor_id=payload.get("actorId"),
-            dataset_id=payload.get("defaultDatasetId"),
+            actor_id=result.get("actor_id"),
+            dataset_id=result.get("dataset_id"),
             processing_status="completed",
         )
 
