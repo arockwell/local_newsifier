@@ -19,12 +19,12 @@ Remove completed/obsolete migration plans:
 
 ## Phase 2: Consolidation (Day 2-3)
 
-### 1. Merge CLI Documentation
-Combine into single `guides/cli_guide.md`:
-- `plans/cli-commands-refactoring.md`
-- `plans/cli-http-client-design.md`
-- `plans/cli-router-implementation.md`
-- All files in `plans/cli_to_http/`
+### 1. Merge CLI Documentation ✅ COMPLETE
+Combined into single `guides/cli_usage.md`:
+- ~~`plans/cli-commands-refactoring.md`~~ (removed)
+- ~~`plans/cli-http-client-design.md`~~ (removed)
+- ~~`plans/cli-router-implementation.md`~~ (removed)
+- ~~All files in `plans/cli_to_http/`~~ (removed)
 
 ### 2. Merge Testing Documentation
 Combine into single `guides/testing_guide.md`:
