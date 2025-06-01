@@ -286,11 +286,13 @@ class TestApifyWebhookInfrastructure:
         # Send request to webhook endpoint
         response = client.post("/webhooks/apify", json=payload)
 
-        # Should return error response
+        # Should return accepted response even with error (to prevent Apify retry storms)
         assert response.status_code == 202  # Still accepted but with error status
         response_data = response.json()
-        assert response_data["status"] == "error"
+        assert response_data["status"] == "accepted"
+        assert response_data["processing_status"] == "error"
         assert "Database error" in response_data["message"]
+        assert response_data["error"] == "Database error"
 
     @ci_skip_async
     def test_apify_webhook_multi_status_acceptance(self, client, monkeypatch, mock_webhook_service):
