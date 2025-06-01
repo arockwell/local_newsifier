@@ -75,11 +75,16 @@ def get_session() -> Generator[Session, None, None]:
     session = Session(engine)
     try:
         yield session
-        session.commit()
+        # Only commit if we're still in a transaction
+        if session.in_transaction():
+            session.commit()
     except Exception:
-        session.rollback()
+        # Rollback on any exception, but check if we're in a transaction first
+        if session.in_transaction():
+            session.rollback()
         raise
     finally:
+        # Always close the session
         session.close()
 
 
