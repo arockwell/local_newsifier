@@ -145,7 +145,7 @@ class TestSimplifiedWebhook:
         assert articles[1].url == "https://example.com/article2"
 
     def test_webhook_skips_articles_with_missing_fields(
-        self, client: TestClient, db_session: Session, mock_apify_client
+        self, client: TestClient, override_db_session: Session, mock_apify_client
     ):
         """Test that webhook skips articles with missing required fields."""
         mock_dataset_items = [
