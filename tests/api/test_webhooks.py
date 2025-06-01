@@ -289,8 +289,8 @@ class TestApifyWebhookInfrastructure:
         # Should return accepted response even with error (to prevent Apify retry storms)
         assert response.status_code == 202  # Still accepted but with error status
         response_data = response.json()
-        assert response_data["status"] == "accepted"
-        assert response_data["processing_status"] == "error"
+        assert response_data["status"] == "accepted"  # Always accepted to prevent retry storms
+        assert response_data["processing_status"] == "error"  # But processing status shows error
         assert "Database error" in response_data["message"]
         assert response_data["error"] == "Database error"
 

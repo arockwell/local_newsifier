@@ -1,15 +1,13 @@
 """Entity service for coordinating entity-related operations."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
-from fastapi import Depends
 from fastapi_injectable import injectable
 
 from local_newsifier.errors import handle_database
 from local_newsifier.models.entity import Entity
-from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMentionContext,
-                                                    EntityProfile)
+from local_newsifier.models.entity_tracking import CanonicalEntity, EntityMentionContext
 from local_newsifier.models.state import (EntityBatchTrackingState, EntityDashboardState,
                                           EntityRelationshipState, EntityTrackingState,
                                           TrackingStatus)
@@ -144,6 +142,7 @@ class EntityService:
 
         return processed_entities
 
+    @handle_database
     def process_article_with_state(self, state: EntityTrackingState) -> EntityTrackingState:
         """Process an article using state-based approach.
 
@@ -183,6 +182,7 @@ class EntityService:
 
         return state
 
+    @handle_database
     def process_articles_batch(self, state: EntityBatchTrackingState) -> EntityBatchTrackingState:
         """Process multiple articles for entity tracking.
 
@@ -238,7 +238,7 @@ class EntityService:
                                 session, article_id=article.id, status="entity_tracked"
                             )
 
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         # Handle individual article failures without stopping the batch
                         error_msg = f"Error processing article {article.id}: {str(e)}"
                         state.add_log(error_msg)
@@ -255,12 +255,13 @@ class EntityService:
                 state.status = TrackingStatus.FAILED
                 state.add_log("Batch processing failed for all articles")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             state.set_error("batch_processing", e)
             state.add_log(f"Fatal error in batch processing: {str(e)}")
 
         return state
 
+    @handle_database
     def generate_entity_dashboard(self, state: EntityDashboardState) -> EntityDashboardState:
         """Generate dashboard data for entities.
 
@@ -274,7 +275,8 @@ class EntityService:
             # Update state status
             state.status = TrackingStatus.PROCESSING
             state.add_log(
-                f"Generating entity dashboard for {state.entity_type} entities over past {state.days} days"
+                f"Generating entity dashboard for {state.entity_type} entities "
+                f"over past {state.days} days"
             )
 
             # Calculate date range
@@ -341,7 +343,7 @@ class EntityService:
                 state.status = TrackingStatus.SUCCESS
                 state.add_log(f"Successfully generated dashboard with {len(entity_data)} entities")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             state.set_error("dashboard_generation", e)
             # Explicitly set status to FAILED to ensure test passes
             state.status = TrackingStatus.FAILED
@@ -349,6 +351,7 @@ class EntityService:
 
         return state
 
+    @handle_database
     def find_entity_relationships(self, state: EntityRelationshipState) -> EntityRelationshipState:
         """Find relationships between entities based on co-occurrence.
 
@@ -461,7 +464,7 @@ class EntityService:
                 state.status = TrackingStatus.SUCCESS
                 state.add_log(f"Successfully identified {len(relationships)} relationships")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             state.set_error("relationship_analysis", e)
             # Explicitly set status to FAILED to ensure test passes
             state.status = TrackingStatus.FAILED

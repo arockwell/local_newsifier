@@ -12,10 +12,11 @@ import time
 from datetime import UTC, datetime
 from typing import Dict, Optional
 
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from local_newsifier.crud.article import article
+from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service import ApifyService
@@ -37,6 +38,7 @@ class ApifyWebhookServiceSync:
         self.webhook_secret = webhook_secret
         self.apify_service = ApifyService()
 
+    @handle_apify
     def validate_signature(self, payload: str, signature: str) -> bool:
         """Validate webhook signature.
 
@@ -59,6 +61,7 @@ class ApifyWebhookServiceSync:
         logger.info(f"Signature validation: valid={is_valid}")
         return is_valid
 
+    @handle_database
     def handle_webhook(
         self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None
     ) -> Dict[str, any]:
@@ -129,15 +132,7 @@ class ApifyWebhookServiceSync:
 
         if existing:
             logger.info(f"Duplicate webhook detected: run_id={run_id}, status={status}, ignoring")
-            return {
-                "status": "ok",
-                "message": "Duplicate webhook ignored",
-                "run_id": run_id,
-                "actor_id": actor_id,
-                "dataset_id": resource.get("defaultDatasetId", ""),
-                "articles_created": 0,
-                "is_new_webhook": False,
-            }
+            return {"status": "ok", "message": "Duplicate webhook ignored"}
 
         logger.info(f"Webhook not duplicate, proceeding with processing: run_id={run_id}")
 
@@ -155,76 +150,37 @@ class ApifyWebhookServiceSync:
                 # This preserves the original format and avoids timezone issues
                 pass
 
-        # Save raw webhook data with proper duplicate handling
-        # Try to insert, handle duplicate gracefully if it fails
+        # Save raw webhook data with proper error handling
+        # Use an idempotent approach - try to save, handle duplicate gracefully
         is_new_webhook = False
         try:
-            # Check if we're using PostgreSQL
-            db_dialect = self.session.bind.dialect.name if self.session.bind else None
-
-            if db_dialect == "postgresql":
-                # Use PostgreSQL-specific INSERT ... ON CONFLICT DO NOTHING
-                stmt = insert(ApifyWebhookRaw).values(
-                    run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-                )
-                stmt = stmt.on_conflict_do_nothing(index_elements=["run_id"])
-                result = self.session.execute(stmt)
-
-                if result.rowcount == 0:
-                    # Record already exists
-                    logger.info(f"Webhook already processed: run_id={run_id}")
-                    is_new_webhook = False
-                else:
-                    # New webhook was inserted
-                    is_new_webhook = True
-                    logger.info(f"Storing raw webhook data: run_id={run_id}")
-            else:
-                # For non-PostgreSQL databases, use traditional approach
-                webhook_raw = ApifyWebhookRaw(
-                    run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-                )
-                self.session.add(webhook_raw)
-                try:
-                    self.session.flush()  # Force the constraint check
-                except Exception:
-                    # In case of concurrent access, flush might fail
-                    pass
-                is_new_webhook = True
-                logger.info(f"Storing raw webhook data: run_id={run_id}")
-
-        except Exception as e:
-            # Check if it's a duplicate key violation
-            from sqlalchemy.exc import IntegrityError
-
-            if isinstance(e, IntegrityError) and (
-                "ix_apify_webhook_raw_run_id" in str(e)
-                or "unique_run_id_status" in str(e)
-                or "UNIQUE constraint failed" in str(e)
-            ):
-                try:
-                    self.session.rollback()
-                except Exception:
-                    # Rollback might fail in concurrent scenarios
-                    pass
-                logger.info(f"Webhook already processed (caught duplicate): run_id={run_id}")
+            webhook_raw = ApifyWebhookRaw(
+                run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+            )
+            self.session.add(webhook_raw)
+            self.session.flush()  # Force the constraint check
+            is_new_webhook = True
+            logger.info(f"Storing raw webhook data: run_id={run_id}")
+        except IntegrityError as e:
+            if "ix_apify_webhook_raw_run_id" in str(e) or "unique_run_id_status" in str(e):
+                self.session.rollback()
+                logger.warning(f"Duplicate webhook received for run_id: {run_id}, status: {status}")
                 # This is OK - another request already processed this webhook
                 is_new_webhook = False
+                # Check if webhook exists to ensure it was saved
+                webhook_raw = self.session.exec(
+                    select(ApifyWebhookRaw).where(
+                        ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
+                    )
+                ).first()
+                if not webhook_raw:
+                    logger.error(
+                        f"Webhook marked as duplicate but not found in DB: run_id={run_id}"
+                    )
+                    raise
             else:
                 # Re-raise other errors
-                try:
-                    self.session.rollback()
-                except Exception:
-                    # Rollback might fail in concurrent scenarios
-                    pass
-                logger.error(f"Error saving webhook: {str(e)}", exc_info=True)
                 raise
-
-        # Fetch the webhook record (either new or existing)
-        webhook_raw = self.session.exec(
-            select(ApifyWebhookRaw).where(
-                ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
-            )
-        ).first()
 
         # If successful run, try to create articles
         articles_created = 0
@@ -239,22 +195,15 @@ class ApifyWebhookServiceSync:
                         f"New webhook detected, creating articles from dataset: "
                         f"dataset_id={dataset_id}"
                     )
-                    try:
-                        article_start_time = time.time()
-                        articles_created = self._create_articles_from_dataset(dataset_id)
-                        article_creation_time = time.time() - article_start_time
-                        logger.info(
-                            f"Article creation completed: articles_created={articles_created}, "
-                            f"duration={article_creation_time:.3f}s"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Error creating articles from webhook: run_id={run_id}, "
-                            f"dataset_id={dataset_id}, error={str(e)}",
-                            exc_info=True,
-                        )
-                        logger.debug(f"Webhook payload on article error: {payload}")
-                        # Don't fail the webhook - just log the error
+                    # Note: _create_articles_from_dataset is decorated with @handle_apify
+                    # so we don't need a try/except block here
+                    article_start_time = time.time()
+                    articles_created = self._create_articles_from_dataset(dataset_id)
+                    article_creation_time = time.time() - article_start_time
+                    logger.info(
+                        f"Article creation completed: articles_created={articles_created}, "
+                        f"duration={article_creation_time:.3f}s"
+                    )
                 else:
                     logger.info("Webhook was duplicate, checking if articles were already created")
                     # Could check if articles exist for this dataset, but for now just log
@@ -287,6 +236,7 @@ class ApifyWebhookServiceSync:
             "is_new_webhook": is_new_webhook,
         }
 
+    @handle_apify
     def _create_articles_from_dataset(self, dataset_id: str) -> int:
         """Create articles from Apify dataset.
 
@@ -296,124 +246,113 @@ class ApifyWebhookServiceSync:
         Returns:
             Number of articles created
         """
-        try:
-            # Fetch dataset items with timing
-            fetch_start = time.time()
-            logger.info(f"Fetching dataset: dataset_id={dataset_id}")
-            dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
-            fetch_time = time.time() - fetch_start
+        # Fetch dataset items with timing
+        fetch_start = time.time()
+        logger.info(f"Fetching dataset: dataset_id={dataset_id}")
+        dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
+        fetch_time = time.time() - fetch_start
+        logger.info(
+            f"Dataset items received: count={len(dataset_items)}, "
+            f"fetch_duration={fetch_time:.3f}s"
+        )
+
+        # EMERGENCY LOGGING: Log structure of first item
+        if dataset_items:
+            logger.info("=== DATASET ITEM STRUCTURE ===")
+            logger.info(f"First item keys: {list(dataset_items[0].keys())}")
             logger.info(
-                f"Dataset items received: count={len(dataset_items)}, "
-                f"fetch_duration={fetch_time:.3f}s"
+                f"First item sample: {json.dumps(dataset_items[0], indent=2)[:1000]}..."
+            )  # First 1000 chars
+
+        articles_created = 0
+        articles_skipped = 0
+        skip_reasons = {"missing_fields": 0, "short_content": 0, "duplicate_url": 0}
+
+        for idx, item in enumerate(dataset_items, 1):
+            # Extract fields with fallbacks
+            url = item.get("url", "")
+            title = item.get("title", "")
+            content = item.get("content", "") or item.get("text", "") or item.get("body", "")
+
+            logger.info(f"Processing article {idx}/{len(dataset_items)}: url={url}")
+
+            # Track field extraction fallbacks
+            if not item.get("content") and (item.get("text") or item.get("body")):
+                logger.debug(
+                    f"Using fallback field for content: "
+                    f"{'text' if item.get('text') else 'body'}"
+                )
+
+            # Skip if missing required fields
+            if not all([url, title, content]):
+                missing = []
+                if not url:
+                    missing.append("url")
+                if not title:
+                    missing.append("title")
+                if not content:
+                    missing.append("content")
+                logger.info(
+                    f"Skipping article: url={url or 'N/A'}, "
+                    f"reason=missing_fields ({', '.join(missing)})"
+                )
+                articles_skipped += 1
+                skip_reasons["missing_fields"] += 1
+                continue
+
+            # Skip if content too short
+            content_length = len(content)
+            if content_length < 100:
+                logger.info(
+                    f"Skipping article: url={url}, reason=short_content "
+                    f"(length={content_length})"
+                )
+                articles_skipped += 1
+                skip_reasons["short_content"] += 1
+                continue
+
+            # Log content validation
+            logger.debug(f"Content validation passed: length={content_length}")
+
+            # Check if article already exists
+            existing = article.get_by_url(self.session, url=url)
+            if existing:
+                logger.info(
+                    f"Skipping article: url={url}, reason=duplicate_url "
+                    f"(existing_id={existing.id})"
+                )
+                articles_skipped += 1
+                skip_reasons["duplicate_url"] += 1
+                continue
+
+            # Create article
+            new_article = Article(
+                url=url,
+                title=title,
+                content=content,
+                source=item.get("source", "apify"),
+                published_at=datetime.now(UTC).replace(tzinfo=None),
+                status="published",
+                scraped_at=datetime.now(UTC).replace(tzinfo=None),
+            )
+            self.session.add(new_article)
+            self.session.flush()  # Get the ID
+            articles_created += 1
+            logger.info(
+                f"Article created: id={new_article.id}, url={url}, "
+                f"title_length={len(title)}, content_length={content_length}"
             )
 
-            # EMERGENCY LOGGING: Log structure of first item
-            if dataset_items:
-                logger.info("=== DATASET ITEM STRUCTURE ===")
-                logger.info(f"First item keys: {list(dataset_items[0].keys())}")
-                logger.info(
-                    f"First item sample: {json.dumps(dataset_items[0], indent=2)[:1000]}..."
-                )  # First 1000 chars
-
-            articles_created = 0
-            articles_skipped = 0
-            skip_reasons = {"missing_fields": 0, "short_content": 0, "duplicate_url": 0}
-
-            for idx, item in enumerate(dataset_items, 1):
-                # Extract fields with fallbacks
-                url = item.get("url", "")
-                title = item.get("title", "")
-                content = item.get("content", "") or item.get("text", "") or item.get("body", "")
-
-                logger.info(f"Processing article {idx}/{len(dataset_items)}: url={url}")
-
-                # Track field extraction fallbacks
-                if not item.get("content") and (item.get("text") or item.get("body")):
-                    logger.debug(
-                        f"Using fallback field for content: "
-                        f"{'text' if item.get('text') else 'body'}"
-                    )
-
-                # Skip if missing required fields
-                if not all([url, title, content]):
-                    missing = []
-                    if not url:
-                        missing.append("url")
-                    if not title:
-                        missing.append("title")
-                    if not content:
-                        missing.append("content")
-                    logger.info(
-                        f"Skipping article: url={url or 'N/A'}, "
-                        f"reason=missing_fields ({', '.join(missing)})"
-                    )
-                    articles_skipped += 1
-                    skip_reasons["missing_fields"] += 1
-                    continue
-
-                # Skip if content too short
-                content_length = len(content)
-                if content_length < 100:
-                    logger.info(
-                        f"Skipping article: url={url}, reason=short_content "
-                        f"(length={content_length})"
-                    )
-                    articles_skipped += 1
-                    skip_reasons["short_content"] += 1
-                    continue
-
-                # Log content validation
-                logger.debug(f"Content validation passed: length={content_length}")
-
-                # Check if article already exists
-                existing = article.get_by_url(self.session, url=url)
-                if existing:
-                    logger.info(
-                        f"Skipping article: url={url}, reason=duplicate_url "
-                        f"(existing_id={existing.id})"
-                    )
-                    articles_skipped += 1
-                    skip_reasons["duplicate_url"] += 1
-                    continue
-
-                # Create article
-                new_article = Article(
-                    url=url,
-                    title=title,
-                    content=content,
-                    source=item.get("source", "apify"),
-                    published_at=datetime.now(UTC).replace(tzinfo=None),
-                    status="published",
-                    scraped_at=datetime.now(UTC).replace(tzinfo=None),
-                )
-                self.session.add(new_article)
-                self.session.flush()  # Get the ID
-                articles_created += 1
-                logger.info(
-                    f"Article created: id={new_article.id}, url={url}, "
-                    f"title_length={len(title)}, content_length={content_length}"
-                )
-
-            # Log summary
+        # Log summary
+        logger.info(
+            f"Article processing summary: total={len(dataset_items)}, "
+            f"created={articles_created}, skipped={articles_skipped}"
+        )
+        if articles_skipped > 0:
             logger.info(
-                f"Article processing summary: total={len(dataset_items)}, "
-                f"created={articles_created}, skipped={articles_skipped}"
+                f"Skip reasons: missing_fields={skip_reasons['missing_fields']}, "
+                f"short_content={skip_reasons['short_content']}, "
+                f"duplicate_url={skip_reasons['duplicate_url']}"
             )
-            if articles_skipped > 0:
-                logger.info(
-                    f"Skip reasons: missing_fields={skip_reasons['missing_fields']}, "
-                    f"short_content={skip_reasons['short_content']}, "
-                    f"duplicate_url={skip_reasons['duplicate_url']}"
-                )
 
-            return articles_created
-
-        except Exception as e:
-            logger.error(f"Error fetching dataset {dataset_id}: {str(e)}", exc_info=True)
-            # Try to get more specific error info
-            if hasattr(e, "response"):
-                logger.error(
-                    f"Apify API error: status={getattr(e.response, 'status_code', 'N/A')}, "
-                    f"response={getattr(e.response, 'text', 'N/A')}"
-                )
-            return 0
+        return articles_created
