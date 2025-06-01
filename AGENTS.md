@@ -8,6 +8,7 @@ This document helps Codex locate developer guides and explains how to work with 
 - Module guides:
   - src/local_newsifier/api/CLAUDE.md
   - src/local_newsifier/cli/CLAUDE.md
+  - src/local_newsifier/crud/CLAUDE.md
   - src/local_newsifier/database/CLAUDE.md
   - src/local_newsifier/di/CLAUDE.md
   - src/local_newsifier/flows/CLAUDE.md

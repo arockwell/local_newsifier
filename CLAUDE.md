@@ -238,7 +238,7 @@ def get_article_service(
 #### CLI: Migration in Progress
 - CLI currently uses fastapi-injectable (being phased out)
 - Target: CLI will make HTTP calls to FastAPI endpoints
-- See migration plan: `docs/plans/cli-to-fastapi-overview.md`
+- See migration plan: `docs/migration-plans/README.md`
 
 ### Service Layer
 - Services coordinate business logic between CRUD operations and tools
