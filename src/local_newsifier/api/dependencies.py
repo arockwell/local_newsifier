@@ -2,9 +2,9 @@
 
 import os
 import pathlib
-from typing import Generator
+from typing import Annotated, Generator
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
@@ -55,43 +55,196 @@ def require_admin(request: Request):
 
 
 def get_session() -> Generator[Session, None, None]:
-    """Get a database session.
+    """Get a database session using FastAPI's native DI.
 
     This dependency provides a database session to route handlers.
     The session is automatically closed when the request is complete.
 
     Yields:
         Session: SQLModel session
+
+    Raises:
+        HTTPException: If database is unavailable
     """
-    from local_newsifier.database.engine import get_session as get_db_session
+    from local_newsifier.database.engine import get_engine
 
-    # Use the database engine's get_session directly
-    yield from get_db_session()
+    engine = get_engine()
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database unavailable")
+
+    session = Session(engine)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
-def get_article_service() -> ArticleService:
-    """Get the article service.
+def get_article_crud():
+    """Get the article CRUD singleton."""
+    from local_newsifier.crud.article import article
+
+    return article
+
+
+def get_analysis_result_crud():
+    """Get the analysis result CRUD singleton."""
+    from local_newsifier.crud.analysis_result import analysis_result
+
+    return analysis_result
+
+
+def get_entity_crud():
+    """Get the entity CRUD singleton."""
+    from local_newsifier.crud.entity import entity
+
+    return entity
+
+
+def get_canonical_entity_crud():
+    """Get the canonical entity CRUD singleton."""
+    from local_newsifier.crud.canonical_entity import canonical_entity
+
+    return canonical_entity
+
+
+def get_entity_mention_context_crud():
+    """Get the entity mention context CRUD singleton."""
+    from local_newsifier.crud.entity_mention_context import entity_mention_context
+
+    return entity_mention_context
+
+
+def get_entity_profile_crud():
+    """Get the entity profile CRUD singleton."""
+    from local_newsifier.crud.entity_profile import entity_profile
+
+    return entity_profile
+
+
+def get_rss_feed_crud():
+    """Get the RSS feed CRUD singleton."""
+    from local_newsifier.crud.rss_feed import rss_feed
+
+    return rss_feed
+
+
+def get_feed_processing_log_crud():
+    """Get the feed processing log CRUD singleton."""
+    from local_newsifier.crud.feed_processing_log import feed_processing_log
+
+    return feed_processing_log
+
+
+def get_nlp_model():
+    """Provide the spaCy NLP model."""
+    try:
+        import spacy
+
+        return spacy.load("en_core_web_lg")
+    except (ImportError, OSError) as e:
+        import logging
+
+        logging.warning(f"Failed to load NLP model: {str(e)}")
+        return None
+
+
+def get_entity_extractor():
+    """Provide the entity extractor tool."""
+    from local_newsifier.tools.extraction.entity_extractor import EntityExtractor
+
+    return EntityExtractor()
+
+
+def get_entity_resolver():
+    """Provide the entity resolver tool."""
+    from local_newsifier.tools.resolution.entity_resolver import EntityResolver
+
+    return EntityResolver(similarity_threshold=0.85)
+
+
+def get_context_analyzer():
+    """Provide the context analyzer tool."""
+    from local_newsifier.tools.analysis.context_analyzer import ContextAnalyzer
+
+    return ContextAnalyzer(nlp_model=get_nlp_model())
+
+
+def get_entity_service(
+    session: Annotated[Session, Depends(get_session)],
+    entity_crud=Depends(get_entity_crud),
+    canonical_entity_crud=Depends(get_canonical_entity_crud),
+    entity_mention_context_crud=Depends(get_entity_mention_context_crud),
+    entity_profile_crud=Depends(get_entity_profile_crud),
+    article_crud=Depends(get_article_crud),
+    entity_extractor=Depends(get_entity_extractor),
+    context_analyzer=Depends(get_context_analyzer),
+    entity_resolver=Depends(get_entity_resolver),
+):
+    """Provide the entity service using FastAPI's native DI."""
+    from local_newsifier.services.entity_service import EntityService
+
+    return EntityService(
+        entity_crud=entity_crud,
+        canonical_entity_crud=canonical_entity_crud,
+        entity_mention_context_crud=entity_mention_context_crud,
+        entity_profile_crud=entity_profile_crud,
+        article_crud=article_crud,
+        entity_extractor=entity_extractor,
+        context_analyzer=context_analyzer,
+        entity_resolver=entity_resolver,
+        session_factory=lambda: session,
+    )
+
+
+def get_article_service(
+    session: Annotated[Session, Depends(get_session)],
+    article_crud=Depends(get_article_crud),
+    analysis_result_crud=Depends(get_analysis_result_crud),
+    entity_service=Depends(get_entity_service),
+) -> ArticleService:
+    """Get the article service using FastAPI's native DI.
 
     Returns:
         ArticleService: The article service instance
     """
-    from local_newsifier.database.engine import get_session
-    from local_newsifier.di.providers import get_article_service as get_injectable_article_service
+    return ArticleService(
+        article_crud=article_crud,
+        analysis_result_crud=analysis_result_crud,
+        entity_service=entity_service,
+        session_factory=lambda: session,
+    )
 
-    # Use injectable provider with session
-    with next(get_session()) as session:
-        return get_injectable_article_service(session=session)
 
-
-def get_rss_feed_service() -> RSSFeedService:
-    """Get the RSS feed service using the injectable pattern.
+def get_rss_feed_service(
+    session: Annotated[Session, Depends(get_session)],
+    rss_feed_crud=Depends(get_rss_feed_crud),
+    feed_processing_log_crud=Depends(get_feed_processing_log_crud),
+    article_service=Depends(get_article_service),
+) -> RSSFeedService:
+    """Get the RSS feed service using FastAPI's native DI.
 
     Returns:
         RSSFeedService: The RSS feed service instance
     """
-    from local_newsifier.database.engine import get_session
-    from local_newsifier.di.providers import get_rss_feed_service as get_injectable_rss_feed_service
+    return RSSFeedService(
+        rss_feed_crud=rss_feed_crud,
+        feed_processing_log_crud=feed_processing_log_crud,
+        article_service=article_service,
+        session_factory=lambda: session,
+    )
 
-    # Use injectable provider with session
-    with next(get_session()) as session:
-        return get_injectable_rss_feed_service(session=session)
+
+def get_apify_webhook_service(session: Annotated[Session, Depends(get_session)]):
+    """Get the Apify webhook service using FastAPI's native DI.
+
+    Returns:
+        ApifyWebhookServiceSync: The webhook service instance
+    """
+    from local_newsifier.config.settings import settings
+    from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
+
+    return ApifyWebhookServiceSync(session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET)

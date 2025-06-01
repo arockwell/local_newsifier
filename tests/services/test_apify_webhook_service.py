@@ -69,7 +69,11 @@ class TestApifyWebhookService:
         """Test webhook handling with missing required fields."""
         service = ApifyWebhookService(memory_session)
 
-        payload = {"actorId": "actor123"}  # Missing run_id and status
+        # Nested structure missing required fields
+        payload = {
+            "eventData": {"actorId": "actor123"},  # Missing actorRunId
+            "resource": {},  # Missing status
+        }
         result = service.handle_webhook(payload, json.dumps(payload))
 
         assert result["status"] == "error"
@@ -86,8 +90,11 @@ class TestApifyWebhookService:
         memory_session.add(existing)
         memory_session.commit()
 
-        # Try to process duplicate
-        payload = {"actorRunId": "run123", "actorId": "actor123", "status": "SUCCEEDED"}
+        # Try to process duplicate with nested structure
+        payload = {
+            "eventData": {"actorRunId": "run123", "actorId": "actor123"},
+            "resource": {"status": "SUCCEEDED"},
+        }
         result = service.handle_webhook(payload, json.dumps(payload))
 
         assert result["status"] == "ok"
@@ -97,11 +104,10 @@ class TestApifyWebhookService:
         """Test that webhook raw data is saved correctly."""
         service = ApifyWebhookService(memory_session)
 
+        # Nested structure payload
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "FAILED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {"actorRunId": "run123", "actorId": "actor123"},
+            "resource": {"status": "FAILED", "defaultDatasetId": "dataset123"},
             "extra": "data",
         }
 
@@ -150,11 +156,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
@@ -205,11 +216,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
@@ -232,11 +248,16 @@ class TestApifyWebhookService:
 
         service = ApifyWebhookService(memory_session)
 
+        # Use nested structure as expected by the service
         payload = {
-            "actorRunId": "run123",
-            "actorId": "actor123",
-            "status": "SUCCEEDED",
-            "defaultDatasetId": "dataset123",
+            "eventData": {
+                "actorRunId": "run123",
+                "actorId": "actor123",
+            },
+            "resource": {
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            },
         }
 
         result = service.handle_webhook(payload, json.dumps(payload))
