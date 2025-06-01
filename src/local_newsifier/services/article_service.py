@@ -1,9 +1,8 @@
 """Article service for coordinating article-related operations."""
 
 from datetime import datetime
-from typing import Annotated, Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Optional
 
-from fastapi import Depends
 from fastapi_injectable import injectable
 
 from local_newsifier.errors import handle_database
@@ -191,7 +190,7 @@ class ArticleService:
                 from dateutil.parser import parse
 
                 published_at = parse(entry["published"])
-            except Exception:
+            except (ValueError, TypeError):
                 # Fall back to current date if parsing fails
                 pass
 

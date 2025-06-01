@@ -1,19 +1,15 @@
-"""
-Service for managing RSS feeds.
+"""Service for managing RSS feeds.
+
 This module provides functionality for RSS feed management, including
 adding, updating, and processing feeds.
 """
 
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from fastapi import Depends
 from fastapi_injectable import injectable
-from sqlmodel import Session
 
-from local_newsifier.crud.feed_processing_log import feed_processing_log
-from local_newsifier.crud.rss_feed import rss_feed
 from local_newsifier.errors import handle_database, handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
@@ -236,7 +232,7 @@ class RSSFeedService:
                             if task_queue_func:
                                 task_queue_func(article_id)
                             articles_added += 1
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         logger.error(
                             f"Error processing article {entry.get('link', 'unknown')}: {str(e)}"
                         )
@@ -261,7 +257,7 @@ class RSSFeedService:
                     "articles_added": articles_added,
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception(f"Error processing feed {feed_id}: {str(e)}")
 
                 # Update processing log with error

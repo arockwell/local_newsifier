@@ -6,14 +6,11 @@ creating, updating, listing, and running configurations.
 """
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-
-from sqlmodel import Session
+from typing import Any, Dict, List, Optional
 
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.errors.error import ServiceError, handle_service_error
-from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.errors.handlers import handle_apify, handle_database
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +65,7 @@ class ApifySourceConfigService:
                     session, source_type=source_type
                 )
                 # Apply skip and limit manually since the method doesn't support it
-                configs = configs[skip : skip + limit]
+                configs = configs[skip:skip + limit]
             else:
                 configs = self.apify_source_config_crud.get_multi(session, skip=skip, limit=limit)
 
@@ -91,7 +88,7 @@ class ApifySourceConfigService:
                 return None
             return config.model_dump()
 
-    @handle_service_error(service="apify")
+    @handle_database
     def create_config(
         self,
         name: str,
@@ -136,21 +133,10 @@ class ApifySourceConfigService:
 
         # Create in database
         with self.session_factory() as session:
-            try:
-                config = self.apify_source_config_crud.create(session, obj_in=config_data)
-                return config.model_dump()
-            except ServiceError as e:
-                # Re-raise ServiceError
-                raise e
-            except Exception as e:
-                raise ServiceError(
-                    service="apify",
-                    error_type="database",
-                    message=f"Error creating Apify source configuration: {str(e)}",
-                    context={"name": name, "actor_id": actor_id},
-                )
+            config = self.apify_source_config_crud.create(session, obj_in=config_data)
+            return config.model_dump()
 
-    @handle_service_error(service="apify")
+    @handle_database
     def update_config(
         self,
         config_id: int,
@@ -205,23 +191,12 @@ class ApifySourceConfigService:
                 return None
 
             # Update the config
-            try:
-                updated_config = self.apify_source_config_crud.update(
-                    session, db_obj=db_config, obj_in=update_data
-                )
-                return updated_config.model_dump()
-            except ServiceError as e:
-                # Re-raise ServiceError
-                raise e
-            except Exception as e:
-                raise ServiceError(
-                    service="apify",
-                    error_type="database",
-                    message=f"Error updating Apify source configuration: {str(e)}",
-                    context={"config_id": config_id},
-                )
+            updated_config = self.apify_source_config_crud.update(
+                session, db_obj=db_config, obj_in=update_data
+            )
+            return updated_config.model_dump()
 
-    @handle_service_error(service="apify")
+    @handle_database
     def remove_config(self, config_id: int) -> bool:
         """Remove an Apify source configuration.
 
@@ -232,27 +207,19 @@ class ApifySourceConfigService:
             True if successful, False otherwise
         """
         with self.session_factory() as session:
-            try:
-                # Attempt to delete the schedule in Apify if it exists
-                config = self.apify_source_config_crud.get(session, id=config_id)
-                if config and config.schedule_id:
-                    try:
-                        self.apify_service.delete_schedule(config.schedule_id)
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to delete Apify schedule {config.schedule_id}: {str(e)}"
-                        )
+            # Attempt to delete the schedule in Apify if it exists
+            config = self.apify_source_config_crud.get(session, id=config_id)
+            if config and config.schedule_id:
+                try:
+                    self.apify_service.delete_schedule(config.schedule_id)
+                except ServiceError as e:
+                    logger.warning(
+                        f"Failed to delete Apify schedule {config.schedule_id}: {str(e)}"
+                    )
 
-                # Remove from database
-                result = self.apify_source_config_crud.remove(session, id=config_id)
-                return result is not None
-            except Exception as e:
-                raise ServiceError(
-                    service="apify",
-                    error_type="database",
-                    message=f"Error removing Apify source configuration: {str(e)}",
-                    context={"config_id": config_id},
-                )
+            # Remove from database
+            result = self.apify_source_config_crud.remove(session, id=config_id)
+            return result is not None
 
     @handle_service_error(service="apify")
     def toggle_active(self, config_id: int, is_active: bool) -> Optional[Dict[str, Any]]:
@@ -274,6 +241,8 @@ class ApifySourceConfigService:
             return updated_config.model_dump()
 
     @handle_service_error(service="apify")
+    @handle_database
+    @handle_apify
     def run_configuration(self, config_id: int) -> Dict[str, Any]:
         """Run an Apify actor based on a source configuration.
 
@@ -305,42 +274,27 @@ class ApifySourceConfigService:
                     context={"config_id": config_id, "name": config.name},
                 )
 
+            # Update last run timestamp
+            self.apify_source_config_crud.update_last_run(session, config_id=config_id)
+
             # Run the actor
-            try:
-                # Update last run timestamp
-                self.apify_source_config_crud.update_last_run(session, config_id=config_id)
+            result = self.apify_service.run_actor(
+                actor_id=config.actor_id, run_input=config.input_configuration
+            )
 
-                # Run the actor
-                result = self.apify_service.run_actor(
-                    actor_id=config.actor_id, run_input=config.input_configuration
-                )
+            # Process result
+            run_id = result.get("id")
+            dataset_id = result.get("defaultDatasetId")
 
-                # Process result
-                run_id = result.get("id")
-                dataset_id = result.get("defaultDatasetId")
-
-                # Create success response
-                return {
-                    "status": "success",
-                    "config_id": config_id,
-                    "config_name": config.name,
-                    "actor_id": config.actor_id,
-                    "run_id": run_id,
-                    "dataset_id": dataset_id,
-                }
-
-            except Exception as e:
-                # Handle failure
-                raise ServiceError(
-                    service="apify",
-                    error_type="execution",
-                    message=f"Error running Apify actor: {str(e)}",
-                    context={
-                        "config_id": config_id,
-                        "name": config.name,
-                        "actor_id": config.actor_id,
-                    },
-                )
+            # Create success response
+            return {
+                "status": "success",
+                "config_id": config_id,
+                "config_name": config.name,
+                "actor_id": config.actor_id,
+                "run_id": run_id,
+                "dataset_id": dataset_id,
+            }
 
     @handle_service_error(service="apify")
     def get_scheduled_configs(self, enabled_only: bool = True) -> List[Dict[str, Any]]:
