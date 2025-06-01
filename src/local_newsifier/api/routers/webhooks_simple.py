@@ -86,11 +86,29 @@ def apify_webhook(
         # This tells Apify not to retry invalid requests
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        # Log unexpected errors and return 500
+        # Log unexpected errors but still accept the webhook
+        # This allows for retries and prevents webhook queue blocking
         logger.error(f"Unexpected error handling webhook: {e}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
-        )
+        # Extract IDs from payload (support both formats)
+        resource = payload.get("resource", {})
+        if resource:
+            run_id = resource.get("id")
+            actor_id = resource.get("actId")
+            dataset_id = resource.get("defaultDatasetId")
+        else:
+            run_id = payload.get("actorRunId")
+            actor_id = payload.get("actorId")
+            dataset_id = payload.get("defaultDatasetId")
+
+        return {
+            "status": "error",
+            "message": str(e),
+            "run_id": run_id,
+            "actor_id": actor_id,
+            "dataset_id": dataset_id,
+            "processing_status": "error",
+            "articles_created": 0,
+        }
 
     # Return error status if validation failed
     if result["status"] == "error":
@@ -104,4 +122,8 @@ def apify_webhook(
         "status": "accepted",
         "run_id": result.get("run_id"),
         "articles_created": result.get("articles_created", 0),
+        "actor_id": result.get("actor_id"),
+        "dataset_id": result.get("dataset_id"),
+        "processing_status": "completed" if result["status"] == "ok" else "error",
+        "message": result.get("message", "Webhook processed"),
     }

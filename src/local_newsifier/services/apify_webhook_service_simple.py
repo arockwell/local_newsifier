@@ -83,11 +83,20 @@ class ApifyWebhookServiceSimple:
             return {"status": "error", "message": "Invalid signature"}
 
         # Extract fields from standard Apify webhook structure
+        # Support both nested (v2) and flat (v1) webhook formats
         resource = payload.get("resource", {})
-        run_id = resource.get("id", "")
-        actor_id = resource.get("actId", "")
-        status = resource.get("status", "")
-        dataset_id = resource.get("defaultDatasetId", "")
+        if resource:
+            # V2 format with nested resource
+            run_id = resource.get("id", "")
+            actor_id = resource.get("actId", "")
+            status = resource.get("status", "")
+            dataset_id = resource.get("defaultDatasetId", "")
+        else:
+            # V1 format with flat structure
+            run_id = payload.get("actorRunId", "")
+            actor_id = payload.get("actorId", "")
+            status = payload.get("status", "")
+            dataset_id = payload.get("defaultDatasetId", "")
 
         logger.info(f"Webhook received: run_id={run_id}, actor_id={actor_id}, status={status}")
 
@@ -128,6 +137,12 @@ class ApifyWebhookServiceSimple:
                     exc_info=True,
                 )
 
+        # Build response message
+        if webhook_saved:
+            message = f"Webhook processed. Articles created: {articles_created}"
+        else:
+            message = "Duplicate webhook ignored"
+
         return {
             "status": "ok",
             "run_id": run_id,
@@ -135,6 +150,7 @@ class ApifyWebhookServiceSimple:
             "dataset_id": dataset_id,
             "articles_created": articles_created,
             "is_new": webhook_saved,
+            "message": message,
         }
 
     def _create_articles_from_dataset(self, dataset_id: str) -> int:
