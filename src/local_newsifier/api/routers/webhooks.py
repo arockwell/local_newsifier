@@ -53,6 +53,11 @@ def apify_webhook(
         HTTPException: If webhook validation fails
     """
     try:
+        # EMERGENCY LOGGING: Log full payload structure for debugging
+        logger.info("=== WEBHOOK RECEIVED ===")
+        logger.info(f"Payload keys: {list(payload.keys())}")
+        logger.info(f"Full payload: {json.dumps(payload, indent=2)}")
+
         # Extract key fields for logging
         event_data = payload.get("eventData", {})
         resource = payload.get("resource", {})
@@ -128,6 +133,12 @@ def apify_webhook(
 
         logger.error(f"Webhook processing failed: run_id={run_id}, error={str(e)}")
         logger.debug(f"Webhook payload on error: {payload}")
+
+        # CRITICAL: Return 200 OK even for errors to stop Apify retry storms
+        # We log the error but acknowledge the webhook was received
         return ApifyWebhookResponse(
-            status="error", message=f"Error processing webhook: {str(e)}", error=str(e)
+            status="accepted",
+            message=f"Webhook received but encountered error: {str(e)}",
+            processing_status="error",
+            error=str(e),
         )

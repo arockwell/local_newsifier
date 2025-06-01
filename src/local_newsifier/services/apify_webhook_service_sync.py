@@ -6,6 +6,7 @@ to clearly distinguish it from the async version during the transition.
 
 import hashlib
 import hmac
+import json
 import logging
 import time
 from datetime import UTC, datetime
@@ -140,12 +141,32 @@ class ApifyWebhookServiceSync:
                 # This preserves the original format and avoids timezone issues
                 pass
 
-        # Save raw webhook data
-        webhook_raw = ApifyWebhookRaw(
-            run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-        )
-        self.session.add(webhook_raw)
-        logger.info(f"Storing raw webhook data: run_id={run_id}")
+        # Save raw webhook data with proper error handling
+        try:
+            webhook_raw = ApifyWebhookRaw(
+                run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+            )
+            self.session.add(webhook_raw)
+            self.session.flush()  # Force the constraint check
+            logger.info(f"Storing raw webhook data: run_id={run_id}")
+        except Exception as e:
+            # Check if it's a duplicate key violation
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(e, IntegrityError) and "ix_apify_webhook_raw_run_id" in str(e):
+                self.session.rollback()
+                logger.warning(f"Duplicate webhook received for run_id: {run_id}, status: {status}")
+                # Return success to prevent Apify retries
+                return {
+                    "status": "ok",
+                    "message": "Webhook already processed (duplicate)",
+                    "run_id": run_id,
+                    "actor_id": actor_id,
+                    "dataset_id": resource.get("defaultDatasetId", ""),
+                    "articles_created": 0,
+                }
+            # Re-raise other errors
+            raise
 
         # If successful run, try to create articles
         articles_created = 0
@@ -213,6 +234,14 @@ class ApifyWebhookServiceSync:
                 f"Dataset items received: count={len(dataset_items)}, "
                 f"fetch_duration={fetch_time:.3f}s"
             )
+
+            # EMERGENCY LOGGING: Log structure of first item
+            if dataset_items:
+                logger.info("=== DATASET ITEM STRUCTURE ===")
+                logger.info(f"First item keys: {list(dataset_items[0].keys())}")
+                logger.info(
+                    f"First item sample: {json.dumps(dataset_items[0], indent=2)[:1000]}..."
+                )  # First 1000 chars
 
             articles_created = 0
             articles_skipped = 0
