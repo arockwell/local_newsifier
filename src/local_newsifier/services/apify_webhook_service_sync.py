@@ -132,7 +132,15 @@ class ApifyWebhookServiceSync:
 
         if existing:
             logger.info(f"Duplicate webhook detected: run_id={run_id}, status={status}, ignoring")
-            return {"status": "ok", "message": "Duplicate webhook ignored"}
+            return {
+                "status": "ok",
+                "message": "Duplicate webhook ignored",
+                "run_id": run_id,
+                "actor_id": actor_id,
+                "dataset_id": resource.get("defaultDatasetId", ""),
+                "articles_created": 0,
+                "is_new_webhook": False,
+            }
 
         logger.info(f"Webhook not duplicate, proceeding with processing: run_id={run_id}")
 
