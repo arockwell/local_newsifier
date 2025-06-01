@@ -9,6 +9,8 @@ from typing import Dict, Optional
 from sqlmodel import Session, select
 
 from local_newsifier.crud.article import article
+from local_newsifier.errors.error import ServiceError
+from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service import ApifyService
@@ -30,6 +32,7 @@ class ApifyWebhookService:
         self.webhook_secret = webhook_secret
         self.apify_service = ApifyService()
 
+    @handle_apify
     def validate_signature(self, payload: str, signature: str) -> bool:
         """Validate webhook signature.
 
@@ -49,6 +52,7 @@ class ApifyWebhookService:
 
         return hmac.compare_digest(expected_signature, signature)
 
+    @handle_database
     def handle_webhook(
         self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None
     ) -> Dict[str, any]:
@@ -116,14 +120,14 @@ class ApifyWebhookService:
         # If successful run, try to create articles
         articles_created = 0
         if status == "SUCCEEDED":
-            try:
-                # Extract dataset ID from resource section
-                dataset_id = resource.get("defaultDatasetId", "")
-                if dataset_id:
+            # Extract dataset ID from resource section
+            dataset_id = resource.get("defaultDatasetId", "")
+            if dataset_id:
+                try:
                     articles_created = self._create_articles_from_dataset(dataset_id)
-            except Exception as e:
-                logger.error(f"Error creating articles from webhook: {e}")
-                # Don't fail the webhook - just log the error
+                except ServiceError as e:
+                    logger.error(f"Failed to create articles from dataset {dataset_id}: {e}")
+                    # Don't fail the whole webhook processing
 
         self.session.commit()
 
@@ -134,6 +138,7 @@ class ApifyWebhookService:
             "articles_created": articles_created,
         }
 
+    @handle_apify
     def _create_articles_from_dataset(self, dataset_id: str) -> int:
         """Create articles from Apify dataset.
 
@@ -143,45 +148,40 @@ class ApifyWebhookService:
         Returns:
             Number of articles created
         """
-        try:
-            # Fetch dataset items
-            dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
+        # Fetch dataset items
+        dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
 
-            articles_created = 0
-            for item in dataset_items:
-                # Extract fields with fallbacks
-                url = item.get("url", "")
-                title = item.get("title", "")
-                content = item.get("content", "") or item.get("text", "") or item.get("body", "")
+        articles_created = 0
+        for item in dataset_items:
+            # Extract fields with fallbacks
+            url = item.get("url", "")
+            title = item.get("title", "")
+            content = item.get("content", "") or item.get("text", "") or item.get("body", "")
 
-                # Skip if missing required fields
-                if not all([url, title, content]):
-                    continue
+            # Skip if missing required fields
+            if not all([url, title, content]):
+                continue
 
-                # Skip if content too short
-                if len(content) < 100:
-                    continue
+            # Skip if content too short
+            if len(content) < 100:
+                continue
 
-                # Check if article already exists
-                existing = article.get_by_url(self.session, url=url)
-                if existing:
-                    continue
+            # Check if article already exists
+            existing = article.get_by_url(self.session, url=url)
+            if existing:
+                continue
 
-                # Create article
-                new_article = Article(
-                    url=url,
-                    title=title,
-                    content=content,
-                    source=item.get("source", "apify"),
-                    published_at=datetime.now(UTC).replace(tzinfo=None),
-                    status="published",
-                    scraped_at=datetime.now(UTC).replace(tzinfo=None),
-                )
-                self.session.add(new_article)
-                articles_created += 1
+            # Create article
+            new_article = Article(
+                url=url,
+                title=title,
+                content=content,
+                source=item.get("source", "apify"),
+                published_at=datetime.now(UTC).replace(tzinfo=None),
+                status="published",
+                scraped_at=datetime.now(UTC).replace(tzinfo=None),
+            )
+            self.session.add(new_article)
+            articles_created += 1
 
-            return articles_created
-
-        except Exception as e:
-            logger.error(f"Error fetching dataset {dataset_id}: {e}")
-            return 0
+        return articles_created

@@ -1,15 +1,14 @@
 """Service for managing Apify schedules and synchronizing with database configs."""
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict
 
 from sqlalchemy.sql import text
 from sqlmodel import Session
 
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
 from local_newsifier.errors.error import ServiceError
-from local_newsifier.models.apify import ApifySourceConfig
+from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.services.apify_service import ApifyService
 
 
@@ -33,6 +32,7 @@ class ApifyScheduleManager:
         self.config_crud = apify_source_config_crud
         self.session_factory = session_factory
 
+    @handle_database
     def sync_schedules(self) -> Dict[str, Any]:
         """Synchronize all database configs with Apify schedules.
 
@@ -64,13 +64,8 @@ class ApifyScheduleManager:
                 config_ids.append(config.id)
 
             # Clean up any schedules in Apify that don't have a corresponding config
-            try:
-                deleted = self._clean_orphaned_schedules(session)
-                results["deleted"] += deleted
-            except Exception as e:
-                error_msg = f"Error cleaning orphaned schedules: {str(e)}"
-                logging.error(error_msg)
-                results["errors"].append(error_msg)
+            deleted = self._clean_orphaned_schedules(session)
+            results["deleted"] += deleted
 
         # Process each config outside the original session
         for config_id in config_ids:
@@ -92,13 +87,14 @@ class ApifyScheduleManager:
                         results["updated"] += 1
                     else:
                         results["unchanged"] += 1
-            except Exception as e:
+            except ServiceError as e:
                 error_msg = f"Error processing config {config_id}: {str(e)}"
                 logging.error(error_msg)
                 results["errors"].append(error_msg)
 
         return results
 
+    @handle_database
     def create_schedule_for_config(self, config_id: int) -> bool:
         """Create an Apify schedule for a specific config.
 
@@ -143,40 +139,32 @@ class ApifyScheduleManager:
                     self.apify_service.get_schedule(config.schedule_id)
                     # Schedule exists, no need to create
                     return False
-                except Exception:
+                except ServiceError:
                     # Schedule doesn't exist, continue with creation
                     pass
 
-            # Verify the actor exists
-            try:
-                # Just for the test, we'll replace the actor_id with a known actor
-                # that exists in the test account
-                # We found this ID using the Apify API
-                actor_id = "moJRLRc85AitArpNN"  # This is the web-scraper actor ID
+            # Just for the test, we'll replace the actor_id with a known actor
+            # that exists in the test account
+            # We found this ID using the Apify API
+            actor_id = "moJRLRc85AitArpNN"  # This is the web-scraper actor ID
 
-                # Create schedule in Apify
-                name = f"Local Newsifier: {config.name}"
-                schedule_data = self.apify_service.create_schedule(
-                    actor_id=actor_id,  # Using our test actor_id
-                    cron_expression=config.schedule,
-                    run_input=config.input_configuration,
-                    name=name,
-                )
+            # Create schedule in Apify
+            name = f"Local Newsifier: {config.name}"
+            schedule_data = self.apify_service.create_schedule(
+                actor_id=actor_id,  # Using our test actor_id
+                cron_expression=config.schedule,
+                run_input=config.input_configuration,
+                name=name,
+            )
 
-                # Update config with schedule_id
-                self.config_crud.update(
-                    session, db_obj=config, obj_in={"schedule_id": schedule_data["id"]}
-                )
+            # Update config with schedule_id
+            self.config_crud.update(
+                session, db_obj=config, obj_in={"schedule_id": schedule_data["id"]}
+            )
 
-                return True
-            except Exception as e:
-                raise ServiceError(
-                    service="apify",
-                    error_type="actor_error",
-                    message=f"Error creating schedule: {str(e)}",
-                    context={"actor_id": config.actor_id, "error": str(e)},
-                )
+            return True
 
+    @handle_database
     def update_schedule_for_config(self, config_id: int) -> bool:
         """Update an Apify schedule for a specific config.
 
@@ -253,15 +241,16 @@ class ApifyScheduleManager:
                 # No changes needed
                 return False
 
-            except Exception as e:
+            except ServiceError as e:
                 logging.error(f"Error updating schedule for config {config_id}: {str(e)}")
                 # If schedule doesn't exist, create a new one
-                if "not found" in str(e).lower():
+                if e.error_type == "not_found":
                     # Clear schedule_id and create new schedule
                     self.config_crud.update(session, db_obj=config, obj_in={"schedule_id": None})
                     return self.create_schedule_for_config(config_id)
                 raise
 
+    @handle_database
     def delete_schedule_for_config(self, config_id: int) -> bool:
         """Delete an Apify schedule for a specific config.
 
@@ -297,14 +286,15 @@ class ApifyScheduleManager:
                 self.config_crud.update(session, db_obj=config, obj_in={"schedule_id": None})
 
                 return True
-            except Exception as e:
+            except ServiceError as e:
                 logging.error(f"Error deleting schedule for config {config_id}: {str(e)}")
                 # If schedule doesn't exist, just update the config
-                if "not found" in str(e).lower():
+                if e.error_type == "not_found":
                     self.config_crud.update(session, db_obj=config, obj_in={"schedule_id": None})
                     return False
                 raise
 
+    @handle_database
     def verify_schedule_status(self, config_id: int) -> Dict[str, Any]:
         """Verify the status of a schedule in Apify.
 
@@ -365,10 +355,11 @@ class ApifyScheduleManager:
             )
 
             return result
-        except Exception:
+        except ServiceError:
             # Schedule doesn't exist
             return result
 
+    @handle_apify
     def _clean_orphaned_schedules(self, session: Session) -> int:
         """Clean up any schedules in Apify that don't have a corresponding config.
 
@@ -387,28 +378,24 @@ class ApifyScheduleManager:
         config_schedule_ids = set(config.schedule_id for config in configs if config.schedule_id)
 
         # Get all schedules from Apify
-        try:
-            schedules_resp = self.apify_service.list_schedules()
-            schedules = schedules_resp.get("data", {}).get("items", [])
+        schedules_resp = self.apify_service.list_schedules()
+        schedules = schedules_resp.get("data", {}).get("items", [])
 
-            deleted = 0
-            for schedule in schedules:
-                # Check if schedule name starts with our prefix
-                schedule_id = schedule.get("id")
-                schedule_name = schedule.get("name", "")
+        deleted = 0
+        for schedule in schedules:
+            # Check if schedule name starts with our prefix
+            schedule_id = schedule.get("id")
+            schedule_name = schedule.get("name", "")
 
-                if (
-                    schedule_name.startswith("Local Newsifier:")
-                    and schedule_id not in config_schedule_ids
-                ):
-                    # This is our schedule but has no corresponding config
-                    try:
-                        self.apify_service.delete_schedule(schedule_id)
-                        deleted += 1
-                    except Exception as e:
-                        logging.error(f"Error deleting orphaned schedule {schedule_id}: {str(e)}")
+            if (
+                schedule_name.startswith("Local Newsifier:")
+                and schedule_id not in config_schedule_ids
+            ):
+                # This is our schedule but has no corresponding config
+                try:
+                    self.apify_service.delete_schedule(schedule_id)
+                    deleted += 1
+                except ServiceError as e:
+                    logging.error(f"Error deleting orphaned schedule {schedule_id}: {str(e)}")
 
-            return deleted
-        except Exception as e:
-            logging.error(f"Error listing schedules: {str(e)}")
-            return 0
+        return deleted
