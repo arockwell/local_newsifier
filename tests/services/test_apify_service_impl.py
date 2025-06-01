@@ -5,17 +5,12 @@ to improve code coverage.
 """
 
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from sqlmodel import Session, select
 
 from local_newsifier.crud.apify_source_config import CRUDApifySourceConfig
-from local_newsifier.models.apify import (ApifyCredentials, ApifyDatasetItem, ApifyJob,
-                                          ApifySourceConfig, ApifyWebhook)
-from local_newsifier.models.article import Article
+from local_newsifier.models.apify import ApifySourceConfig
 from local_newsifier.services.apify_service import ApifyService
 
 
@@ -134,7 +129,8 @@ class TestApifyServiceImplementation:
 
         # Verify dataset was fetched
         mock_apify_client.dataset.assert_called_once_with("test_dataset_id")
-        mock_apify_client.dataset().list_items.assert_called_once()  # Changed from get_items to list_items
+        # Changed from get_items to list_items
+        mock_apify_client.dataset().list_items.assert_called_once()
 
         # Verify items
         assert "items" in items
@@ -501,7 +497,7 @@ class TestApifyServiceImplementation:
 
         # Mock _extract_items to raise an exception
         with patch.object(
-            apify_service, "_extract_items", side_effect=Exception("Extraction error")
+            apify_service, "_extract_items", side_effect=ValueError("Extraction error")
         ):
             # Execute
             result = apify_service.get_dataset_items("test_dataset")

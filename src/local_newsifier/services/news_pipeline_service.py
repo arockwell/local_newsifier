@@ -41,19 +41,22 @@ class NewsPipelineService:
             return {"status": "error", "message": "Failed to scrape content"}
 
         # Process article
-        result = self.article_service.process_article(
-            url=url,
-            content=scraped_data["content"],
-            title=scraped_data["title"],
-            published_at=scraped_data.get("published_at", datetime.now()),
-        )
+        try:
+            result = self.article_service.process_article(
+                url=url,
+                content=scraped_data["content"],
+                title=scraped_data["title"],
+                published_at=scraped_data.get("published_at", datetime.now()),
+            )
+        except Exception as e:
+            return {"status": "error", "message": f"Error processing article: {str(e)}"}
 
         # Save results to file if needed
         if self.file_writer:
             try:
                 file_path = self.file_writer.write_results(result)
                 result["file_path"] = file_path
-            except (IOError, OSError) as e:
+            except Exception as e:
                 # Handle file writer errors
                 result["error"] = f"Error writing results to file: {str(e)}"
 
@@ -88,7 +91,7 @@ class NewsPipelineService:
             try:
                 file_path = self.file_writer.write_results(result)
                 result["file_path"] = file_path
-            except (IOError, OSError) as e:
+            except Exception as e:
                 # Handle file writer errors
                 result["error"] = f"Error writing results to file: {str(e)}"
 

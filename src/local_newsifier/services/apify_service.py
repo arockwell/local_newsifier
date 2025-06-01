@@ -471,7 +471,7 @@ class ApifyService:
                         if allow_callable and callable(value):
                             try:
                                 value = value()
-                            except (TypeError, AttributeError):
+                            except Exception:
                                 # If calling fails, use the attribute value directly
                                 pass
                         return value

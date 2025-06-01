@@ -9,6 +9,7 @@ from typing import Dict, Optional
 from sqlmodel import Session, select
 
 from local_newsifier.crud.article import article
+from local_newsifier.errors.error import ServiceError
 from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
@@ -122,7 +123,11 @@ class ApifyWebhookService:
             # Extract dataset ID from resource section
             dataset_id = resource.get("defaultDatasetId", "")
             if dataset_id:
-                articles_created = self._create_articles_from_dataset(dataset_id)
+                try:
+                    articles_created = self._create_articles_from_dataset(dataset_id)
+                except ServiceError as e:
+                    logger.error(f"Failed to create articles from dataset {dataset_id}: {e}")
+                    # Don't fail the whole webhook processing
 
         self.session.commit()
 

@@ -176,7 +176,7 @@ class EntityService:
                     session, article_id=state.article_id, status="entity_tracked"
                 )
 
-        except (ValueError, TypeError, AttributeError) as e:
+        except Exception as e:
             state.set_error("entity_tracking", e)
             state.add_log(f"Error processing entities: {str(e)}")
 
