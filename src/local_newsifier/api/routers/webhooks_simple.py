@@ -70,21 +70,32 @@ def apify_webhook(
     # Convert payload to string for signature validation
     import json
 
+    from fastapi import HTTPException
+
     raw_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
-    # Process webhook
-    result = webhook_service.handle_webhook(
-        payload=payload,
-        raw_payload=raw_payload,
-        signature=apify_webhook_signature,
-    )
+    try:
+        # Process webhook
+        result = webhook_service.handle_webhook(
+            payload=payload,
+            raw_payload=raw_payload,
+            signature=apify_webhook_signature,
+        )
+    except ValueError as e:
+        # Return 400 Bad Request for validation errors
+        # This tells Apify not to retry invalid requests
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        # Log unexpected errors and return 500
+        logger.error(f"Unexpected error handling webhook: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+        )
 
     # Return error status if validation failed
     if result["status"] == "error":
         # Return 400 Bad Request for invalid webhooks
         # This tells Apify not to retry invalid requests
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=result["message"])
 
     # Return simple success response
