@@ -12,7 +12,8 @@ from starlette.middleware.sessions import SessionMiddleware
 # Import models to ensure they're registered with SQLModel.metadata before creating tables
 import local_newsifier.models  # noqa: F401
 from local_newsifier.api.dependencies import get_templates
-from local_newsifier.api.routers import auth, system, tasks, webhooks
+from local_newsifier.api.routers import auth, system, tasks
+from local_newsifier.api.routers import webhooks_simple as webhooks
 from local_newsifier.config.settings import get_settings, settings
 from local_newsifier.database.engine import get_engine
 
