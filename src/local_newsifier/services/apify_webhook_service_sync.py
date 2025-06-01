@@ -6,6 +6,7 @@ to clearly distinguish it from the async version during the transition.
 
 import hashlib
 import hmac
+import json
 import logging
 import time
 from datetime import UTC, datetime
@@ -131,6 +132,11 @@ class ApifyWebhookServiceSync:
 
         logger.info(f"Webhook not duplicate, proceeding with processing: run_id={run_id}")
 
+        # Add diagnostic logging for article creation conditions
+        logger.info(f"Status check: status='{status}', is_succeeded={status == 'SUCCEEDED'}")
+        dataset_id = resource.get("defaultDatasetId", "")
+        logger.info(f"Dataset ID: '{dataset_id}', has_dataset={bool(dataset_id)}")
+
         # Convert datetime strings to string format for JSON storage
         # This avoids timezone issues when storing in JSONB
         payload_copy = payload.copy()
@@ -140,49 +146,92 @@ class ApifyWebhookServiceSync:
                 # This preserves the original format and avoids timezone issues
                 pass
 
-        # Save raw webhook data
-        webhook_raw = ApifyWebhookRaw(
-            run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-        )
-        self.session.add(webhook_raw)
-        logger.info(f"Storing raw webhook data: run_id={run_id}")
+        # Save raw webhook data with proper error handling
+        # Use an idempotent approach - try to save, handle duplicate gracefully
+        is_new_webhook = False
+        try:
+            webhook_raw = ApifyWebhookRaw(
+                run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+            )
+            self.session.add(webhook_raw)
+            self.session.flush()  # Force the constraint check
+            is_new_webhook = True
+            logger.info(f"Storing raw webhook data: run_id={run_id}")
+        except Exception as e:
+            # Check if it's a duplicate key violation
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(e, IntegrityError) and (
+                "ix_apify_webhook_raw_run_id" in str(e) or "unique_run_id_status" in str(e)
+            ):
+                self.session.rollback()
+                logger.warning(f"Duplicate webhook received for run_id: {run_id}, status: {status}")
+                # This is OK - another request already processed this webhook
+                is_new_webhook = False
+                # Check if webhook exists to ensure it was saved
+                webhook_raw = self.session.exec(
+                    select(ApifyWebhookRaw).where(
+                        ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
+                    )
+                ).first()
+                if not webhook_raw:
+                    logger.error(
+                        f"Webhook marked as duplicate but not found in DB: run_id={run_id}"
+                    )
+                    raise
+            else:
+                # Re-raise other errors
+                raise
 
         # If successful run, try to create articles
         articles_created = 0
-        dataset_id = resource.get("defaultDatasetId", "")
 
         if status == "SUCCEEDED":
+            logger.info("Status is SUCCEEDED, checking for dataset_id")
             if dataset_id:
-                logger.info(f"Actor run succeeded, fetching dataset: dataset_id={dataset_id}")
-                try:
-                    article_start_time = time.time()
-                    articles_created = self._create_articles_from_dataset(dataset_id)
-                    article_creation_time = time.time() - article_start_time
+                logger.info(f"Dataset ID found: {dataset_id}, attempting article creation")
+                if is_new_webhook:
+                    # Only create articles if this is a new webhook
                     logger.info(
-                        f"Article creation completed: articles_created={articles_created}, "
-                        f"duration={article_creation_time:.3f}s"
+                        f"New webhook detected, creating articles from dataset: "
+                        f"dataset_id={dataset_id}"
                     )
-                except Exception as e:
-                    logger.error(
-                        f"Error creating articles from webhook: run_id={run_id}, "
-                        f"dataset_id={dataset_id}, error={str(e)}",
-                        exc_info=True,
-                    )
-                    logger.debug(f"Webhook payload on article error: {payload}")
-                    # Don't fail the webhook - just log the error
+                    try:
+                        article_start_time = time.time()
+                        articles_created = self._create_articles_from_dataset(dataset_id)
+                        article_creation_time = time.time() - article_start_time
+                        logger.info(
+                            f"Article creation completed: articles_created={articles_created}, "
+                            f"duration={article_creation_time:.3f}s"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error creating articles from webhook: run_id={run_id}, "
+                            f"dataset_id={dataset_id}, error={str(e)}",
+                            exc_info=True,
+                        )
+                        logger.debug(f"Webhook payload on article error: {payload}")
+                        # Don't fail the webhook - just log the error
+                else:
+                    logger.info("Webhook was duplicate, checking if articles were already created")
+                    # Could check if articles exist for this dataset, but for now just log
             else:
                 logger.warning(f"No dataset ID found in successful run: run_id={run_id}")
         else:
             logger.info(f"Actor run status not SUCCEEDED ({status}), skipping article creation")
 
-        self.session.commit()
-        logger.info(f"Webhook data saved: run_id={run_id}")
+        # Only commit if we added something new
+        if is_new_webhook:
+            self.session.commit()
+            logger.info(f"Webhook data saved: run_id={run_id}")
+        else:
+            logger.info(f"Webhook was duplicate, no new data to commit: run_id={run_id}")
 
         # Total processing time
         total_time = time.time() - start_time
         logger.info(
             f"Webhook processing complete: run_id={run_id}, articles_created={articles_created}, "
-            f"duration={total_time:.3f}s"
+            f"is_new={is_new_webhook}, duration={total_time:.3f}s"
         )
 
         return {
@@ -192,6 +241,7 @@ class ApifyWebhookServiceSync:
             "actor_id": actor_id,
             "dataset_id": dataset_id,
             "articles_created": articles_created,
+            "is_new_webhook": is_new_webhook,
         }
 
     def _create_articles_from_dataset(self, dataset_id: str) -> int:
@@ -213,6 +263,14 @@ class ApifyWebhookServiceSync:
                 f"Dataset items received: count={len(dataset_items)}, "
                 f"fetch_duration={fetch_time:.3f}s"
             )
+
+            # EMERGENCY LOGGING: Log structure of first item
+            if dataset_items:
+                logger.info("=== DATASET ITEM STRUCTURE ===")
+                logger.info(f"First item keys: {list(dataset_items[0].keys())}")
+                logger.info(
+                    f"First item sample: {json.dumps(dataset_items[0], indent=2)[:1000]}..."
+                )  # First 1000 chars
 
             articles_created = 0
             articles_skipped = 0
