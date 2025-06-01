@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a8c61d1f7283"
-down_revision: Union[str, None] = "add_schedule_id_to_apify_config"
+down_revision: Union[str, None] = "13e391b8dbdc"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
