@@ -1,89 +1,255 @@
-# Server Log Analysis - Missing Article Creation
+# Server Log Analysis: Duplicate Webhook Race Condition
 
 ## Executive Summary
 
-The Apify webhook system is receiving and processing webhooks correctly, but articles are not being created due to a duplicate webhook detection issue. The system received multiple SUCCEEDED webhooks for the same run ID, and all but the first were rejected as duplicates.
+The server logs show a critical race condition issue where Apify is sending duplicate webhooks for the same actor run (`IxqszH6aJFrEhGOx9`), causing database constraint violations. The duplicate detection logic exists but appears to have a timing issue where the duplicate check passes initially, but then fails during the database insert.
 
-## Key Findings
+## Key Issues Identified
 
-### 1. Webhook Reception Pattern
-- **Initial webhook**: ACTOR.RUN.CREATED at 05:29:30 (status: RUNNING)
-- **Success webhooks**: Multiple ACTOR.RUN.SUCCEEDED webhooks at 05:31:29 (status: SUCCEEDED)
-- The system correctly processed the RUNNING webhook but rejected the SUCCEEDED webhooks as duplicates
+### 1. **Duplicate Webhook Delivery**
+- Apify sent multiple webhooks for the same run ID `IxqszH6aJFrEhGOx9`
+- First webhook: `2025-06-01T06:39:44.235Z`
+- Second webhook: `2025-06-01T06:39:44.229Z` (6 milliseconds earlier!)
+- Both webhooks have status `SUCCEEDED` for the same actor run
 
-### 2. Duplicate Detection Issue
-From the logs:
+### 2. **Race Condition in Duplicate Detection**
+The logs show a problematic sequence:
 ```
-Line 318-320: "Webhook not duplicate, proceeding with processing: run_id=Ej4N1TdcWesWV06Ne"
-              "Duplicate webhook received for run_id: Ej4N1TdcWesWV06Ne, status: SUCCEEDED"
+Line 164: Webhook not duplicate, proceeding with processing
+Line 169: WARNING - Duplicate webhook received for run_id
+Line 172: ERROR - Webhook marked as duplicate but not found in DB
 ```
 
-The duplicate check is working correctly but is preventing article creation because:
-1. The first SUCCEEDED webhook starts processing
-2. Additional SUCCEEDED webhooks arrive simultaneously
-3. The duplicate check prevents the additional webhooks from processing
-4. However, it appears the first webhook also didn't create articles
+This indicates the duplicate check initially passes, but by the time the insert happens, another thread/process has already inserted the record.
 
-### 3. Critical Issue: No Dataset Fetch Attempt
-The logs show NO evidence of:
-- "Fetching dataset" log message
-- "Dataset items received" log message
-- "DATASET ITEM STRUCTURE" log message
-- Any article creation attempts
+### 3. **Database Constraint Violation**
+```
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "ix_apify_webhook_raw_run_id"
+DETAIL: Key (run_id)=(IxqszH6aJFrEhGOx9) already exists.
+```
 
-This indicates the `_create_articles_from_dataset` method was never called, even for the first non-duplicate webhook.
+### 4. **Session Management Issue**
+The error occurs during `session.flush()` at line 157 in `apify_webhook_service_sync.py`, suggesting the session isn't properly isolated or the transaction boundaries aren't correctly managed.
 
-### 4. Webhook Processing Flow
-The code shows articles should be created when:
-1. Status is "SUCCEEDED"
-2. Dataset ID exists in the resource
-3. Webhook is not a duplicate
+## Root Cause Analysis
 
-Looking at the webhook payload:
-- Status: "SUCCEEDED" ✓
-- Dataset ID: "rQxBovQANNURSa5MG" ✓
-- First webhook was not duplicate ✓
+### Primary Issue: Concurrent Webhook Processing
+1. Multiple webhook requests arrive nearly simultaneously (within milliseconds)
+2. Both requests pass the duplicate check because neither has been committed to the database yet
+3. Both try to insert, causing a constraint violation for the second one
 
-### 5. Root Cause Analysis
+### Contributing Factors:
+1. **No request-level deduplication**: The API accepts both webhooks and processes them concurrently
+2. **Read-then-write pattern**: The duplicate check and insert aren't atomic
+3. **Missing transaction isolation**: The duplicate check doesn't see uncommitted data from other transactions
 
-The issue appears to be a race condition in the duplicate detection logic:
+## Steps to Reproduce
 
-1. Line 318: First webhook detected as NOT duplicate
-2. Line 319: But immediately after, it's logged as duplicate
-3. This suggests the webhook was saved to the database between these two operations
+### 1. **Simulate Duplicate Webhooks**
+```bash
+# Terminal 1 - Start the server
+make run-api
 
-The logic flow shows:
+# Terminal 2 - Send duplicate webhooks rapidly
+for i in {1..2}; do
+  curl -X POST http://localhost:8000/webhooks/apify \
+    -H "Content-Type: application/json" \
+    -d '{
+      "userId": "test-user",
+      "createdAt": "2025-06-01T12:00:00.000Z",
+      "eventType": "ACTOR.RUN.SUCCEEDED",
+      "eventData": {
+        "actorId": "test-actor",
+        "actorRunId": "duplicate-test-run"
+      },
+      "resource": {
+        "id": "duplicate-test-run",
+        "status": "SUCCEEDED",
+        "defaultDatasetId": "test-dataset"
+      }
+    }' &
+done
+wait
+```
+
+### 2. **Check Logs**
+```bash
+# Look for duplicate key violations
+tail -f server.log | grep -E "(duplicate key|UniqueViolation)"
+```
+
+### 3. **Verify Database State**
+```bash
+# Check if any webhooks were saved despite errors
+nf db inspect apify_webhook_raw duplicate-test-run
+```
+
+## Steps to Fix
+
+### 1. **Immediate Fix: Add Database-Level Upsert**
 ```python
-# Line 121-126: Check for duplicate
-existing = self.session.exec(
-    select(ApifyWebhookRaw).where(
-        ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
-    )
-).first()
+# In apify_webhook_service_sync.py
+def handle_webhook(self, webhook_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle incoming webhook with proper duplicate handling."""
+    try:
+        # Use INSERT ... ON CONFLICT DO NOTHING
+        stmt = insert(ApifyWebhookRaw).values(
+            run_id=run_id,
+            actor_id=actor_id,
+            status=status,
+            data=json.dumps(webhook_data)
+        )
+        stmt = stmt.on_conflict_do_nothing(index_elements=['run_id'])
+        result = self.session.execute(stmt)
 
-# Line 129-133: If not duplicate, proceed
-if existing:
-    return {"status": "ok", "message": "Duplicate webhook ignored"}
+        if result.rowcount == 0:
+            # Record already exists
+            logger.info(f"Webhook already processed: run_id={run_id}")
+            return {"status": "duplicate", "run_id": run_id}
 
-# Line 145-169: Save webhook (with duplicate handling)
-try:
-    webhook_raw = ApifyWebhookRaw(...)
-    self.session.add(webhook_raw)
-    self.session.flush()
-except IntegrityError:
-    # Handle duplicate
+        self.session.commit()
+
+        # Process webhook data...
+
+    except Exception as e:
+        self.session.rollback()
+        raise
 ```
 
-The problem: Multiple webhooks are being processed simultaneously, and the duplicate check at line 121 doesn't see the record that's being inserted by another concurrent request.
+### 2. **Better Fix: Request-Level Idempotency**
+```python
+# In api/routers/webhooks.py
+from functools import lru_cache
+from datetime import datetime, timedelta
 
-### 6. Article Creation Never Reached
+# Simple in-memory cache for recent webhooks
+@lru_cache(maxsize=1000)
+def is_webhook_processed(run_id: str, timestamp: float) -> bool:
+    """Check if webhook was recently processed."""
+    # Cache entries expire after 5 minutes
+    return False
 
-The logs show that even the first "non-duplicate" webhook returned with `articles_created=0`, indicating the article creation code block (lines 175-197) was never executed or failed silently.
+@router.post("/webhooks/apify", status_code=202)
+def apify_webhook(
+    webhook_data: Dict[str, Any],
+    webhook_service: Annotated[ApifyWebhookService, Depends(get_apify_webhook_service)]
+):
+    run_id = webhook_data.get("resource", {}).get("id")
 
-## Conclusion
+    # Quick duplicate check
+    if is_webhook_processed(run_id, time.time()):
+        return {"status": "duplicate", "run_id": run_id}
 
-The system has two issues:
-1. **Race condition in duplicate detection**: Multiple concurrent webhooks cause confusion in duplicate detection
-2. **Article creation not executing**: Even when a webhook is processed, the article creation logic is not being triggered
+    # Mark as processing
+    is_webhook_processed.cache_clear()  # Simple approach
 
-The most likely cause is that the first webhook is being rolled back due to the duplicate key violation, preventing any article creation from occurring.
+    result = webhook_service.handle_webhook(webhook_data)
+    return result
+```
+
+### 3. **Best Fix: Use Redis for Distributed Locking**
+```python
+# In apify_webhook_service_sync.py
+import redis
+from contextlib import contextmanager
+
+@contextmanager
+def webhook_lock(redis_client, run_id: str, timeout: int = 30):
+    """Distributed lock for webhook processing."""
+    lock_key = f"webhook:lock:{run_id}"
+    lock = redis_client.lock(lock_key, timeout=timeout)
+
+    acquired = lock.acquire(blocking=False)
+    if not acquired:
+        raise WebhookAlreadyProcessingError(f"Webhook {run_id} is already being processed")
+
+    try:
+        yield
+    finally:
+        lock.release()
+
+def handle_webhook(self, webhook_data: Dict[str, Any]) -> Dict[str, Any]:
+    run_id = webhook_data.get("resource", {}).get("id")
+
+    try:
+        with webhook_lock(self.redis_client, run_id):
+            # Check if already processed
+            existing = self.session.query(ApifyWebhookRaw).filter_by(run_id=run_id).first()
+            if existing:
+                return {"status": "duplicate", "run_id": run_id}
+
+            # Process webhook...
+    except WebhookAlreadyProcessingError:
+        return {"status": "processing", "run_id": run_id}
+```
+
+### 4. **Transaction Isolation Fix**
+```python
+# Use SERIALIZABLE isolation level for critical sections
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+def handle_webhook(self, webhook_data: Dict[str, Any]) -> Dict[str, Any]:
+    with self.session.begin():
+        # Set isolation level for this transaction
+        self.session.connection().execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+
+        # Now duplicate checks will see other transactions
+        existing = self.session.query(ApifyWebhookRaw).filter_by(run_id=run_id).first()
+        if existing:
+            return {"status": "duplicate", "run_id": run_id}
+
+        # Insert new webhook
+        webhook_raw = ApifyWebhookRaw(...)
+        self.session.add(webhook_raw)
+        # Transaction commits automatically
+```
+
+## Recommended Solution Path
+
+1. **Immediate**: Implement the database-level upsert (Fix #1) to prevent crashes
+2. **Short-term**: Add request-level deduplication (Fix #2) to reduce database load
+3. **Long-term**: Implement distributed locking with Redis (Fix #3) for proper scalability
+
+## Testing the Fix
+
+```bash
+# 1. Run concurrent webhook test
+./test_concurrent_webhooks.sh
+
+# 2. Check for errors
+grep -c "UniqueViolation" server.log  # Should be 0
+
+# 3. Verify only one record per run_id
+nf db query "SELECT run_id, COUNT(*) FROM apify_webhook_raw GROUP BY run_id HAVING COUNT(*) > 1"
+```
+
+## Additional Recommendations
+
+1. **Add webhook retry logic** with exponential backoff on Apify's side
+2. **Implement webhook signature verification** to ensure webhooks are from Apify
+3. **Add monitoring** for duplicate webhook rates
+4. **Consider using a message queue** (RabbitMQ/Redis) for webhook processing
+5. **Add database index** on `(run_id, status)` for faster duplicate checks
+
+## Monitoring Queries
+
+```sql
+-- Find duplicate attempts
+SELECT run_id, COUNT(*) as attempts
+FROM apify_webhook_raw
+GROUP BY run_id
+HAVING COUNT(*) > 1
+ORDER BY attempts DESC;
+
+-- Check webhook processing times
+SELECT
+    DATE_TRUNC('minute', created_at) as minute,
+    COUNT(*) as webhooks_received,
+    COUNT(DISTINCT run_id) as unique_runs,
+    COUNT(*) - COUNT(DISTINCT run_id) as duplicates
+FROM apify_webhook_raw
+WHERE created_at > NOW() - INTERVAL '1 hour'
+GROUP BY minute
+ORDER BY minute DESC;
+```

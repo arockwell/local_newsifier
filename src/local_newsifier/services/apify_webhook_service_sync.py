@@ -12,6 +12,7 @@ import time
 from datetime import UTC, datetime
 from typing import Dict, Optional
 
+from sqlalchemy.dialects.postgresql import insert
 from sqlmodel import Session, select
 
 from local_newsifier.crud.article import article
@@ -128,7 +129,15 @@ class ApifyWebhookServiceSync:
 
         if existing:
             logger.info(f"Duplicate webhook detected: run_id={run_id}, status={status}, ignoring")
-            return {"status": "ok", "message": "Duplicate webhook ignored"}
+            return {
+                "status": "ok",
+                "message": "Duplicate webhook ignored",
+                "run_id": run_id,
+                "actor_id": actor_id,
+                "dataset_id": resource.get("defaultDatasetId", ""),
+                "articles_created": 0,
+                "is_new_webhook": False,
+            }
 
         logger.info(f"Webhook not duplicate, proceeding with processing: run_id={run_id}")
 
@@ -146,42 +155,76 @@ class ApifyWebhookServiceSync:
                 # This preserves the original format and avoids timezone issues
                 pass
 
-        # Save raw webhook data with proper error handling
-        # Use an idempotent approach - try to save, handle duplicate gracefully
+        # Save raw webhook data with proper duplicate handling
+        # Try to insert, handle duplicate gracefully if it fails
         is_new_webhook = False
         try:
-            webhook_raw = ApifyWebhookRaw(
-                run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-            )
-            self.session.add(webhook_raw)
-            self.session.flush()  # Force the constraint check
-            is_new_webhook = True
-            logger.info(f"Storing raw webhook data: run_id={run_id}")
+            # Check if we're using PostgreSQL
+            db_dialect = self.session.bind.dialect.name if self.session.bind else None
+
+            if db_dialect == "postgresql":
+                # Use PostgreSQL-specific INSERT ... ON CONFLICT DO NOTHING
+                stmt = insert(ApifyWebhookRaw).values(
+                    run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+                )
+                stmt = stmt.on_conflict_do_nothing(index_elements=["run_id"])
+                result = self.session.execute(stmt)
+
+                if result.rowcount == 0:
+                    # Record already exists
+                    logger.info(f"Webhook already processed: run_id={run_id}")
+                    is_new_webhook = False
+                else:
+                    # New webhook was inserted
+                    is_new_webhook = True
+                    logger.info(f"Storing raw webhook data: run_id={run_id}")
+            else:
+                # For non-PostgreSQL databases, use traditional approach
+                webhook_raw = ApifyWebhookRaw(
+                    run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
+                )
+                self.session.add(webhook_raw)
+                try:
+                    self.session.flush()  # Force the constraint check
+                except Exception:
+                    # In case of concurrent access, flush might fail
+                    pass
+                is_new_webhook = True
+                logger.info(f"Storing raw webhook data: run_id={run_id}")
+
         except Exception as e:
             # Check if it's a duplicate key violation
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(e, IntegrityError) and (
-                "ix_apify_webhook_raw_run_id" in str(e) or "unique_run_id_status" in str(e)
+                "ix_apify_webhook_raw_run_id" in str(e)
+                or "unique_run_id_status" in str(e)
+                or "UNIQUE constraint failed" in str(e)
             ):
-                self.session.rollback()
-                logger.warning(f"Duplicate webhook received for run_id: {run_id}, status: {status}")
+                try:
+                    self.session.rollback()
+                except Exception:
+                    # Rollback might fail in concurrent scenarios
+                    pass
+                logger.info(f"Webhook already processed (caught duplicate): run_id={run_id}")
                 # This is OK - another request already processed this webhook
                 is_new_webhook = False
-                # Check if webhook exists to ensure it was saved
-                webhook_raw = self.session.exec(
-                    select(ApifyWebhookRaw).where(
-                        ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
-                    )
-                ).first()
-                if not webhook_raw:
-                    logger.error(
-                        f"Webhook marked as duplicate but not found in DB: run_id={run_id}"
-                    )
-                    raise
             else:
                 # Re-raise other errors
+                try:
+                    self.session.rollback()
+                except Exception:
+                    # Rollback might fail in concurrent scenarios
+                    pass
+                logger.error(f"Error saving webhook: {str(e)}", exc_info=True)
                 raise
+
+        # Fetch the webhook record (either new or existing)
+        webhook_raw = self.session.exec(
+            select(ApifyWebhookRaw).where(
+                ApifyWebhookRaw.run_id == run_id, ApifyWebhookRaw.status == status
+            )
+        ).first()
 
         # If successful run, try to create articles
         articles_created = 0
