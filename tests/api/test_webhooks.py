@@ -38,7 +38,7 @@ def mock_db():
 def mock_webhook_service():
     """Helper fixture to override webhook service dependency."""
     from local_newsifier.api.main import app
-    from local_newsifier.api.routers.webhooks_simple import get_webhook_service
+    from local_newsifier.api.routers.webhooks import get_webhook_service
 
     # Store original overrides
     original_overrides = app.dependency_overrides.copy()

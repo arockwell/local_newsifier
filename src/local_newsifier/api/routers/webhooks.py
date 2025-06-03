@@ -1,20 +1,22 @@
 """
-API router for webhook endpoints.
+Simplified API router for webhook endpoints.
 
-This module provides endpoints for receiving webhook notifications from
-external services like Apify, validating payloads, and processing data.
+This module provides a clean, simple webhook handler that:
+1. Accepts webhooks
+2. Returns proper HTTP status codes
+3. Lets Apify handle retries naturally
 """
 
-import json
 import logging
 from typing import Annotated, Any, Dict
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Header, Request
 from fastapi import status as http_status
+from sqlmodel import Session
 
-from local_newsifier.api.dependencies import get_apify_webhook_service
-from local_newsifier.models.webhook import ApifyWebhookResponse
-from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
+from local_newsifier.api.dependencies import get_session
+from local_newsifier.config.settings import get_settings
+from local_newsifier.services.apify_webhook_service import ApifyWebhookService
 
 # Create router with /webhooks prefix
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -23,122 +25,103 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
 
+def get_webhook_service(session: Annotated[Session, Depends(get_session)]) -> ApifyWebhookService:
+    """Get webhook service instance."""
+    settings = get_settings()
+    webhook_secret = settings.APIFY_WEBHOOK_SECRET
+    return ApifyWebhookService(session=session, webhook_secret=webhook_secret)
+
+
 @router.post(
     "/apify",
-    response_model=ApifyWebhookResponse,
     status_code=http_status.HTTP_202_ACCEPTED,
     summary="Receive Apify webhook notifications",
-    description="Endpoint for receiving webhook notifications from Apify when runs complete",
+    description="Simple endpoint that accepts Apify webhooks and processes them idempotently",
 )
 def apify_webhook(
     request: Request,
     payload: Annotated[Dict[str, Any], Body()],
-    webhook_service: Annotated[ApifyWebhookServiceSync, Depends(get_apify_webhook_service)],
+    webhook_service: Annotated[ApifyWebhookService, Depends(get_webhook_service)],
     apify_webhook_signature: Annotated[str | None, Header()] = None,
-) -> ApifyWebhookResponse:
+) -> Dict[str, Any]:
     """Handle webhook notifications from Apify.
 
-    This endpoint validates webhook payloads and creates articles from successful runs.
+    Simple implementation:
+    - Accept webhook
+    - Validate signature (if configured)
+    - Store webhook data
+    - Process if successful
+    - Return 202 Accepted
+
+    If there's an error, return proper HTTP error code to trigger
+    Apify's exponential backoff retry mechanism.
 
     Args:
         request: FastAPI request object
-        payload: Parsed JSON payload
-        webhook_service: Webhook service instance
-        apify_webhook_signature: Optional signature header for validation
+        payload: Parsed JSON payload from Apify
+        webhook_service: Injected webhook service
+        apify_webhook_signature: Optional signature header
 
     Returns:
-        ApifyWebhookResponse: Response acknowledging the webhook
-
-    Raises:
-        HTTPException: If webhook validation fails
+        Simple acknowledgment response
     """
+    # Convert payload to string for signature validation
+    import json
+
+    from fastapi import HTTPException
+
+    raw_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
     try:
-        # EMERGENCY LOGGING: Log full payload structure for debugging
-        logger.info("=== WEBHOOK RECEIVED ===")
-        logger.info(f"Payload keys: {list(payload.keys())}")
-        logger.info(f"Full payload: {json.dumps(payload, indent=2)}")
-
-        # Extract key fields for logging
-        event_data = payload.get("eventData", {})
-        resource = payload.get("resource", {})
-        run_id = event_data.get("actorRunId", "") or resource.get("id", "")
-        actor_id = event_data.get("actorId", "") or resource.get("actId", "")
-        status = resource.get("status", "")
-
-        # Log incoming webhook
-        logger.info(f"Webhook received: run_id={run_id}, actor_id={actor_id}, status={status}")
-
-        # Log signature validation attempt
-        if apify_webhook_signature:
-            logger.info(f"Signature validation: attempting validation for run_id={run_id}")
-        else:
-            logger.debug(f"Signature validation: no signature provided for run_id={run_id}")
-
-        # Log request headers for debugging (sanitized)
-        headers_dict = dict(request.headers)
-        # Remove sensitive headers
-        safe_headers = {
-            k: v
-            for k, v in headers_dict.items()
-            if k.lower() not in ["authorization", "x-api-key", "cookie"]
-        }
-        logger.debug(f"Request headers: {safe_headers}")
-
-        # Convert payload dict back to string for signature validation
-        raw_payload_str = json.dumps(payload, separators=(",", ":"), sort_keys=True)
-
-        # Handle webhook using sync method
+        # Process webhook
         result = webhook_service.handle_webhook(
             payload=payload,
-            raw_payload=raw_payload_str,
+            raw_payload=raw_payload,
             signature=apify_webhook_signature,
         )
-
-        # Check if there was an error
-        if result["status"] == "error":
-            logger.error(f"Webhook processing error: run_id={run_id}, error={result['message']}")
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=result["message"]
-            )
-
-        # Log successful response
-        articles_created = result.get("articles_created", 0)
-        logger.info(
-            f"Webhook response: run_id={run_id}, status=accepted, "
-            f"articles_created={articles_created}"
-        )
-
-        # Return response using data from service result
-        return ApifyWebhookResponse(
-            status="accepted",
-            message=result["message"],
-            actor_id=result.get("actor_id"),
-            dataset_id=result.get("dataset_id"),
-            processing_status="completed",
-        )
-
-    except HTTPException:
-        # Re-raise HTTPException so FastAPI handles it properly
-        raise
+    except ValueError as e:
+        # Return 400 Bad Request for validation errors
+        # This tells Apify not to retry invalid requests
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}", exc_info=True)
-        # Include run_id in error response if available
-        run_id = "unknown"
-        try:
-            event_data = payload.get("eventData", {})
-            resource = payload.get("resource", {})
-            run_id = event_data.get("actorRunId", "") or resource.get("id", "") or "unknown"
-        except Exception:
-            pass
+        # Log unexpected errors but still accept the webhook
+        # This allows for retries and prevents webhook queue blocking
+        logger.error(f"Unexpected error handling webhook: {e}")
+        # Extract IDs from payload (support both formats)
+        resource = payload.get("resource", {})
+        if resource:
+            run_id = resource.get("id")
+            actor_id = resource.get("actId")
+            dataset_id = resource.get("defaultDatasetId")
+        else:
+            run_id = payload.get("actorRunId")
+            actor_id = payload.get("actorId")
+            dataset_id = payload.get("defaultDatasetId")
 
-        logger.error(f"Webhook processing failed: run_id={run_id}, error={str(e)}")
-        logger.debug(f"Webhook payload on error: {payload}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "run_id": run_id,
+            "actor_id": actor_id,
+            "dataset_id": dataset_id,
+            "processing_status": "error",
+            "articles_created": 0,
+        }
 
-        # CRITICAL: Return 200 OK even for errors to stop Apify retry storms
-        # We log the error but acknowledge the webhook was received
-        return ApifyWebhookResponse(
-            status="accepted",
-            message=f"Webhook received but encountered error: {str(e)}",
-            processing_status="error",
-            error=str(e),
-        )
+    # Return error status if validation failed
+    if result["status"] == "error":
+        # Return 400 Bad Request for invalid webhooks
+        # This tells Apify not to retry invalid requests
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=result["message"])
+
+    # Return simple success response
+    # 202 Accepted is appropriate for webhooks that are processed asynchronously
+    return {
+        "status": "accepted",
+        "run_id": result.get("run_id"),
+        "articles_created": result.get("articles_created", 0),
+        "actor_id": result.get("actor_id"),
+        "dataset_id": result.get("dataset_id"),
+        "processing_status": "completed" if result["status"] == "ok" else "error",
+        "message": result.get("message", "Webhook processed"),
+    }
