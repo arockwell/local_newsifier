@@ -47,4 +47,4 @@ class TestWebhookSessionErrorHandling:
             # The issue is that HTTPException is raised while session generator is active
             # This should return 400 without throwing generator errors
             assert response.status_code == 400
-            assert "Missing required fields" in response.json()["detail"]
+            assert "Missing required field" in response.json()["detail"]
