@@ -72,6 +72,22 @@ def apify_webhook(
 
     raw_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
+    # EMERGENCY LOGGING: Log full payload structure for debugging
+    # TODO: Make this configurable via environment variable once webhook is stable
+    logger.info("=== WEBHOOK RECEIVED ===")
+    logger.info(f"Payload keys: {list(payload.keys())}")
+    logger.info(f"Full payload: {json.dumps(payload, indent=2)}")
+
+    # Extract key fields for logging
+    event_data = payload.get("eventData", {})
+    resource = payload.get("resource", {})
+    run_id = event_data.get("actorRunId", "") or resource.get("id", "")
+    actor_id = event_data.get("actorId", "") or resource.get("actId", "")
+    status = resource.get("status", "")
+
+    # Log incoming webhook
+    logger.info(f"Webhook received: run_id={run_id}, actor_id={actor_id}, status={status}")
+
     try:
         # Process webhook
         result = webhook_service.handle_webhook(
@@ -87,6 +103,7 @@ def apify_webhook(
         # Log unexpected errors but still accept the webhook
         # This allows for retries and prevents webhook queue blocking
         logger.error(f"Unexpected error handling webhook: {e}")
+        logger.error(f"Error occurred with payload: {json.dumps(payload, indent=2)}")
         # Extract IDs from payload (support both formats)
         resource = payload.get("resource", {})
         if resource:

@@ -5,6 +5,10 @@ This implementation follows a simple idempotent design:
 2. Store it (idempotently using database constraints)
 3. Process dataset if successful
 4. Return status
+
+Note: While maintaining the simplified structure, we've restored error handling
+decorators for consistency with the rest of the codebase and to ensure proper
+error classification and logging.
 """
 
 import hashlib
@@ -17,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from local_newsifier.crud.article import article
+from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
 from local_newsifier.services.apify_service import ApifyService
@@ -38,6 +43,7 @@ class ApifyWebhookService:
         self.webhook_secret = webhook_secret
         self.apify_service = ApifyService()
 
+    @handle_apify
     def validate_signature(self, payload: str, signature: str) -> bool:
         """Validate webhook signature.
 
@@ -57,6 +63,7 @@ class ApifyWebhookService:
 
         return hmac.compare_digest(expected_signature, signature)
 
+    @handle_database
     def handle_webhook(
         self, payload: Dict[str, any], raw_payload: str, signature: Optional[str] = None
     ) -> Dict[str, any]:
