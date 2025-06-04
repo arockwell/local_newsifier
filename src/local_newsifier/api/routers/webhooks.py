@@ -210,6 +210,11 @@ def debug_apify_dataset(
             url = item.get("url", "")
             title = item.get("title", "")
 
+            # Check metadata for title if not found in top-level fields
+            metadata = item.get("metadata", {})
+            if not title and metadata:
+                title = metadata.get("title", "")
+
             # Check all content fields with improved field mapping
             content_fields_map = {
                 "text": item.get("text", ""),  # Primary field from most actors
