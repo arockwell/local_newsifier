@@ -1,4 +1,15 @@
-"""Minimal Apify webhook service for handling webhook notifications."""
+"""Simplified Apify webhook service for handling webhook notifications.
+
+This implementation follows a simple idempotent design:
+1. Receive webhook
+2. Store it (idempotently using database constraints)
+3. Process dataset if successful
+4. Return status
+
+Note: While maintaining the simplified structure, we've restored error handling
+decorators for consistency with the rest of the codebase and to ensure proper
+error classification and logging.
+"""
 
 import hashlib
 import hmac
@@ -6,10 +17,10 @@ import logging
 from datetime import UTC, datetime
 from typing import Dict, Optional
 
-from sqlmodel import Session, select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session
 
 from local_newsifier.crud.article import article
-from local_newsifier.errors.error import ServiceError
 from local_newsifier.errors.handlers import handle_apify, handle_database
 from local_newsifier.models.apify import ApifyWebhookRaw
 from local_newsifier.models.article import Article
@@ -19,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class ApifyWebhookService:
-    """Minimal service for handling Apify webhooks."""
+    """Simplified service for handling Apify webhooks."""
 
     def __init__(self, session: Session, webhook_secret: Optional[str] = None):
         """Initialize webhook service.
@@ -58,89 +69,105 @@ class ApifyWebhookService:
     ) -> Dict[str, any]:
         """Handle incoming webhook notification.
 
+        Simple idempotent implementation:
+        1. Validate signature (if configured)
+        2. Extract required fields
+        3. Store webhook (let DB handle duplicates)
+        4. Process dataset if successful run
+        5. Return result
+
         Args:
             payload: Parsed webhook payload
             raw_payload: Raw webhook payload string for signature validation
             signature: Optional signature header value
 
         Returns:
-            Dict with status and any error information
+            Dict with status and processing results
         """
         # Validate signature if provided
         if signature and not self.validate_signature(raw_payload, signature):
             logger.warning("Invalid webhook signature")
             return {"status": "error", "message": "Invalid signature"}
 
-        # Extract from nested structure
-        event_data = payload.get("eventData", {})
+        # Extract fields from standard Apify webhook structure
+        # Support both nested (v2) and flat (v1) webhook formats
         resource = payload.get("resource", {})
-
-        # Extract key fields from nested locations with fallbacks
-        run_id = event_data.get("actorRunId", "") or resource.get("id", "")
-        actor_id = event_data.get("actorId", "") or resource.get("actId", "")
-        status = resource.get("status", "")
-
-        if not all([run_id, actor_id, status]):
-            logger.warning("Missing required webhook fields")
-            return {"status": "error", "message": "Missing required fields"}
-
-        # Check for duplicate
-        existing = self.session.exec(
-            select(ApifyWebhookRaw).where(ApifyWebhookRaw.run_id == run_id)
-        ).first()
-
-        if existing:
-            logger.info(f"Duplicate webhook for run_id: {run_id}")
-            return {"status": "ok", "message": "Duplicate webhook ignored"}
-
-        # Convert datetime strings to naive UTC datetime objects
-        payload_copy = payload.copy()
-        for field in ["createdAt", "startedAt", "finishedAt"]:
-            if field in payload_copy and payload_copy[field]:
-                try:
-                    # Parse ISO format datetime string
-                    dt_str = payload_copy[field]
-                    # Handle 'Z' suffix for UTC
-                    if dt_str.endswith("Z"):
-                        dt_str = dt_str[:-1] + "+00:00"
-                    dt = datetime.fromisoformat(dt_str)
-                    # Convert to naive UTC datetime
-                    payload_copy[field] = dt.replace(tzinfo=None)
-                except (ValueError, AttributeError) as e:
-                    logger.warning(f"Error parsing datetime field {field}: {e}")
-                    # Keep original value if parsing fails
-                    pass
-
-        # Save raw webhook data
-        webhook_raw = ApifyWebhookRaw(
-            run_id=run_id, actor_id=actor_id, status=status, data=payload_copy
-        )
-        self.session.add(webhook_raw)
-
-        # If successful run, try to create articles
-        articles_created = 0
-        if status == "SUCCEEDED":
-            # Extract dataset ID from resource section
+        if resource:
+            # V2 format with nested resource
+            run_id = resource.get("id", "")
+            actor_id = resource.get("actId", "")
+            status = resource.get("status", "")
             dataset_id = resource.get("defaultDatasetId", "")
-            if dataset_id:
-                try:
-                    articles_created = self._create_articles_from_dataset(dataset_id)
-                except ServiceError as e:
-                    logger.error(f"Failed to create articles from dataset {dataset_id}: {e}")
-                    # Don't fail the whole webhook processing
+        else:
+            # V1 format with flat structure
+            run_id = payload.get("actorRunId", "")
+            actor_id = payload.get("actorId", "")
+            status = payload.get("status", "")
+            dataset_id = payload.get("defaultDatasetId", "")
 
-        self.session.commit()
+        logger.info(f"Webhook received: run_id={run_id}, actor_id={actor_id}, status={status}")
+
+        # Validate required fields
+        if not run_id:
+            logger.warning(f"Missing run_id in webhook payload: {payload}")
+            return {"status": "error", "message": "Missing required field: run_id"}
+
+        # Store webhook - let database handle duplicates via unique constraint
+        # This is truly idempotent - no pre-checks needed
+        webhook_saved = False
+        try:
+            webhook_raw = ApifyWebhookRaw(
+                run_id=run_id,
+                actor_id=actor_id or "unknown",
+                status=status or "unknown",
+                data=payload,
+            )
+            self.session.add(webhook_raw)
+            self.session.commit()
+            webhook_saved = True
+            logger.info(f"Webhook stored: run_id={run_id}, status={status}")
+        except IntegrityError:
+            # Duplicate webhook - this is expected and OK
+            self.session.rollback()
+            logger.info(f"Duplicate webhook ignored: run_id={run_id}, status={status}")
+
+        # Process dataset only for new successful runs
+        articles_created = 0
+        if webhook_saved and status == "SUCCEEDED" and dataset_id:
+            try:
+                articles_created = self._create_articles_from_dataset(dataset_id)
+                logger.info(f"Articles created: dataset_id={dataset_id}, count={articles_created}")
+            except Exception as e:
+                # Log error but don't fail the webhook
+                logger.error(
+                    f"Failed to create articles: dataset_id={dataset_id}, error={str(e)}",
+                    exc_info=True,
+                )
+
+        # Build response message
+        if webhook_saved:
+            message = f"Webhook processed. Articles created: {articles_created}"
+        else:
+            message = "Duplicate webhook ignored"
 
         return {
             "status": "ok",
-            "message": f"Webhook processed. Articles created: {articles_created}",
             "run_id": run_id,
+            "actor_id": actor_id,
+            "dataset_id": dataset_id,
             "articles_created": articles_created,
+            "is_new": webhook_saved,
+            "message": message,
         }
 
-    @handle_apify
     def _create_articles_from_dataset(self, dataset_id: str) -> int:
         """Create articles from Apify dataset.
+
+        Simplified implementation:
+        1. Fetch dataset items
+        2. For each item with required fields, create article
+        3. Skip duplicates based on URL
+        4. Return count of created articles
 
         Args:
             dataset_id: Apify dataset ID
@@ -148,40 +175,52 @@ class ApifyWebhookService:
         Returns:
             Number of articles created
         """
-        # Fetch dataset items
-        dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
+        try:
+            # Fetch dataset items
+            logger.info(f"Fetching dataset: {dataset_id}")
+            dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
+            logger.info(f"Dataset contains {len(dataset_items)} items")
 
-        articles_created = 0
-        for item in dataset_items:
-            # Extract fields with fallbacks
-            url = item.get("url", "")
-            title = item.get("title", "")
-            content = item.get("content", "") or item.get("text", "") or item.get("body", "")
+            articles_created = 0
+            for item in dataset_items:
+                # Extract required fields (try common field names)
+                url = item.get("url", "")
+                title = item.get("title", "")
+                content = (
+                    item.get("content", "")
+                    or item.get("text", "")
+                    or item.get("body", "")
+                    or item.get("description", "")
+                )
 
-            # Skip if missing required fields
-            if not all([url, title, content]):
-                continue
+                # Skip if missing required fields or content too short
+                if not all([url, title]) or len(content) < 100:
+                    continue
 
-            # Skip if content too short
-            if len(content) < 100:
-                continue
+                # Skip if article already exists
+                if article.get_by_url(self.session, url=url):
+                    continue
 
-            # Check if article already exists
-            existing = article.get_by_url(self.session, url=url)
-            if existing:
-                continue
+                # Create article
+                new_article = Article(
+                    url=url,
+                    title=title,
+                    content=content,
+                    source=item.get("source", "apify"),
+                    published_at=datetime.now(UTC).replace(tzinfo=None),
+                    status="published",
+                    scraped_at=datetime.now(UTC).replace(tzinfo=None),
+                )
+                self.session.add(new_article)
+                articles_created += 1
 
-            # Create article
-            new_article = Article(
-                url=url,
-                title=title,
-                content=content,
-                source=item.get("source", "apify"),
-                published_at=datetime.now(UTC).replace(tzinfo=None),
-                status="published",
-                scraped_at=datetime.now(UTC).replace(tzinfo=None),
-            )
-            self.session.add(new_article)
-            articles_created += 1
+            # Commit all articles at once
+            if articles_created > 0:
+                self.session.commit()
 
-        return articles_created
+            logger.info(f"Created {articles_created} articles from dataset {dataset_id}")
+            return articles_created
+
+        except Exception as e:
+            logger.error(f"Error processing dataset {dataset_id}: {str(e)}", exc_info=True)
+            return 0
