@@ -142,3 +142,157 @@ def apify_webhook(
         "processing_status": "completed" if result["status"] == "ok" else "error",
         "message": result.get("message", "Webhook processed"),
     }
+
+
+@router.get(
+    "/apify/debug/{dataset_id}",
+    status_code=http_status.HTTP_200_OK,
+    summary="Debug Apify dataset download",
+    description="Analyze dataset contents and article creation process for debugging",
+)
+def debug_apify_dataset(
+    dataset_id: str,
+    webhook_service: Annotated[ApifyWebhookService, Depends(get_webhook_service)],
+) -> Dict[str, Any]:
+    """Debug endpoint to analyze Apify dataset download issues.
+
+    This endpoint:
+    1. Fetches the dataset from Apify
+    2. Analyzes each item for required fields
+    3. Checks for existing articles by URL
+    4. Reports why articles were/weren't created
+
+    Args:
+        dataset_id: Apify dataset ID to analyze
+        webhook_service: Injected webhook service
+
+    Returns:
+        Detailed analysis of dataset items and article creation
+    """
+    from fastapi import HTTPException
+
+    from local_newsifier.crud.article import article
+
+    try:
+        # Get the Apify service from webhook service
+        apify_service = webhook_service.apify_service
+
+        # Fetch dataset items
+        logger.info(f"Debug: Fetching dataset {dataset_id}")
+        try:
+            dataset_items = apify_service.client.dataset(dataset_id).list_items().items
+        except Exception as e:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset not found or inaccessible: {str(e)}",
+            )
+
+        # Analyze each item
+        analysis = {
+            "dataset_id": dataset_id,
+            "total_items": len(dataset_items),
+            "items_analysis": [],
+            "summary": {
+                "valid_items": 0,
+                "missing_url": 0,
+                "missing_title": 0,
+                "missing_content": 0,
+                "content_too_short": 0,
+                "duplicate_articles": 0,
+                "creatable_articles": 0,
+            },
+        }
+
+        session = webhook_service.session
+
+        for idx, item in enumerate(dataset_items):
+            # Extract fields
+            url = item.get("url", "")
+            title = item.get("title", "")
+            content = (
+                item.get("content", "")
+                or item.get("text", "")
+                or item.get("body", "")
+                or item.get("description", "")
+            )
+
+            # Analyze item
+            item_analysis = {
+                "index": idx,
+                "url": url[:100] + "..." if len(url) > 100 else url,
+                "has_url": bool(url),
+                "has_title": bool(title),
+                "title_preview": title[:50] + "..." if len(title) > 50 else title,
+                "content_fields": [
+                    k for k in ["content", "text", "body", "description"] if k in item
+                ],
+                "content_length": len(content),
+                "content_preview": content[:100] + "..." if content else "",
+                "issues": [],
+                "would_create_article": False,
+            }
+
+            # Check for issues
+            if not url:
+                item_analysis["issues"].append("Missing URL")
+                analysis["summary"]["missing_url"] += 1
+            if not title:
+                item_analysis["issues"].append("Missing title")
+                analysis["summary"]["missing_title"] += 1
+            if not content:
+                item_analysis["issues"].append("No content found in any field")
+                analysis["summary"]["missing_content"] += 1
+            elif len(content) < 100:
+                item_analysis["issues"].append(f"Content too short ({len(content)} chars < 100)")
+                analysis["summary"]["content_too_short"] += 1
+
+            # Check if article exists
+            if url:
+                existing_article = article.get_by_url(session, url=url)
+                if existing_article:
+                    item_analysis["issues"].append(
+                        f"Article already exists (ID: {existing_article.id})"
+                    )
+                    analysis["summary"]["duplicate_articles"] += 1
+
+            # Determine if article would be created
+            if url and title and len(content) >= 100 and not existing_article:
+                item_analysis["would_create_article"] = True
+                analysis["summary"]["creatable_articles"] += 1
+                analysis["summary"]["valid_items"] += 1
+            elif not item_analysis["issues"]:
+                analysis["summary"]["valid_items"] += 1
+
+            analysis["items_analysis"].append(item_analysis)
+
+        # Add recommendations
+        analysis["recommendations"] = []
+        if analysis["summary"]["missing_content"] > 0:
+            analysis["recommendations"].append(
+                "Some items have no content. Check if the actor is configured to "
+                "extract article content."
+            )
+        if analysis["summary"]["content_too_short"] > 0:
+            analysis["recommendations"].append(
+                "Some items have very short content. The actor may need to extract "
+                "full article text."
+            )
+        if analysis["summary"]["missing_url"] > 0:
+            analysis["recommendations"].append(
+                "Some items are missing URLs. Ensure the actor outputs a 'url' field."
+            )
+        if analysis["summary"]["creatable_articles"] == 0:
+            analysis["recommendations"].append(
+                "No articles can be created from this dataset. Check the actor " "configuration."
+            )
+
+        return analysis
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error debugging dataset {dataset_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing dataset: {str(e)}",
+        )

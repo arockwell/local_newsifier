@@ -407,3 +407,101 @@ class TestApifyCommands:
         finally:
             # Clean up
             os.unlink(output_file)
+
+
+class TestDebugDatasetCommand:
+    """Test the debug-dataset command."""
+
+    @patch("requests.get")
+    def test_debug_dataset_success(self, mock_get):
+        """Test successful dataset debugging."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "dataset_id": "test_dataset",
+            "total_items": 2,
+            "summary": {
+                "valid_items": 1,
+                "missing_url": 0,
+                "missing_title": 0,
+                "missing_content": 0,
+                "content_too_short": 1,
+                "duplicate_articles": 0,
+                "creatable_articles": 1,
+            },
+            "items_analysis": [
+                {
+                    "index": 0,
+                    "has_url": True,
+                    "has_title": True,
+                    "content_length": 200,
+                    "would_create_article": True,
+                    "issues": [],
+                },
+                {
+                    "index": 1,
+                    "has_url": True,
+                    "has_title": True,
+                    "content_length": 50,
+                    "would_create_article": False,
+                    "issues": ["Content too short (50 chars < 100)"],
+                },
+            ],
+            "recommendations": ["Some items have very short content."],
+        }
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["test_dataset"])
+
+        assert result.exit_code == 0
+        assert "Dataset Analysis Summary" in result.output
+        assert "Total Items: 2" in result.output
+        assert "Creatable articles: 1" in result.output
+        assert "Recommendations" in result.output
+
+    @patch("requests.get")
+    def test_debug_dataset_not_found(self, mock_get):
+        """Test dataset not found."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {"detail": "Dataset not found"}
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["non_existent"])
+
+        assert result.exit_code == 0  # Click doesn't set exit code for our errors
+        assert "Dataset non_existent not found" in result.output
+
+    @patch("requests.get")
+    def test_debug_dataset_json_format(self, mock_get):
+        """Test JSON output format."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "dataset_id": "test_dataset",
+            "total_items": 1,
+            "summary": {"valid_items": 1},
+        }
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["test_dataset", "--format", "json"])
+
+        assert result.exit_code == 0
+        # Should output raw JSON
+        output_json = json.loads(result.output)
+        assert output_json["dataset_id"] == "test_dataset"
