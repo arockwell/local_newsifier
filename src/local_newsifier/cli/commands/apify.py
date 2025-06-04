@@ -819,3 +819,129 @@ def schedule_status(config_id: int, token: str):
 
     except Exception as e:
         click.echo(click.style(f"Error checking schedule status: {str(e)}", fg="red"), err=True)
+
+
+@apify_group.command(name="debug-dataset")
+@click.argument("dataset_id", required=True)
+@click.option("--token", help="Apify API token (overrides environment/settings)")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["json", "table"]),
+    default="table",
+    help="Output format (json or table)",
+)
+def debug_dataset(dataset_id, token, format_type):
+    """Debug why articles aren't being created from an Apify dataset.
+
+    This command analyzes a dataset and reports:
+    - Total items in the dataset
+    - Which fields are present/missing
+    - Content length for each item
+    - Whether articles would be created
+    - Existing articles that prevent creation
+
+    DATASET_ID is the ID of the dataset to analyze.
+
+    Examples:
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP --format json
+    """
+    if token:
+        settings.APIFY_TOKEN = token
+    elif not _ensure_token():
+        return
+
+    try:
+        # Make HTTP request to the debug endpoint
+        import requests
+
+        from local_newsifier.config.settings import get_settings
+
+        config = get_settings()
+        base_url = getattr(config, "API_BASE_URL", None) or "http://localhost:8000"
+        url = f"{base_url}/webhooks/apify/debug/{dataset_id}"
+
+        response = requests.get(url)
+
+        if response.status_code == 404:
+            click.echo(
+                click.style(f"Error: Dataset {dataset_id} not found or inaccessible", fg="red"),
+                err=True,
+            )
+            return
+        elif response.status_code != 200:
+            click.echo(
+                click.style(f"Error: {response.json().get('detail', 'Unknown error')}", fg="red"),
+                err=True,
+            )
+            return
+
+        analysis = response.json()
+
+        # Display results based on format
+        if format_type == "json":
+            click.echo(json.dumps(analysis, indent=2))
+            return
+
+        # Table format - summary first
+        click.echo(click.style("\n=== Dataset Analysis Summary ===", fg="cyan", bold=True))
+        click.echo(f"Dataset ID: {analysis['dataset_id']}")
+        click.echo(f"Total Items: {analysis['total_items']}")
+
+        summary = analysis["summary"]
+        click.echo("\nItem Analysis:")
+        click.echo(f"  Valid items: {summary['valid_items']}")
+        click.echo(f"  Missing URL: {summary['missing_url']}")
+        click.echo(f"  Missing title: {summary['missing_title']}")
+        click.echo(f"  Missing content: {summary['missing_content']}")
+        click.echo(f"  Content too short: {summary['content_too_short']}")
+        click.echo(f"  Duplicate articles: {summary['duplicate_articles']}")
+        click.echo(f"  Creatable articles: {summary['creatable_articles']}")
+
+        # Show recommendations if any
+        if analysis.get("recommendations"):
+            click.echo(click.style("\n=== Recommendations ===", fg="yellow", bold=True))
+            for rec in analysis["recommendations"]:
+                click.echo(f"  • {rec}")
+
+        # Show detailed item analysis if not too many items
+        if analysis["total_items"] > 0 and analysis["total_items"] <= 20:
+            click.echo(click.style("\n=== Detailed Item Analysis ===", fg="cyan", bold=True))
+            table_data = []
+
+            for item in analysis["items_analysis"]:
+                issues_str = ", ".join(item["issues"]) if item["issues"] else "None"
+                if len(issues_str) > 40:
+                    issues_str = issues_str[:37] + "..."
+
+                table_data.append(
+                    [
+                        item["index"],
+                        "✓" if item["has_url"] else "✗",
+                        "✓" if item["has_title"] else "✗",
+                        item["content_length"],
+                        "✓" if item["would_create_article"] else "✗",
+                        issues_str,
+                    ]
+                )
+
+            headers = ["#", "URL", "Title", "Content Len", "Would Create", "Issues"]
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+        elif analysis["total_items"] > 20:
+            click.echo(
+                f"\n(Detailed analysis available for {analysis['total_items']} items - "
+                "use --format json to see all)"
+            )
+
+    except requests.exceptions.ConnectionError:
+        click.echo(
+            click.style(
+                "Error: Cannot connect to API. Make sure the API server is running.", fg="red"
+            ),
+            err=True,
+        )
+        click.echo("Start the API with: make run-api")
+    except Exception as e:
+        click.echo(click.style(f"Error debugging dataset: {str(e)}", fg="red"), err=True)
