@@ -209,12 +209,28 @@ def debug_apify_dataset(
             # Extract fields
             url = item.get("url", "")
             title = item.get("title", "")
-            content = (
-                item.get("content", "")
-                or item.get("text", "")
-                or item.get("body", "")
-                or item.get("description", "")
-            )
+
+            # Check all content fields with improved field mapping
+            content_fields_map = {
+                "text": item.get("text", ""),  # Primary field from most actors
+                "markdown": item.get("markdown", ""),  # Alternative format
+                "content": item.get("content", ""),  # Legacy/custom actors
+                "body": item.get("body", ""),  # Fallback
+            }
+
+            # Check metadata for additional content
+            metadata = item.get("metadata", {})
+            if metadata and metadata.get("description"):
+                content_fields_map["metadata.description"] = metadata.get("description", "")
+
+            # Determine which field would be used for content
+            content = ""
+            content_source_field = None
+            for field_name, field_value in content_fields_map.items():
+                if field_value:
+                    content = field_value
+                    content_source_field = field_name
+                    break
 
             # Analyze item
             item_analysis = {
@@ -223,11 +239,14 @@ def debug_apify_dataset(
                 "has_url": bool(url),
                 "has_title": bool(title),
                 "title_preview": title[:50] + "..." if len(title) > 50 else title,
-                "content_fields": [
-                    k for k in ["content", "text", "body", "description"] if k in item
-                ],
+                "all_fields": list(item.keys()),  # Show all available fields
+                "content_fields_found": {
+                    field: len(value) if value else 0 for field, value in content_fields_map.items()
+                },
+                "content_source_field": content_source_field,
                 "content_length": len(content),
-                "content_preview": content[:100] + "..." if content else "",
+                "content_preview": content[:200] + "..." if content else "",
+                "metadata_fields": list(metadata.keys()) if metadata else [],
                 "issues": [],
                 "would_create_article": False,
             }
@@ -242,11 +261,12 @@ def debug_apify_dataset(
             if not content:
                 item_analysis["issues"].append("No content found in any field")
                 analysis["summary"]["missing_content"] += 1
-            elif len(content) < 100:
-                item_analysis["issues"].append(f"Content too short ({len(content)} chars < 100)")
+            elif len(content) < 500:  # Updated to match new minimum
+                item_analysis["issues"].append(f"Content too short ({len(content)} chars < 500)")
                 analysis["summary"]["content_too_short"] += 1
 
             # Check if article exists
+            existing_article = None
             if url:
                 existing_article = article.get_by_url(session, url=url)
                 if existing_article:
@@ -256,7 +276,7 @@ def debug_apify_dataset(
                     analysis["summary"]["duplicate_articles"] += 1
 
             # Determine if article would be created
-            if url and title and len(content) >= 100 and not existing_article:
+            if url and title and len(content) >= 500 and not existing_article:
                 item_analysis["would_create_article"] = True
                 analysis["summary"]["creatable_articles"] += 1
                 analysis["summary"]["valid_items"] += 1
@@ -274,8 +294,8 @@ def debug_apify_dataset(
             )
         if analysis["summary"]["content_too_short"] > 0:
             analysis["recommendations"].append(
-                "Some items have very short content. The actor may need to extract "
-                "full article text."
+                "Some items have content shorter than 500 characters. The actor may need to "
+                "extract full article text, not just summaries or snippets."
             )
         if analysis["summary"]["missing_url"] > 0:
             analysis["recommendations"].append(

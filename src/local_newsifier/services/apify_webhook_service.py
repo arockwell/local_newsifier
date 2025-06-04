@@ -182,24 +182,64 @@ class ApifyWebhookService:
             logger.info(f"Dataset contains {len(dataset_items)} items")
 
             articles_created = 0
-            for item in dataset_items:
-                # Extract required fields (try common field names)
+            skipped_reasons = {"no_url": 0, "no_title": 0, "short_content": 0, "duplicate": 0}
+
+            for idx, item in enumerate(dataset_items):
+                # Log available fields for first few items
+                if idx < 3:
+                    logger.debug(f"Item {idx} fields: {list(item.keys())}")
+
+                # Extract URL - required field
                 url = item.get("url", "")
+                if not url:
+                    skipped_reasons["no_url"] += 1
+                    continue
+
+                # Extract title - required field
                 title = item.get("title", "")
+                if not title:
+                    skipped_reasons["no_title"] += 1
+                    continue
+
+                # Extract content with improved field mapping
                 content = (
-                    item.get("content", "")
-                    or item.get("text", "")
-                    or item.get("body", "")
-                    or item.get("description", "")
+                    item.get("text", "")  # Primary field from most actors
+                    or item.get("markdown", "")  # Alternative format
+                    or item.get("content", "")  # Legacy/custom actors
+                    or item.get("body", "")  # Fallback
                 )
 
-                # Skip if missing required fields or content too short
-                if not all([url, title]) or len(content) < 100:
+                # Check metadata for additional content
+                metadata = item.get("metadata", {})
+                if not content and metadata:
+                    content = metadata.get("description", "")
+
+                # Skip if content too short (increased from 100 to 500)
+                if len(content) < 500:
+                    if idx < 3:
+                        logger.debug(f"Item {idx} content too short: {len(content)} chars")
+                    skipped_reasons["short_content"] += 1
                     continue
 
                 # Skip if article already exists
                 if article.get_by_url(self.session, url=url):
+                    skipped_reasons["duplicate"] += 1
                     continue
+
+                # Extract metadata fields if available
+                published_at = datetime.now(UTC).replace(tzinfo=None)
+
+                # Try to parse published date from metadata
+                if metadata and metadata.get("publishedAt"):
+                    try:
+                        # Handle various date formats
+                        pub_str = metadata["publishedAt"]
+                        if isinstance(pub_str, str):
+                            published_at = datetime.fromisoformat(
+                                pub_str.replace("Z", "+00:00")
+                            ).replace(tzinfo=None)
+                    except Exception:
+                        pass  # Use default if parsing fails
 
                 # Create article
                 new_article = Article(
@@ -207,18 +247,30 @@ class ApifyWebhookService:
                     title=title,
                     content=content,
                     source=item.get("source", "apify"),
-                    published_at=datetime.now(UTC).replace(tzinfo=None),
+                    published_at=published_at,
                     status="published",
                     scraped_at=datetime.now(UTC).replace(tzinfo=None),
                 )
+
                 self.session.add(new_article)
                 articles_created += 1
+
+                logger.debug(f"Created article from item {idx}: {title[:50]}...")
 
             # Commit all articles at once
             if articles_created > 0:
                 self.session.commit()
 
-            logger.info(f"Created {articles_created} articles from dataset {dataset_id}")
+            # Log summary
+            logger.info(
+                f"Dataset processing complete: created={articles_created}, "
+                f"skipped={sum(skipped_reasons.values())} "
+                f"(no_url={skipped_reasons['no_url']}, "
+                f"no_title={skipped_reasons['no_title']}, "
+                f"short_content={skipped_reasons['short_content']}, "
+                f"duplicate={skipped_reasons['duplicate']})"
+            )
+
             return articles_created
 
         except Exception as e:

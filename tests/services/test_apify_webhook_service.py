@@ -143,7 +143,7 @@ class TestApifyWebhookService:
                 "title": "Test Article 1",
                 "content": (
                     "This is a test article with enough content to pass the minimum "
-                    "length requirement. " * 5
+                    "length requirement of 500 characters. " * 10
                 ),
                 "source": "example.com",
             },
@@ -199,16 +199,19 @@ class TestApifyWebhookService:
                 "content": "Content without title",
             },
             {
-                # Content too short
+                # Content too short (less than 500 chars)
                 "url": "https://example.com/short",
                 "title": "Short Content",
                 "content": "Too short",
             },
             {
-                # Valid article
+                # Valid article (needs 500+ chars)
                 "url": "https://example.com/valid",
                 "title": "Valid Article",
-                "content": "This is a valid article with enough content. " * 10,
+                "content": (
+                    "This is a valid article with enough content to meet the new "
+                    "minimum requirement. " * 10
+                ),
             },
         ]
         mock_apify.client.dataset.return_value.list_items.return_value = mock_items
@@ -266,3 +269,174 @@ class TestApifyWebhookService:
             select(ApifyWebhookRaw).where(ApifyWebhookRaw.run_id == "run123")
         ).first()
         assert webhook is not None
+
+    @patch("local_newsifier.services.apify_webhook_service.ApifyService")
+    def test_field_mapping_variations(self, mock_apify_class, memory_session):
+        """Test that content is extracted from various field names."""
+        # Mock Apify client
+        mock_apify = MagicMock()
+        mock_apify_class.return_value = mock_apify
+
+        # Mock dataset items with different field variations
+        mock_items = MagicMock()
+        mock_items.items = [
+            {
+                # Uses 'text' field
+                "url": "https://example.com/text-field",
+                "title": "Text Field Article",
+                "text": "This article uses the text field for content. " * 20,
+            },
+            {
+                # Uses 'markdown' field
+                "url": "https://example.com/markdown-field",
+                "title": "Markdown Field Article",
+                "markdown": "# This article uses the markdown field\n\nContent here. " * 20,
+            },
+            {
+                # Uses 'body' field
+                "url": "https://example.com/body-field",
+                "title": "Body Field Article",
+                "body": "This article uses the body field for content. " * 20,
+            },
+            {
+                # Uses metadata.description as fallback
+                "url": "https://example.com/metadata-field",
+                "title": "Metadata Description Article",
+                "metadata": {
+                    "description": "This article uses metadata.description for content. " * 20,
+                    "author": "Test Author",
+                },
+            },
+        ]
+        mock_apify.client.dataset.return_value.list_items.return_value = mock_items
+
+        service = ApifyWebhookService(memory_session)
+
+        payload = {
+            "resource": {
+                "id": "run123",
+                "actId": "actor123",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            }
+        }
+
+        result = service.handle_webhook(payload, json.dumps(payload))
+
+        assert result["status"] == "ok"
+        assert result["articles_created"] == 4
+
+        # Check all articles were created
+        articles = memory_session.exec(select(Article)).all()
+        assert len(articles) == 4
+
+        # Verify each article has content
+        for article in articles:
+            assert len(article.content) >= 500
+
+    @patch("local_newsifier.services.apify_webhook_service.ApifyService")
+    def test_minimum_content_length_increased(self, mock_apify_class, memory_session):
+        """Test that minimum content length is now 500 characters."""
+        # Mock Apify client
+        mock_apify = MagicMock()
+        mock_apify_class.return_value = mock_apify
+
+        # Mock dataset items with various content lengths
+        mock_items = MagicMock()
+        mock_items.items = [
+            {
+                # Content with 499 chars - should be skipped
+                "url": "https://example.com/short1",
+                "title": "Short Article 1",
+                "text": "a" * 499,
+            },
+            {
+                # Content with exactly 500 chars - should be accepted
+                "url": "https://example.com/exact",
+                "title": "Exact Length Article",
+                "text": "b" * 500,
+            },
+            {
+                # Content with 501 chars - should be accepted
+                "url": "https://example.com/long",
+                "title": "Long Article",
+                "text": "c" * 501,
+            },
+        ]
+        mock_apify.client.dataset.return_value.list_items.return_value = mock_items
+
+        service = ApifyWebhookService(memory_session)
+
+        payload = {
+            "resource": {
+                "id": "run123",
+                "actId": "actor123",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            }
+        }
+
+        result = service.handle_webhook(payload, json.dumps(payload))
+
+        assert result["status"] == "ok"
+        assert result["articles_created"] == 2  # Only 500+ char articles
+
+        # Check which articles were created
+        articles = memory_session.exec(select(Article)).all()
+        assert len(articles) == 2
+        urls = [a.url for a in articles]
+        assert "https://example.com/exact" in urls
+        assert "https://example.com/long" in urls
+        assert "https://example.com/short1" not in urls
+
+    @patch("local_newsifier.services.apify_webhook_service.ApifyService")
+    def test_metadata_published_date_parsing(self, mock_apify_class, memory_session):
+        """Test that published date is parsed from metadata when available."""
+        # Mock Apify client
+        mock_apify = MagicMock()
+        mock_apify_class.return_value = mock_apify
+
+        # Mock dataset items with metadata
+        mock_items = MagicMock()
+        mock_items.items = [
+            {
+                "url": "https://example.com/with-date",
+                "title": "Article with Published Date",
+                "text": "Content with published date in metadata. " * 20,
+                "metadata": {
+                    "publishedAt": "2024-01-15T10:30:00Z",
+                },
+            },
+            {
+                "url": "https://example.com/no-date",
+                "title": "Article without Published Date",
+                "text": "Content without published date. " * 20,
+            },
+        ]
+        mock_apify.client.dataset.return_value.list_items.return_value = mock_items
+
+        service = ApifyWebhookService(memory_session)
+
+        payload = {
+            "resource": {
+                "id": "run123",
+                "actId": "actor123",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            }
+        }
+
+        result = service.handle_webhook(payload, json.dumps(payload))
+
+        assert result["status"] == "ok"
+        assert result["articles_created"] == 2
+
+        # Check articles and their published dates
+        articles = memory_session.exec(select(Article)).all()
+        assert len(articles) == 2
+
+        # Find article with metadata date
+        article_with_date = next(a for a in articles if "with-date" in a.url)
+        assert article_with_date.published_at.year == 2024
+        assert article_with_date.published_at.month == 1
+        assert article_with_date.published_at.day == 15
