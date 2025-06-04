@@ -20,7 +20,7 @@ def article(db_session):
         content="This is a test article.",
         status=AnalysisStatus.INITIALIZED.value,
         published_at=now,
-        scraped_at=now
+        scraped_at=now,
     )
     db_session.add(article)
     db_session.commit()

@@ -26,15 +26,15 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         Returns:
             Entity mention context if found, None otherwise
         """
-        result = db.execute(select(EntityMentionContext).where(
-            EntityMentionContext.entity_id == entity_id,
-            EntityMentionContext.article_id == article_id
-        )).first()
+        result = db.execute(
+            select(EntityMentionContext).where(
+                EntityMentionContext.entity_id == entity_id,
+                EntityMentionContext.article_id == article_id,
+            )
+        ).first()
         return result[0] if result else None
 
-    def get_by_entity(
-        self, db: Session, *, entity_id: int
-    ) -> List[EntityMentionContext]:
+    def get_by_entity(self, db: Session, *, entity_id: int) -> List[EntityMentionContext]:
         """Get all contexts for an entity.
 
         Args:
@@ -44,18 +44,13 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         Returns:
             List of entity mention contexts
         """
-        results = db.execute(select(EntityMentionContext).where(
-            EntityMentionContext.entity_id == entity_id
-        )).all()
+        results = db.execute(
+            select(EntityMentionContext).where(EntityMentionContext.entity_id == entity_id)
+        ).all()
         return [row[0] for row in results]
 
     def get_sentiment_trend(
-        self,
-        db: Session,
-        *,
-        entity_id: int,
-        start_date: datetime,
-        end_date: datetime
+        self, db: Session, *, entity_id: int, start_date: datetime, end_date: datetime
     ) -> List[dict]:
         """Get the sentiment trend for an entity.
 
@@ -68,26 +63,24 @@ class CRUDEntityMentionContext(CRUDBase[EntityMentionContext]):
         Returns:
             List of sentiment trend entries
         """
-        statement = select(
-            Article.published_at,
-            func.avg(EntityMentionContext.sentiment_score).label("avg_sentiment")
-        ).join(
-            EntityMention, Article.id == EntityMention.article_id
-        ).join(
-            EntityMentionContext,
-            EntityMentionContext.entity_id == EntityMention.entity_id
-        ).where(
-            EntityMention.canonical_entity_id == entity_id,
-            Article.published_at >= start_date,
-            Article.published_at <= end_date
-        ).group_by(
-            Article.published_at
-        ).order_by(
-            Article.published_at
+        statement = (
+            select(
+                Article.published_at,
+                func.avg(EntityMentionContext.sentiment_score).label("avg_sentiment"),
+            )
+            .join(EntityMention, Article.id == EntityMention.article_id)
+            .join(EntityMentionContext, EntityMentionContext.entity_id == EntityMention.entity_id)
+            .where(
+                EntityMention.canonical_entity_id == entity_id,
+                Article.published_at >= start_date,
+                Article.published_at <= end_date,
+            )
+            .group_by(Article.published_at)
+            .order_by(Article.published_at)
         )
-        
+
         results = db.execute(statement)
-        
+
         return [
             {
                 "date": date,

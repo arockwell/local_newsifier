@@ -6,8 +6,9 @@ import logging
 import os
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from apify_client import ApifyClient
 
 from local_newsifier.config.settings import settings
@@ -46,7 +47,7 @@ class ApifyService:
             else:
                 # Get token from settings if not provided
                 token = self._token or settings.validate_apify_token()
-                
+
             self._client = ApifyClient(token)
         return self._client
 
@@ -74,28 +75,28 @@ class ApifyService:
                 "defaultDatasetId": f"test_dataset_{actor_id}",
                 "defaultKeyValueStoreId": f"test_store_{actor_id}",
             }
-            
+
         # Make the actual API call
         return self.client.actor(actor_id).call(run_input=run_input)
-    
+
     def create_schedule(
-        self, 
-        actor_id: str, 
-        cron_expression: str, 
+        self,
+        actor_id: str,
+        cron_expression: str,
         run_input: Optional[Dict[str, Any]] = None,
-        name: Optional[str] = None
+        name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a schedule for an actor in Apify.
-        
+
         Args:
             actor_id: ID of the actor to schedule
             cron_expression: Cron expression for the schedule (in UTC)
             run_input: Optional input for the actor run
             name: Optional name for the schedule
-            
+
         Returns:
             Dict[str, Any]: Created schedule details
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set and not in test mode
         """
@@ -114,41 +115,36 @@ class ApifyService:
                 "isExclusive": False,
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
-                "actions": [{
-                    "type": "RUN_ACTOR",
-                    "actorId": actor_id
-                }]
+                "actions": [{"type": "RUN_ACTOR", "actorId": actor_id}],
             }
             # Add input to actions if provided
             if run_input:
                 mock_response["actions"][0]["input"] = run_input
-                
+
             return mock_response
-        
+
         # Create actions for the schedule (requires the actor to run)
-        actions = [{
-            "type": "RUN_ACTOR",
-            "actorId": actor_id
-        }]
-        
+        actions = [{"type": "RUN_ACTOR", "actorId": actor_id}]
+
         # Add input if provided
         if run_input:
             actions[0]["input"] = run_input
-            
+
         # Format name to match Apify requirements (alphanumeric with hyphens only in middle)
         default_name = f"localnewsifier-{actor_id.replace('/', '-')}"
         # Ensure the name follows the required format
         sanitized_name = name or default_name
-        sanitized_name = sanitized_name.lower().replace('_', '-')
+        sanitized_name = sanitized_name.lower().replace("_", "-")
         # Remove any characters that aren't allowed
         import re
-        sanitized_name = re.sub(r'[^a-z0-9-]', '', sanitized_name)
+
+        sanitized_name = re.sub(r"[^a-z0-9-]", "", sanitized_name)
         # Ensure hyphens aren't at start or end
-        sanitized_name = sanitized_name.strip('-')
+        sanitized_name = sanitized_name.strip("-")
         # If the name is all gone, use a default
         if not sanitized_name:
             sanitized_name = "localnewsifier"
-            
+
         # Prepare schedule parameters according to API requirements
         schedule_params = {
             "name": sanitized_name,
@@ -156,23 +152,23 @@ class ApifyService:
             "is_enabled": True,
             "is_exclusive": True,  # Don't start if previous run is still going
             "actions": actions,
-            "timezone": "UTC"
+            "timezone": "UTC",
         }
-            
+
         # Make the actual API call
         schedules_client = self.client.schedules()
         return schedules_client.create(**schedule_params)
-        
+
     def update_schedule(self, schedule_id: str, changes: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing Apify schedule.
-        
+
         Args:
             schedule_id: ID of the schedule to update
             changes: Dictionary of changes to apply to the schedule
-            
+
         Returns:
             Dict[str, Any]: Updated schedule details
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set and not in test mode
         """
@@ -190,7 +186,7 @@ class ApifyService:
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
             }
-        
+
         # Make the actual API call
         # Convert parameter names to match API expectations
         # The Apify API uses snake_case for parameters, but our code uses camelCase
@@ -217,16 +213,16 @@ class ApifyService:
 
         # Pass converted changes as keyword arguments
         return self.client.schedule(schedule_id).update(**converted_changes)
-        
+
     def delete_schedule(self, schedule_id: str) -> Dict[str, Any]:
         """Delete an Apify schedule.
-        
+
         Args:
             schedule_id: ID of the schedule to delete
-            
+
         Returns:
             Dict[str, Any]: Deleted schedule details
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set and not in test mode
         """
@@ -244,21 +240,21 @@ class ApifyService:
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
             }
-        
+
         # Make the actual API call
         schedule = self.client.schedule(schedule_id)
         deletion_result = schedule.delete()
         return {"id": schedule_id, "deleted": deletion_result}
-        
+
     def get_schedule(self, schedule_id: str) -> Dict[str, Any]:
         """Get details about a specific Apify schedule.
-        
+
         Args:
             schedule_id: ID of the schedule to get
-            
+
         Returns:
             Dict[str, Any]: Schedule details
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set and not in test mode
         """
@@ -276,61 +272,65 @@ class ApifyService:
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "modifiedAt": datetime.now(timezone.utc).isoformat(),
             }
-        
+
         # Make the actual API call
         return self.client.schedule(schedule_id).get()
-        
+
     def list_schedules(self, actor_id: Optional[str] = None) -> Dict[str, Any]:
         """List all schedules or those for a specific actor.
-        
+
         Args:
             actor_id: Optional actor ID to filter schedules by
-            
+
         Returns:
             Dict[str, Any]: Dictionary containing a list of schedules
-            
+
         Raises:
             ValueError: If APIFY_TOKEN is not set and not in test mode
         """
         # In test mode with no token, return a mock response
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:
-            logging.info(f"Test mode: Simulating schedule list fetch")
+            logging.info("Test mode: Simulating schedule list fetch")
             schedules = []
             if actor_id:
-                schedules.append({
-                    "id": f"test_schedule_{actor_id}",
-                    "name": f"Schedule for {actor_id}",
-                    "userId": "test_user",
-                    "actId": actor_id,
-                    "cronExpression": "0 0 * * *",
-                    "isEnabled": True,
-                    "isExclusive": False,
-                    "createdAt": datetime.now(timezone.utc).isoformat(),
-                    "modifiedAt": datetime.now(timezone.utc).isoformat(),
-                })
-            else:
-                # Add a couple of mock schedules
-                for i in range(1, 3):
-                    schedules.append({
-                        "id": f"test_schedule_{i}",
-                        "name": f"Test Schedule {i}",
+                schedules.append(
+                    {
+                        "id": f"test_schedule_{actor_id}",
+                        "name": f"Schedule for {actor_id}",
                         "userId": "test_user",
-                        "actId": f"test_actor_{i}",
+                        "actId": actor_id,
                         "cronExpression": "0 0 * * *",
                         "isEnabled": True,
                         "isExclusive": False,
                         "createdAt": datetime.now(timezone.utc).isoformat(),
                         "modifiedAt": datetime.now(timezone.utc).isoformat(),
-                    })
+                    }
+                )
+            else:
+                # Add a couple of mock schedules
+                for i in range(1, 3):
+                    schedules.append(
+                        {
+                            "id": f"test_schedule_{i}",
+                            "name": f"Test Schedule {i}",
+                            "userId": "test_user",
+                            "actId": f"test_actor_{i}",
+                            "cronExpression": "0 0 * * *",
+                            "isEnabled": True,
+                            "isExclusive": False,
+                            "createdAt": datetime.now(timezone.utc).isoformat(),
+                            "modifiedAt": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
             return {"data": {"items": schedules, "total": len(schedules)}}
-        
+
         # Prepare filter parameters if needed
         filter_by = None
         if actor_id:
             # Note: The Apify API has a different structure for list filtering
             # which we'll need to check in their documentation
             filter_by = {"actorId": actor_id}
-            
+
         # Make the actual API call
         schedules_client = self.client.schedules()
         return schedules_client.list(filter_by=filter_by)
@@ -393,7 +393,7 @@ class ApifyService:
                 return False, ""
             # Other type errors probably mean key wasn't found, which is expected
             return True, "medium"
-        except Exception:
+        except (AttributeError, ValueError, KeyError):
             # Other exceptions might mean the method works but had other issues
             pass
 
@@ -418,14 +418,12 @@ class ApifyService:
             # Should accept at most one required arg
             if min_args <= 1:
                 return True, "low"
-        except Exception:
+        except (ValueError, AttributeError):
             pass
 
         return False, ""
 
-    def _safe_get(
-        self, obj: Any, keys: List[str], log_prefix: str = ""
-    ) -> Optional[List[Any]]:
+    def _safe_get(self, obj: Any, keys: List[str], log_prefix: str = "") -> Optional[List[Any]]:
         """Safely get items from an object using dict-like get method.
 
         Args:
@@ -446,10 +444,8 @@ class ApifyService:
                 items = obj.get(key)
                 if items is not None:
                     return items
-            except Exception as e:
-                logging.debug(
-                    f"{log_prefix}Exception when accessing get('{key}'): {str(e)}"
-                )
+            except (AttributeError, TypeError, KeyError) as e:
+                logging.debug(f"{log_prefix}Exception when accessing get('{key}'): {str(e)}")
                 # Continue to next key
 
         return None
@@ -479,7 +475,7 @@ class ApifyService:
                                 # If calling fails, use the attribute value directly
                                 pass
                         return value
-                except Exception:
+                except (AttributeError, TypeError):
                     # Skip if attribute access raises exception
                     pass
         return None
@@ -504,9 +500,9 @@ class ApifyService:
                         prop_value = attr.__get__(obj)
                         if isinstance(prop_value, (list, tuple)) and prop_value:
                             return prop_value
-                    except Exception:
+                    except (AttributeError, TypeError):
                         pass
-        except Exception:
+        except (AttributeError, TypeError):
             pass
         return None
 
@@ -541,10 +537,10 @@ class ApifyService:
                     # If it's a list/tuple and has content, use it
                     if isinstance(attr_value, (list, tuple)) and attr_value:
                         return attr_value
-                except Exception:
+                except (AttributeError, TypeError):
                     # Skip attributes that raise exceptions
                     continue
-        except Exception:
+        except (AttributeError, TypeError):
             pass
         return None
 
@@ -576,7 +572,7 @@ class ApifyService:
                 return parsed_data
             else:
                 return {"items": [parsed_data]}
-        except Exception:
+        except (json.JSONDecodeError, ValueError, TypeError):
             return None
 
     def _extract_items(self, obj: Any) -> Dict[str, Any]:
@@ -631,7 +627,7 @@ class ApifyService:
                 try:
                     # Direct iteration as fallback
                     return {"items": list(obj)}
-                except Exception:
+                except (TypeError, ValueError, StopIteration):
                     pass
 
         # Case 5: Try private _items attribute
@@ -654,9 +650,7 @@ class ApifyService:
         if result is not None:
             # If the result doesn't already have a warning and it's not the original format
             # (i.e., a dict with 'items' key), add a warning
-            if "warning" not in result and not (
-                isinstance(obj, dict) and "items" in obj
-            ):
+            if "warning" not in result and not (isinstance(obj, dict) and "items" in obj):
                 result["warning"] = "Retrieved via JSON conversion"
             return result
 
@@ -664,9 +658,7 @@ class ApifyService:
         # Initialize result dict if it's None (can happen with empty objects)
         if result is None:
             result = {"items": []}
-        result["error"] = (
-            f"Could not extract items from object of type {type(obj).__name__}"
-        )
+        result["error"] = f"Could not extract items from object of type {type(obj).__name__}"
         return result
 
     @handle_apify
@@ -696,15 +688,15 @@ class ApifyService:
                         "id": 1,
                         "url": "https://example.com/test",
                         "title": "Test Article",
-                        "content": "This is test content for testing without a real Apify token."
+                        "content": "This is test content for testing without a real Apify token.",
                     }
                 ]
             }
-            
+
         # Handle API call exceptions gracefully
         try:
             list_page = self.client.dataset(dataset_id).list_items(**kwargs)
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValueError, AttributeError) as e:
             logging.error(f"Error calling Apify API: {str(e)}")
             error_details = self._format_error(e, "API Error")
             return {"items": [], "error": error_details}
@@ -712,7 +704,7 @@ class ApifyService:
         # Extract items using all available strategies
         try:
             return self._extract_items(list_page)
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError) as e:
             # Absolute last resort fallback
             logging.error(f"Unexpected error in get_dataset_items: {str(e)}")
             error_details = self._format_error(e, "Extraction Error")
@@ -742,5 +734,5 @@ class ApifyService:
                 "version": {"versionNumber": "1.0.0"},
                 "defaultRunInput": {"field1": "value1"},
             }
-            
+
         return self.client.actor(actor_id).get()

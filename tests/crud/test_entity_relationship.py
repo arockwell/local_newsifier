@@ -22,12 +22,8 @@ class TestEntityRelationshipCRUD:
     ):
         """Test creating a new entity relationship with create_or_update."""
         # Ensure the entity IDs match the ones we created
-        sample_entity_relationship_data["source_entity_id"] = (
-            create_canonical_entities[0].id
-        )
-        sample_entity_relationship_data["target_entity_id"] = (
-            create_canonical_entities[1].id
-        )
+        sample_entity_relationship_data["source_entity_id"] = create_canonical_entities[0].id
+        sample_entity_relationship_data["target_entity_id"] = create_canonical_entities[1].id
 
         # We can use the dict directly with SQLModel
         relationship = entity_relationship_crud.create_or_update(
@@ -37,15 +33,20 @@ class TestEntityRelationshipCRUD:
         assert relationship is not None
         assert relationship.source_entity_id == sample_entity_relationship_data["source_entity_id"]
         assert relationship.target_entity_id == sample_entity_relationship_data["target_entity_id"]
-        assert relationship.relationship_type == sample_entity_relationship_data["relationship_type"]
+        assert (
+            relationship.relationship_type == sample_entity_relationship_data["relationship_type"]
+        )
         assert relationship.confidence == sample_entity_relationship_data["confidence"]
         assert relationship.evidence == sample_entity_relationship_data["evidence"]
 
         # Verify it was saved to the database
         statement = select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == sample_entity_relationship_data["source_entity_id"],
-            EntityRelationship.target_entity_id == sample_entity_relationship_data["target_entity_id"],
-            EntityRelationship.relationship_type == sample_entity_relationship_data["relationship_type"]
+            EntityRelationship.source_entity_id
+            == sample_entity_relationship_data["source_entity_id"],
+            EntityRelationship.target_entity_id
+            == sample_entity_relationship_data["target_entity_id"],
+            EntityRelationship.relationship_type
+            == sample_entity_relationship_data["relationship_type"],
         )
         result = db_session.execute(statement).first()
         db_relationship = result[0] if result else None
@@ -61,12 +62,8 @@ class TestEntityRelationshipCRUD:
     ):
         """Test updating relationship with create_or_update."""
         # Ensure the entity IDs match the ones we created
-        sample_entity_relationship_data["source_entity_id"] = (
-            create_canonical_entities[0].id
-        )
-        sample_entity_relationship_data["target_entity_id"] = (
-            create_canonical_entities[1].id
-        )
+        sample_entity_relationship_data["source_entity_id"] = create_canonical_entities[0].id
+        sample_entity_relationship_data["target_entity_id"] = create_canonical_entities[1].id
 
         # Create the relationship first
         relationship = EntityRelationship(
@@ -74,22 +71,16 @@ class TestEntityRelationshipCRUD:
             target_entity_id=sample_entity_relationship_data["target_entity_id"],
             relationship_type=sample_entity_relationship_data["relationship_type"],
             confidence=sample_entity_relationship_data["confidence"],
-            evidence=sample_entity_relationship_data["evidence"]
+            evidence=sample_entity_relationship_data["evidence"],
         )
         db_session.add(relationship)
         db_session.commit()
 
         # Update the relationship
         update_data = {
-            "source_entity_id": sample_entity_relationship_data[
-                "source_entity_id"
-            ],
-            "target_entity_id": sample_entity_relationship_data[
-                "target_entity_id"
-            ],
-            "relationship_type": sample_entity_relationship_data[
-                "relationship_type"
-            ],
+            "source_entity_id": sample_entity_relationship_data["source_entity_id"],
+            "target_entity_id": sample_entity_relationship_data["target_entity_id"],
+            "relationship_type": sample_entity_relationship_data["relationship_type"],
             "confidence": 0.95,  # Changed confidence
             "evidence": "Updated evidence.",  # Changed evidence
         }
@@ -100,19 +91,15 @@ class TestEntityRelationshipCRUD:
         assert updated_relationship is not None
         assert updated_relationship.source_entity_id == update_data["source_entity_id"]
         assert updated_relationship.target_entity_id == update_data["target_entity_id"]
-        assert (
-            updated_relationship.relationship_type == update_data["relationship_type"]
-        )
+        assert updated_relationship.relationship_type == update_data["relationship_type"]
         assert updated_relationship.confidence == 0.95  # Updated value
-        assert (
-            updated_relationship.evidence == "Updated evidence."
-        )  # Updated value
+        assert updated_relationship.evidence == "Updated evidence."  # Updated value
 
         # Verify it was updated in the database
         statement = select(EntityRelationship).where(
             EntityRelationship.source_entity_id == update_data["source_entity_id"],
             EntityRelationship.target_entity_id == update_data["target_entity_id"],
-            EntityRelationship.relationship_type == update_data["relationship_type"]
+            EntityRelationship.relationship_type == update_data["relationship_type"],
         )
         result = db_session.execute(statement).first()
         db_updated = result[0] if result else None
@@ -127,12 +114,8 @@ class TestEntityRelationshipCRUD:
     ):
         """Test getting an entity relationship by source, target, and type."""
         # Ensure the entity IDs match the ones we created
-        sample_entity_relationship_data["source_entity_id"] = (
-            create_canonical_entities[0].id
-        )
-        sample_entity_relationship_data["target_entity_id"] = (
-            create_canonical_entities[1].id
-        )
+        sample_entity_relationship_data["source_entity_id"] = create_canonical_entities[0].id
+        sample_entity_relationship_data["target_entity_id"] = create_canonical_entities[1].id
 
         # Create the relationship
         relationship = EntityRelationship(
@@ -140,7 +123,7 @@ class TestEntityRelationshipCRUD:
             target_entity_id=sample_entity_relationship_data["target_entity_id"],
             relationship_type=sample_entity_relationship_data["relationship_type"],
             confidence=sample_entity_relationship_data["confidence"],
-            evidence=sample_entity_relationship_data["evidence"]
+            evidence=sample_entity_relationship_data["evidence"],
         )
         db_session.add(relationship)
         db_session.commit()
@@ -148,38 +131,19 @@ class TestEntityRelationshipCRUD:
         # Test getting the relationship
         relationship = entity_relationship_crud.get(
             db_session,
-            source_entity_id=sample_entity_relationship_data[
-                "source_entity_id"
-            ],
-            target_entity_id=sample_entity_relationship_data[
-                "target_entity_id"
-            ],
-            relationship_type=sample_entity_relationship_data[
-                "relationship_type"
-            ],
+            source_entity_id=sample_entity_relationship_data["source_entity_id"],
+            target_entity_id=sample_entity_relationship_data["target_entity_id"],
+            relationship_type=sample_entity_relationship_data["relationship_type"],
         )
 
         assert relationship is not None
+        assert relationship.source_entity_id == sample_entity_relationship_data["source_entity_id"]
+        assert relationship.target_entity_id == sample_entity_relationship_data["target_entity_id"]
         assert (
-            relationship.source_entity_id
-            == sample_entity_relationship_data["source_entity_id"]
+            relationship.relationship_type == sample_entity_relationship_data["relationship_type"]
         )
-        assert (
-            relationship.target_entity_id
-            == sample_entity_relationship_data["target_entity_id"]
-        )
-        assert (
-            relationship.relationship_type
-            == sample_entity_relationship_data["relationship_type"]
-        )
-        assert (
-            relationship.confidence
-            == sample_entity_relationship_data["confidence"]
-        )
-        assert (
-            relationship.evidence
-            == sample_entity_relationship_data["evidence"]
-        )
+        assert relationship.confidence == sample_entity_relationship_data["confidence"]
+        assert relationship.evidence == sample_entity_relationship_data["evidence"]
 
     def test_get_not_found(self, db_session, create_canonical_entities):
         """Test getting a non-existent entity relationship."""
@@ -202,22 +166,22 @@ class TestEntityRelationshipCRUD:
                 target_entity_id=create_canonical_entities[1].id,
                 relationship_type="RELATED_TO",
                 confidence=0.9,
-                evidence="Evidence 1"
+                evidence="Evidence 1",
             ),
             EntityRelationship(
                 source_entity_id=source_id,
                 target_entity_id=create_canonical_entities[2].id,
                 relationship_type="PART_OF",
                 confidence=0.85,
-                evidence="Evidence 2"
+                evidence="Evidence 2",
             ),
             EntityRelationship(
                 source_entity_id=create_canonical_entities[1].id,  # Different source
                 target_entity_id=source_id,
                 relationship_type="REFERS_TO",
                 confidence=0.8,
-                evidence="Evidence 3"
-            )
+                evidence="Evidence 3",
+            ),
         ]
 
         for relationship in relationships_data:
@@ -235,13 +199,9 @@ class TestEntityRelationshipCRUD:
         relationship_types = [rel.relationship_type for rel in relationships]
         assert "RELATED_TO" in relationship_types
         assert "PART_OF" in relationship_types
-        assert (
-            "REFERS_TO" not in relationship_types
-        )  # This one has a different source
+        assert "REFERS_TO" not in relationship_types  # This one has a different source
 
-    def test_get_by_source_entity_empty(
-        self, db_session, create_canonical_entities
-    ):
+    def test_get_by_source_entity_empty(self, db_session, create_canonical_entities):
         """Test getting relationships for an entity with no relationships."""
         relationships = entity_relationship_crud.get_by_source_entity(
             db_session, source_entity_id=create_canonical_entities[0].id
@@ -257,12 +217,8 @@ class TestEntityRelationshipCRUD:
     ):
         """Test removing an entity relationship."""
         # Ensure the entity IDs match the ones we created
-        sample_entity_relationship_data["source_entity_id"] = (
-            create_canonical_entities[0].id
-        )
-        sample_entity_relationship_data["target_entity_id"] = (
-            create_canonical_entities[1].id
-        )
+        sample_entity_relationship_data["source_entity_id"] = create_canonical_entities[0].id
+        sample_entity_relationship_data["target_entity_id"] = create_canonical_entities[1].id
 
         # Create the relationship
         relationship = EntityRelationship(
@@ -270,7 +226,7 @@ class TestEntityRelationshipCRUD:
             target_entity_id=sample_entity_relationship_data["target_entity_id"],
             relationship_type=sample_entity_relationship_data["relationship_type"],
             confidence=sample_entity_relationship_data["confidence"],
-            evidence=sample_entity_relationship_data["evidence"]
+            evidence=sample_entity_relationship_data["evidence"],
         )
         db_session.add(relationship)
         db_session.commit()
@@ -278,24 +234,21 @@ class TestEntityRelationshipCRUD:
         # Test removing the relationship
         removed = entity_relationship_crud.remove(
             db_session,
-            source_entity_id=sample_entity_relationship_data[
-                "source_entity_id"
-            ],
-            target_entity_id=sample_entity_relationship_data[
-                "target_entity_id"
-            ],
-            relationship_type=sample_entity_relationship_data[
-                "relationship_type"
-            ],
+            source_entity_id=sample_entity_relationship_data["source_entity_id"],
+            target_entity_id=sample_entity_relationship_data["target_entity_id"],
+            relationship_type=sample_entity_relationship_data["relationship_type"],
         )
 
         assert removed is True
 
         # Verify it was removed from the database
         statement = select(EntityRelationship).where(
-            EntityRelationship.source_entity_id == sample_entity_relationship_data["source_entity_id"],
-            EntityRelationship.target_entity_id == sample_entity_relationship_data["target_entity_id"],
-            EntityRelationship.relationship_type == sample_entity_relationship_data["relationship_type"]
+            EntityRelationship.source_entity_id
+            == sample_entity_relationship_data["source_entity_id"],
+            EntityRelationship.target_entity_id
+            == sample_entity_relationship_data["target_entity_id"],
+            EntityRelationship.relationship_type
+            == sample_entity_relationship_data["relationship_type"],
         )
         result = db_session.execute(statement).first()
         db_relationship = result[0] if result else None
@@ -325,12 +278,8 @@ class TestEntityRelationshipCRUD:
     ):
         """Test create_or_update raises ValueError on creation failure."""
         # Ensure the entity IDs match the ones we created
-        sample_entity_relationship_data["source_entity_id"] = (
-            create_canonical_entities[0].id
-        )
-        sample_entity_relationship_data["target_entity_id"] = (
-            create_canonical_entities[1].id
-        )
+        sample_entity_relationship_data["source_entity_id"] = create_canonical_entities[0].id
+        sample_entity_relationship_data["target_entity_id"] = create_canonical_entities[1].id
 
         # Create a mock statement that returns None for the created relationship
         def mock_execute(*args, **kwargs):
@@ -342,9 +291,7 @@ class TestEntityRelationshipCRUD:
         monkeypatch.setattr(db_session, "exec", mock_execute)
 
         # Test that ValueError is raised
-        with pytest.raises(
-            ValueError, match="Failed to create entity relationship"
-        ):
+        with pytest.raises(ValueError, match="Failed to create entity relationship"):
             entity_relationship_crud.create_or_update(
                 db_session, obj_in=sample_entity_relationship_data
             )

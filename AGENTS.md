@@ -8,6 +8,7 @@ This document helps Codex locate developer guides and explains how to work with 
 - Module guides:
   - src/local_newsifier/api/CLAUDE.md
   - src/local_newsifier/cli/CLAUDE.md
+  - src/local_newsifier/crud/CLAUDE.md
   - src/local_newsifier/database/CLAUDE.md
   - src/local_newsifier/di/CLAUDE.md
   - src/local_newsifier/flows/CLAUDE.md
@@ -19,7 +20,23 @@ This document helps Codex locate developer guides and explains how to work with 
   - tests/api/CLAUDE.md
   - tests/crud/CLAUDE.md
   - tests/services/CLAUDE.md
-- Additional docs: all Markdown files under `docs/`, plus `FastAPI-Injectable-Migration-Plan.md`, `README.md`, and `README_CLI.md`.
+- Documentation structure:
+  - docs/README.md - Documentation index
+  - docs/architecture/overview.md - System architecture
+  - docs/guides/ - Developer guides:
+    - cli_usage.md - CLI command reference
+    - dependency_injection.md - DI patterns (hybrid approach)
+    - error_handling.md - Error handling patterns
+    - offline_installation.md - Offline installation guide
+    - python_setup.md - Development environment setup
+    - testing_guide.md - Comprehensive testing guide
+  - docs/integrations/apify.md - Apify web scraping integration
+  - docs/operations/ - Operations guides:
+    - database.md - Database management
+    - deployment.md - Deployment and CI/CD
+  - docs/migration-plans/ - Active migration efforts
+  - docs/archive/ - Historical documentation (for reference only)
+- Additional docs: `README.md` and `README_CLI.md` in root directory.
 
 If a `CLAUDE.md` file is added or removed, update this list.
 

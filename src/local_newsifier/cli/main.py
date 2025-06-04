@@ -17,7 +17,7 @@ from tabulate import tabulate
 def cli():
     """
     Local Newsifier CLI - A tool for managing local news data.
-    
+
     This CLI provides commands for managing RSS feeds, processing articles,
     and analyzing news data.
     """
@@ -42,9 +42,11 @@ if is_apify_command():
     # Only load the apify command if it's being used
     if sys.argv[1] == "apify":
         from local_newsifier.cli.commands.apify import apify_group
+
         cli.add_command(apify_group)
     elif sys.argv[1] == "apify-config":
         from local_newsifier.cli.commands.apify_config import apify_config_group
+
         cli.add_command(apify_config_group)
 else:
     # Load all other command groups

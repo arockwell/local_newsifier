@@ -22,7 +22,9 @@ def create_db_error(error_class, message, optional_orig=None):
         return DBAPIError(f"SQL: select 1\nDetails: {message}", {}, optional_orig)
     elif error_class == StatementError:
         # StatementError requires 'orig' parameter in SQLAlchemy 2.0+
-        exception_orig = optional_orig if optional_orig is not None else Exception("Original exception")
+        exception_orig = (
+            optional_orig if optional_orig is not None else Exception("Original exception")
+        )
         return StatementError(message, "SELECT 1", {}, exception_orig)
     elif error_class == TimeoutError:
         return TimeoutError(message)
@@ -52,12 +54,16 @@ test_cases = [
     (TimeoutError, "query timeout", None, "timeout", "timeout"),
     (StatementError, "validation error", None, "validation", "validation error"),
     (InvalidRequestError, "transaction error", None, "transaction", "transaction error"),
-    (Exception, "unknown database error", None, "unknown", "unknown database error")
+    (Exception, "unknown database error", None, "unknown", "unknown database error"),
 ]
 
 
-@pytest.mark.parametrize("error_class,message,optional_orig,expected_type,expected_contains", test_cases)
-def test_database_error_classification(error_class, message, optional_orig, expected_type, expected_contains):
+@pytest.mark.parametrize(
+    "error_class,message,optional_orig,expected_type,expected_contains", test_cases
+)
+def test_database_error_classification(
+    error_class, message, optional_orig, expected_type, expected_contains
+):
     """Test database error classification with various error types."""
     error = create_db_error(error_class, message, optional_orig)
     error_type, error_message = _classify_database_error(error)
@@ -67,34 +73,34 @@ def test_database_error_classification(error_class, message, optional_orig, expe
 
 def test_database_error_handler_decorator():
     """Test the database error handler decorator in isolation."""
-    
+
     # Test functions that raise different types of database errors
     @handle_database
     def raise_operational_error():
         raise create_db_error(OperationalError, "connection refused")
-    
+
     @handle_database
     def raise_integrity_error():
         raise create_db_error(IntegrityError, "unique constraint violation")
-    
+
     @handle_database
     def raise_no_result_found():
         raise NoResultFound()
-    
+
     # Test operational error handling
     with pytest.raises(ServiceError) as excinfo:
         raise_operational_error()
     assert excinfo.value.service == "database"
     assert excinfo.value.error_type == "connection"
     assert "connect to the database" in str(excinfo.value)
-    
+
     # Test integrity error handling
     with pytest.raises(ServiceError) as excinfo:
         raise_integrity_error()
     assert excinfo.value.service == "database"
     assert excinfo.value.error_type == "integrity"
     assert "constraint" in str(excinfo.value).lower()
-    
+
     # Test not found error handling
     with pytest.raises(ServiceError) as excinfo:
         raise_no_result_found()
@@ -107,7 +113,7 @@ def test_database_error_handler_decorator():
 def test_retry_behavior():
     """Test retry behavior for transient database errors."""
     call_count = 0
-    
+
     # Function that fails twice with a connection error, then succeeds
     @handle_database
     def function_with_retry():
@@ -116,22 +122,22 @@ def test_retry_behavior():
         if call_count <= 2:
             raise create_db_error(OperationalError, "connection refused")
         return "success"
-    
+
     # Should succeed on the third attempt
     result = function_with_retry()
     assert result == "success"
     assert call_count == 3
-    
+
     # Reset counter
     call_count = 0
-    
+
     # Function that raises a non-transient error (shouldn't retry)
     @handle_database
     def function_with_integrity_error():
         nonlocal call_count
         call_count += 1
         raise create_db_error(IntegrityError, "unique constraint violation")
-    
+
     # Should fail immediately without retry
     with pytest.raises(ServiceError) as excinfo:
         function_with_integrity_error()
@@ -141,15 +147,16 @@ def test_retry_behavior():
 
 def test_error_message_customization():
     """Test that database errors use customized error messages."""
+
     # Create a function that raises a database error
     @handle_database
     def raise_connection_error():
         raise create_db_error(OperationalError, "connection refused")
-    
+
     # Should use the customized error message from ERROR_MESSAGES
     with pytest.raises(ServiceError) as excinfo:
         raise_connection_error()
-    
+
     # The error should contain the custom message from handlers.py
     assert "Could not connect to the database" in str(excinfo.value)
 
@@ -159,20 +166,20 @@ def test_session_integration(mock_session_class):
     """Test error handling integration with SQLAlchemy session."""
     mock_session = MagicMock()
     mock_session_class.return_value = mock_session
-    
+
     # Configure the mock to raise an exception on query execution
     mock_session.execute.side_effect = create_db_error(OperationalError, "connection refused")
-    
+
     # Function that uses the session
     @handle_database
     def query_with_session(session):
         session.execute("SELECT 1")
         return True
-    
+
     # Should raise a ServiceError
     with pytest.raises(ServiceError) as excinfo:
         query_with_session(mock_session)
-    
+
     assert excinfo.value.service == "database"
     assert excinfo.value.error_type == "connection"
     assert mock_session.execute.called

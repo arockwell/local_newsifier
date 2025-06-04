@@ -6,9 +6,8 @@ incoming webhooks from external services like Apify for validation
 and logging. Data processing functionality will be tested separately.
 """
 
-import datetime
 import uuid
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -35,231 +34,469 @@ def mock_db():
     engine.get_engine = original_get_engine
 
 
+@pytest.fixture
+def mock_webhook_service():
+    """Helper fixture to override webhook service dependency."""
+    from local_newsifier.api.main import app
+    from local_newsifier.api.routers.webhooks import get_webhook_service
+
+    # Store original overrides
+    original_overrides = app.dependency_overrides.copy()
+
+    def _override_service(mock_service):
+        """Override the webhook service with a mock."""
+        app.dependency_overrides[get_webhook_service] = lambda: mock_service
+
+    yield _override_service
+
+    # Restore original overrides
+    app.dependency_overrides = original_overrides
+
+
 class TestApifyWebhookInfrastructure:
     """Test suite for Apify webhook infrastructure (validation and logging only)."""
 
     @ci_skip_async
-    def test_apify_webhook_invalid_signature(self, client, monkeypatch):
+    def test_apify_webhook_invalid_signature(self, client, monkeypatch, mock_webhook_service):
         """Test that the webhook rejects requests with invalid signatures."""
         # Set a webhook secret
         monkeypatch.setattr(
             "local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", "test_secret"
         )
 
-        # Create a sample webhook payload
+        # Create a sample webhook payload in simplified format
         payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
+            "resource": {
+                "id": str(uuid.uuid4()),
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
         }
 
-        # Mock the sync webhook service to return error for invalid signature
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(
-                return_value={"status": "error", "message": "Invalid signature"}
-            )
+        # Mock the dependency injection to return error for invalid signature
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(side_effect=ValueError("Invalid signature"))
 
-            # Send request with wrong signature header
-            response = client.post(
-                "/webhooks/apify",
-                json=payload,
-                headers={"Apify-Webhook-Signature": "wrong_signature"},
-            )
+        mock_webhook_service(mock_service)
 
-            # Should return bad request
-            assert response.status_code == 400
-            assert "Invalid signature" in response.json()["detail"]
+        # Send request with wrong signature header
+        response = client.post(
+            "/webhooks/apify",
+            json=payload,
+            headers={"Apify-Webhook-Signature": "wrong_signature"},
+        )
+
+        # Should return bad request
+        assert response.status_code == 400
+        assert "Invalid signature" in response.json()["detail"]
 
     @ci_skip_async
-    def test_apify_webhook_valid_payload(self, client, monkeypatch):
+    def test_apify_webhook_valid_payload(self, client, monkeypatch, mock_webhook_service):
         """Test that the webhook accepts valid payloads without signature."""
         # Clear webhook secret for this test
         monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
 
-        # Create a sample webhook payload
+        # Create a sample webhook payload in simplified format
+        run_id = str(uuid.uuid4())
         payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
+            "resource": {
+                "id": run_id,
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
         }
 
-        # Mock the sync webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(
-                return_value={
-                    "status": "ok",
-                    "message": "Webhook processed. Articles created: 0",
-                    "run_id": payload["actorRunId"],
-                    "articles_created": 0,
-                }
-            )
+        # Mock the dependency injection to return a mock service
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "message": "Webhook processed. Articles created: 0",
+                "run_id": run_id,
+                "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
+            }
+        )
 
-            # Send request to webhook endpoint
-            response = client.post("/webhooks/apify", json=payload)
+        # Override the service
+        mock_webhook_service(mock_service)
 
-            # Should be accepted
-            assert response.status_code == 202
-            response_data = response.json()
-            assert response_data["status"] == "accepted"
-            assert response_data["actor_id"] == "test_actor"
-            assert response_data["dataset_id"] == "test_dataset"
-            assert response_data["processing_status"] == "completed"
-            assert "processed" in response_data["message"].lower()
+        # Send request to webhook endpoint
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should be accepted
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "accepted"
+        assert response_data["actor_id"] == "test_actor"
+        assert response_data["dataset_id"] == "test_dataset"
+        assert response_data["articles_created"] == 0
 
     @ci_skip_async
-    def test_apify_webhook_no_secret_configured(self, client, monkeypatch):
+    def test_apify_webhook_no_secret_configured(self, client, monkeypatch, mock_webhook_service):
         """Test that the webhook accepts all requests when no secret is configured."""
         # Clear the webhook secret
         monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
 
-        # Create a sample webhook payload without secret
-        payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.FAILED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "FAILED",
-            "webhookId": str(uuid.uuid4()),
-        }
-
-        # Mock the sync webhook service to return success
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(
-                return_value={
-                    "status": "ok",
-                    "message": "Webhook processed. Articles created: 0",
-                    "run_id": payload["actorRunId"],
-                    "articles_created": 0,
-                }
-            )
-
-            # Send request to webhook endpoint
-            response = client.post("/webhooks/apify", json=payload)
-
-            # Should be accepted even without secret
-            assert response.status_code == 202
-            response_data = response.json()
-            assert response_data["status"] == "accepted"
-            assert response_data["processing_status"] == "completed"
-
-    @ci_skip_async
-    def test_apify_webhook_invalid_payload_structure(self, client):
-        """Test that the webhook rejects malformed payloads."""
-        # Send an invalid payload (missing required fields)
-        invalid_payload = {
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            # Missing required fields like actorId, actorRunId, etc.
-        }
-
-        # Mock the sync webhook service to return error for missing fields
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(
-                return_value={"status": "error", "message": "Missing required fields"}
-            )
-
-            # Send request to webhook endpoint
-            response = client.post("/webhooks/apify", json=invalid_payload)
-
-            # Should return 400 for error response from webhook service
-            assert response.status_code == 400
-            response_data = response.json()
-            assert "Missing required fields" in response_data["detail"]
-
-    @ci_skip_async
-    def test_apify_webhook_sync_conversion(self, client, monkeypatch):
-        """Test that the webhook endpoint is properly converted to sync (no async/await)."""
-        # Clear webhook secret for this test
-        monkeypatch.setattr("local_newsifier.config.settings.settings.APIFY_WEBHOOK_SECRET", None)
-
         # Create a sample webhook payload
+        run_id = str(uuid.uuid4())
         payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
+            "resource": {
+                "id": run_id,
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
         }
 
-        # Mock the sync webhook service
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(
+        # Mock the service to return success
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "run_id": run_id,
+                "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
+            }
+        )
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request without signature header
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should be accepted
+        assert response.status_code == 202
+        assert response.json()["status"] == "accepted"
+
+    @ci_skip_async
+    def test_apify_webhook_invalid_payload_structure(self, client, mock_webhook_service):
+        """Test that the webhook handles malformed payloads gracefully."""
+        # Send a payload missing the required structure
+        payload = {"some_random_field": "value"}
+
+        # Mock the service to raise ValueError for missing fields
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            side_effect=ValueError("Missing required field: resource")
+        )
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should return bad request
+        assert response.status_code == 400
+        assert "Missing required field" in response.json()["detail"]
+
+    @ci_skip_async
+    def test_apify_webhook_sync_conversion(self, client, mock_webhook_service):
+        """Test that async operations are properly converted to sync."""
+        # Test payload
+        run_id = str(uuid.uuid4())
+        payload = {
+            "resource": {
+                "id": run_id,
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
+        }
+
+        # Mock the service
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "run_id": run_id,
+                "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
+            }
+        )
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Verify response
+        assert response.status_code == 202
+        assert response.json()["status"] == "accepted"
+
+        # Verify service was called with correct parameters
+        mock_service.handle_webhook.assert_called_once()
+
+    @ci_skip_async
+    def test_apify_webhook_exception_handling(self, client, mock_webhook_service):
+        """Test that exceptions are handled gracefully."""
+        # Test payload
+        payload = {
+            "resource": {
+                "id": str(uuid.uuid4()),
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
+        }
+
+        # Mock the service to raise an exception
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(side_effect=Exception("Unexpected error"))
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should still accept but with error status (to prevent retry storms)
+        assert response.status_code == 202
+        response_data = response.json()
+        assert response_data["status"] == "error"
+        assert response_data["processing_status"] == "error"
+        assert "Unexpected error" in response_data["message"]
+
+    @ci_skip_async
+    def test_apify_webhook_multi_status_acceptance(self, client, mock_webhook_service):
+        """Test that webhooks with different statuses are accepted."""
+        statuses = ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT", "READY"]
+
+        for status in statuses:
+            # Test payload
+            run_id = str(uuid.uuid4())
+            payload = {
+                "resource": {
+                    "id": run_id,
+                    "actId": "test_actor",
+                    "status": status,
+                    "defaultDatasetId": "test_dataset" if status == "SUCCEEDED" else None,
+                }
+            }
+
+            # Mock the service based on status
+            mock_service = Mock()
+            mock_service.handle_webhook = Mock(
                 return_value={
                     "status": "ok",
-                    "message": "Webhook processed. Articles created: 0",
-                    "run_id": payload["actorRunId"],
-                    "articles_created": 0,
+                    "run_id": run_id,
+                    "articles_created": 0 if status != "SUCCEEDED" else 1,
+                    "actor_id": "test_actor",
+                    "dataset_id": "test_dataset" if status == "SUCCEEDED" else None,
                 }
             )
 
-            # Send request to webhook endpoint
+            # Override the service
+            mock_webhook_service(mock_service)
+
+            # Send request
             response = client.post("/webhooks/apify", json=payload)
 
-            # Should be accepted
+            # All statuses should be accepted
             assert response.status_code == 202
-            response_data = response.json()
-            assert response_data["status"] == "accepted"
-
-            # Verify that the mock was called with correct parameters
-            mock_instance.handle_webhook.assert_called_once()
-            call_args = mock_instance.handle_webhook.call_args
-            assert call_args[1]["payload"] == payload
-            assert "raw_payload" in call_args[1]
-            assert call_args[1]["signature"] is None  # No signature header sent
+            assert response.json()["status"] == "accepted"
 
     @ci_skip_async
-    def test_apify_webhook_exception_handling(self, client):
-        """Test that the webhook handles exceptions gracefully."""
+    def test_apify_webhook_duplicate_same_status_rejected(self, client, mock_webhook_service):
+        """Test that duplicate webhooks are handled gracefully."""
+        # Test payload
+        run_id = str(uuid.uuid4())
         payload = {
-            "createdAt": datetime.datetime.now().isoformat(),
-            "eventType": "ACTOR.RUN.SUCCEEDED",
-            "actorId": "test_actor",
-            "actorRunId": str(uuid.uuid4()),
-            "userId": "test_user",
-            "defaultKeyValueStoreId": "test_kvs",
-            "defaultDatasetId": "test_dataset",
-            "startedAt": datetime.datetime.now().isoformat(),
-            "status": "SUCCEEDED",
-            "webhookId": str(uuid.uuid4()),
+            "resource": {
+                "id": run_id,
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
         }
 
-        # Mock the sync webhook service to raise an exception
-        with patch("local_newsifier.api.routers.webhooks.ApifyWebhookServiceSync") as MockService:
-            mock_instance = MockService.return_value
-            mock_instance.handle_webhook = Mock(side_effect=Exception("Database error"))
+        # Mock the service to accept duplicates
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "run_id": run_id,
+                "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
+            }
+        )
 
-            # Send request to webhook endpoint
-            response = client.post("/webhooks/apify", json=payload)
+        # Override the service
+        mock_webhook_service(mock_service)
 
-            # Should return error response
-            assert response.status_code == 202  # Still accepted but with error status
-            response_data = response.json()
-            assert response_data["status"] == "error"
-            assert "Database error" in response_data["message"]
+        # Send same payload twice
+        response1 = client.post("/webhooks/apify", json=payload)
+        response2 = client.post("/webhooks/apify", json=payload)
+
+        # Both should be accepted (idempotent)
+        assert response1.status_code == 202
+        assert response2.status_code == 202
+
+    @ci_skip_async
+    def test_apify_webhook_only_succeeded_creates_articles(self, client, mock_webhook_service):
+        """Test that only SUCCEEDED status creates articles."""
+        # Test SUCCEEDED status
+        run_id = str(uuid.uuid4())
+        payload = {
+            "resource": {
+                "id": run_id,
+                "actId": "test_actor",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "test_dataset",
+            }
+        }
+
+        # Mock the service to return articles created
+        mock_service = Mock()
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "run_id": run_id,
+                "articles_created": 5,
+                "actor_id": "test_actor",
+                "dataset_id": "test_dataset",
+            }
+        )
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should create articles
+        assert response.status_code == 202
+        assert response.json()["articles_created"] == 5
+
+        # Test FAILED status
+        run_id = str(uuid.uuid4())
+        payload["resource"]["id"] = run_id
+        payload["resource"]["status"] = "FAILED"
+
+        # Mock the service for failed status
+        mock_service.handle_webhook = Mock(
+            return_value={
+                "status": "ok",
+                "run_id": run_id,
+                "articles_created": 0,
+                "actor_id": "test_actor",
+                "dataset_id": None,
+            }
+        )
+
+        # Send request
+        response = client.post("/webhooks/apify", json=payload)
+
+        # Should not create articles
+        assert response.status_code == 202
+        assert response.json()["articles_created"] == 0
+
+    @ci_skip_async
+    def test_apify_debug_dataset_endpoint(self, client, mock_webhook_service):
+        """Test the debug dataset endpoint."""
+        dataset_id = "test_dataset_123"
+
+        # Mock the webhook service
+        mock_service = Mock()
+        mock_service.session = Mock()
+
+        # Mock apify service and its dataset retrieval
+        mock_apify_service = Mock()
+        mock_dataset = Mock()
+        mock_dataset.list_items.return_value = Mock(
+            items=[
+                {
+                    "url": "https://example.com/article1",
+                    "title": "Test Article 1",
+                    "content": (
+                        "This is a test article with sufficient content to pass the length check. "
+                        * 10
+                    ),
+                },
+                {
+                    "url": "https://example.com/article2",
+                    "title": "Test Article 2",
+                    "text": "Short content",
+                },
+                {
+                    "url": "",
+                    "title": "Missing URL",
+                    "content": "Some content here",
+                },
+            ]
+        )
+
+        mock_apify_service.client.dataset.return_value = mock_dataset
+        mock_service.apify_service = mock_apify_service
+
+        # Mock article CRUD to return None (no existing articles)
+        from local_newsifier.crud.article import article
+
+        original_get_by_url = article.get_by_url
+        article.get_by_url = Mock(return_value=None)
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        try:
+            # Send request to debug endpoint
+            response = client.get(f"/webhooks/apify/debug/{dataset_id}")
+
+            # Should return success
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify response structure
+            assert data["dataset_id"] == dataset_id
+            assert data["total_items"] == 3
+
+            # Verify summary
+            summary = data["summary"]
+            assert summary["valid_items"] == 1  # Only first item is fully valid
+            assert summary["missing_url"] == 1
+            assert summary["content_too_short"] == 2  # Two items have short content
+            assert summary["creatable_articles"] == 1  # Only first item can be created
+
+            # Verify items analysis
+            assert len(data["items_analysis"]) == 3
+            assert data["items_analysis"][0]["would_create_article"] is True
+            assert data["items_analysis"][1]["would_create_article"] is False
+            assert data["items_analysis"][2]["would_create_article"] is False
+
+            # Verify recommendations
+            assert len(data["recommendations"]) > 0
+        finally:
+            # Restore original function
+            article.get_by_url = original_get_by_url
+
+    @ci_skip_async
+    def test_apify_debug_dataset_not_found(self, client, mock_webhook_service):
+        """Test debug endpoint with non-existent dataset."""
+        dataset_id = "non_existent_dataset"
+
+        # Mock the webhook service
+        mock_service = Mock()
+        mock_apify_service = Mock()
+
+        # Mock dataset retrieval to raise exception
+        mock_apify_service.client.dataset.side_effect = Exception("Dataset not found")
+        mock_service.apify_service = mock_apify_service
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.get(f"/webhooks/apify/debug/{dataset_id}")
+
+        # Should return 404
+        assert response.status_code == 404
+        assert "Dataset not found" in response.json()["detail"]

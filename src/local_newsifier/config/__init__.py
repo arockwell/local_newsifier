@@ -30,11 +30,9 @@ __all__ = [
     "DEFAULT_TEMP_DIR",
     "DEFAULT_LOG_LEVEL",
     "DEFAULT_LOG_FORMAT",
-    
     # Settings module exports
     "Settings",
     "get_settings",
-    
     # Database module exports
     "DatabaseSettings",
     "get_database",

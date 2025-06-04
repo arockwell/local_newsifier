@@ -36,9 +36,7 @@ class TestCanonicalEntityCRUD:
 
     def test_get(self, db_session, create_canonical_entity):
         """Test getting a canonical entity by ID."""
-        entity = canonical_entity_crud.get(
-            db_session, id=create_canonical_entity.id
-        )
+        entity = canonical_entity_crud.get(db_session, id=create_canonical_entity.id)
 
         assert entity is not None
         assert entity.id == create_canonical_entity.id
@@ -69,26 +67,20 @@ class TestCanonicalEntityCRUD:
     def test_get_by_type(self, db_session, create_canonical_entities):
         """Test getting canonical entities by type."""
         # Test getting entities of type "PERSON"
-        entities = canonical_entity_crud.get_by_type(
-            db_session, entity_type="PERSON"
-        )
+        entities = canonical_entity_crud.get_by_type(db_session, entity_type="PERSON")
 
         assert len(entities) == 2
         for entity in entities:
             assert entity.entity_type == "PERSON"
 
         # Test getting entities of type "ORG"
-        entities = canonical_entity_crud.get_by_type(
-            db_session, entity_type="ORG"
-        )
+        entities = canonical_entity_crud.get_by_type(db_session, entity_type="ORG")
 
         assert len(entities) == 1
         assert entities[0].entity_type == "ORG"
 
         # Test getting entities of a non-existent type
-        entities = canonical_entity_crud.get_by_type(
-            db_session, entity_type="NONEXISTENT"
-        )
+        entities = canonical_entity_crud.get_by_type(db_session, entity_type="NONEXISTENT")
 
         assert len(entities) == 0
 
@@ -100,17 +92,13 @@ class TestCanonicalEntityCRUD:
         assert len(entities) == 3
 
         # Test getting all entities with filtering by type
-        entities = canonical_entity_crud.get_all(
-            db_session, entity_type="PERSON"
-        )
+        entities = canonical_entity_crud.get_all(db_session, entity_type="PERSON")
 
         assert len(entities) == 2
         for entity in entities:
             assert entity.entity_type == "PERSON"
 
-    def test_get_mentions_count(
-        self, db_session, create_canonical_entity, create_entity
-    ):
+    def test_get_mentions_count(self, db_session, create_canonical_entity, create_entity):
         """Test getting the count of mentions for an entity."""
         # Add an entity mention
         entity_mention = EntityMention(
@@ -146,9 +134,7 @@ class TestCanonicalEntityCRUD:
 
         assert count == 2
 
-    def test_get_entity_timeline(
-        self, db_session, create_canonical_entity, create_article
-    ):
+    def test_get_entity_timeline(self, db_session, create_canonical_entity, create_article):
         """Test getting the timeline of entity mentions."""
         # Create articles with different published dates
         articles = []
@@ -202,15 +188,13 @@ class TestCanonicalEntityCRUD:
         assert len(timeline) == 5
         # The first article should have 2 mentions
         assert any(
-            entry["date"] == articles[0].published_at
-            and entry["mention_count"] == 2
+            entry["date"] == articles[0].published_at and entry["mention_count"] == 2
             for entry in timeline
         )
         # The other articles should have 1 mention each
         for i in range(1, 5):
             assert any(
-                entry["date"] == articles[i].published_at
-                and entry["mention_count"] == 1
+                entry["date"] == articles[i].published_at and entry["mention_count"] == 1
                 for entry in timeline
             )
 
@@ -237,9 +221,7 @@ class TestCanonicalEntityCRUD:
         db_session.commit()
 
         # Create entity mentions for some of the articles
-        for i in range(
-            0, 3
-        ):  # Only mention the entity in the first 3 articles
+        for i in range(0, 3):  # Only mention the entity in the first 3 articles
             entity_mention = EntityMention(
                 canonical_entity_id=create_canonical_entity.id,
                 entity_id=i + 100,

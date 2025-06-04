@@ -43,9 +43,7 @@ class TopicFrequency(BaseModel):
             date: The date of the occurrence
             count: Number of occurrences to add
         """
-        date_str = (
-            date.isoformat().split("T")[0] if isinstance(date, datetime) else date
-        )
+        date_str = date.isoformat().split("T")[0] if isinstance(date, datetime) else date
         if date_str in self.frequencies:
             self.frequencies[date_str] += count
         else:
@@ -141,14 +139,9 @@ class TrendAnalysis(BaseModel):
         """
         # Check if entity already exists
         for existing in self.entities:
-            if (
-                existing.text == entity.text
-                and existing.entity_type == entity.entity_type
-            ):
+            if existing.text == entity.text and existing.entity_type == entity.entity_type:
                 existing.frequency += entity.frequency
-                existing.relevance_score = max(
-                    existing.relevance_score, entity.relevance_score
-                )
+                existing.relevance_score = max(existing.relevance_score, entity.relevance_score)
                 return
 
         # Add new entity

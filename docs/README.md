@@ -1,128 +1,85 @@
-# Local Newsifier Documentation
+# Documentation Index
 
-Welcome to the Local Newsifier documentation. This directory contains comprehensive guides, architectural decisions, and operational documentation for the project.
+Welcome to the Local Newsifier documentation. This directory contains comprehensive guides for developers, operators, and contributors.
 
-## Documentation Structure
+## 📁 Documentation Structure
 
-### 📚 [Guides](./guides/)
-How-to guides and comprehensive documentation for developers.
+### 🏗️ Architecture
+- [Architecture Overview](architecture/overview.md) - System design and architecture decisions
 
-- **[Dependency Injection Guide](./guides/dependency_injection.md)** - Complete guide to using fastapi-injectable
-- **[Testing Guide](./guides/testing_guide.md)** - Comprehensive testing patterns and strategies
-- **[Offline Installation Guide](./guides/offline_installation.md)** - Installing without internet access
-- **[Offline Installation Troubleshooting](./guides/offline_installation_troubleshooting.md)** - Common issues and solutions
-- **[Python Setup](./guides/python_setup.md)** - Development environment configuration
-- **[Error Handling](./guides/error_handling.md)** - Error handling patterns and best practices
-- **[Injectable Examples](./guides/injectable_examples.md)** - Code examples for dependency injection patterns
-- **[Anti-Patterns Reference](./guides/dependency_injection_antipatterns.md)** - Common DI mistakes to avoid
-- **[Testing Injectable Dependencies](./guides/testing_injectable_dependencies.md)** - Testing with dependency injection
+### 📖 Guides
+- [CLI Usage](guides/cli_usage.md) - Complete CLI command reference
+- [Dependency Injection](guides/dependency_injection.md) - DI patterns and migration status
+- [Error Handling](guides/error_handling.md) - Error handling patterns and best practices
+- [Offline Installation](guides/offline_installation.md) - Installing without internet access
+- [Python Setup](guides/python_setup.md) - Development environment setup
+- [Testing Guide](guides/testing_guide.md) - Comprehensive testing documentation
 
-### 🔌 [Integrations](./integrations/)
-Documentation for external service integrations.
+### 🔌 Integrations
+- [Apify Integration](integrations/apify.md) - Web scraping with Apify
 
-- **[Apify Integration](./integrations/apify/)**
-  - [Integration Guide](./integrations/apify/integration.md) - Complete Apify setup
-  - [Error Handling](./integrations/apify/error_handling.md) - Apify-specific error patterns
-  - [Webhook Testing](./integrations/apify/webhook_testing.md) - Testing Apify webhooks
-- **[Celery Integration](./integrations/celery_integration.md)** - Task queue setup (being phased out)
+### 🚀 Operations
+- [Database Guide](operations/database.md) - Database setup and management
+- [Deployment Guide](operations/deployment.md) - Deployment and CI/CD
 
-### 🛠 [Operations](./operations/)
-Operational guides for deployment and maintenance.
+### 📋 Migration Plans
+- [Active Migrations](migration-plans/README.md) - Current migration efforts and checklists
 
-- **[Database Initialization](./operations/db_initialization.md)** - Setting up the database
-- **[Database Diagnostics](./operations/db_diagnostics.md)** - Troubleshooting database issues
-- **[CI/PR Chains](./operations/ci_pr_chains.md)** - Continuous integration setup
+## 🎯 Quick Links
 
-### 📐 [Architecture](./architecture/)
-Architectural decisions and migration documentation.
+### For Developers
+- Start with [Python Setup](guides/python_setup.md)
+- Review [Architecture Overview](architecture/overview.md)
+- Learn [CLI Commands](guides/cli_usage.md)
+- Understand [Testing](guides/testing_guide.md)
 
-- **[DI Migration History](./archive/di_conversion_plan.md)** - Historical DI migration details
-- **[Async to Sync Migration](./plans/async-to-sync-migration.md)** - Ongoing migration plan
-
-### 📋 [Plans](./plans/)
-Future development plans and proposals.
-
-- **[FastAPI-Injectable Migration](./plans/fastapi-injectable-migration/)** - DI framework migration
-- **[CLI to HTTP](./plans/cli_to_http/)** - CLI migration to HTTP endpoints
-- **[Enhancement Roadmap](./plans/enhancement-roadmap.md)** - Future features
-- **[Technical Debt Reduction](./plans/technical-debt-reduction.md)** - Code improvement plans
-- See the [Plans README](./plans/README.md) for complete list
-
-### 📦 [Archive](./archive/)
-Historical documentation preserved for reference.
-
-Contains completed migration plans, old documentation versions, and historical context.
-
-### 📝 [Examples](./examples/)
-Code examples and patterns.
-
-- **[Conditional Decorator Example](./examples/conditional_decorator_example.py)** - Advanced decorator patterns
-
-## Module-Specific Guides
-
-- [API Guide](../src/local_newsifier/api/CLAUDE.md)
-- [CLI Guide](../src/local_newsifier/cli/CLAUDE.md)
-- [Database Guide](../src/local_newsifier/database/CLAUDE.md)
-- [DI Guide](../src/local_newsifier/di/CLAUDE.md)
-- [Flows Guide](../src/local_newsifier/flows/CLAUDE.md)
-- [Models Guide](../src/local_newsifier/models/CLAUDE.md)
-- [Services Guide](../src/local_newsifier/services/CLAUDE.md)
-- [Tools Guide](../src/local_newsifier/tools/CLAUDE.md)
-
-## Project Documentation
-
-- [Main Development Guide](../CLAUDE.md) - Primary development guide
-- [Project README](../README.md) - Project overview
-- [CLI README](../README_CLI.md) - CLI usage guide
-- [FastAPI-Injectable Migration Plan](../FastAPI-Injectable-Migration-Plan.md) - Migration details
-
-## Quick Links
-
-### For New Developers
-1. Start with [Python Setup](./guides/python_setup.md)
-2. Read the [Dependency Injection Guide](./guides/dependency_injection.md)
-3. Review the [Testing Guide](./guides/testing_guide.md)
-
-### For DevOps
-1. [Database Initialization](./operations/db_initialization.md)
-2. [Offline Installation Guide](./guides/offline_installation.md)
-3. [CI/PR Chains](./operations/ci_pr_chains.md)
+### For Operations
+- [Deployment Guide](operations/deployment.md)
+- [Database Management](operations/database.md)
+- [Offline Installation](guides/offline_installation.md)
 
 ### For Contributors
-1. [Testing Guide](./guides/testing_guide.md)
-2. [Error Handling](./guides/error_handling.md)
-3. [Anti-Patterns Reference](./guides/dependency_injection_antipatterns.md)
+- [Testing Guide](guides/testing_guide.md)
+- [Error Handling](guides/error_handling.md)
+- [Dependency Injection](guides/dependency_injection.md)
 
-## Documentation Standards
+## 📚 Documentation Standards
 
-### File Naming
-- Use lowercase with underscores: `offline_installation.md`
-- Be descriptive but concise
-- Group related docs in subdirectories
+### File Organization
+- **Guides**: How-to documentation for specific tasks
+- **Architecture**: System design and architectural decisions
+- **Operations**: Deployment, monitoring, and maintenance
+- **Integrations**: External service integrations
+- **Migration Plans**: Active migration efforts
 
-### Content Structure
-Each documentation file should include:
-1. **Title** - Clear, descriptive title
-2. **Overview** - Brief description of the topic
-3. **Table of Contents** - For longer documents
-4. **Main Content** - Well-organized sections
-5. **Examples** - Practical code examples
-6. **Troubleshooting** - Common issues (if applicable)
-7. **See Also** - Related documentation links
+### Writing Guidelines
+1. Use clear, descriptive headings
+2. Include practical examples
+3. Add table of contents for long documents
+4. Link to related documentation
+5. Keep code examples up-to-date
 
 ### Maintenance
-- Keep documentation up-to-date with code changes
-- Archive outdated docs rather than deleting
-- Test all code examples
 - Review quarterly for accuracy
+- Update when code changes
+- Archive completed migrations
+- Remove outdated content
 
-## Contributing to Documentation
+## 🔍 Finding Information
 
-When adding new documentation:
-1. Place it in the appropriate directory
-2. Update this README with a link
-3. Follow the content structure guidelines
-4. Include practical examples
-5. Link to related documentation
+### Search Documentation
+```bash
+# Search all docs for a term
+rg "webhook" docs/
 
-For questions or suggestions about documentation, please open an issue on GitHub.
+# Find files by name
+fd "test" docs/
+
+# Search specific file types
+rg "FastAPI" --type md docs/
+```
+
+### Get Help
+- Check root [README.md](../README.md) for project overview
+- Review [CLAUDE.md](../CLAUDE.md) for AI assistant instructions
+- Open an issue for documentation improvements

@@ -1,2 +1,1 @@
-
 """Local Newsifier package initialization."""
