@@ -247,9 +247,9 @@ def get_apify_webhook_service(session: Annotated[Session, Depends(get_session)])
     """Get the Apify webhook service using FastAPI's native DI.
 
     Returns:
-        ApifyWebhookServiceSync: The webhook service instance
+        ApifyWebhookService: The webhook service instance
     """
     from local_newsifier.config.settings import settings
-    from local_newsifier.services.apify_webhook_service_sync import ApifyWebhookServiceSync
+    from local_newsifier.services.apify_webhook_service import ApifyWebhookService
 
-    return ApifyWebhookServiceSync(session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET)
+    return ApifyWebhookService(session=session, webhook_secret=settings.APIFY_WEBHOOK_SECRET)

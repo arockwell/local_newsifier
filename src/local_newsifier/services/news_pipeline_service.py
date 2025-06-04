@@ -1,10 +1,9 @@
 """News pipeline service for coordinating the entire news processing pipeline."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from local_newsifier.errors import handle_database, handle_web_scraper
-from local_newsifier.services.article_service import ArticleService
 
 
 class NewsPipelineService:
@@ -41,28 +40,27 @@ class NewsPipelineService:
         if not scraped_data:
             return {"status": "error", "message": "Failed to scrape content"}
 
+        # Process article
         try:
-            # Process article
             result = self.article_service.process_article(
                 url=url,
                 content=scraped_data["content"],
                 title=scraped_data["title"],
                 published_at=scraped_data.get("published_at", datetime.now()),
             )
-
-            # Save results to file if needed
-            if self.file_writer:
-                try:
-                    file_path = self.file_writer.write_results(result)
-                    result["file_path"] = file_path
-                except Exception as e:
-                    # Handle file writer errors
-                    result["error"] = f"Error writing results to file: {str(e)}"
-
-            return result
         except Exception as e:
-            # Handle processing errors
-            return {"status": "error", "message": f"Error processing article: {str(e)}", "url": url}
+            return {"status": "error", "message": f"Error processing article: {str(e)}"}
+
+        # Save results to file if needed
+        if self.file_writer:
+            try:
+                file_path = self.file_writer.write_results(result)
+                result["file_path"] = file_path
+            except Exception as e:
+                # Handle file writer errors
+                result["error"] = f"Error writing results to file: {str(e)}"
+
+        return result
 
     @handle_database
     def process_content(
@@ -83,22 +81,18 @@ class NewsPipelineService:
         if published_at is None:
             published_at = datetime.now()
 
-        try:
-            # Process article
-            result = self.article_service.process_article(
-                url=url, content=content, title=title, published_at=published_at
-            )
+        # Process article
+        result = self.article_service.process_article(
+            url=url, content=content, title=title, published_at=published_at
+        )
 
-            # Save results to file if needed
-            if self.file_writer:
-                try:
-                    file_path = self.file_writer.write_results(result)
-                    result["file_path"] = file_path
-                except Exception as e:
-                    # Handle file writer errors
-                    result["error"] = f"Error writing results to file: {str(e)}"
+        # Save results to file if needed
+        if self.file_writer:
+            try:
+                file_path = self.file_writer.write_results(result)
+                result["file_path"] = file_path
+            except Exception as e:
+                # Handle file writer errors
+                result["error"] = f"Error writing results to file: {str(e)}"
 
-            return result
-        except Exception as e:
-            # Handle processing errors
-            return {"status": "error", "message": f"Error processing article: {str(e)}", "url": url}
+        return result

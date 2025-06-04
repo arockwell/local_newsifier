@@ -6,8 +6,9 @@ import logging
 import os
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from apify_client import ApifyClient
 
 from local_newsifier.config.settings import settings
@@ -289,7 +290,7 @@ class ApifyService:
         """
         # In test mode with no token, return a mock response
         if self._test_mode and not self._token and not settings.APIFY_TOKEN:
-            logging.info(f"Test mode: Simulating schedule list fetch")
+            logging.info("Test mode: Simulating schedule list fetch")
             schedules = []
             if actor_id:
                 schedules.append(
@@ -392,7 +393,7 @@ class ApifyService:
                 return False, ""
             # Other type errors probably mean key wasn't found, which is expected
             return True, "medium"
-        except Exception:
+        except (AttributeError, ValueError, KeyError):
             # Other exceptions might mean the method works but had other issues
             pass
 
@@ -417,7 +418,7 @@ class ApifyService:
             # Should accept at most one required arg
             if min_args <= 1:
                 return True, "low"
-        except Exception:
+        except (ValueError, AttributeError):
             pass
 
         return False, ""
@@ -443,7 +444,7 @@ class ApifyService:
                 items = obj.get(key)
                 if items is not None:
                     return items
-            except Exception as e:
+            except (AttributeError, TypeError, KeyError) as e:
                 logging.debug(f"{log_prefix}Exception when accessing get('{key}'): {str(e)}")
                 # Continue to next key
 
@@ -474,7 +475,7 @@ class ApifyService:
                                 # If calling fails, use the attribute value directly
                                 pass
                         return value
-                except Exception:
+                except (AttributeError, TypeError):
                     # Skip if attribute access raises exception
                     pass
         return None
@@ -499,9 +500,9 @@ class ApifyService:
                         prop_value = attr.__get__(obj)
                         if isinstance(prop_value, (list, tuple)) and prop_value:
                             return prop_value
-                    except Exception:
+                    except (AttributeError, TypeError):
                         pass
-        except Exception:
+        except (AttributeError, TypeError):
             pass
         return None
 
@@ -536,10 +537,10 @@ class ApifyService:
                     # If it's a list/tuple and has content, use it
                     if isinstance(attr_value, (list, tuple)) and attr_value:
                         return attr_value
-                except Exception:
+                except (AttributeError, TypeError):
                     # Skip attributes that raise exceptions
                     continue
-        except Exception:
+        except (AttributeError, TypeError):
             pass
         return None
 
@@ -571,7 +572,7 @@ class ApifyService:
                 return parsed_data
             else:
                 return {"items": [parsed_data]}
-        except Exception:
+        except (json.JSONDecodeError, ValueError, TypeError):
             return None
 
     def _extract_items(self, obj: Any) -> Dict[str, Any]:
@@ -626,7 +627,7 @@ class ApifyService:
                 try:
                     # Direct iteration as fallback
                     return {"items": list(obj)}
-                except Exception:
+                except (TypeError, ValueError, StopIteration):
                     pass
 
         # Case 5: Try private _items attribute
@@ -695,7 +696,7 @@ class ApifyService:
         # Handle API call exceptions gracefully
         try:
             list_page = self.client.dataset(dataset_id).list_items(**kwargs)
-        except Exception as e:
+        except (requests.exceptions.RequestException, ValueError, AttributeError) as e:
             logging.error(f"Error calling Apify API: {str(e)}")
             error_details = self._format_error(e, "API Error")
             return {"items": [], "error": error_details}
@@ -703,7 +704,7 @@ class ApifyService:
         # Extract items using all available strategies
         try:
             return self._extract_items(list_page)
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError) as e:
             # Absolute last resort fallback
             logging.error(f"Unexpected error in get_dataset_items: {str(e)}")
             error_details = self._format_error(e, "Extraction Error")

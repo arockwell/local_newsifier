@@ -1,6 +1,5 @@
 """Tests for the ApifyScheduleManager service."""
 
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -114,7 +113,10 @@ def mock_session():
 @pytest.fixture
 def schedule_manager(mock_apify_service, mock_config_crud, mock_session):
     """Create an ApifyScheduleManager with mock dependencies."""
-    session_factory = lambda: mock_session
+
+    def session_factory():
+        return mock_session
+
     return ApifyScheduleManager(
         apify_service=mock_apify_service,
         apify_source_config_crud=mock_config_crud,
@@ -255,7 +257,11 @@ def test_verify_schedule_status(
     assert result["synced"] is False
 
     # Test with non-existent schedule
-    mock_apify_service.get_schedule.side_effect = Exception("Schedule not found")
+    from local_newsifier.errors.error import ServiceError
+
+    mock_apify_service.get_schedule.side_effect = ServiceError(
+        service="apify", error_type="not_found", message="Schedule not found"
+    )
 
     result = schedule_manager.verify_schedule_status(2)
 
