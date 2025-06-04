@@ -197,6 +197,12 @@ class ApifyWebhookService:
 
                 # Extract title - required field
                 title = item.get("title", "")
+
+                # Check metadata for title if not found in top-level fields
+                metadata = item.get("metadata", {})
+                if not title and metadata:
+                    title = metadata.get("title", "")
+
                 if not title:
                     skipped_reasons["no_title"] += 1
                     continue
@@ -210,7 +216,6 @@ class ApifyWebhookService:
                 )
 
                 # Check metadata for additional content
-                metadata = item.get("metadata", {})
                 if not content and metadata:
                     content = metadata.get("description", "")
 
