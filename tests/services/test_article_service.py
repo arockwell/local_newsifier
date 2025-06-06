@@ -1,7 +1,7 @@
 """Tests for the ArticleService."""
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -142,6 +142,79 @@ def test_get_article():
     assert result["content"] == "Test content"
     assert len(result["analysis_results"]) == 1
     assert result["analysis_results"][0]["statistics"]["total_entities"] == 1
+
+
+def test_process_article_no_title():
+    """Test processing an article without a title."""
+    # Arrange
+    mock_article_crud = MagicMock()
+    mock_analysis_result_crud = MagicMock()
+    mock_entity_service = MagicMock()
+
+    # Setup session manager mock
+    mock_session = MagicMock()
+    mock_session_manager = MagicMock()
+    mock_session.commit = MagicMock()
+    mock_session_manager.return_value.__enter__.return_value = mock_session
+
+    # Setup entity service mock
+    mock_entity_service.process_article_entities.return_value = [
+        {
+            "id": 1,
+            "article_id": 1,
+            "original_text": "John Doe",
+            "canonical_type": "PERSON",
+        }
+    ]
+
+    # Setup article CRUD mock
+    mock_article = MagicMock()
+    mock_article.id = 1
+    mock_article.title = None
+    mock_article.url = "https://example.com"
+    mock_article_crud.create.return_value = mock_article
+
+    # Setup analysis result CRUD mock
+    mock_analysis_result_crud.create.return_value = MagicMock()
+
+    # Import ArticleService
+    from local_newsifier.services.article_service import ArticleService
+
+    # Create service
+    service = ArticleService(
+        article_crud=mock_article_crud,
+        analysis_result_crud=mock_analysis_result_crud,
+        entity_service=mock_entity_service,
+        session_factory=lambda: mock_session_manager(),
+    )
+
+    # Act
+    result = service.process_article(
+        url="https://example.com",
+        content="John Doe visited the city.",
+        title=None,
+        published_at=datetime(2025, 1, 1),
+    )
+
+    # Assert
+    # Verify entity service was called correctly with empty string for title
+    mock_entity_service.process_article_entities.assert_called_once_with(
+        article_id=1,
+        content="John Doe visited the city.",
+        title="",
+        published_at=datetime(2025, 1, 1),
+    )
+
+    # Verify CRUD operations
+    mock_article_crud.create.assert_called_once()
+    mock_analysis_result_crud.create.assert_called_once()
+
+    # Verify result
+    assert result["article_id"] == 1
+    assert result["title"] is None
+    assert result["url"] == "https://example.com"
+    assert len(result["entities"]) == 1
+    assert result["entities"][0]["original_text"] == "John Doe"
 
 
 @pytest.mark.skip(

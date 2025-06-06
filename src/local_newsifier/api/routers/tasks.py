@@ -63,7 +63,7 @@ def process_article_endpoint(
     return {
         "task_id": task.id,
         "article_id": article_id,
-        "article_title": article.title,
+        "article_title": article.get("title"),
         "status": "queued",
         "task_url": f"/tasks/status/{task.id}",
     }

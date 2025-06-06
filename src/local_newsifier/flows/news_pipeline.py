@@ -1,7 +1,7 @@
 """CrewAI flow orchestrating the news analysis pipeline."""
 
 from datetime import datetime, timezone
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 from crewai import Flow
 from sqlmodel import Session
@@ -126,9 +126,7 @@ class NewsPipelineFlow(Flow):
             result = self.article_service.process_article(
                 url=state.target_url,
                 content=state.scraped_text,
-                title=(
-                    state.scraped_title if hasattr(state, "scraped_title") else "Untitled Article"
-                ),
+                title=getattr(state, "scraped_title", None),
                 published_at=state.scraped_at or datetime.now(timezone.utc),
             )
 

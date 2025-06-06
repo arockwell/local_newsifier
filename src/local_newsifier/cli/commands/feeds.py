@@ -216,7 +216,7 @@ def direct_process_article(article_id):
         if entity_tracking_flow:
             entities = entity_tracking_flow.process_article(article.id)
 
-        click.echo(f"Processed article {article_id}: {article.title}")
+        click.echo(f"Processed article {article_id}: {article.title or '(No title)'}")
         if entities:
             click.echo(f"  Found {len(entities)} entities")
 
