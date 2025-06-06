@@ -204,9 +204,6 @@ class TestProcessArticle:
         assert response_data["status"] == "queued"
         assert response_data["task_url"] == "/tasks/status/test-task-id"
 
-        # Clean up
-        client.app.dependency_overrides = {}
-
     def test_process_article_not_found(self, client, mock_article_service):
         """Test article not found error."""
         # Set up mocks
