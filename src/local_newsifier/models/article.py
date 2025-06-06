@@ -28,7 +28,7 @@ class Article(SQLModel, table=True):
     )
 
     # Article fields
-    title: str
+    title: Optional[str] = None
     content: str
     url: str = Field(unique=True)
     source: str
