@@ -991,8 +991,8 @@ def process_dataset(dataset_id, dry_run, min_content_length, source_name, force,
                             i + 1,
                             (
                                 article["title"][:40] + "..."
-                                if len(article["title"]) > 40
-                                else article["title"]
+                                if article["title"] and len(article["title"]) > 40
+                                else article["title"] or "(No title)"
                             ),
                             article["content_length"],
                             article["content_source"],

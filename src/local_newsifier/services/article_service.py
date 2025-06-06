@@ -36,7 +36,7 @@ class ArticleService:
 
     @handle_database
     def process_article(
-        self, url: str, content: str, title: str, published_at: datetime
+        self, url: str, content: str, title: Optional[str], published_at: datetime
     ) -> Dict[str, Any]:
         """Process an article including entity extraction and tracking.
 
@@ -73,7 +73,7 @@ class ArticleService:
 
             # Process entities using the entity service
             entities = self.entity_service.process_article_entities(
-                article_id=article.id, content=content, title=title, published_at=published_at
+                article_id=article.id, content=content, title=title or "", published_at=published_at
             )
 
             # Create analysis result
@@ -159,7 +159,7 @@ class ArticleService:
         from datetime import datetime
 
         # Extract data from the RSS entry
-        title = entry.get("title", "Untitled")
+        title = entry.get("title")  # Allow None for missing titles
         url = entry.get("link", "")
 
         # Extract source from feed data or URL

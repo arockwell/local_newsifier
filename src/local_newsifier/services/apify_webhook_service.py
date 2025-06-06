@@ -182,7 +182,7 @@ class ApifyWebhookService:
             logger.info(f"Dataset contains {len(dataset_items)} items")
 
             articles_created = 0
-            skipped_reasons = {"no_url": 0, "no_title": 0, "short_content": 0, "duplicate": 0}
+            skipped_reasons = {"no_url": 0, "short_content": 0, "duplicate": 0}
 
             for idx, item in enumerate(dataset_items):
                 # Log available fields for first few items
@@ -195,7 +195,7 @@ class ApifyWebhookService:
                     skipped_reasons["no_url"] += 1
                     continue
 
-                # Extract title - required field
+                # Extract title - optional field
                 title = item.get("title", "")
 
                 # Check metadata for title if not found in top-level fields
@@ -203,9 +203,7 @@ class ApifyWebhookService:
                 if not title and metadata:
                     title = metadata.get("title", "")
 
-                if not title:
-                    skipped_reasons["no_title"] += 1
-                    continue
+                # Title is now optional, so we don't skip items without titles
 
                 # Extract content with improved field mapping
                 content = (
@@ -260,7 +258,9 @@ class ApifyWebhookService:
                 self.session.add(new_article)
                 articles_created += 1
 
-                logger.debug(f"Created article from item {idx}: {title[:50]}...")
+                logger.debug(
+                    f"Created article from item {idx}: {title[:50] if title else '(No title)'}..."
+                )
 
             # Commit all articles at once
             if articles_created > 0:
@@ -271,7 +271,6 @@ class ApifyWebhookService:
                 f"Dataset processing complete: created={articles_created}, "
                 f"skipped={sum(skipped_reasons.values())} "
                 f"(no_url={skipped_reasons['no_url']}, "
-                f"no_title={skipped_reasons['no_title']}, "
                 f"short_content={skipped_reasons['short_content']}, "
                 f"duplicate={skipped_reasons['duplicate']})"
             )

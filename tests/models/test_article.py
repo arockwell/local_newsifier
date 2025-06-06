@@ -105,7 +105,7 @@ def test_article_unique_url_constraint():
         session.add(article2)
 
         # Should raise an integrity error due to unique constraint
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(Exception):
             session.commit()
 
         # Rollback the failed transaction
@@ -115,3 +115,39 @@ def test_article_unique_url_constraint():
         articles = session.exec(select(Article)).all()
         assert len(articles) == 1
         assert articles[0].title == "Test Article 1"
+
+
+def test_article_optional_title():
+    """Test that Article can be created without a title."""
+    # Create an in-memory SQLite database
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+
+    # Create a session
+    with Session(engine) as session:
+        # Create an article without a title
+        article = Article(
+            title=None,
+            content="This is a test article without a title",
+            url="https://example.com/test-article-no-title",
+            source="test",
+            status="new",
+            published_at=datetime.now(timezone.utc),
+            scraped_at=datetime.now(timezone.utc),
+        )
+        session.add(article)
+        session.commit()
+
+        # Query the article
+        db_article = session.exec(select(Article)).first()
+
+        # Verify the fields
+        assert db_article is not None
+        assert db_article.id is not None
+        assert db_article.title is None
+        assert db_article.content == "This is a test article without a title"
+        assert db_article.url == "https://example.com/test-article-no-title"
+        assert db_article.source == "test"
+        assert db_article.status == "new"
+        assert db_article.published_at is not None
+        assert db_article.scraped_at is not None
