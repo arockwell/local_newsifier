@@ -15,6 +15,7 @@ from local_newsifier.models.entity import Entity
 from local_newsifier.models.entity_tracking import (CanonicalEntity, EntityMention,
                                                     EntityMentionContext, EntityProfile,
                                                     EntityRelationship)
+from local_newsifier.models.processing_state import ProcessingState, ProcessingStatus
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.models.sentiment import OpinionTrend, SentimentAnalysis, SentimentShift
 from local_newsifier.models.webhook import (ApifyDatasetTransformationConfig, ApifyWebhookPayload,
@@ -50,4 +51,7 @@ __all__ = [
     "ApifyWebhookPayload",
     "ApifyWebhookResponse",
     "ApifyDatasetTransformationConfig",
+    # Processing state models
+    "ProcessingState",
+    "ProcessingStatus",
 ]
