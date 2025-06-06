@@ -1,7 +1,7 @@
 """CRUD operations for articles."""
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
+from typing import List, Optional
 
 from sqlmodel import Session, select
 
@@ -26,31 +26,9 @@ class CRUDArticle(CRUDBase[Article]):
         results = db.exec(statement)
         return results.first()
 
-    def create(self, db: Session, *, obj_in: Union[Dict[str, Any], Article]) -> Article:
-        """Create a new article.
-
-        Args:
-            db: Database session
-            obj_in: Article data to create
-
-        Returns:
-            Created article
-        """
-        # Handle dict or model instance
-        if isinstance(obj_in, dict):
-            article_data = obj_in
-        else:
-            article_data = obj_in.model_dump(exclude_unset=True)
-
-        # Add scraped_at if not provided
-        if "scraped_at" not in article_data or article_data["scraped_at"] is None:
-            article_data["scraped_at"] = datetime.now(timezone.utc)
-
-        db_article = Article(**article_data)
-        db.add(db_article)
-        db.commit()
-        db.refresh(db_article)
-        return db_article
+    # Note: The custom create() method has been removed because the Article model
+    # now has a default_factory for scraped_at. The base create() method will
+    # handle article creation correctly.
 
     def update_status(self, db: Session, *, article_id: int, status: str) -> Optional[Article]:
         """Update an article's status.
