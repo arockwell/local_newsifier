@@ -5,7 +5,6 @@ adding, updating, and processing feeds.
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from fastapi_injectable import injectable
@@ -13,6 +12,7 @@ from fastapi_injectable import injectable
 from local_newsifier.errors import handle_database, handle_rss
 from local_newsifier.models.rss_feed import RSSFeed, RSSFeedProcessingLog
 from local_newsifier.tools.rss_parser import parse_rss_feed
+from local_newsifier.utils.dates import get_utc_now, to_iso_string
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +123,8 @@ class RSSFeedService:
                     "name": name,
                     "description": description,
                     "is_active": True,
-                    "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
+                    "created_at": get_utc_now(),
+                    "updated_at": get_utc_now(),
                 },
             )
 
@@ -156,7 +156,7 @@ class RSSFeedService:
                 return None
 
             # Prepare update data
-            update_data = {"updated_at": datetime.now(timezone.utc)}
+            update_data = {"updated_at": get_utc_now()}
             if name is not None:
                 update_data["name"] = name
             if description is not None:
@@ -315,9 +315,9 @@ class RSSFeedService:
             "name": feed.name,
             "description": feed.description,
             "is_active": feed.is_active,
-            "last_fetched_at": feed.last_fetched_at.isoformat() if feed.last_fetched_at else None,
-            "created_at": feed.created_at.isoformat(),
-            "updated_at": feed.updated_at.isoformat(),
+            "last_fetched_at": to_iso_string(feed.last_fetched_at),
+            "created_at": to_iso_string(feed.created_at),
+            "updated_at": to_iso_string(feed.updated_at),
         }
 
     def _format_log_dict(self, log: RSSFeedProcessingLog) -> Dict[str, Any]:
@@ -336,6 +336,6 @@ class RSSFeedService:
             "articles_found": log.articles_found,
             "articles_added": log.articles_added,
             "error_message": log.error_message,
-            "started_at": log.started_at.isoformat(),
-            "completed_at": log.completed_at.isoformat() if log.completed_at else None,
+            "started_at": to_iso_string(log.started_at),
+            "completed_at": to_iso_string(log.completed_at),
         }
