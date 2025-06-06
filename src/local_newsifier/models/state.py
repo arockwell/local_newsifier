@@ -1,12 +1,25 @@
-"""State models for article analysis and entity tracking."""
+"""State models for article analysis and entity tracking.
 
-from datetime import datetime, timezone
+DEPRECATED: These models are being replaced by ProcessingState.
+See processing_state.py for the new generic model.
+"""
+
+import warnings
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import ConfigDict, Field
 
-from .base_state import BaseState, ErrorDetails, extract_error_details
+from .base_state import BaseState, ErrorDetails
+
+# Issue deprecation warning when this module is imported
+warnings.warn(
+    "The state models in this module are deprecated. "
+    "Use ProcessingState from processing_state.py instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class AnalysisStatus(str, Enum):
