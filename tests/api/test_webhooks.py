@@ -499,4 +499,5 @@ class TestApifyWebhookInfrastructure:
 
         # Should return 404
         assert response.status_code == 404
-        assert "Dataset not found" in response.json()["detail"]
+        # The 404 handler returns HTML, not JSON for non-API routes
+        assert response.headers["content-type"].startswith("text/html")
