@@ -12,7 +12,6 @@ This module provides commands for managing RSS feeds, including:
 """
 
 import json
-from datetime import datetime
 
 import click
 from tabulate import tabulate
@@ -20,6 +19,7 @@ from tabulate import tabulate
 from local_newsifier.cli.commands.rss_cli import handle_rss_cli_errors
 from local_newsifier.di.providers import (get_article_crud, get_entity_tracking_flow,
                                           get_news_pipeline_flow, get_rss_feed_service, get_session)
+from local_newsifier.utils.dates import format_datetime, from_iso_string
 
 
 @click.group(name="feeds")
@@ -49,9 +49,7 @@ def list_feeds(active_only, json_output, limit, skip):
     # Format data for table
     table_data = []
     for feed in feeds:
-        last_fetched = feed["last_fetched_at"]
-        if last_fetched:
-            last_fetched = datetime.fromisoformat(last_fetched).strftime("%Y-%m-%d %H:%M")
+        last_fetched = format_datetime(from_iso_string(feed["last_fetched_at"]), "short") or "Never"
 
         table_data.append(
             [
@@ -59,7 +57,7 @@ def list_feeds(active_only, json_output, limit, skip):
                 feed["name"],
                 feed["url"],
                 "✓" if feed["is_active"] else "✗",
-                last_fetched or "Never",
+                last_fetched,
             ]
         )
 
@@ -117,27 +115,19 @@ def show_feed(id, json_output, show_logs):
         click.echo(f"Description: {feed['description']}")
     click.echo(f"Active: {'Yes' if feed['is_active'] else 'No'}")
 
-    last_fetched = feed["last_fetched_at"]
-    if last_fetched:
-        last_fetched = datetime.fromisoformat(last_fetched).strftime("%Y-%m-%d %H:%M:%S")
-        click.echo(f"Last Fetched: {last_fetched}")
-    else:
-        click.echo("Last Fetched: Never")
+    last_fetched_str = format_datetime(from_iso_string(feed["last_fetched_at"]), "long")
+    click.echo(f"Last Fetched: {last_fetched_str or 'Never'}")
 
-    created_at = datetime.fromisoformat(feed["created_at"]).strftime("%Y-%m-%d %H:%M:%S")
-    click.echo(f"Created At: {created_at}")
+    created_at_str = format_datetime(from_iso_string(feed["created_at"]), "long")
+    click.echo(f"Created At: {created_at_str}")
 
     # Display logs if requested
     if show_logs and logs:
         click.echo("\nRecent Processing Logs:")
         log_data = []
         for log in logs:
-            started_at = datetime.fromisoformat(log["started_at"]).strftime("%Y-%m-%d %H:%M:%S")
-            completed_at = ""
-            if log["completed_at"]:
-                completed_at = datetime.fromisoformat(log["completed_at"]).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+            started_at = format_datetime(from_iso_string(log["started_at"]), "long") or ""
+            completed_at = format_datetime(from_iso_string(log["completed_at"]), "long") or ""
             status_color = "green" if log["status"] == "success" else "red"
             status = click.style(log["status"], fg=status_color)
 

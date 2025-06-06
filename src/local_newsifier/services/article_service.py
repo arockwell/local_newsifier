@@ -8,6 +8,8 @@ from fastapi_injectable import injectable
 from local_newsifier.errors import handle_database
 from local_newsifier.models.analysis_result import AnalysisResult
 from local_newsifier.models.article import Article
+from local_newsifier.utils.dates import parse_date_safe
+from local_newsifier.utils.url import extract_source_from_url
 
 
 @injectable(use_cache=False)
@@ -54,10 +56,7 @@ class ArticleService:
         """
         with self.session_factory() as session:
             # Extract domain as source if not provided
-            from urllib.parse import urlparse
-
-            parsed_url = urlparse(url)
-            source = parsed_url.netloc or "Unknown Source"
+            source = extract_source_from_url(url)
 
             # Create article record
             article_data = Article(
@@ -156,8 +155,6 @@ class ArticleService:
         Raises:
             ServiceError: On database errors with appropriate classification
         """
-        from datetime import datetime
-
         # Extract data from the RSS entry
         title = entry.get("title")  # Allow None for missing titles
         url = entry.get("link", "")
@@ -166,33 +163,14 @@ class ArticleService:
         source = entry.get("source", {}).get("title", "")
         if not source and "feed_url" in entry:
             # Try to get domain from feed URL
-            from urllib.parse import urlparse
-
-            parsed_url = urlparse(entry.get("feed_url", ""))
-            source = parsed_url.netloc
+            source = extract_source_from_url(entry.get("feed_url", ""))
 
         # Fallback to domain name from article URL if source is still empty
         if not source and url:
-            from urllib.parse import urlparse
-
-            parsed_url = urlparse(url)
-            source = parsed_url.netloc
-
-        # Default source if all else fails
-        if not source:
-            source = "Unknown Source"
+            source = extract_source_from_url(url)
 
         # Handle published date parsing
-        published_at = datetime.now()
-        if "published" in entry:
-            try:
-                # Attempt to parse the published date
-                from dateutil.parser import parse
-
-                published_at = parse(entry["published"])
-            except (ValueError, TypeError):
-                # Fall back to current date if parsing fails
-                pass
+        published_at = parse_date_safe(entry.get("published")) or datetime.now()
 
         # Extract content
         content = ""
