@@ -1,11 +1,23 @@
-"""CRUD operations for analysis results."""
+"""CRUD operations for analysis results.
 
+DEPRECATED: This thin wrapper is being removed. Use CRUDBase directly
+or move queries to AnalysisService.
+"""
+
+import warnings
 from typing import List, Optional
 
 from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.analysis_result import AnalysisResult
+
+warnings.warn(
+    "CRUDAnalysisResult is deprecated. Use CRUDBase(AnalysisResult) directly "
+    "or move queries to AnalysisService.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class CRUDAnalysisResult(CRUDBase[AnalysisResult]):
