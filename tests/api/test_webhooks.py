@@ -399,3 +399,104 @@ class TestApifyWebhookInfrastructure:
         # Should not create articles
         assert response.status_code == 202
         assert response.json()["articles_created"] == 0
+
+    @ci_skip_async
+    def test_apify_debug_dataset_endpoint(self, client, mock_webhook_service):
+        """Test the debug dataset endpoint."""
+        dataset_id = "test_dataset_123"
+
+        # Mock the webhook service
+        mock_service = Mock()
+        mock_service.session = Mock()
+
+        # Mock apify service and its dataset retrieval
+        mock_apify_service = Mock()
+        mock_dataset = Mock()
+        mock_dataset.list_items.return_value = Mock(
+            items=[
+                {
+                    "url": "https://example.com/article1",
+                    "title": "Test Article 1",
+                    "content": (
+                        "This is a test article with sufficient content to pass the length check. "
+                        * 10
+                    ),
+                },
+                {
+                    "url": "https://example.com/article2",
+                    "title": "Test Article 2",
+                    "text": "Short content",
+                },
+                {
+                    "url": "",
+                    "title": "Missing URL",
+                    "content": "Some content here",
+                },
+            ]
+        )
+
+        mock_apify_service.client.dataset.return_value = mock_dataset
+        mock_service.apify_service = mock_apify_service
+
+        # Mock article CRUD to return None (no existing articles)
+        from local_newsifier.crud.article import article
+
+        original_get_by_url = article.get_by_url
+        article.get_by_url = Mock(return_value=None)
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        try:
+            # Send request to debug endpoint
+            response = client.get(f"/webhooks/apify/debug/{dataset_id}")
+
+            # Should return success
+            assert response.status_code == 200
+            data = response.json()
+
+            # Verify response structure
+            assert data["dataset_id"] == dataset_id
+            assert data["total_items"] == 3
+
+            # Verify summary
+            summary = data["summary"]
+            assert summary["valid_items"] == 1  # Only first item is fully valid
+            assert summary["missing_url"] == 1
+            assert summary["content_too_short"] == 2  # Two items have short content
+            assert summary["creatable_articles"] == 1  # Only first item can be created
+
+            # Verify items analysis
+            assert len(data["items_analysis"]) == 3
+            assert data["items_analysis"][0]["would_create_article"] is True
+            assert data["items_analysis"][1]["would_create_article"] is False
+            assert data["items_analysis"][2]["would_create_article"] is False
+
+            # Verify recommendations
+            assert len(data["recommendations"]) > 0
+        finally:
+            # Restore original function
+            article.get_by_url = original_get_by_url
+
+    @ci_skip_async
+    def test_apify_debug_dataset_not_found(self, client, mock_webhook_service):
+        """Test debug endpoint with non-existent dataset."""
+        dataset_id = "non_existent_dataset"
+
+        # Mock the webhook service
+        mock_service = Mock()
+        mock_apify_service = Mock()
+
+        # Mock dataset retrieval to raise exception
+        mock_apify_service.client.dataset.side_effect = Exception("Dataset not found")
+        mock_service.apify_service = mock_apify_service
+
+        # Override the service
+        mock_webhook_service(mock_service)
+
+        # Send request
+        response = client.get(f"/webhooks/apify/debug/{dataset_id}")
+
+        # Should return 404
+        assert response.status_code == 404
+        assert "Dataset not found" in response.json()["detail"]

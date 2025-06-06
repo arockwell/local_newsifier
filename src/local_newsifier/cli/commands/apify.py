@@ -819,3 +819,360 @@ def schedule_status(config_id: int, token: str):
 
     except Exception as e:
         click.echo(click.style(f"Error checking schedule status: {str(e)}", fg="red"), err=True)
+
+
+@apify_group.command(name="process-dataset")
+@click.argument("dataset_id", required=True)
+@click.option("--dry-run", is_flag=True, help="Show what would be created without saving")
+@click.option(
+    "--min-content-length", type=int, default=500, help="Minimum content length (default: 500)"
+)
+@click.option("--source-name", default="apify", help="Override source name (default: 'apify')")
+@click.option("--force", is_flag=True, help="Process even if articles exist")
+@click.option("--token", help="Apify API token (overrides environment/settings)")
+def process_dataset(dataset_id, dry_run, min_content_length, source_name, force, token):
+    """Process an Apify dataset and create articles from it.
+
+    This command processes any dataset ID into articles, with options to:
+    - Preview what would be created (dry-run)
+    - Set minimum content length
+    - Override source name
+    - Force processing even if articles exist
+
+    DATASET_ID is the ID of the dataset to process.
+
+    Examples:
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --dry-run
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --min-content-length 1000
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --source-name "news-crawler" --force
+    """
+    if token:
+        settings.APIFY_TOKEN = token
+    elif not _ensure_token():
+        return
+
+    try:
+        # Get ApifyService and session
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        session = get_session()
+
+        # Fetch dataset items
+        click.echo(f"Fetching dataset {dataset_id}...")
+        dataset_items = apify_service.client.dataset(dataset_id).list_items().items
+        click.echo(f"Dataset contains {len(dataset_items)} items")
+
+        articles_to_create = []
+        skipped_reasons = {"no_url": 0, "no_title": 0, "short_content": 0, "duplicate": 0}
+
+        # Import article CRUD
+        from datetime import UTC, datetime
+
+        from local_newsifier.crud.article import article as article_crud
+        from local_newsifier.models.article import Article
+
+        # Process each item
+        for idx, item in enumerate(dataset_items):
+            # Log available fields for first few items
+            if idx < 3:
+                click.echo(f"\nItem {idx} fields: {list(item.keys())}")
+
+            # Extract URL - required field
+            url = item.get("url", "")
+            if not url:
+                skipped_reasons["no_url"] += 1
+                continue
+
+            # Extract title - required field
+            title = item.get("title", "")
+            if not title:
+                skipped_reasons["no_title"] += 1
+                continue
+
+            # Extract content with improved field mapping
+            content = (
+                item.get("text", "")  # Primary field from most actors
+                or item.get("markdown", "")  # Alternative format
+                or item.get("content", "")  # Legacy/custom actors
+                or item.get("body", "")  # Fallback
+            )
+
+            # Check metadata for additional content
+            metadata = item.get("metadata", {})
+            if not content and metadata:
+                content = metadata.get("description", "")
+
+            # Which field was used?
+            content_source = None
+            if item.get("text"):
+                content_source = "text"
+            elif item.get("markdown"):
+                content_source = "markdown"
+            elif item.get("content"):
+                content_source = "content"
+            elif item.get("body"):
+                content_source = "body"
+            elif metadata and metadata.get("description"):
+                content_source = "metadata.description"
+
+            # Skip if content too short
+            if len(content) < min_content_length:
+                if idx < 3:
+                    msg = f"Item {idx} content too short: {len(content)} chars"
+                    if content_source:
+                        msg += f" (from {content_source})"
+                    click.echo(msg)
+                skipped_reasons["short_content"] += 1
+                continue
+
+            # Check if article already exists (unless force flag is set)
+            if not force and article_crud.get_by_url(session, url=url):
+                skipped_reasons["duplicate"] += 1
+                continue
+
+            # Extract metadata fields if available
+            published_at = datetime.now(UTC).replace(tzinfo=None)
+
+            # Try to parse published date from metadata
+            if metadata and metadata.get("publishedAt"):
+                try:
+                    # Handle various date formats
+                    pub_str = metadata["publishedAt"]
+                    if isinstance(pub_str, str):
+                        published_at = datetime.fromisoformat(
+                            pub_str.replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                except Exception:
+                    pass  # Use default if parsing fails
+
+            # Create article object
+            article = {
+                "url": url,
+                "title": title,
+                "content": content,
+                "source": item.get("source", source_name),
+                "published_at": published_at,
+                "scraped_at": datetime.now(UTC).replace(tzinfo=None),
+                "content_length": len(content),
+                "content_source": content_source,
+            }
+
+            articles_to_create.append(article)
+
+            if idx < 3:
+                msg = f"Item {idx} would create article: {title[:50]}..."
+                msg += f" ({len(content)} chars"
+                if content_source:
+                    msg += f" from {content_source}"
+                msg += ")"
+                click.echo(msg)
+
+        # Display summary
+        click.echo(click.style("\n=== Processing Summary ===", fg="cyan", bold=True))
+        click.echo(f"Total items: {len(dataset_items)}")
+        click.echo(f"Articles to create: {len(articles_to_create)}")
+        click.echo(f"Skipped: {sum(skipped_reasons.values())}")
+        click.echo(f"  - No URL: {skipped_reasons['no_url']}")
+        click.echo(f"  - No title: {skipped_reasons['no_title']}")
+        click.echo(f"  - Content too short: {skipped_reasons['short_content']}")
+        click.echo(f"  - Duplicate: {skipped_reasons['duplicate']}")
+
+        if dry_run:
+            click.echo(
+                click.style("\n=== DRY RUN MODE - No articles created ===", fg="yellow", bold=True)
+            )
+
+            # Show first few articles that would be created
+            if articles_to_create:
+                click.echo("\nSample articles that would be created:")
+                table_data = []
+                for i, article in enumerate(articles_to_create[:5]):
+                    table_data.append(
+                        [
+                            i + 1,
+                            (
+                                article["title"][:40] + "..."
+                                if len(article["title"]) > 40
+                                else article["title"]
+                            ),
+                            article["content_length"],
+                            article["content_source"],
+                            (
+                                article["url"][:50] + "..."
+                                if len(article["url"]) > 50
+                                else article["url"]
+                            ),
+                        ]
+                    )
+
+                headers = ["#", "Title", "Content Len", "Source Field", "URL"]
+                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+                if len(articles_to_create) > 5:
+                    click.echo(f"\n...and {len(articles_to_create) - 5} more articles")
+        else:
+            # Create articles
+            if articles_to_create:
+                click.echo(f"\nCreating {len(articles_to_create)} articles...")
+
+                created_count = 0
+                for article_data in articles_to_create:
+                    try:
+                        # Remove our tracking fields before creating
+                        article_data.pop("content_length", None)
+                        article_data.pop("content_source", None)
+
+                        # Create article
+                        new_article = Article(
+                            url=article_data["url"],
+                            title=article_data["title"],
+                            content=article_data["content"],
+                            source=article_data["source"],
+                            published_at=article_data["published_at"],
+                            status="published",
+                            scraped_at=article_data["scraped_at"],
+                        )
+                        session.add(new_article)
+                        created_count += 1
+
+                    except Exception as e:
+                        click.echo(f"Error creating article: {str(e)}", err=True)
+
+                # Commit all articles
+                if created_count > 0:
+                    session.commit()
+                    click.echo(
+                        click.style(f"✓ Successfully created {created_count} articles!", fg="green")
+                    )
+                else:
+                    click.echo("No articles were created.")
+            else:
+                click.echo("\nNo articles to create based on the dataset and filters.")
+
+    except Exception as e:
+        click.echo(click.style(f"Error processing dataset: {str(e)}", fg="red"), err=True)
+
+
+@apify_group.command(name="debug-dataset")
+@click.argument("dataset_id", required=True)
+@click.option("--token", help="Apify API token (overrides environment/settings)")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["json", "table"]),
+    default="table",
+    help="Output format (json or table)",
+)
+def debug_dataset(dataset_id, token, format_type):
+    """Debug why articles aren't being created from an Apify dataset.
+
+    This command analyzes a dataset and reports:
+    - Total items in the dataset
+    - Which fields are present/missing
+    - Content length for each item
+    - Whether articles would be created
+    - Existing articles that prevent creation
+
+    DATASET_ID is the ID of the dataset to analyze.
+
+    Examples:
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP --format json
+    """
+    if token:
+        settings.APIFY_TOKEN = token
+    elif not _ensure_token():
+        return
+
+    try:
+        # Make HTTP request to the debug endpoint
+        import requests
+
+        from local_newsifier.config.settings import get_settings
+
+        config = get_settings()
+        base_url = getattr(config, "API_BASE_URL", None) or "http://localhost:8000"
+        url = f"{base_url}/webhooks/apify/debug/{dataset_id}"
+
+        response = requests.get(url)
+
+        if response.status_code == 404:
+            click.echo(
+                click.style(f"Error: Dataset {dataset_id} not found or inaccessible", fg="red"),
+                err=True,
+            )
+            return
+        elif response.status_code != 200:
+            click.echo(
+                click.style(f"Error: {response.json().get('detail', 'Unknown error')}", fg="red"),
+                err=True,
+            )
+            return
+
+        analysis = response.json()
+
+        # Display results based on format
+        if format_type == "json":
+            click.echo(json.dumps(analysis, indent=2))
+            return
+
+        # Table format - summary first
+        click.echo(click.style("\n=== Dataset Analysis Summary ===", fg="cyan", bold=True))
+        click.echo(f"Dataset ID: {analysis['dataset_id']}")
+        click.echo(f"Total Items: {analysis['total_items']}")
+
+        summary = analysis["summary"]
+        click.echo("\nItem Analysis:")
+        click.echo(f"  Valid items: {summary['valid_items']}")
+        click.echo(f"  Missing URL: {summary['missing_url']}")
+        click.echo(f"  Missing title: {summary['missing_title']}")
+        click.echo(f"  Missing content: {summary['missing_content']}")
+        click.echo(f"  Content too short: {summary['content_too_short']}")
+        click.echo(f"  Duplicate articles: {summary['duplicate_articles']}")
+        click.echo(f"  Creatable articles: {summary['creatable_articles']}")
+
+        # Show recommendations if any
+        if analysis.get("recommendations"):
+            click.echo(click.style("\n=== Recommendations ===", fg="yellow", bold=True))
+            for rec in analysis["recommendations"]:
+                click.echo(f"  • {rec}")
+
+        # Show detailed item analysis if not too many items
+        if analysis["total_items"] > 0 and analysis["total_items"] <= 20:
+            click.echo(click.style("\n=== Detailed Item Analysis ===", fg="cyan", bold=True))
+            table_data = []
+
+            for item in analysis["items_analysis"]:
+                issues_str = ", ".join(item["issues"]) if item["issues"] else "None"
+                if len(issues_str) > 40:
+                    issues_str = issues_str[:37] + "..."
+
+                table_data.append(
+                    [
+                        item["index"],
+                        "✓" if item["has_url"] else "✗",
+                        "✓" if item["has_title"] else "✗",
+                        item["content_length"],
+                        "✓" if item["would_create_article"] else "✗",
+                        issues_str,
+                    ]
+                )
+
+            headers = ["#", "URL", "Title", "Content Len", "Would Create", "Issues"]
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+        elif analysis["total_items"] > 20:
+            click.echo(
+                f"\n(Detailed analysis available for {analysis['total_items']} items - "
+                "use --format json to see all)"
+            )
+
+    except requests.exceptions.ConnectionError:
+        click.echo(
+            click.style(
+                "Error: Cannot connect to API. Make sure the API server is running.", fg="red"
+            ),
+            err=True,
+        )
+        click.echo("Start the API with: make run-api")
+    except Exception as e:
+        click.echo(click.style(f"Error debugging dataset: {str(e)}", fg="red"), err=True)
