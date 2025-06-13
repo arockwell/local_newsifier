@@ -440,3 +440,53 @@ class TestApifyWebhookService:
         assert article_with_date.published_at.year == 2024
         assert article_with_date.published_at.month == 1
         assert article_with_date.published_at.day == 15
+
+    @patch("local_newsifier.services.apify_webhook_service.ApifyService")
+    def test_handle_webhook_duplicate_still_creates_articles(
+        self, mock_apify_class, memory_session
+    ):
+        """Test that duplicate webhooks still trigger article creation."""
+        # Create mock apify service
+        mock_apify = MagicMock()
+        mock_apify_class.return_value = mock_apify
+
+        service = ApifyWebhookService(memory_session)
+
+        # Create existing webhook (simulating a previous webhook)
+        existing = ApifyWebhookRaw(
+            run_id="run123", actor_id="actor123", status="SUCCEEDED", data={}
+        )
+        memory_session.add(existing)
+        memory_session.commit()
+
+        # Mock the apify service to return dataset items
+        mock_dataset = MagicMock()
+        mock_dataset.list_items.return_value.items = [
+            {
+                "url": "https://example.com/article1",
+                "title": "Test Article",
+                "text": "A" * 1000,  # Long enough content
+            }
+        ]
+        mock_apify.client.dataset.return_value = mock_dataset
+
+        # Process duplicate webhook with dataset
+        payload = {
+            "resource": {
+                "id": "run123",
+                "actId": "actor123",
+                "status": "SUCCEEDED",
+                "defaultDatasetId": "dataset123",
+            }
+        }
+        result = service.handle_webhook(payload, json.dumps(payload))
+
+        # Should still create articles even though webhook is duplicate
+        assert result["status"] == "ok"
+        assert result["articles_created"] == 1
+        assert result["is_new"] is False  # Webhook was not saved (duplicate)
+
+        # Verify article was created
+        articles = memory_session.exec(select(Article)).all()
+        assert len(articles) == 1
+        assert articles[0].url == "https://example.com/article1"

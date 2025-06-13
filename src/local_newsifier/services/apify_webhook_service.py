@@ -131,9 +131,11 @@ class ApifyWebhookService:
             self.session.rollback()
             logger.info(f"Duplicate webhook ignored: run_id={run_id}, status={status}")
 
-        # Process dataset only for new successful runs
+        # Process dataset for ANY successful run with dataset_id
+        # This ensures articles are created even if the webhook is a duplicate
         articles_created = 0
-        if webhook_saved and status == "SUCCEEDED" and dataset_id:
+        if status == "SUCCEEDED" and dataset_id:
+            logger.info(f"Processing dataset for SUCCEEDED webhook: dataset_id={dataset_id}")
             try:
                 articles_created = self._create_articles_from_dataset(dataset_id)
                 logger.info(f"Articles created: dataset_id={dataset_id}, count={articles_created}")
@@ -177,9 +179,12 @@ class ApifyWebhookService:
         """
         try:
             # Fetch dataset items
+            logger.info(f"Starting article creation from dataset: {dataset_id}")
             logger.info(f"Fetching dataset: {dataset_id}")
             dataset_items = self.apify_service.client.dataset(dataset_id).list_items().items
-            logger.info(f"Dataset contains {len(dataset_items)} items")
+            logger.info(
+                f"Dataset fetched successfully: {dataset_id} contains {len(dataset_items)} items"
+            )
 
             articles_created = 0
             skipped_reasons = {"no_url": 0, "short_content": 0, "duplicate": 0}
