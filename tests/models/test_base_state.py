@@ -3,8 +3,6 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-import pytest
-
 from local_newsifier.errors.error import ServiceError
 from local_newsifier.models.base_state import BaseState, extract_error_details
 
@@ -60,4 +58,3 @@ def test_extract_error_details_unwraps_service_error():
     assert err_type == "RuntimeError"
     assert message == "oops"
     assert isinstance(tb, str)
-

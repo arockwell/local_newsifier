@@ -37,10 +37,14 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         Returns:
             List of source configurations using this actor
         """
-        return db.exec(select(ApifySourceConfig).where(ApifySourceConfig.actor_id == actor_id)).all()
+        return db.exec(
+            select(ApifySourceConfig).where(ApifySourceConfig.actor_id == actor_id)
+        ).all()
 
     @handle_service_error(service="apify")
-    def get_active_configs(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ApifySourceConfig]:
+    def get_active_configs(
+        self, db: Session, *, skip: int = 0, limit: int = 100
+    ) -> List[ApifySourceConfig]:
         """Get all active source configurations.
 
         Args:
@@ -69,10 +73,14 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         Returns:
             List of configurations of the specified type
         """
-        return db.exec(select(ApifySourceConfig).where(ApifySourceConfig.source_type == source_type)).all()
+        return db.exec(
+            select(ApifySourceConfig).where(ApifySourceConfig.source_type == source_type)
+        ).all()
 
     @handle_service_error(service="apify")
-    def get_scheduled_configs(self, db: Session, enabled_only: bool = True) -> List[ApifySourceConfig]:
+    def get_scheduled_configs(
+        self, db: Session, enabled_only: bool = True
+    ) -> List[ApifySourceConfig]:
         """Get all configurations with a schedule.
 
         Args:
@@ -83,36 +91,35 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
             List of configurations with a schedule
         """
         query = select(ApifySourceConfig).where(ApifySourceConfig.schedule != None)
-        
+
         if enabled_only:
             query = query.where(ApifySourceConfig.is_active == True)
-            
+
         return db.exec(query).all()
-        
+
     @handle_service_error(service="apify")
     def get_configs_with_schedule_ids(self, db: Session) -> List[ApifySourceConfig]:
         """Get all configurations that have Apify schedule IDs.
-        
+
         Args:
             db: Database session
-            
+
         Returns:
             List of configurations with schedule IDs
         """
-        return db.exec(
-            select(ApifySourceConfig)
-            .where(ApifySourceConfig.schedule_id != None)
-        ).all()
-        
+        return db.exec(select(ApifySourceConfig).where(ApifySourceConfig.schedule_id != None)).all()
+
     @handle_service_error(service="apify")
-    def update_schedule_id(self, db: Session, config_id: int, schedule_id: Optional[str]) -> Optional[ApifySourceConfig]:
+    def update_schedule_id(
+        self, db: Session, config_id: int, schedule_id: Optional[str]
+    ) -> Optional[ApifySourceConfig]:
         """Update the schedule_id field for a configuration.
-        
+
         Args:
             db: Database session
             config_id: Configuration ID
             schedule_id: New schedule ID or None to clear
-            
+
         Returns:
             Updated configuration if found, None otherwise
         """
@@ -156,7 +163,7 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
                 service="apify",
                 error_type="validation",
                 message=f"Source configuration with name '{name}' already exists",
-                context={"name": name}
+                context={"name": name},
             )
 
         db_config = ApifySourceConfig(**config_data)
@@ -171,7 +178,7 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         db: Session,
         *,
         db_obj: ApifySourceConfig,
-        obj_in: Union[Dict[str, Any], ApifySourceConfig]
+        obj_in: Union[Dict[str, Any], ApifySourceConfig],
     ) -> ApifySourceConfig:
         """Update a source configuration.
 
@@ -196,7 +203,7 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
                     service="apify",
                     error_type="validation",
                     message=f"Source configuration with name '{update_data['name']}' already exists",
-                    context={"name": update_data["name"]}
+                    context={"name": update_data["name"]},
                 )
 
         # Update the object
@@ -229,7 +236,7 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
             actual_timestamp = timestamp or datetime.now(timezone.utc)
             if timestamp and timestamp.tzinfo is None:
                 actual_timestamp = timestamp.replace(tzinfo=timezone.utc)
-                
+
             config.last_run_at = actual_timestamp
             db.add(config)
             db.commit()
@@ -238,7 +245,9 @@ class CRUDApifySourceConfig(CRUDBase[ApifySourceConfig]):
         return None
 
     @handle_service_error(service="apify")
-    def toggle_active(self, db: Session, *, config_id: int, is_active: bool) -> Optional[ApifySourceConfig]:
+    def toggle_active(
+        self, db: Session, *, config_id: int, is_active: bool
+    ) -> Optional[ApifySourceConfig]:
         """Toggle the active status of a configuration.
 
         Args:

@@ -17,17 +17,12 @@ def test_article_entity_relationship():
         source="Test Source",
         published_at=datetime.now(),
         status="published",
-        scraped_at=datetime.now()
+        scraped_at=datetime.now(),
     )
-    
+
     # Create test entity
-    entity = Entity(
-        text="Test Entity",
-        entity_type="PERSON",
-        confidence=0.95,
-        article=article
-    )
-    
+    entity = Entity(text="Test Entity", entity_type="PERSON", confidence=0.95, article=article)
+
     # Verify relationships
     assert entity.article == article
     assert article.entities == [entity]
@@ -43,16 +38,14 @@ def test_article_analysis_result_relationship():
         source="Test Source",
         published_at=datetime.now(),
         status="published",
-        scraped_at=datetime.now()
+        scraped_at=datetime.now(),
     )
-    
+
     # Create test analysis result
     analysis_result = AnalysisResult(
-        analysis_type="sentiment",
-        results={"score": 0.8},
-        article=article
+        analysis_type="sentiment", results={"score": 0.8}, article=article
     )
-    
+
     # Verify relationships
     assert analysis_result.article == article
     assert article.analysis_results == [analysis_result]

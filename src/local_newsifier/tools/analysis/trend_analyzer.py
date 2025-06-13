@@ -1,7 +1,6 @@
 """Consolidated trend analysis tool for news articles."""
 
 import logging
-import math
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional, Set, Tuple, Union
@@ -37,7 +36,7 @@ class TrendAnalyzer:
         self,
         session: Optional[Session] = None,
         nlp_model: Optional[Any] = None,
-        model_name: str = "en_core_web_lg"
+        model_name: str = "en_core_web_lg",
     ):
         """Initialize the trend analyzer.
 
@@ -56,112 +55,122 @@ class TrendAnalyzer:
                 self.nlp = spacy.load(model_name)
                 logger.info(f"Loaded spaCy model '{model_name}'")
             except OSError:
-                logger.warning(f"spaCy model '{model_name}' not found. Some NLP features will be disabled.")
+                logger.warning(
+                    f"spaCy model '{model_name}' not found. Some NLP features will be disabled."
+                )
                 self.nlp = None
 
     def extract_keywords(self, headlines: List[str], top_n: int = 50) -> List[Tuple[str, int]]:
         """Extract significant keywords from a collection of headlines.
-        
+
         Args:
             headlines: List of headlines to analyze
             top_n: Number of top keywords to return
-            
+
         Returns:
             List of (keyword, count) tuples sorted by frequency
         """
         if not headlines:
             return []
-            
+
         if not self.nlp:
             # Fallback simple keyword extraction if NLP is unavailable
             words = []
             for headline in headlines:
                 words.extend(headline.split())
-            
+
             # Filter common words and count
             stopwords = {"the", "a", "an", "and", "in", "on", "at", "to", "for", "of", "with", "by"}
             filtered_words = [w.lower() for w in words if w.lower() not in stopwords and len(w) > 2]
             return Counter(filtered_words).most_common(top_n)
-        
+
         # NLP-based keyword extraction
         combined_text = " ".join(headlines)
         doc = self.nlp(combined_text)
-        
+
         # Extract significant noun phrases and named entities
         keywords = []
         for chunk in doc.noun_chunks:
             if not any(token.is_stop for token in chunk):
                 keywords.append(chunk.text.lower())
-                
+
         for ent in doc.ents:
             if ent.label_ in ["PERSON", "ORG", "GPE", "EVENT"]:
                 keywords.append(ent.text.lower())
-                
+
         # Count frequencies and return top N
         return Counter(keywords).most_common(top_n)
 
-    def detect_keyword_trends(self, trend_data: Dict[str, List[Tuple[str, int]]]) -> List[Dict[str, Any]]:
+    def detect_keyword_trends(
+        self, trend_data: Dict[str, List[Tuple[str, int]]]
+    ) -> List[Dict[str, Any]]:
         """Detect trending terms by analyzing frequency changes over time.
-        
+
         Args:
             trend_data: Dictionary mapping time periods to keyword frequency lists
-            
+
         Returns:
             List of trending terms with growth metrics
         """
         if not trend_data or len(trend_data) < 2:
             return []
-            
+
         # Convert to sorted time periods
         periods = sorted(trend_data.keys())
-        
+
         # Track term frequencies across periods
         term_frequencies = defaultdict(lambda: {period: 0 for period in periods})
         for period in periods:
             for term, count in trend_data[period]:
                 term_frequencies[term][period] = count
-        
+
         # Calculate growth for each term
         term_growth = []
         for term, period_counts in term_frequencies.items():
             if sum(period_counts.values()) < 3:  # Filter noise
                 continue
-                
+
             # Calculate growth rate
             first_period = periods[0]
             last_period = periods[-1]
-            
+
             # Check if term appeared in both first and last period
             if period_counts[first_period] > 0 and period_counts[last_period] > 0:
-                growth_rate = (period_counts[last_period] - period_counts[first_period]) / max(1, period_counts[first_period])
-                
+                growth_rate = (period_counts[last_period] - period_counts[first_period]) / max(
+                    1, period_counts[first_period]
+                )
+
                 # Only consider significant growth
                 if growth_rate > 0.5 or period_counts[last_period] >= 3:
-                    term_growth.append({
-                        "term": term,
-                        "growth_rate": growth_rate,
-                        "first_count": period_counts[first_period],
-                        "last_count": period_counts[last_period],
-                        "total_mentions": sum(period_counts.values())
-                    })
-        
+                    term_growth.append(
+                        {
+                            "term": term,
+                            "growth_rate": growth_rate,
+                            "first_count": period_counts[first_period],
+                            "last_count": period_counts[last_period],
+                            "total_mentions": sum(period_counts.values()),
+                        }
+                    )
+
         # Sort by growth rate descending
-        return sorted(term_growth, key=lambda x: (x["growth_rate"], x["total_mentions"]), reverse=True)
+        return sorted(
+            term_growth, key=lambda x: (x["growth_rate"], x["total_mentions"]), reverse=True
+        )
 
     @staticmethod
     def get_interval_key(date: datetime, interval: str) -> str:
         """Convert date to appropriate interval key (day, week, month).
-        
+
         Args:
             date: Date to convert
             interval: Time interval type
-            
+
         Returns:
             String key representing the time interval
         """
         if not date:
             date = datetime.now()
-            
+
         if interval == "day":
             return date.strftime("%Y-%m-%d")
         elif interval == "week":
@@ -170,7 +179,9 @@ class TrendAnalyzer:
             return date.strftime("%Y-%m")
         return date.strftime("%Y")
 
-    def calculate_date_range(self, time_frame: TimeFrame, periods: int = 1) -> Tuple[datetime, datetime]:
+    def calculate_date_range(
+        self, time_frame: TimeFrame, periods: int = 1
+    ) -> Tuple[datetime, datetime]:
         """Calculate start and end dates based on time frame.
 
         Args:
@@ -268,10 +279,7 @@ class TrendAnalyzer:
         return pattern_info
 
     def find_related_entities(
-        self, 
-        target_entity: Entity, 
-        all_entities: List[Entity],
-        threshold: float = 0.3
+        self, target_entity: Entity, all_entities: List[Entity], threshold: float = 0.3
     ) -> List[Dict]:
         """Find entities that frequently appear with the target entity.
 
@@ -289,38 +297,46 @@ class TrendAnalyzer:
         # Group entities by article
         articles_with_target = set()
         entities_by_article = defaultdict(list)
-        
+
         for entity in all_entities:
             if entity.article_id:
                 entities_by_article[entity.article_id].append(entity)
-                if entity.id == target_entity.id or (entity.text == target_entity.text and entity.entity_type == target_entity.entity_type):
+                if entity.id == target_entity.id or (
+                    entity.text == target_entity.text
+                    and entity.entity_type == target_entity.entity_type
+                ):
                     articles_with_target.add(entity.article_id)
-        
+
         if not articles_with_target:
             return []
-            
+
         # Find co-occurring entities
         co_occurrence_counts = Counter()
         for article_id in articles_with_target:
             for entity in entities_by_article[article_id]:
-                if entity.id != target_entity.id and (entity.text != target_entity.text or entity.entity_type != target_entity.entity_type):
+                if entity.id != target_entity.id and (
+                    entity.text != target_entity.text
+                    or entity.entity_type != target_entity.entity_type
+                ):
                     key = f"{entity.text}|{entity.entity_type}"
                     co_occurrence_counts[key] += 1
-        
+
         # Calculate co-occurrence rate
         related = []
         for key, count in co_occurrence_counts.most_common(10):
             text, entity_type = key.split("|")
             co_occurrence_rate = count / len(articles_with_target)
-            
+
             if co_occurrence_rate >= threshold:
-                related.append({
-                    "text": text,
-                    "entity_type": entity_type,
-                    "co_occurrence_rate": co_occurrence_rate,
-                    "co_occurrence_count": count,
-                })
-        
+                related.append(
+                    {
+                        "text": text,
+                        "entity_type": entity_type,
+                        "co_occurrence_rate": co_occurrence_rate,
+                        "co_occurrence_count": count,
+                    }
+                )
+
         return related
 
     def detect_entity_trends(
@@ -330,7 +346,7 @@ class TrendAnalyzer:
         entity_types: List[str],
         min_significance: float = 1.5,
         min_mentions: int = 2,
-        max_trends: int = 20
+        max_trends: int = 20,
     ) -> List[TrendAnalysis]:
         """Detect trends based on entity frequency analysis.
 
@@ -347,44 +363,44 @@ class TrendAnalyzer:
         """
         if not entities or not articles:
             return []
-            
+
         # Group entities by type and text
         entity_counts = Counter()
         entity_objects = defaultdict(list)
-        
+
         for entity in entities:
             if entity.entity_type in entity_types:
                 key = f"{entity.text}|{entity.entity_type}"
                 entity_counts[key] += 1
                 entity_objects[key].append(entity)
-        
+
         # Build article lookup
         article_lookup = {article.id: article for article in articles}
-        
+
         # Find significant entities
         significant_entities = []
         for key, count in entity_counts.items():
             if count < min_mentions:
                 continue
-                
+
             text, entity_type = key.split("|")
-            
+
             # Simple significance test for now
             # In a real implementation, we would compare against historical data
             z_score, is_significant = self.calculate_statistical_significance(
                 count, count // 2, min_significance
             )
-            
+
             if is_significant:
                 entity_data = {
                     "text": text,
                     "entity_type": entity_type,
                     "mention_count": count,
                     "significance": z_score,
-                    "entities": entity_objects[key]
+                    "entities": entity_objects[key],
                 }
                 significant_entities.append(entity_data)
-        
+
         # Create trend objects
         trends = []
         for data in significant_entities:
@@ -395,10 +411,10 @@ class TrendAnalyzer:
                 trend_type = TrendType.FREQUENCY_SPIKE
             else:
                 trend_type = TrendType.EMERGING_TOPIC
-            
+
             # Calculate confidence score based on significance
             confidence_score = min(0.99, max(0.6, min(data["significance"] / 3.0, 1.0)))
-            
+
             # Create trend
             trend = TrendAnalysis(
                 trend_type=trend_type,
@@ -412,7 +428,7 @@ class TrendAnalyzer:
                 statistical_significance=data["significance"],
                 tags=[data["entity_type"].lower(), trend_type.name.lower().replace("_", "-")],
             )
-            
+
             # Add main entity
             trend.add_entity(
                 TrendEntity(
@@ -422,13 +438,11 @@ class TrendAnalyzer:
                     relevance_score=1.0,
                 )
             )
-            
+
             # Find related entities
             if len(data["entities"]) > 0:
-                related_entities = self.find_related_entities(
-                    data["entities"][0], entities
-                )
-                
+                related_entities = self.find_related_entities(data["entities"][0], entities)
+
                 # Add related entities to trend
                 for related in related_entities[:5]:
                     trend.add_entity(
@@ -439,9 +453,11 @@ class TrendAnalyzer:
                             relevance_score=related["co_occurrence_rate"],
                         )
                     )
-            
+
             # Add evidence from articles
-            entity_article_ids = {entity.article_id for entity in data["entities"] if entity.article_id}
+            entity_article_ids = {
+                entity.article_id for entity in data["entities"] if entity.article_id
+            }
             for article_id in entity_article_ids:
                 article = article_lookup.get(article_id)
                 if article and article.published_at:
@@ -455,9 +471,9 @@ class TrendAnalyzer:
                             relevance_score=1.0,
                         )
                     )
-            
+
             trends.append(trend)
-        
+
         # Sort by confidence and limit
         trends.sort(key=lambda t: t.confidence_score, reverse=True)
         return trends[:max_trends]
@@ -478,16 +494,16 @@ class TrendAnalyzer:
         """
         if trend_type == TrendType.NOVEL_ENTITY:
             return f"New {entity_type.lower()} '{topic}' appearing in local news coverage"
-            
+
         if trend_type == TrendType.FREQUENCY_SPIKE:
             return f"Significant increase in mentions of {entity_type.lower()} '{topic}'"
-            
+
         if trend_type == TrendType.EMERGING_TOPIC:
             return f"Steadily increasing coverage of {entity_type.lower()} '{topic}' in local news"
-            
+
         if trend_type == TrendType.SUSTAINED_COVERAGE:
             return f"Consistent ongoing coverage of {entity_type.lower()} '{topic}' in local news"
-            
+
         return f"Unusual pattern in mentions of {entity_type.lower()} '{topic}' in local news"
 
     def clear_cache(self) -> None:

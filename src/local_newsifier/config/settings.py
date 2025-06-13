@@ -124,12 +124,14 @@ class Settings(BaseSettings):
         """
         # Check if we're in a test environment
         import os
+
         in_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
         # Skip validation if requested and in test mode
         if skip_validation_in_test and in_test_env:
             if not self.APIFY_TOKEN:
                 import logging
+
                 logging.warning("Using dummy Apify token for testing")
                 return "test_dummy_token"
 
@@ -160,7 +162,7 @@ class Settings(BaseSettings):
             self.POSTGRES_PASSWORD,
             self.POSTGRES_HOST,
             self.POSTGRES_PORT,
-            self.POSTGRES_DB
+            self.POSTGRES_DB,
         )
 
     @computed_field

@@ -55,7 +55,4 @@ def get_database_url(user, password, host, port, db_name):
     Returns:
         Formatted database URL string
     """
-    return (
-        f"postgresql://{user}:{password}@"
-        f"{host}:{port}/{db_name}"
-    )
+    return f"postgresql://{user}:{password}@" f"{host}:{port}/{db_name}"

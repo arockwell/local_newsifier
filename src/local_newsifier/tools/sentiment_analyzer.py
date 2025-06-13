@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 class SentimentScore(TypedDict):
     """Type definition for sentiment scores."""
+
     polarity: float
     subjectivity: float
 
@@ -37,11 +38,13 @@ class AnalysisResults(TypedDict, total=False):
 
 class SentimentAnalysisError(Exception):
     """Base exception class for sentiment analysis errors."""
+
     pass
 
 
 class EntitySentimentError(SentimentAnalysisError):
     """Exception class for entity sentiment extraction errors."""
+
     pass
 
 
@@ -53,7 +56,7 @@ class SentimentAnalyzer:
         self,
         nlp_model: Optional[Any] = None,
         model_name: str = "en_core_web_sm",
-        session: Optional[Any] = None
+        session: Optional[Any] = None,
     ):
         """Initialize the sentiment analysis tool with required models.
 
@@ -71,7 +74,9 @@ class SentimentAnalyzer:
                 self.nlp = spacy.load(model_name)
                 logger.info(f"Loaded spaCy model '{model_name}'")
             except OSError:
-                logger.warning(f"spaCy model '{model_name}' not found. Install it with: python -m spacy download {model_name}")
+                logger.warning(
+                    f"spaCy model '{model_name}' not found. Install it with: python -m spacy download {model_name}"
+                )
                 raise RuntimeError(
                     f"spaCy model '{model_name}' not found. "
                     f"Please install it using: python -m spacy download {model_name}"
@@ -91,7 +96,7 @@ class SentimentAnalyzer:
         sentiment = cast(Any, blob.sentiment)
         return {
             "polarity": float(sentiment.polarity),
-            "subjectivity": float(sentiment.subjectivity)
+            "subjectivity": float(sentiment.subjectivity),
         }
 
     def _extract_entity_sentiments(
@@ -112,11 +117,11 @@ class SentimentAnalyzer:
         for entity_type, entity_list in entities.items():
             if not entity_list:  # Skip if entity_list is None or empty
                 continue
-                
+
             for entity in entity_list:
                 if not entity:  # Skip if entity is None
                     continue
-                    
+
                 entity_text = entity.get("text", "")
                 sentence = entity.get("sentence", "")
 
@@ -187,16 +192,17 @@ class SentimentAnalyzer:
 
         # Analyze overall document sentiment
         sentiment_results = self._analyze_text_sentiment(state.scraped_text)
-        state.analysis_results["sentiment"].update({
-            "document_sentiment": sentiment_results["polarity"],
-            "document_magnitude": sentiment_results["subjectivity"]
-        })
+        state.analysis_results["sentiment"].update(
+            {
+                "document_sentiment": sentiment_results["polarity"],
+                "document_magnitude": sentiment_results["subjectivity"],
+            }
+        )
 
         # Analyze entity sentiments if entities are present
         if "entities" in state.analysis_results:
             entity_sentiments = self._extract_entity_sentiments(
-                state.scraped_text, 
-                state.analysis_results["entities"]
+                state.scraped_text, state.analysis_results["entities"]
             )
             state.analysis_results["sentiment"]["entity_sentiments"] = entity_sentiments
 
@@ -228,7 +234,7 @@ class SentimentAnalyzer:
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Get article from database
         article = article_crud.get(session, id=article_id)
         if not article:
@@ -236,9 +242,7 @@ class SentimentAnalyzer:
 
         # Create analysis state
         state = NewsAnalysisState(
-            target_url=article.url,
-            scraped_text=article.content,
-            status=AnalysisStatus.INITIALIZED
+            target_url=article.url, scraped_text=article.content, status=AnalysisStatus.INITIALIZED
         )
 
         # Analyze sentiment
@@ -250,7 +254,9 @@ class SentimentAnalyzer:
         return state.analysis_results.get("sentiment", {})
 
     @with_session
-    def analyze_article_sentiment(self, article_id: int, *, session: Optional[Session] = None) -> AnalysisResult:
+    def analyze_article_sentiment(
+        self, article_id: int, *, session: Optional[Session] = None
+    ) -> AnalysisResult:
         """
         Analyze sentiment of an article and save results to database.
 
@@ -263,7 +269,7 @@ class SentimentAnalyzer:
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Get article from database
         article = article_crud.get(session, id=article_id)
         if not article:
@@ -274,9 +280,7 @@ class SentimentAnalyzer:
 
         # Create analysis result using SQLModel
         analysis_result = AnalysisResult(
-            article_id=article_id,
-            analysis_type="sentiment",
-            results=sentiment_results
+            article_id=article_id, analysis_type="sentiment", results=sentiment_results
         )
 
         return analysis_result_crud.create(session, obj_in=analysis_result)

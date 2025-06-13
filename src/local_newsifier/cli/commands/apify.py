@@ -15,7 +15,6 @@ from typing import Optional
 
 import click
 from fastapi_injectable import get_injected_obj
-from sqlmodel import Session
 from tabulate import tabulate
 
 from local_newsifier.config.settings import settings
@@ -88,9 +87,7 @@ def test_connection(token):
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error connecting to Apify API: {str(e)}", fg="red"), err=True
-        )
+        click.echo(click.style(f"Error connecting to Apify API: {str(e)}", fg="red"), err=True)
 
 
 @apify_group.command(name="run-actor")
@@ -136,9 +133,7 @@ def run_actor(actor_id, input, wait, token, output):
             try:
                 run_input = json.loads(input)
             except json.JSONDecodeError:
-                click.echo(
-                    click.style("Error: Input must be valid JSON", fg="red"), err=True
-                )
+                click.echo(click.style("Error: Input must be valid JSON", fg="red"), err=True)
                 return
 
     try:
@@ -147,7 +142,9 @@ def run_actor(actor_id, input, wait, token, output):
 
         # Run the actor
         click.echo(f"Running actor {actor_id}...")
-        run = apify_service.client.actor(actor_id).call(run_input=run_input, wait_secs=0 if not wait else None)
+        run = apify_service.client.actor(actor_id).call(
+            run_input=run_input, wait_secs=0 if not wait else None
+        )
 
         # Process result
         if wait:
@@ -178,9 +175,7 @@ def run_actor(actor_id, input, wait, token, output):
 
 @apify_group.command(name="get-dataset")
 @click.argument("dataset_id", required=True)
-@click.option(
-    "--limit", type=int, default=10, help="Maximum number of items to retrieve"
-)
+@click.option("--limit", type=int, default=10, help="Maximum number of items to retrieve")
 @click.option("--offset", type=int, default=0, help="Number of items to skip")
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 @click.option("--output", "-o", help="Save output to file")
@@ -211,15 +206,13 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
 
         # Get dataset items
         click.echo(f"Retrieving items from dataset {dataset_id}...")
-        
+
         # Get the dataset and items
         dataset = apify_service.client.dataset(dataset_id)
         dataset_items = dataset.list_items(limit=limit, offset=offset).get("items", [])
-        
-        result = {
-            "items": dataset_items
-        }
-        
+
+        result = {"items": dataset_items}
+
         items = result.get("items", [])
         count = len(items)
 
@@ -242,9 +235,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
                 # Limit to a reasonable number of columns
                 if len(headers) > 5:
                     headers = headers[:5]
-                    click.echo(
-                        "Note: Only showing first 5 columns due to space constraints"
-                    )
+                    click.echo("Note: Only showing first 5 columns due to space constraints")
 
                 # Create table data
                 table_data = []
@@ -270,9 +261,7 @@ def get_dataset(dataset_id, limit, offset, token, output, format_type):
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error retrieving dataset: {str(e)}", fg="red"), err=True
-        )
+        click.echo(click.style(f"Error retrieving dataset: {str(e)}", fg="red"), err=True)
 
 
 @apify_group.command(name="get-actor")
@@ -314,19 +303,13 @@ def get_actor(actor_id, token):
     except ValueError as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
-        click.echo(
-            click.style(f"Error retrieving actor details: {str(e)}", fg="red"), err=True
-        )
+        click.echo(click.style(f"Error retrieving actor details: {str(e)}", fg="red"), err=True)
 
 
 @apify_group.command(name="scrape-content")
 @click.argument("url", required=True)
-@click.option(
-    "--max-pages", type=int, default=5, help="Maximum number of pages to scrape"
-)
-@click.option(
-    "--max-depth", type=int, default=1, help="Maximum crawl depth from start URL"
-)
+@click.option("--max-pages", type=int, default=5, help="Maximum number of pages to scrape")
+@click.option("--max-depth", type=int, default=1, help="Maximum crawl depth from start URL")
 @click.option("--token", help="Apify API token (overrides environment/settings)")
 @click.option("--output", "-o", help="Save output to file")
 def scrape_content(url, max_pages, max_depth, token, output):
@@ -367,9 +350,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
         # Get the dataset ID
         dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
-            click.echo(
-                click.style("Error: No dataset ID found in result", fg="red"), err=True
-            )
+            click.echo(click.style("Error: No dataset ID found in result", fg="red"), err=True)
             return
 
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
@@ -378,9 +359,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
         dataset = apify_service.client.dataset(dataset_id)
         items = dataset.list_items().get("items", [])
 
-        click.echo(
-            click.style(f"✓ Retrieved {len(items)} pages of content!", fg="green")
-        )
+        click.echo(click.style(f"✓ Retrieved {len(items)} pages of content!", fg="green"))
 
         # Save or display the results
         if output:
@@ -419,9 +398,7 @@ def scrape_content(url, max_pages, max_depth, token, output):
 @apify_group.command(name="web-scraper")
 @click.argument("url", required=True)
 @click.option("--selector", default="a", help="CSS selector for links to follow")
-@click.option(
-    "--max-pages", type=int, default=5, help="Maximum number of pages to scrape"
-)
+@click.option("--max-pages", type=int, default=5, help="Maximum number of pages to scrape")
 @click.option("--wait-for", help="CSS selector to wait for before scraping")
 @click.option("--page-function", help="Custom page function JavaScript code")
 @click.option("--output", "-o", help="Save output to file")
@@ -492,9 +469,7 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         # Get the dataset ID
         dataset_id = run.get("defaultDatasetId")
         if not dataset_id:
-            click.echo(
-                click.style("Error: No dataset ID found in result", fg="red"), err=True
-            )
+            click.echo(click.style("Error: No dataset ID found in result", fg="red"), err=True)
             return
 
         click.echo(f"Scraping complete! Retrieving data from dataset: {dataset_id}")
@@ -537,8 +512,8 @@ def web_scraper(url, selector, max_pages, wait_for, page_function, output, token
         click.echo(click.style(f"Error: {str(e)}", fg="red"), err=True)
     except Exception as e:
         click.echo(click.style(f"Error scraping website: {str(e)}", fg="red"), err=True)
-        
-        
+
+
 # Create a group for schedule commands
 @apify_group.group(name="schedules")
 def schedules_group():
@@ -548,10 +523,10 @@ def schedules_group():
 
 def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
     """Get a configured ApifyScheduleManager instance.
-    
+
     Args:
         token: Optional Apify API token
-        
+
     Returns:
         ApifyScheduleManager: Configured schedule manager
     """
@@ -560,7 +535,7 @@ def _get_schedule_manager(token: Optional[str] = None) -> ApifyScheduleManager:
     return ApifyScheduleManager(
         apify_service=apify_service,
         apify_source_config_crud=config_crud,
-        session_factory=lambda: session
+        session_factory=lambda: session,
     )
 
 
@@ -580,7 +555,7 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Get all scheduled configs from database
         configs = []
@@ -588,20 +563,22 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
         db_configs = config_crud.get_scheduled_configs(session, enabled_only=False)
         # Convert to dictionaries to avoid session binding issues
         for config in db_configs:
-            configs.append({
-                "id": config.id,
-                "name": config.name,
-                "actor_id": config.actor_id,
-                "schedule": config.schedule,
-                "schedule_id": config.schedule_id,
-                "is_active": config.is_active,
-                "last_run_at": config.last_run_at,
-            })
-            
+            configs.append(
+                {
+                    "id": config.id,
+                    "name": config.name,
+                    "actor_id": config.actor_id,
+                    "schedule": config.schedule,
+                    "schedule_id": config.schedule_id,
+                    "is_active": config.is_active,
+                    "last_run_at": config.last_run_at,
+                }
+            )
+
         if not configs:
             click.echo("No scheduled configurations found.")
             return
-            
+
         # If json format is requested, just dump the data
         if format_type == "json":
             output = []
@@ -613,21 +590,25 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
                 output.append(item)
             click.echo(json.dumps(output, indent=2))
             return
-            
+
         # If we also need Apify details, get them
         if with_apify:
             schedule_manager = _get_schedule_manager(token)
             table_data = []
-            
+
             for config in configs:
                 status = schedule_manager.verify_schedule_status(config["id"])
-                
+
                 # Format for table display
                 exists = "✓" if status["exists"] else "✗"
                 synced = "✓" if status["synced"] else "✗"
                 schedule_id = config["schedule_id"] or "N/A"
-                last_run = config["last_run_at"].strftime("%Y-%m-%d %H:%M") if config["last_run_at"] else "Never"
-                
+                last_run = (
+                    config["last_run_at"].strftime("%Y-%m-%d %H:%M")
+                    if config["last_run_at"]
+                    else "Never"
+                )
+
                 row = [
                     config["id"],
                     config["name"],
@@ -636,32 +617,45 @@ def list_schedules(token: str, with_apify: bool, format_type: str):
                     schedule_id,
                     exists,
                     synced,
-                    last_run
+                    last_run,
                 ]
                 table_data.append(row)
-                
-            headers = ["ID", "Name", "Schedule", "Status", "Schedule ID", "Exists", "Synced", "Last Run"]
+
+            headers = [
+                "ID",
+                "Name",
+                "Schedule",
+                "Status",
+                "Schedule ID",
+                "Exists",
+                "Synced",
+                "Last Run",
+            ]
             click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
         else:
             # Simple table without Apify API calls
             table_data = []
             for config in configs:
                 schedule_id = config["schedule_id"] or "N/A"
-                last_run = config["last_run_at"].strftime("%Y-%m-%d %H:%M") if config["last_run_at"] else "Never"
-                
+                last_run = (
+                    config["last_run_at"].strftime("%Y-%m-%d %H:%M")
+                    if config["last_run_at"]
+                    else "Never"
+                )
+
                 row = [
                     config["id"],
                     config["name"],
                     config["schedule"],
                     "Active" if config["is_active"] else "Inactive",
                     schedule_id,
-                    last_run
+                    last_run,
                 ]
                 table_data.append(row)
-                
+
             headers = ["ID", "Name", "Schedule", "Status", "Schedule ID", "Last Run"]
             click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
-            
+
     except Exception as e:
         click.echo(click.style(f"Error listing schedules: {str(e)}", fg="red"), err=True)
 
@@ -674,28 +668,28 @@ def sync_schedules(token: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Create schedule manager
         schedule_manager = _get_schedule_manager(token)
-        
+
         # Run sync operation
         click.echo("Synchronizing schedules with Apify...")
         results = schedule_manager.sync_schedules()
-        
+
         # Display results
-        click.echo(click.style(f"✓ Schedules synchronized successfully!", fg="green"))
+        click.echo(click.style("✓ Schedules synchronized successfully!", fg="green"))
         click.echo(f"Created: {results['created']}")
         click.echo(f"Updated: {results['updated']}")
         click.echo(f"Deleted: {results['deleted']}")
         click.echo(f"Unchanged: {results['unchanged']}")
-        
+
         # Display any errors
         if results["errors"]:
             click.echo("\nErrors encountered:")
             for error in results["errors"]:
                 click.echo(click.style(f"  - {error}", fg="yellow"))
-                
+
     except Exception as e:
         click.echo(click.style(f"Error synchronizing schedules: {str(e)}", fg="red"), err=True)
 
@@ -709,20 +703,20 @@ def create_schedule(config_id: int, token: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Create schedule manager
         schedule_manager = _get_schedule_manager(token)
-        
+
         # Create schedule
         click.echo(f"Creating schedule for config {config_id}...")
         created = schedule_manager.create_schedule_for_config(config_id)
-        
+
         if created:
-            click.echo(click.style(f"✓ Schedule created successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule created successfully!", fg="green"))
         else:
             click.echo("Schedule already exists, no changes made.")
-            
+
     except Exception as e:
         click.echo(click.style(f"Error creating schedule: {str(e)}", fg="red"), err=True)
 
@@ -736,20 +730,20 @@ def update_schedule(config_id: int, token: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Create schedule manager
         schedule_manager = _get_schedule_manager(token)
-        
+
         # Update schedule
         click.echo(f"Updating schedule for config {config_id}...")
         updated = schedule_manager.update_schedule_for_config(config_id)
-        
+
         if updated:
-            click.echo(click.style(f"✓ Schedule updated successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule updated successfully!", fg="green"))
         else:
             click.echo("Schedule is already up to date, no changes made.")
-            
+
     except Exception as e:
         click.echo(click.style(f"Error updating schedule: {str(e)}", fg="red"), err=True)
 
@@ -763,20 +757,20 @@ def delete_schedule(config_id: int, token: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Create schedule manager
         schedule_manager = _get_schedule_manager(token)
-        
+
         # Delete schedule
         click.echo(f"Deleting schedule for config {config_id}...")
         deleted = schedule_manager.delete_schedule_for_config(config_id)
-        
+
         if deleted:
-            click.echo(click.style(f"✓ Schedule deleted successfully!", fg="green"))
+            click.echo(click.style("✓ Schedule deleted successfully!", fg="green"))
         else:
             click.echo("No schedule found to delete.")
-            
+
     except Exception as e:
         click.echo(click.style(f"Error deleting schedule: {str(e)}", fg="red"), err=True)
 
@@ -790,26 +784,26 @@ def schedule_status(config_id: int, token: str):
         settings.APIFY_TOKEN = token
     elif not _ensure_token():
         return
-        
+
     try:
         # Create schedule manager
         schedule_manager = _get_schedule_manager(token)
-        
+
         # Get schedule status
         click.echo(f"Checking schedule status for config {config_id}...")
         status = schedule_manager.verify_schedule_status(config_id)
-        
+
         # Display status
         click.echo("\nSchedule Status:")
         click.echo(f"Config ID: {config_id}")
         click.echo(f"Name: {status['config_details']['name']}")
         click.echo(f"Schedule: {status['config_details']['schedule']}")
         click.echo(f"Active: {status['config_details']['is_active']}")
-        
+
         if status["exists"]:
             click.echo(click.style("✓ Schedule exists in Apify", fg="green"))
             click.echo(f"Schedule ID: {status['config_details']['schedule_id']}")
-            
+
             if status["synced"]:
                 click.echo(click.style("✓ Schedule is in sync with config", fg="green"))
             else:
@@ -822,6 +816,363 @@ def schedule_status(config_id: int, token: str):
                 click.echo("Run 'nf apify schedules create CONFIG_ID' to create the schedule.")
             else:
                 click.echo("No schedule ID in config.")
-            
+
     except Exception as e:
         click.echo(click.style(f"Error checking schedule status: {str(e)}", fg="red"), err=True)
+
+
+@apify_group.command(name="process-dataset")
+@click.argument("dataset_id", required=True)
+@click.option("--dry-run", is_flag=True, help="Show what would be created without saving")
+@click.option(
+    "--min-content-length", type=int, default=500, help="Minimum content length (default: 500)"
+)
+@click.option("--source-name", default="apify", help="Override source name (default: 'apify')")
+@click.option("--force", is_flag=True, help="Process even if articles exist")
+@click.option("--token", help="Apify API token (overrides environment/settings)")
+def process_dataset(dataset_id, dry_run, min_content_length, source_name, force, token):
+    """Process an Apify dataset and create articles from it.
+
+    This command processes any dataset ID into articles, with options to:
+    - Preview what would be created (dry-run)
+    - Set minimum content length
+    - Override source name
+    - Force processing even if articles exist
+
+    DATASET_ID is the ID of the dataset to process.
+
+    Examples:
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --dry-run
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --min-content-length 1000
+        nf apify process-dataset bPmJXQ5Ym98KjL9TP --source-name "news-crawler" --force
+    """
+    if token:
+        settings.APIFY_TOKEN = token
+    elif not _ensure_token():
+        return
+
+    try:
+        # Get ApifyService and session
+        apify_service = get_injected_obj(lambda: get_apify_service_cli(token))
+        session = get_session()
+
+        # Fetch dataset items
+        click.echo(f"Fetching dataset {dataset_id}...")
+        dataset_items = apify_service.client.dataset(dataset_id).list_items().items
+        click.echo(f"Dataset contains {len(dataset_items)} items")
+
+        articles_to_create = []
+        skipped_reasons = {"no_url": 0, "no_title": 0, "short_content": 0, "duplicate": 0}
+
+        # Import article CRUD
+        from datetime import UTC, datetime
+
+        from local_newsifier.crud.article import article as article_crud
+        from local_newsifier.models.article import Article
+
+        # Process each item
+        for idx, item in enumerate(dataset_items):
+            # Log available fields for first few items
+            if idx < 3:
+                click.echo(f"\nItem {idx} fields: {list(item.keys())}")
+
+            # Extract URL - required field
+            url = item.get("url", "")
+            if not url:
+                skipped_reasons["no_url"] += 1
+                continue
+
+            # Extract title - required field
+            title = item.get("title", "")
+            if not title:
+                skipped_reasons["no_title"] += 1
+                continue
+
+            # Extract content with improved field mapping
+            content = (
+                item.get("text", "")  # Primary field from most actors
+                or item.get("markdown", "")  # Alternative format
+                or item.get("content", "")  # Legacy/custom actors
+                or item.get("body", "")  # Fallback
+            )
+
+            # Check metadata for additional content
+            metadata = item.get("metadata", {})
+            if not content and metadata:
+                content = metadata.get("description", "")
+
+            # Which field was used?
+            content_source = None
+            if item.get("text"):
+                content_source = "text"
+            elif item.get("markdown"):
+                content_source = "markdown"
+            elif item.get("content"):
+                content_source = "content"
+            elif item.get("body"):
+                content_source = "body"
+            elif metadata and metadata.get("description"):
+                content_source = "metadata.description"
+
+            # Skip if content too short
+            if len(content) < min_content_length:
+                if idx < 3:
+                    msg = f"Item {idx} content too short: {len(content)} chars"
+                    if content_source:
+                        msg += f" (from {content_source})"
+                    click.echo(msg)
+                skipped_reasons["short_content"] += 1
+                continue
+
+            # Check if article already exists (unless force flag is set)
+            if not force and article_crud.get_by_url(session, url=url):
+                skipped_reasons["duplicate"] += 1
+                continue
+
+            # Extract metadata fields if available
+            published_at = datetime.now(UTC).replace(tzinfo=None)
+
+            # Try to parse published date from metadata
+            if metadata and metadata.get("publishedAt"):
+                try:
+                    # Handle various date formats
+                    pub_str = metadata["publishedAt"]
+                    if isinstance(pub_str, str):
+                        published_at = datetime.fromisoformat(
+                            pub_str.replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                except Exception:
+                    pass  # Use default if parsing fails
+
+            # Create article object
+            article = {
+                "url": url,
+                "title": title,
+                "content": content,
+                "source": item.get("source", source_name),
+                "published_at": published_at,
+                "scraped_at": datetime.now(UTC).replace(tzinfo=None),
+                "content_length": len(content),
+                "content_source": content_source,
+            }
+
+            articles_to_create.append(article)
+
+            if idx < 3:
+                msg = f"Item {idx} would create article: {title[:50]}..."
+                msg += f" ({len(content)} chars"
+                if content_source:
+                    msg += f" from {content_source}"
+                msg += ")"
+                click.echo(msg)
+
+        # Display summary
+        click.echo(click.style("\n=== Processing Summary ===", fg="cyan", bold=True))
+        click.echo(f"Total items: {len(dataset_items)}")
+        click.echo(f"Articles to create: {len(articles_to_create)}")
+        click.echo(f"Skipped: {sum(skipped_reasons.values())}")
+        click.echo(f"  - No URL: {skipped_reasons['no_url']}")
+        click.echo(f"  - No title: {skipped_reasons['no_title']}")
+        click.echo(f"  - Content too short: {skipped_reasons['short_content']}")
+        click.echo(f"  - Duplicate: {skipped_reasons['duplicate']}")
+
+        if dry_run:
+            click.echo(
+                click.style("\n=== DRY RUN MODE - No articles created ===", fg="yellow", bold=True)
+            )
+
+            # Show first few articles that would be created
+            if articles_to_create:
+                click.echo("\nSample articles that would be created:")
+                table_data = []
+                for i, article in enumerate(articles_to_create[:5]):
+                    table_data.append(
+                        [
+                            i + 1,
+                            (
+                                article["title"][:40] + "..."
+                                if article["title"] and len(article["title"]) > 40
+                                else article["title"] or "(No title)"
+                            ),
+                            article["content_length"],
+                            article["content_source"],
+                            (
+                                article["url"][:50] + "..."
+                                if len(article["url"]) > 50
+                                else article["url"]
+                            ),
+                        ]
+                    )
+
+                headers = ["#", "Title", "Content Len", "Source Field", "URL"]
+                click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+                if len(articles_to_create) > 5:
+                    click.echo(f"\n...and {len(articles_to_create) - 5} more articles")
+        else:
+            # Create articles
+            if articles_to_create:
+                click.echo(f"\nCreating {len(articles_to_create)} articles...")
+
+                created_count = 0
+                for article_data in articles_to_create:
+                    try:
+                        # Remove our tracking fields before creating
+                        article_data.pop("content_length", None)
+                        article_data.pop("content_source", None)
+
+                        # Create article
+                        new_article = Article(
+                            url=article_data["url"],
+                            title=article_data["title"],
+                            content=article_data["content"],
+                            source=article_data["source"],
+                            published_at=article_data["published_at"],
+                            status="published",
+                            scraped_at=article_data["scraped_at"],
+                        )
+                        session.add(new_article)
+                        created_count += 1
+
+                    except Exception as e:
+                        click.echo(f"Error creating article: {str(e)}", err=True)
+
+                # Commit all articles
+                if created_count > 0:
+                    session.commit()
+                    click.echo(
+                        click.style(f"✓ Successfully created {created_count} articles!", fg="green")
+                    )
+                else:
+                    click.echo("No articles were created.")
+            else:
+                click.echo("\nNo articles to create based on the dataset and filters.")
+
+    except Exception as e:
+        click.echo(click.style(f"Error processing dataset: {str(e)}", fg="red"), err=True)
+
+
+@apify_group.command(name="debug-dataset")
+@click.argument("dataset_id", required=True)
+@click.option("--token", help="Apify API token (overrides environment/settings)")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["json", "table"]),
+    default="table",
+    help="Output format (json or table)",
+)
+def debug_dataset(dataset_id, token, format_type):
+    """Debug why articles aren't being created from an Apify dataset.
+
+    This command analyzes a dataset and reports:
+    - Total items in the dataset
+    - Which fields are present/missing
+    - Content length for each item
+    - Whether articles would be created
+    - Existing articles that prevent creation
+
+    DATASET_ID is the ID of the dataset to analyze.
+
+    Examples:
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP
+        nf apify debug-dataset bPmJXQ5Ym98KjL9TP --format json
+    """
+    if token:
+        settings.APIFY_TOKEN = token
+    elif not _ensure_token():
+        return
+
+    try:
+        # Make HTTP request to the debug endpoint
+        import requests
+
+        from local_newsifier.config.settings import get_settings
+
+        config = get_settings()
+        base_url = getattr(config, "API_BASE_URL", None) or "http://localhost:8000"
+        url = f"{base_url}/webhooks/apify/debug/{dataset_id}"
+
+        response = requests.get(url)
+
+        if response.status_code == 404:
+            click.echo(
+                click.style(f"Error: Dataset {dataset_id} not found or inaccessible", fg="red"),
+                err=True,
+            )
+            return
+        elif response.status_code != 200:
+            click.echo(
+                click.style(f"Error: {response.json().get('detail', 'Unknown error')}", fg="red"),
+                err=True,
+            )
+            return
+
+        analysis = response.json()
+
+        # Display results based on format
+        if format_type == "json":
+            click.echo(json.dumps(analysis, indent=2))
+            return
+
+        # Table format - summary first
+        click.echo(click.style("\n=== Dataset Analysis Summary ===", fg="cyan", bold=True))
+        click.echo(f"Dataset ID: {analysis['dataset_id']}")
+        click.echo(f"Total Items: {analysis['total_items']}")
+
+        summary = analysis["summary"]
+        click.echo("\nItem Analysis:")
+        click.echo(f"  Valid items: {summary['valid_items']}")
+        click.echo(f"  Missing URL: {summary['missing_url']}")
+        click.echo(f"  Missing title: {summary['missing_title']}")
+        click.echo(f"  Missing content: {summary['missing_content']}")
+        click.echo(f"  Content too short: {summary['content_too_short']}")
+        click.echo(f"  Duplicate articles: {summary['duplicate_articles']}")
+        click.echo(f"  Creatable articles: {summary['creatable_articles']}")
+
+        # Show recommendations if any
+        if analysis.get("recommendations"):
+            click.echo(click.style("\n=== Recommendations ===", fg="yellow", bold=True))
+            for rec in analysis["recommendations"]:
+                click.echo(f"  • {rec}")
+
+        # Show detailed item analysis if not too many items
+        if analysis["total_items"] > 0 and analysis["total_items"] <= 20:
+            click.echo(click.style("\n=== Detailed Item Analysis ===", fg="cyan", bold=True))
+            table_data = []
+
+            for item in analysis["items_analysis"]:
+                issues_str = ", ".join(item["issues"]) if item["issues"] else "None"
+                if len(issues_str) > 40:
+                    issues_str = issues_str[:37] + "..."
+
+                table_data.append(
+                    [
+                        item["index"],
+                        "✓" if item["has_url"] else "✗",
+                        "✓" if item["has_title"] else "✗",
+                        item["content_length"],
+                        "✓" if item["would_create_article"] else "✗",
+                        issues_str,
+                    ]
+                )
+
+            headers = ["#", "URL", "Title", "Content Len", "Would Create", "Issues"]
+            click.echo(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+        elif analysis["total_items"] > 20:
+            click.echo(
+                f"\n(Detailed analysis available for {analysis['total_items']} items - "
+                "use --format json to see all)"
+            )
+
+    except requests.exceptions.ConnectionError:
+        click.echo(
+            click.style(
+                "Error: Cannot connect to API. Make sure the API server is running.", fg="red"
+            ),
+            err=True,
+        )
+        click.echo("Start the API with: make run-api")
+    except Exception as e:
+        click.echo(click.style(f"Error debugging dataset: {str(e)}", fg="red"), err=True)

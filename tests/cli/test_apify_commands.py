@@ -83,43 +83,43 @@ def original_token():
 class TestApifyCommands:
     """Test the Apify CLI commands."""
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_with_env_var(self, mock_environ_get, original_token):
         """Test ensuring the token with the env var."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': 'test_token'
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": "test_token",
         }.get(key, default)
-        
+
         # Ensure token is set for the test
         os.environ["APIFY_TOKEN"] = "test_token"
         assert _ensure_token() is True
         assert settings.APIFY_TOKEN == "test_token"
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_with_settings(self, mock_environ_get, original_token):
         """Test ensuring the token with settings."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': None 
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": None,
         }.get(key, default)
-        
+
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = "settings_token"
         assert _ensure_token() is True
 
-    @patch('os.environ.get')
+    @patch("os.environ.get")
     def test_ensure_token_missing(self, mock_environ_get, runner, original_token):
         """Test ensuring the token when it's missing."""
         # Mock environment to not detect pytest
         mock_environ_get.side_effect = lambda key, default=None: {
-            'PYTEST_CURRENT_TEST': None,
-            'APIFY_TOKEN': None
+            "PYTEST_CURRENT_TEST": None,
+            "APIFY_TOKEN": None,
         }.get(key, default)
-        
+
         if "APIFY_TOKEN" in os.environ:
             del os.environ["APIFY_TOKEN"]
         settings.APIFY_TOKEN = None
@@ -141,7 +141,7 @@ class TestApifyCommands:
         assert result.exit_code == 0
         assert "Connection to Apify API successful" in result.output
         assert "Connected as: test_user" in result.output
-        
+
         # Verify the lambda function was called with the token
         # Since we can't directly check the lambda, we check that get_injected_obj was called
 
@@ -161,18 +161,14 @@ class TestApifyCommands:
         assert "Connection to Apify API successful" in result.output
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_run_actor(
-        self, mock_get_injected_obj, mock_apify_service, runner, original_token
-    ):
+    def test_run_actor(self, mock_get_injected_obj, mock_apify_service, runner, original_token):
         """Test the run actor command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
         os.environ["APIFY_TOKEN"] = "test_token"
 
         # Run the command
-        result = runner.invoke(
-            run_actor, ["test_actor", "--input", '{"param":"value"}']
-        )
+        result = runner.invoke(run_actor, ["test_actor", "--input", '{"param":"value"}'])
 
         # Verify
         assert result.exit_code == 0
@@ -238,9 +234,7 @@ class TestApifyCommands:
             os.unlink(output_file)
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_get_dataset(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_get_dataset(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the get dataset command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -274,9 +268,7 @@ class TestApifyCommands:
         assert "title" in result.output
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_get_actor(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_get_actor(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the get actor command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -326,9 +318,7 @@ class TestApifyCommands:
 
         try:
             # Run the command
-            result = runner.invoke(
-                scrape_content, ["https://example.com", "--output", output_file]
-            )
+            result = runner.invoke(scrape_content, ["https://example.com", "--output", output_file])
 
             # Verify
             assert result.exit_code == 0
@@ -344,9 +334,7 @@ class TestApifyCommands:
             os.unlink(output_file)
 
     @patch("local_newsifier.cli.commands.apify.get_injected_obj")
-    def test_web_scraper(
-        self, mock_get_injected_obj, runner, original_token, mock_apify_service
-    ):
+    def test_web_scraper(self, mock_get_injected_obj, runner, original_token, mock_apify_service):
         """Test the web-scraper command."""
         # Setup
         mock_get_injected_obj.return_value = mock_apify_service
@@ -405,9 +393,7 @@ class TestApifyCommands:
 
         try:
             # Run the command
-            result = runner.invoke(
-                web_scraper, ["https://example.com", "--output", output_file]
-            )
+            result = runner.invoke(web_scraper, ["https://example.com", "--output", output_file])
 
             # Verify
             assert result.exit_code == 0
@@ -421,3 +407,101 @@ class TestApifyCommands:
         finally:
             # Clean up
             os.unlink(output_file)
+
+
+class TestDebugDatasetCommand:
+    """Test the debug-dataset command."""
+
+    @patch("requests.get")
+    def test_debug_dataset_success(self, mock_get):
+        """Test successful dataset debugging."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "dataset_id": "test_dataset",
+            "total_items": 2,
+            "summary": {
+                "valid_items": 1,
+                "missing_url": 0,
+                "missing_title": 0,
+                "missing_content": 0,
+                "content_too_short": 1,
+                "duplicate_articles": 0,
+                "creatable_articles": 1,
+            },
+            "items_analysis": [
+                {
+                    "index": 0,
+                    "has_url": True,
+                    "has_title": True,
+                    "content_length": 200,
+                    "would_create_article": True,
+                    "issues": [],
+                },
+                {
+                    "index": 1,
+                    "has_url": True,
+                    "has_title": True,
+                    "content_length": 50,
+                    "would_create_article": False,
+                    "issues": ["Content too short (50 chars < 100)"],
+                },
+            ],
+            "recommendations": ["Some items have very short content."],
+        }
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["test_dataset"])
+
+        assert result.exit_code == 0
+        assert "Dataset Analysis Summary" in result.output
+        assert "Total Items: 2" in result.output
+        assert "Creatable articles: 1" in result.output
+        assert "Recommendations" in result.output
+
+    @patch("requests.get")
+    def test_debug_dataset_not_found(self, mock_get):
+        """Test dataset not found."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {"detail": "Dataset not found"}
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["non_existent"])
+
+        assert result.exit_code == 0  # Click doesn't set exit code for our errors
+        assert "Dataset non_existent not found" in result.output
+
+    @patch("requests.get")
+    def test_debug_dataset_json_format(self, mock_get):
+        """Test JSON output format."""
+        # Mock API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "dataset_id": "test_dataset",
+            "total_items": 1,
+            "summary": {"valid_items": 1},
+        }
+        mock_get.return_value = mock_response
+
+        # Run command
+        from local_newsifier.cli.commands.apify import debug_dataset
+
+        runner = CliRunner()
+        result = runner.invoke(debug_dataset, ["test_dataset", "--format", "json"])
+
+        assert result.exit_code == 0
+        # Should output raw JSON
+        output_json = json.loads(result.output)
+        assert output_json["dataset_id"] == "test_dataset"

@@ -57,7 +57,6 @@ class PublicOpinionFlow(Flow):
         self.sentiment_tracker = sentiment_tracker or SentimentTracker(self.session)
         self.opinion_visualizer = opinion_visualizer or OpinionVisualizerTool(self.session)
 
-
     def analyze_articles(
         self, article_ids: Optional[List[int]] = None, *, session: Optional[Session] = None
     ) -> Dict[int, Dict]:
@@ -73,7 +72,7 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # If no article IDs provided, get all articles that need sentiment analysis
         if not article_ids:
             articles = article_crud.get_by_status(session, status="analyzed")
@@ -100,7 +99,12 @@ class PublicOpinionFlow(Flow):
         return results
 
     def analyze_topic_sentiment(
-        self, topics: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
+        self,
+        topics: List[str],
+        days_back: int = 30,
+        interval: str = "day",
+        *,
+        session: Optional[Session] = None,
     ) -> Dict[str, Dict]:
         """
         Analyze sentiment trends for specific topics.
@@ -116,14 +120,12 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
 
-        logger.info(
-            f"Analyzing sentiment for topics {topics} from {start_date} to {end_date}"
-        )
+        logger.info(f"Analyzing sentiment for topics {topics} from {start_date} to {end_date}")
 
         # Get sentiment data by topic and period
         sentiment_by_period = self.sentiment_tracker.get_sentiment_by_period(
@@ -131,7 +133,7 @@ class PublicOpinionFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             topics=topics,
-            session=session
+            session=session,
         )
 
         # Detect sentiment shifts
@@ -140,7 +142,7 @@ class PublicOpinionFlow(Flow):
             start_date=start_date,
             end_date=end_date,
             time_interval=interval,
-            session=session
+            session=session,
         )
 
         # Prepare results
@@ -155,7 +157,12 @@ class PublicOpinionFlow(Flow):
         return results
 
     def analyze_entity_sentiment(
-        self, entity_names: List[str], days_back: int = 30, interval: str = "day", *, session: Optional[Session] = None
+        self,
+        entity_names: List[str],
+        days_back: int = 30,
+        interval: str = "day",
+        *,
+        session: Optional[Session] = None,
     ) -> Dict[str, Dict]:
         """
         Analyze sentiment trends for specific entities.
@@ -171,7 +178,7 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -188,7 +195,7 @@ class PublicOpinionFlow(Flow):
                 start_date=start_date,
                 end_date=end_date,
                 time_interval=interval,
-                session=session
+                session=session,
             )
             entity_sentiments[entity_name] = entity_sentiment
 
@@ -209,7 +216,7 @@ class PublicOpinionFlow(Flow):
         interval: str = "day",
         shift_threshold: float = 0.3,
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> Dict[str, List]:
         """
         Detect significant shifts in public opinion.
@@ -226,14 +233,12 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
 
-        logger.info(
-            f"Detecting opinion shifts for topics {topics} from {start_date} to {end_date}"
-        )
+        logger.info(f"Detecting opinion shifts for topics {topics} from {start_date} to {end_date}")
 
         # Detect shifts
         shifts = self.sentiment_tracker.detect_sentiment_shifts(
@@ -242,7 +247,7 @@ class PublicOpinionFlow(Flow):
             end_date=end_date,
             time_interval=interval,
             shift_threshold=shift_threshold,
-            session=session
+            session=session,
         )
 
         # Group shifts by topic
@@ -259,7 +264,7 @@ class PublicOpinionFlow(Flow):
         days_back: int = 30,
         interval: str = "day",
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> List[Dict]:
         """
         Analyze correlation between sentiment of topic pairs.
@@ -275,7 +280,7 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -291,7 +296,7 @@ class PublicOpinionFlow(Flow):
                 start_date=start_date,
                 end_date=end_date,
                 time_interval=interval,
-                session=session
+                session=session,
             )
             correlations.append(correlation)
 
@@ -304,7 +309,7 @@ class PublicOpinionFlow(Flow):
         interval: str = "day",
         format_type: str = "markdown",
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> str:
         """
         Generate a report for a specific topic's sentiment analysis.
@@ -321,7 +326,7 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -333,11 +338,11 @@ class PublicOpinionFlow(Flow):
         # Prepare visualization data
         try:
             viz_data = self.opinion_visualizer.prepare_timeline_data(
-                topic=topic, 
-                start_date=start_date, 
-                end_date=end_date, 
+                topic=topic,
+                start_date=start_date,
+                end_date=end_date,
                 interval=interval,
-                session=session
+                session=session,
             )
 
             # Generate report based on format
@@ -365,7 +370,7 @@ class PublicOpinionFlow(Flow):
         interval: str = "day",
         format_type: str = "markdown",
         *,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> str:
         """
         Generate a comparison report for multiple topics.
@@ -382,7 +387,7 @@ class PublicOpinionFlow(Flow):
         """
         # Use provided session or instance session
         session = session or self.session
-        
+
         # Calculate date range
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_back)
@@ -399,13 +404,11 @@ class PublicOpinionFlow(Flow):
                         start_date=start_date,
                         end_date=end_date,
                         interval=interval,
-                        session=session
+                        session=session,
                     )
                     comparison_data[topic] = topic_data
                 except Exception as topic_error:
-                    logger.warning(
-                        f"Error preparing data for topic {topic}: {str(topic_error)}"
-                    )
+                    logger.warning(f"Error preparing data for topic {topic}: {str(topic_error)}")
 
             # Generate report based on format
             if format_type == "markdown":
@@ -424,4 +427,3 @@ class PublicOpinionFlow(Flow):
         except Exception as e:
             logger.error(f"Error generating comparison report: {str(e)}")
             return f"Error generating comparison report: {str(e)}"
-            

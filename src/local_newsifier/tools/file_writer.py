@@ -3,14 +3,14 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Any, Dict
+from typing import Any, Dict
 
-from fastapi import Depends
 from fastapi_injectable import injectable
 
 from local_newsifier.models.state import AnalysisStatus, NewsAnalysisState
+from local_newsifier.utils.dates import get_utc_now, to_iso_string
+from local_newsifier.utils.url import extract_source_from_url
 
 
 @injectable(use_cache=False)
@@ -42,12 +42,10 @@ class FileWriterTool:
             Filename string
         """
         # Extract domain from URL
-        from urllib.parse import urlparse
-
-        domain = urlparse(state.target_url).netloc.replace("www.", "")
+        domain = extract_source_from_url(state.target_url).replace("www.", "")
 
         # Create timestamp
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = get_utc_now().strftime("%Y%m%d_%H%M%S")
 
         return f"{domain}_{timestamp}_{state.run_id}.json"
 
@@ -65,15 +63,13 @@ class FileWriterTool:
             "run_id": str(state.run_id),
             "url": state.target_url,
             "scraping": {
-                "timestamp": state.scraped_at.isoformat() if state.scraped_at else None,
+                "timestamp": to_iso_string(state.scraped_at),
                 "success": state.status
                 in [AnalysisStatus.SCRAPE_SUCCEEDED, AnalysisStatus.COMPLETED_SUCCESS],
                 "text_length": len(state.scraped_text) if state.scraped_text else 0,
             },
             "analysis": {
-                "timestamp": (
-                    state.analyzed_at.isoformat() if state.analyzed_at else None
-                ),
+                "timestamp": to_iso_string(state.analyzed_at),
                 "success": state.status
                 in [
                     AnalysisStatus.ANALYSIS_SUCCEEDED,
@@ -83,8 +79,8 @@ class FileWriterTool:
                 "results": state.analysis_results,
             },
             "metadata": {
-                "created_at": state.created_at.isoformat(),
-                "completed_at": state.last_updated.isoformat(),
+                "created_at": to_iso_string(state.created_at),
+                "completed_at": to_iso_string(state.last_updated),
                 "status": state.status,
                 "error": (
                     {
@@ -129,15 +125,12 @@ class FileWriterTool:
                 os.replace(temp_file.name, filepath)
 
             state.save_path = str(filepath)
-            state.saved_at = datetime.now(timezone.utc)
+            state.saved_at = get_utc_now()
             state.status = AnalysisStatus.SAVE_SUCCEEDED
             state.add_log(f"Successfully saved results to {filepath}")
 
             # If everything succeeded, mark as complete
-            if (
-                state.status == AnalysisStatus.SAVE_SUCCEEDED
-                and not state.error_details
-            ):
+            if state.status == AnalysisStatus.SAVE_SUCCEEDED and not state.error_details:
                 state.status = AnalysisStatus.COMPLETED_SUCCESS
             else:
                 state.status = AnalysisStatus.COMPLETED_WITH_ERRORS

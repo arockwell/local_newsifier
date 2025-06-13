@@ -1,7 +1,7 @@
 """CrewAI flow orchestrating the news analysis pipeline."""
 
 from datetime import datetime, timezone
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 from crewai import Flow
 from sqlmodel import Session
@@ -29,7 +29,7 @@ class NewsPipelineFlow(Flow):
     """Flow for processing news articles with NER analysis."""
 
     def __init__(
-        self, 
+        self,
         article_service: Optional[ArticleService] = None,
         entity_service: Optional[EntityService] = None,
         pipeline_service: Optional[NewsPipelineService] = None,
@@ -40,10 +40,10 @@ class NewsPipelineFlow(Flow):
         entity_resolver: Optional[EntityResolver] = None,
         session_factory: Optional[callable] = None,
         session: Optional[Session] = None,
-        output_dir: str = "output"
+        output_dir: str = "output",
     ):
         """Initialize the pipeline flow.
-        
+
         Args:
             article_service: Service for article operations
             entity_service: Service for entity operations
@@ -58,20 +58,20 @@ class NewsPipelineFlow(Flow):
             output_dir: Directory for output files
         """
         super().__init__()
-        
+
         # Create or use provided tools
         self.scraper = web_scraper or WebScraperTool()
         self.writer = file_writer or FileWriterTool(output_dir=output_dir)
         self.session = session
-        
+
         # Get or create session factory
         self.session_factory = session_factory or get_session
-        
+
         # Create or use provided entity service
         self._entity_extractor = entity_extractor or EntityExtractor()
         self._context_analyzer = context_analyzer or ContextAnalyzer()
         self._entity_resolver = entity_resolver or EntityResolver()
-        
+
         if entity_service:
             self.entity_service = entity_service
         else:
@@ -84,9 +84,9 @@ class NewsPipelineFlow(Flow):
                 entity_extractor=self._entity_extractor,
                 context_analyzer=self._context_analyzer,
                 entity_resolver=self._entity_resolver,
-                session_factory=self.session_factory
+                session_factory=self.session_factory,
             )
-        
+
         # Create or use provided article service
         if article_service:
             self.article_service = article_service
@@ -95,9 +95,9 @@ class NewsPipelineFlow(Flow):
                 article_crud=article_crud,
                 analysis_result_crud=analysis_result_crud,
                 entity_service=self.entity_service,
-                session_factory=self.session_factory
+                session_factory=self.session_factory,
             )
-        
+
         # Create or use provided pipeline service
         if pipeline_service:
             self.pipeline_service = pipeline_service
@@ -106,7 +106,7 @@ class NewsPipelineFlow(Flow):
                 article_service=self.article_service,
                 web_scraper=self.scraper,
                 file_writer=self.writer,
-                session_factory=self.session_factory
+                session_factory=self.session_factory,
             )
 
     def scrape_content(self, state: NewsAnalysisState) -> NewsAnalysisState:
@@ -126,8 +126,8 @@ class NewsPipelineFlow(Flow):
             result = self.article_service.process_article(
                 url=state.target_url,
                 content=state.scraped_text,
-                title=state.scraped_title if hasattr(state, 'scraped_title') else "Untitled Article",
-                published_at=state.scraped_at or datetime.now(timezone.utc)
+                title=getattr(state, "scraped_title", None),
+                published_at=state.scraped_at or datetime.now(timezone.utc),
             )
 
             # Update state with results
@@ -251,16 +251,15 @@ class NewsPipelineFlow(Flow):
             raise ValueError(f"Cannot resume from status: {state.status}")
 
         return state
-    
+
     def process_url_directly(self, url: str) -> dict:
         """
         Process a URL directly using the pipeline service.
-        
+
         Args:
             url: URL of the article to process
-            
+
         Returns:
             Dictionary with processing results
         """
         return self.pipeline_service.process_url(url)
-    
