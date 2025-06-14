@@ -6,7 +6,7 @@
       "web": {
         "healthcheckPath": "/health",
         "healthcheckTimeout": 60,
-        "command": "bash scripts/init_spacy_models.sh && bash scripts/init_alembic.sh && alembic upgrade head && python -m uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT"
+        "command": "bash scripts/init_spacy_models.sh && bash scripts/run_migrations_safe.sh && python -m uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT"
       },
       "worker": {
         "healthcheckEnabled": false,
