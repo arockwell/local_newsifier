@@ -1,13 +1,24 @@
-"""CRUD operations for entities."""
+"""CRUD operations for entities.
 
+DEPRECATED: This thin wrapper is being removed. Use CRUDBase directly
+or move queries to EntityService.
+"""
+
+import warnings
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Session, join, select
+from sqlmodel import Session, select
 
 from local_newsifier.crud.base import CRUDBase
 from local_newsifier.models.article import Article
 from local_newsifier.models.entity import Entity
+
+warnings.warn(
+    "CRUDEntity is deprecated. Use CRUDBase(Entity) directly " "or move queries to EntityService.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class CRUDEntity(CRUDBase[Entity]):
