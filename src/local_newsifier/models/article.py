@@ -34,7 +34,7 @@ class Article(SQLModel, table=True):
     source: str
     published_at: datetime
     status: str
-    scraped_at: datetime
+    scraped_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     # Define relationships with fully qualified paths
     entities: List["Entity"] = Relationship(back_populates="article")
