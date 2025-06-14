@@ -19,8 +19,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Drop the existing unique constraint on run_id
-    op.drop_constraint("apify_webhook_raw_run_id_key", "apify_webhook_raw", type_="unique")
+    # Drop the existing unique constraint on run_id if it exists
+    # Using a try/except to handle the case where the constraint doesn't exist
+    from sqlalchemy import text
+
+    connection = op.get_bind()
+
+    # Check if constraint exists before trying to drop it
+    result = connection.execute(
+        text(
+            """
+        SELECT constraint_name
+        FROM information_schema.table_constraints
+        WHERE table_name = 'apify_webhook_raw'
+        AND constraint_name = 'apify_webhook_raw_run_id_key'
+        AND constraint_type = 'UNIQUE'
+    """
+        )
+    )
+
+    if result.fetchone():
+        op.drop_constraint("apify_webhook_raw_run_id_key", "apify_webhook_raw", type_="unique")
 
     # Create a composite unique constraint on run_id + status
     op.create_unique_constraint(
