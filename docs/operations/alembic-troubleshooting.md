@@ -1,164 +1,258 @@
-# Alembic Troubleshooting Guide
+# Alembic Deployment Issues Analysis
 
 ## Overview
 
-This guide helps diagnose and fix Alembic migration issues in production deployments.
+Your server deployment is experiencing Alembic-related issues that can prevent proper database initialization and migration management. This analysis identifies the current issues and provides solutions.
 
-## Quick Diagnosis
+## Current Issues
 
-Run the diagnostic script to check your deployment state:
-
-```bash
-bash scripts/diagnose_alembic.sh
+### 1. Migration History Chain
+Looking at your migration files, the current migration chain is:
+```
+d3d111e9579d (initial_schema)
+    ↓
+d6d7f6c7b282 (add_rss_feed_models)
+    ↓
+a6b9cd123456 (add_apify_models)
+    ↓
+a8c61d1f7283 (add_apify_webhook_raw_table)
+    ↓
+1a51ab641644 (fix_apify_webhook_unique_constraint)
+    ↓
+13e391b8dbdc (add_schedule_id_to_apify_config)
+    ↓
+dbc1bc75a79e (rename_tables_to_plural)
+    ↓
+e8f921b5c3d1 (make_article_title_optional) <- HEAD
 ```
 
-## Common Issues and Solutions
+### 2. Deployment Process Issues
 
-### 1. "No module named 'alembic'" Error
-
-**Symptom**: Deployment fails with import error for Alembic.
-
-**Solution**:
-- Ensure `alembic` is in `requirements.txt`
-- Check that dependencies are installed before running migrations
-
-### 2. Database Connection Failures
-
-**Symptom**: Migration scripts fail to connect to database.
-
-**Common Causes**:
-- Missing or incorrect `DATABASE_URL` environment variable
-- Network connectivity issues
-- PostgreSQL service not ready
-
-**Solution**:
-- Verify all database environment variables are set in Railway
-- Use the diagnostic script to test connection
-- Add retry logic to handle temporary connection issues
-
-### 3. Migration State Mismatch
-
-**Symptom**:
-- Tables exist but Alembic doesn't recognize them
-- `alembic current` shows no version but database has tables
-
-**Solution**:
+Your deployment process (from `railway.json` and `Procfile`) runs:
 ```bash
-# If you're sure the database matches the latest schema:
-alembic stamp head
-
-# If unsure, use the safe migration script:
-bash scripts/run_migrations_safe.sh
+bash scripts/init_spacy_models.sh &&
+bash scripts/init_alembic.sh &&
+alembic upgrade head &&
+python -m uvicorn local_newsifier.api.main:app --host 0.0.0.0 --port $PORT
 ```
 
-### 4. Concurrent Migration Attempts
+The `init_alembic.sh` script has logic that can cause issues:
+- It checks if tables exist in the database
+- If tables exist but Alembic hasn't tracked them, it runs `alembic stamp head`
+- If tables don't exist, it runs `alembic upgrade head`
 
-**Symptom**:
-- Lock timeout errors
-- Partial migrations
-- Duplicate key violations in alembic_version
+### 3. Common Deployment Problems
 
-**Solution**:
-- The new `run_migrations_safe.sh` script includes lock management
-- Ensure only one instance runs migrations (handled automatically)
+#### A. Fresh Database vs Existing Database Confusion
+When deploying to a new environment:
+- If the database already has tables (from a previous deployment or manual creation), Alembic doesn't know which migration created them
+- Running `alembic stamp head` marks all migrations as applied without actually running them
+- This can lead to schema mismatches if the existing tables don't match the latest migration
 
-### 5. Fresh Deployment Issues
+#### B. Migration State Mismatch
+- The `alembic_version` table tracks which migrations have been applied
+- If this gets out of sync with actual database schema, you'll have problems
+- Common causes: manual table modifications, failed partial migrations, database restores
 
-**Symptom**: New Railway deployments fail to initialize database.
+#### C. Concurrent Migration Attempts
+- If multiple instances start simultaneously (common in cloud deployments), they might try to run migrations concurrently
+- This can cause lock conflicts or partial migrations
 
-**Solution**:
-1. Check that PostgreSQL service is provisioned and linked
-2. Verify environment variables are set
-3. Use the safe migration script which handles fresh databases
+## Solutions
 
-## Migration Scripts
+### 1. Immediate Fix for Current Deployment
 
-### `scripts/init_alembic.sh` (Legacy)
-The original initialization script. Has issues with:
-- Poor error handling
-- Can incorrectly stamp databases
-- No lock management
+If your deployment is failing, try these steps:
 
-### `scripts/run_migrations_safe.sh` (Recommended)
-New robust migration runner with:
-- Proper error handling
-- Lock management to prevent concurrent runs
-- Detailed logging
-- State verification
-- Automatic recovery for common issues
-
-### `scripts/diagnose_alembic.sh`
-Diagnostic tool that checks:
-- Environment variables
-- Database connectivity
-- Migration files
-- Current migration state
-- Schema validation
-
-## Best Practices
-
-1. **Always backup before migrations**:
-   ```bash
-   pg_dump $DATABASE_URL > backup.sql
-   ```
-
-2. **Test migrations locally first**:
-   ```bash
-   alembic upgrade head
-   alembic downgrade -1
-   alembic upgrade head
-   ```
-
-3. **Monitor deployment logs**:
-   - Watch for SQLAlchemy exceptions
-   - Check for connection timeouts
-   - Look for lock conflicts
-
-4. **Use staging environment**:
-   - Test deployment process in staging
-   - Verify migration scripts work correctly
-
-## Recovery Procedures
-
-### Reset Migration State (Data Loss!)
+#### Option A: Clean Start (if data loss is acceptable)
 ```bash
-# Only if you can afford to lose all data
+# Drop all tables and start fresh
 alembic downgrade base
 alembic upgrade head
 ```
 
-### Manual State Correction
+#### Option B: Force Sync (if you need to preserve data)
 ```bash
-# Check current schema
-psql $DATABASE_URL -c "\dt"
+# Check current state
+alembic current
 
-# If schema matches a known revision
-alembic stamp <revision-id>
+# If no version is set but tables exist, stamp with the correct version
+# First, verify your schema matches a specific migration
+alembic stamp e8f921b5c3d1  # Use the latest migration ID
 
-# Then run pending migrations
+# Then run any pending migrations
 alembic upgrade head
 ```
 
-### Emergency Rollback
-```bash
-# Rollback last migration
-alembic downgrade -1
+### 2. Improved Deployment Script
 
-# Or rollback to specific revision
-alembic downgrade <revision-id>
+Create a more robust `init_alembic.sh`:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Starting database initialization..."
+
+# Function to check if alembic_version table exists
+check_alembic_table() {
+    python -c "
+from sqlalchemy import inspect, create_engine
+from local_newsifier.config.settings import get_settings
+settings = get_settings()
+engine = create_engine(settings.DATABASE_URL)
+inspector = inspect(engine)
+tables = inspector.get_table_names()
+print('exists' if 'alembic_version' in tables else 'not_exists')
+"
+}
+
+# Function to get current revision
+get_current_revision() {
+    alembic current 2>/dev/null | grep -oE '[a-f0-9]{12}' | head -1 || echo "none"
+}
+
+ALEMBIC_TABLE=$(check_alembic_table)
+CURRENT_REV=$(get_current_revision)
+
+echo "Alembic table status: $ALEMBIC_TABLE"
+echo "Current revision: $CURRENT_REV"
+
+if [[ $ALEMBIC_TABLE == "not_exists" ]]; then
+    echo "No alembic_version table found. Running all migrations..."
+    alembic upgrade head
+elif [[ $CURRENT_REV == "none" ]]; then
+    echo "Alembic table exists but no revision set. Checking schema..."
+    # This is a dangerous state - requires manual intervention
+    echo "WARNING: Database is in inconsistent state. Manual intervention required."
+    echo "Please verify schema and run: alembic stamp <appropriate-revision>"
+    exit 1
+else
+    echo "Running pending migrations from $CURRENT_REV..."
+    alembic upgrade head
+fi
+
+echo "Database initialization complete!"
 ```
 
-## Railway-Specific Tips
+### 3. Best Practices for Alembic in Production
 
-1. **Environment Variables**: Set in Railway dashboard, not in code
-2. **Build Commands**: Update in `railway.json`
-3. **Health Checks**: Don't include migration status in health endpoint
-4. **Logs**: Use Railway CLI to tail logs during deployment
+#### A. Single Migration Runner
+Ensure only one instance runs migrations:
+```python
+# In your startup code
+import fcntl
+import os
 
-## Getting Help
+def run_migrations():
+    lock_file = '/tmp/alembic.lock'
+    with open(lock_file, 'w') as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # Run migrations here
+            os.system('alembic upgrade head')
+        except IOError:
+            print("Another instance is running migrations")
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+```
 
-If issues persist:
-1. Run `scripts/diagnose_alembic.sh` and save output
-2. Check Railway deployment logs
-3. Look for specific SQLAlchemy error messages
-4. Consider manual database inspection with psql
+#### B. Health Check Considerations
+- Don't include migration status in health checks
+- Let migrations complete before starting the web server
+- Consider a separate migration job/container
+
+#### C. Migration Testing
+Before deploying:
+```bash
+# Test migration up
+alembic upgrade head
+
+# Test migration down
+alembic downgrade -1
+
+# Test migration up again
+alembic upgrade head
+```
+
+### 4. Debugging Current Issues
+
+To diagnose your current deployment:
+
+```bash
+# 1. Check database connection
+python -c "
+from local_newsifier.config.settings import get_settings
+from sqlalchemy import create_engine
+settings = get_settings()
+engine = create_engine(settings.DATABASE_URL)
+print('Connected successfully')
+"
+
+# 2. Check current migration state
+alembic current
+
+# 3. Check actual tables in database
+python -c "
+from sqlalchemy import inspect, create_engine
+from local_newsifier.config.settings import get_settings
+settings = get_settings()
+engine = create_engine(settings.DATABASE_URL)
+inspector = inspect(engine)
+tables = sorted(inspector.get_table_names())
+print('Tables in database:')
+for table in tables:
+    print(f'  - {table}')
+"
+
+# 4. Check for pending migrations
+alembic history --verbose
+```
+
+### 5. Railway-Specific Considerations
+
+For Railway deployments:
+1. Use the `railway run` command to execute migrations in the correct environment
+2. Consider using a release phase for migrations instead of running them at startup
+3. Ensure `DATABASE_URL` is properly set in Railway environment variables
+4. Monitor deployment logs for migration errors
+
+### 6. Recovery Procedures
+
+If your deployment is stuck:
+
+#### A. Schema Mismatch
+```bash
+# Generate SQL for current state
+alembic upgrade head --sql > desired_schema.sql
+
+# Compare with actual schema
+pg_dump -s $DATABASE_URL > actual_schema.sql
+
+# Manually apply differences or reset
+```
+
+#### B. Corrupted Migration State
+```bash
+# Last resort - manually set version
+psql $DATABASE_URL -c "DELETE FROM alembic_version;"
+psql $DATABASE_URL -c "INSERT INTO alembic_version (version_num) VALUES ('e8f921b5c3d1');"
+```
+
+## Recommendations
+
+1. **Separate Migration Phase**: Run migrations as a separate deployment step, not at application startup
+2. **Idempotent Migrations**: Ensure migrations can be run multiple times safely
+3. **Monitoring**: Add logging and alerts for migration failures
+4. **Backup Strategy**: Always backup before running migrations in production
+5. **Staging Environment**: Test migrations in a staging environment first
+
+## Next Steps
+
+1. Check your current deployment logs for specific Alembic errors
+2. Verify your database connection and credentials
+3. Run the debugging commands above to understand current state
+4. Apply the appropriate fix based on your situation
+5. Update your deployment scripts to be more robust
+
+Remember: Alembic migrations should be treated as critical operations that can break your application if not handled properly. Always have a rollback plan.
