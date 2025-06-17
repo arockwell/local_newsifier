@@ -36,7 +36,7 @@ This document helps Codex locate developer guides and explains how to work with 
     - deployment.md - Deployment and CI/CD
   - docs/migration-plans/ - Active migration efforts
   - docs/archive/ - Historical documentation (for reference only)
-- Additional docs: `README.md` and `README_CLI.md` in root directory.
+- Additional docs: `README.md` in root directory.
 
 If a `CLAUDE.md` file is added or removed, update this list.
 
